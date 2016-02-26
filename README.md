@@ -1,6 +1,49 @@
-# [_] Gateleen
+# [\_] Gateleen
+Middleware library based on Vert.x to build advanced JSON/REST communication servers.
 
-Middleware library based on Vert.x to build advanced JSON/REST communication servers
+## Getting Started
+### Install
+* Clone this repository or unzip [archive](archive/master.zip)
+* Install and start Redis
+  * Debian/Ubuntu: `sudo apt-get install redis-server`
+  * Fedora/RedHat/CentOS: `yum install redis`
+  * OS X: `brew install redis`
+  * [Windows](https://github.com/MSOpenTech/redis/releases/download/win-2.8.2400/Redis-x64-2.8.2400.zip)
+  * [Other](http://redis.io/download)
+
+### Build
+You need Java 8 and Maven.
+```
+cd gateleen
+mvn install
+```
+### Play
+The `gateleen-playground` module provides a server example.
+```
+java -jar gateleen-playground/target/playground.jar
+```
+It starts on http://localhost:7012/playground
+
+The storage is currently empty, that's why you get `404 Not Found`
+
+Create your first resource with
+```
+curl -X PUT -d '{ "foo": "bar" }' http://localhost:7012/playground/hello/world
+```
+or any other [REST Client](https://www.google.ch/?q=rest+client)
+
+Now you can see the resource in the browser http://localhost:7012/playground
+
+There playground module provides is a web client for manipulating resources and a basic configuration.
+
+You can push them with
+```
+cd gateleen-playground
+mvn wagon:upload
+```
+This just PUTs all resources under `src/main/resources`
+
+Then go again on http://localhost:7012/playground
 
 ## Components
 The following tables lists all the gateleen components available.
@@ -14,6 +57,7 @@ The following tables lists all the gateleen components available.
 | [gateleen-integrationtest](gateleen-integrationtest/README_integrationtest.md)    | Add short description for this component |
 | [gateleen-packing](gateleen-packing/README_packing.md)                            | Add short description for this component |
 | [gateleen-player](gateleen-player/README_player.md)                               | Add short description for this component |
+| [gateleen-player](gateleen-playground/README_player.md)                               | Add short description for this component |
 | [gateleen-qos](gateleen-qos/README_qos.md)                                        | Add short description for this component |
 | [gateleen-queue](gateleen-queue/README_queue.md)                                  | Add short description for this component |
 | [gateleen-routing](gateleen-routing/README_routing.md)                            | Add short description for this component |
