@@ -3,9 +3,9 @@ Middleware library based on Vert.x to build advanced JSON/REST communication ser
 
 ## Getting Started
 ### Install
-* Clone this repository or unzip [archive](archive/master.zip)
+* Clone this repository or unzip [archive](https://github.com/swisspush/gateleen/archive/master.zip)
 * Install and start Redis
-  * Debian/Ubuntu: `sudo apt-get install redis-server`
+  * Debian/Ubuntu: `apt-get install redis-server`
   * Fedora/RedHat/CentOS: `yum install redis`
   * OS X: `brew install redis`
   * [Windows](https://github.com/MSOpenTech/redis/releases/download/win-2.8.2400/Redis-x64-2.8.2400.zip)
@@ -22,7 +22,7 @@ The `gateleen-playground` module provides a server example.
 ```
 java -jar gateleen-playground/target/playground.jar
 ```
-It starts on http://localhost:7012/playground
+It starts on [http://localhost:7012/playground](http://localhost:7012/playground)
 
 The storage is currently empty, that's why you get `404 Not Found`
 
@@ -32,18 +32,18 @@ curl -X PUT -d '{ "foo": "bar" }' http://localhost:7012/playground/hello/world
 ```
 or any other [REST Client](https://www.google.ch/?q=rest+client)
 
-Now you can see the resource in the browser http://localhost:7012/playground
+Now you can see the resource appear in [http://localhost:7012/playground](http://localhost:7012/playground)
 
-There playground module provides is a web client for manipulating resources and a basic configuration.
+The playground module provides a convenient web client for manipulating resources and a basic configuration.
 
 You can push them with
 ```
 cd gateleen-playground
 mvn wagon:upload
 ```
-This just PUTs all resources under `src/main/resources`
+This just PUTs all resources from folder `src/main/resources`
 
-Then go again on http://localhost:7012/playground
+Then go again on [http://localhost:7012/playground](http://localhost:7012/playground)
 
 ## Components
 The following tables lists all the gateleen components available.
