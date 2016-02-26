@@ -9,7 +9,16 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>gateleen-test</artifactId>
-
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 	<dependencies>
 		<!-- for testing -->
 		<!-- Gateleen itself -->

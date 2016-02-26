@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.player;
 
+import org.junit.Ignore;
 import org.swisspush.gateleen.player.exchange.Exchange;
 import org.swisspush.gateleen.player.log.ResourceRequestLog;
 import org.junit.Test;
@@ -15,6 +16,7 @@ import static org.swisspush.gateleen.player.exchange.Exchange.assertSameExchange
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
+@Ignore
 public class CompareTest {
 
     @Test

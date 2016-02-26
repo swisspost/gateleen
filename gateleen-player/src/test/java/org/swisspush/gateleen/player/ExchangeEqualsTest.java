@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.player;
 
+import org.junit.Ignore;
 import org.swisspush.gateleen.player.exchange.Exchange;
 import org.swisspush.gateleen.player.log.ResourceRequestLog;
 import com.google.common.collect.Sets;
@@ -19,6 +20,7 @@ import static junit.framework.TestCase.assertFalse;
 /**
  * @author https://github.com/ljucam [Mario Ljuca]
  */
+@Ignore
 public class ExchangeEqualsTest {
 
     @Test
