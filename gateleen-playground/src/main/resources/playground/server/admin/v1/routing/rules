@@ -1,0 +1,41 @@
+{
+  "/playground/": {
+    "description": "Home Page",
+    "path": "/playground/server/pages/index.html",
+    "storage": "main"
+  },
+  "/playground/([^/]*\\\\.html)": {
+    "description": "Pages",
+    "path": "/playground/server/pages/$1",
+    "storage": "main"
+  },
+  "/playground/css/(.*)": {
+    "description": "Pages CSS",
+    "path": "/playground/server/pages/css/$1",
+    "storage": "main"
+  },
+  "/playground/js/(.*)": {
+    "description": "Pages JS",
+    "path": "/playground/server/pages/js/$1",
+    "storage": "main"
+  },
+  "/playground/img/(.*)": {
+    "description": "Pages Images",
+    "path": "/playground/server/pages/img/$1",
+    "storage": "main"
+  },
+  "/playground/server/storage/empty": {
+    "description": "Placeholder to make this folder appear when browsing",
+    "path": "/playground/server/storage/empty",
+    "storage": "main"
+  },
+  "/playground/server/storage(.*)": {
+    "path": "/playground$1",
+    "storage": "main"
+  },
+  "/(.*)": {
+    "description": "Resource Storage",
+    "path": "/$1",
+    "storage": "main"
+  }
+}

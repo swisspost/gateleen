@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!-- Copyright 2013 Laurent Bovet <laurent.bovet@windmaster.ch>
+  -- Licensed under the Apache License, Version 2.0 -->
+<html>
+<head>
+    <title></title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.1/jquery-ui.min.js"></script>
+    <script src="//cdn.jsdelivr.net/jquery.cookie/1.3.1/jquery.cookie.js"></script>
+    <script src="js/validate.js"></script>
+    <script src="js/tv4.min.js"></script>
+    <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css" rel="stylesheet">
+    <link href="css/editor.css" rel="stylesheet">
+</head>
+<body>
+<div id="main">
+    <div id="control">
+        <a id="title" href=""></a>
+        <div id="toolbar">
+            <button id="reformat" title="Reformat (Ctr-Shift-F)" class="btn"><i class="icon-align-left"></i></button>
+            <button id="header-button" title="Add Header" class="btn"><i class="icon-list"></i></button>
+            <div id="new-header-container" class="input-append" style="margin-bottom: 0px">
+                <form id="new-header-form" action="javascript:">
+                    <fieldset id="new-header-fieldset">
+                        <input autocomplete="on" id="new-header" type="text" placeholder="New Header&hellip;">
+                        <button id="header-button-active" class="btn active"><i class="icon-list"></i></button>
+                    </fieldset>
+                </form>
+            </div>
+            <script>document.getElementById("new-header-container").style.display="none";</script>
+            <div class="btn-group mode-normal">
+                <button id="save" title="Save (Ctrl-S)" class="btn"><i class="icon-ok"></i></button>
+                <button id="delete" title="Delete" class="btn"><i class="icon-trash"></i></button>
+                <button id="reload" title="Reload" class="btn"><i class="icon-refresh"></i></button>
+            </div>
+            <button id="post" title="Post (Ctrl-Enter)" class="btn mode-post"><i class="icon-play"></i></button>
+            <button id="mode-switch" title="POST mode" class="btn"><i class="icon-envelope"></i></button>
+        </div>
+        <div id="header-bar">
+            <div id="headers">
+            </div>
+        </div>
+    </div>
+    <div id="editor"></div>
+    <div id="log-container">
+        <div id="splitter"></div>
+        <div id="log"></div>
+    </div>
+</div>
+<script src="js/ace.js" type="text/javascript" charset="utf-8"></script>
+<script src="js/types.js"></script>
+<script src="js/editor.js"></script>
+</body>
+</html>

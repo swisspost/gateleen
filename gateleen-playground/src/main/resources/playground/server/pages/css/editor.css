@@ -1,0 +1,160 @@
+/* Copyright 2013 Laurent Bovet <laurent.bovet@windmaster.ch>
+ * Licensed under the Apache License, Version 2.0
+ */
+
+#main {
+    position: absolute;
+    padding:0px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0px;
+    vertical-align: bottom;
+}
+#control {
+    padding: 8px;
+    position: absolute;
+    height:48px;
+}
+#header-bar {
+    position: fixed;
+    top: 48px;
+    right: 0px;
+    left: 0px;
+    border-top: 1px solid lightgray;
+    overflow: auto;
+}
+#editor {
+    position: absolute;
+    font-size: 1.2em;
+    top: 48px;
+    left: 0;
+    right: 0;
+    bottom: 144px;
+    border-top: 1px solid lightgray;
+}
+#splitter {
+    position: absolute;
+    background: lightgray;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    z-index: 3;
+    cursor: row-resize;
+}
+#log-container {
+    position: absolute;
+    right: 0px;
+    left: 0px;
+    bottom: 0px;
+    height: 140px;
+}
+#log {
+    font-family:Monaco,Menlo,Consolas,"Courier New",monospace;
+    font-size:12px;
+    position: absolute;
+    padding-top:4px;
+    right: 0px;
+    left: 0px;
+    bottom: 0px;
+    top: 0px;
+    background: white;
+    padding-left: 4px;
+    overflow: auto;
+}
+#title {
+    padding: 4px;
+    color: darkgray;
+    text-decoration: none;
+    font-size: 2em;
+    position: fixed;
+    height: 48px;
+}
+#toolbar {
+    position: fixed;
+    right: 20px;
+}
+#new-header {
+    margin-left: 8px;
+    font-size: 12px;
+}
+#new-header-form {
+    margin: 0px;
+}
+.info {
+    color: gray;
+}
+.ok {
+    color: green;
+}
+.error {
+    color: red;
+}
+.warn {
+    color: orangered;
+}
+.btn, .btn-group {
+    margin-left: 8px;
+}
+pre {
+    border: 0px;
+    margin: 0px;
+    padding: 0px;
+    background: 0px;
+}
+.ui-dialog {
+    padding: 10px;
+    border: 2px solid lightgray;
+    border-radius: 5px;
+    background: white;
+}
+.mode-post {
+    display: none;
+}
+#headers {
+    position: fixed;
+    padding-right: 20px;
+    top: 48px;
+    right: 0px;
+    left: 0px;
+    height: 32px;
+    bottom: -20px;
+    overflow:auto;
+}
+.header {
+    margin-top: 7px;
+    margin-left: 8px;
+    padding-left: 4px;
+    padding-right: 4px;
+    background: lightblue;
+    border-radius: 5px;
+    float: right;
+    font-size: 1em;
+}
+.header-value {
+    cursor: default;
+}
+.header-star {
+    opacity: 0.4;
+    margin-right: 4px;
+    color: gray;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+.header-star:hover {
+    opacity: 1;
+}
+.del-header {
+    font-size: 80%;
+    opacity: 0.4;
+    margin-left: 4px;
+    color: gray;
+}
+.del-header:hover {
+    opacity: 1;
+}

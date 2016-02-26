@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src="js/bootstrap.min.js"></script>
+<script src="js/bootbox.min.js"></script>
+<style>
+    .spaced {
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+
+    .payload-box {
+        display: none;
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        border: 1px solid lightgray;
+        padding: 4px;
+        width: 100%;
+    }
+
+    .headers-box {
+        font-size: 80%;
+    }
+
+    .header {
+        float: left;
+        margin-left: 10px;
+    }
+
+    .header-value {
+        color: #666;
+    }
+
+    .timestamp {
+        font-size: 80%;
+        color: #666;
+        float: right;
+    }
+
+    .error {
+        color: rgb(185, 74, 72);
+        background-color: rgb(242, 222, 222);
+        padding: 4px;
+        cursor: pointer;
+    }
+
+    .error-box {
+        background-color: rgb(242, 222, 222);
+        -webkit-border-radius: 4px 4px 4px 4px;
+        display: none;
+        padding: 4px;
+    }
+
+    .details {
+        display: none;
+    }
+
+    .bold {
+        font-weight: bold;
+    }
+
+    .edit {
+        display: none;
+    }
+
+    .control {
+        display: none;
+    }
+
+    #prototype-row {
+        display: none;
+    }
+
+    #lock {
+        width: 120px;
+    }
+</style>
+<script>
+    var uri;
+    function refresh() {
+        $("#requests").empty();
+        uri = window.location.hash;
+        if(uri) {
+            uri = uri.substring(1,uri.length);
+        }
+        $("#zoom").click(function() {
+            window.top.document.location=window.location;
+        });
+        $(".btn").removeAttr("disabled");
+        $.ajax(uri.replace("/queues/", "/locks/"), {method:"GET"}).done(function() {
+            $("#lock").removeClass("disabled").addClass("btn-danger").addClass("active").removeClass("btn-info").text("Locked").attr("title", "Click to unlock");
+            $(".control").removeAttr("disabled");
+            $(".edit").show();
+        }).fail(function(a,b,c) {
+            $("#lock").removeClass("disabled").addClass("btn-info").removeClass("active").removeClass("btn-danger").text("Unlocked").attr("title", "Click to lock");
+            $(".control").attr("disabled", "disabled");
+            $(".edit").hide();
+        });
+        $.ajax(uri, { dataType:"json" }).done(function(data) {
+            $.each(data, function(k, requests) {
+                var n = requests.length;
+                if(n>0) {
+                    $(".control").show();
+                    $("#label").html("Requests");
+                }
+                if(n==0) {
+                    $("#label").html("No request in this queue");
+                    $(".control").hide();
+                    $("#number").removeClass("badge-info").removeClass("badge-warning");
+                }
+                if(n>49) {
+                    n="50+";
+                    $("#number").removeClass("badge-info").addClass("badge-warning");
+                } else {
+                    $("#number").removeClass("badge-warning").addClass("badge-info");
+                }
+                $("#number").html(n);
+                var first = true;
+                var index=0;
+                $.each(requests, function(k, request) {
+                    try {
+                        request = JSON.parse(request);
+                    } catch(e) {
+                        console.log(e);
+                        console.log(request);
+                    }
+                    var row = $("#prototype-row").clone();
+                    var method = row.find(".method");
+                    method.html(request.method);
+                    switch(request.method) {
+                        case "PUT": method.addClass("label-success"); break;
+                        case "DELETE": method.addClass("label-important"); break;
+                        case "POST": method.addClass("label-info"); break;
+                    }
+                    request.headers = request.headers || [];
+                    var uniqueIdHeader = $.grep(request.headers, function(item) {
+                        return /x-rp-unique[-_]id/.test(item[0].toLowerCase());
+                    })[0];
+                    var uniqueId = uniqueIdHeader ? uniqueIdHeader[1] : undefined;
+                    console.log(request)
+                    var link = uniqueId ?
+                            "&nbsp;<a title='Search in Splunk' target='_blank' href='https://splunkit01.pnet.ch/en-US/app/it_tomcat/flashtimeline?q="+
+                            uniqueId+"'><span style='opacity:0.6'><i class='glyphicon glyphicon-search'>&nbsp;</i></span></a>":
+                            "";
+                    row.find(".uri").html(request.uri + link);
+                    row.find(".edit").attr("href", "/playground/server/pages/editor.html#"+uri+"/"+index);
+                    index++;
+                    var headers = row.find(".headers");
+                    var sortedHeaders = request.headers.sort(function(a,b) {
+                        return a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]);
+                    });
+                    console.log(sortedHeaders)
+                    $.each(sortedHeaders, function(key, value) {
+                        headers.append("<div class='header'>"+value[0]+": <span class='header-value'>"+value[1]+"</span></div>");
+                    });
+                    row.find(".method").html(request.method);
+                    if(request.payload) {
+                        try {
+                            var cleanPayload = request.payload.replace(/\n/g, "");
+                            var payloadElt = row.find(".payload");
+                            payloadElt.text(atob(cleanPayload));
+                            payloadElt.show();
+                        } catch(e) {
+                            row.find(".payload").html("Could not decode payload: "+e).show();
+                        }
+                    }
+                    if(first && uniqueId) {
+                        $.ajax("/playground/server/requests/"+uniqueId, { dataType:"json", cache:false }).done(function(data) {
+                            $.each(["statusCode", "statusMessage", "message", "timestamp", "responseBody"], function(i,field) {
+                                if(data[field]) {
+                                    console.log(data[field])
+                                    row.find("."+field).text(data[field]).show();
+                                }
+                            });
+                            if(data.responseHeaders) {
+                                var responseHeaders = row.find(".responseHeaders");
+                                var sortedHeaders = data.responseHeaders.sort(function(a, b) {
+                                    return a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]);
+                                });
+                                $.each(sortedHeaders, function(key, value) {
+                                    responseHeaders.append("<div class='header'>"+value[0]+": <span class='header-value'>"+value[1]+"</span></div>");
+                                });
+                            }
+                            row.find(".error").click(function() {
+                                row.find(".details").toggle();
+                            });
+                            row.find(".error-box").show();
+                        });
+                        first=false;
+                    }
+                    $("#requests").append(row);
+                    row.show();
+                })
+            });
+            $("body").find("*").css("cursor", "auto");
+        });
+    }
+
+    function waitAndRefresh() {
+        $(".btn").attr("disabled", "disabled");
+        $("body").find("*").css("cursor", "wait");
+        setTimeout(refresh, 2000);
+    }
+
+    $().ready(function() {
+        refresh();
+        $("#pop").click(function(e) {
+            e.preventDefault();
+            $.ajax(uri+"/0", {method:"DELETE"}).done(refresh).fail(function(a,b,c) {
+                console.error(a, b, c);
+            });
+            return false;
+        });
+        $("#lock").click(function(e) {
+            if($("#lock").hasClass("active")) {
+                $.ajax(uri.replace("/queues/", "/locks/"), {method:"DELETE"}).done(waitAndRefresh).fail(function(a,b,c) {
+                    console.error(a, b, c);
+                });
+            } else {
+                $.ajax(uri.replace("/queues/", "/locks/"), {method:"PUT"}).done(waitAndRefresh).fail(function(a,b,c) {
+                    console.error(a, b, c);
+                });
+            }
+        });
+        $("#delete").click(function(e) {
+            var currentUri = uri;
+            var currentNumber = $("#number").html();
+            var queueName = currentUri.substr(currentUri.lastIndexOf("/")+1);
+            console.log("currentNumber: " + currentNumber);
+            bootbox.dialog({
+                title: "Delete Queue?",
+                message: "Do you really want to delete all " + currentNumber + " requests of the queue "+queueName+" ?",
+                buttons: {
+                    cancel: {
+                        label: "Cancel",
+                        className: "btn-default"
+                    },
+                    ok: {
+                        label: "OK",
+                        className: "btn-primary",
+                        callback: function() {
+                            $.ajax(currentUri, {method:"DELETE"}).done(waitAndRefresh).fail(function(a,b,c) {
+                                console.error(a, b, c);
+                            });
+                        }
+                    },
+                    deletelock: {
+                        label: "OK + release lock",
+                        className: "btn-danger",
+                        callback: function() {
+                            $.ajax(currentUri, {method:"DELETE"}).done($.ajax(currentUri.replace("/queues/", "/locks/"), {method:"DELETE"}).done(waitAndRefresh).fail(function(a,b,c) {
+                                console.error(a, b, c);
+                            })).fail(function(a,b,c) {
+                                console.error(a, b, c);
+                            });
+                        }
+                    }
+                }
+            });
+        });
+    });
+
+    window.onhashchange = refresh;
+</script>
+</head>
+<body>
+<img id="zoom" src="img/zoom.png" style="position:absolute; right:0px; cursor:pointer"/>
+<div class="container">
+    <div class="row spaced">
+        <div class="span12">
+            <span id="number" class="badge">0</span> <span id="label">Requests</span>
+            <button id="lock" class="btn disabled">loading...</button>
+            <button id="pop" title="Remove the first request from this queue" class="control btn">Pop<i class="glyphicon glyphicon-trash"></i></button>
+            <button id="delete" title="Clear all items in the queue" class="control btn btn-warning"><i class="glyphicon glyphicon-trash"></i></button>
+            <button class="btn" onclick="refresh()"><i class="glyphicon glyphicon-refresh"></i></button>
+        </div>
+    </div>
+    <div id="prototype-row" class="row spaced">
+        <div class="span12">
+            <span class="label method"> </span> <strong class="uri"> </strong> <a href="#" target="_blank" class="edit"><i title="Open this request in the editor" class="glyphicon glyphicon-pencil">&nbsp;</i></a>
+        </div>
+        <div class="headers headers-box muted span12">
+        </div>
+            <pre class="span12 pre-scrollable payload payload-box">
+            </pre>
+        <div class="span12 well error-box">
+            <div class="error">
+                <span class="message bold"></span>
+                <span class="statusCode bold"></span>
+                <span class="statusMessage"></span>
+                <span class="timestamp muted"/>
+            </div>
+            <div class="details">
+                <div class="responseHeaders headers-box muted span12"></div>
+                <pre class="span11 pre-scrollable responseBody payload-box"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="requests" class="container">
+</div>
+</body>
+</html>
