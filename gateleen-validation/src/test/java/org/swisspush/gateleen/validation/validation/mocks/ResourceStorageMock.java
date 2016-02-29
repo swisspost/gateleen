@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public class ResourceStorageMock implements ResourceStorage {
 
-    private Map<String, String> localStorageValues = new HashMap<>();;
+    private Map<String, String> localStorageValues = new HashMap<>();
 
     public ResourceStorageMock(){}
 

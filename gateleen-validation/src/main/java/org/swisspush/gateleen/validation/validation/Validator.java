@@ -24,16 +24,16 @@ import java.util.Iterator;
 import java.util.List;
 
 public class Validator {
-	
+
 	private String schemaRoot;
-	private ResourceStorage storage;	
-	private JsonSchemaFactory factory = JsonSchemaFactory.byDefault();	
-	
+	private ResourceStorage storage;
+	private JsonSchemaFactory factory = JsonSchemaFactory.byDefault();
+
 	public Validator(ResourceStorage storage, String schemaRoot) {
         this.storage = storage;
         this.schemaRoot = schemaRoot;
 	}
-	
+
 	public void validate(HttpServerRequest req, String type, Buffer jsonBuffer, Handler<ValidationResult> callback) {
 		final Logger log = RequestLoggerFactory.getLogger(Validator.class, req);
 		if(!req.path().startsWith(schemaRoot)) {
@@ -41,32 +41,30 @@ public class Validator {
 			doValidate(jsonBuffer, req.path(), schemaRoot, type, (req.path().replaceFirst("^/", "")+"/"+type).split("/"), log, callback);
 		}
 	}
-	
-	private void doValidate(final Buffer jsonBuffer, final String path, final String base, final String type, final String[] segments, final Logger log, final Handler<ValidationResult> callback) {
-		storage.get(base, new Handler<Buffer>() {			
-			public void handle(Buffer buffer) {
-				if(buffer != null) {
-					String dataString = buffer.toString();
-					JsonObject data = new JsonObject(dataString);
-					String[] newSegments = segments.length > 0 && segments[0].equals("") ? Arrays.copyOfRange(segments, 1, segments.length): segments;
-					if(newSegments.length == 0) {
-                        performValidation(dataString, data, log, base, jsonBuffer, type, path, callback);
-                    } else {
-                        validateRecursively(data, newSegments, base, jsonBuffer, path, type, log, callback);
-					}
-				} else {
-                    log.warn("Could not get path "+base);
-                    if(base.replaceFirst("/$","").endsWith(path)){
-                        log.info("try again with lowdash instead of last segment (variableId)");
-                        String baseWithLowDash = base.replaceFirst("[^/]*/$","")+"_/";
-                        Validator.this.doValidate(jsonBuffer, path, baseWithLowDash, type, segments, log, callback);
-                    }else {
-                        callback.handle(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE, "Could not get path " + base + " (_ was used to try for schemas with variable ids)"));
-                    }
+
+    private void doValidate(final Buffer jsonBuffer, final String path, final String base, final String type, final String[] segments, final Logger log, final Handler<ValidationResult> callback) {
+        storage.get(base, buffer -> {
+            if (buffer != null) {
+                String dataString = buffer.toString();
+                JsonObject data = new JsonObject(dataString);
+                String[] newSegments = segments.length > 0 && segments[0].equals("") ? Arrays.copyOfRange(segments, 1, segments.length) : segments;
+                if (newSegments.length == 0) {
+                    performValidation(dataString, data, log, base, jsonBuffer, type, path, callback);
+                } else {
+                    validateRecursively(data, newSegments, base, jsonBuffer, path, type, log, callback);
                 }
-			}
-		});
-	}
+            } else {
+                log.warn("Could not get path " + base);
+                if (base.replaceFirst("/$", "").endsWith(path)) {
+                    log.info("try again with lowdash instead of last segment (variableId)");
+                    String baseWithLowDash = base.replaceFirst("[^/]*/$", "") + "_/";
+                    Validator.this.doValidate(jsonBuffer, path, baseWithLowDash, type, segments, log, callback);
+                } else {
+                    callback.handle(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE, "Could not get path " + base + " (_ was used to try for schemas with variable ids)"));
+                }
+            }
+        });
+    }
 
     private void validateRecursively(JsonObject data, String[] newSegments, String base, Buffer jsonBuffer, String path, String type, Logger log, Handler<ValidationResult> callback) {
         String newBase = base;
@@ -94,7 +92,7 @@ public class Validator {
 
     private void performValidation(String dataString, JsonObject data, Logger log, String base, Buffer jsonBuffer, String type, String path, Handler<ValidationResult> callback) {
         if("http://json-schema.org/draft-04/schema#".equals(data.getString("$schema"))) {
-            JsonSchema schema=null;
+            JsonSchema schema;
             try {
                 schema = factory.getJsonSchema(JsonLoader.fromString(dataString));
             } catch (ProcessingException | IOException e) {
@@ -113,11 +111,9 @@ public class Validator {
                     String messages = StringUtils.getStringOrEmpty(extractMessages(report));
                     StringBuilder msgBuilder = new StringBuilder();
                     msgBuilder.append("Invalid JSON for ").append(path).append(" (").append(type).append("). Messages: ").append(messages);
-                    msgBuilder.append(System.getProperty("line.separator"));
                     if(log.isDebugEnabled()){
-                        msgBuilder.append("Report: ").append(getReportAsString(report));
-                        msgBuilder.append(System.getProperty("line.separator"));
-                        msgBuilder.append("Validated JSON: ").append(jsonBuffer.toString());
+                        msgBuilder.append(" | Report: ").append(getReportAsString(report));
+                        msgBuilder.append(" | Validated JSON: ").append(jsonBuffer.toString());
                     }
                     callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString()));
                     for(ProcessingMessage message: report) {
