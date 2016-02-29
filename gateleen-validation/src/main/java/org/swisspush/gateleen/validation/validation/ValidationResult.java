@@ -23,7 +23,9 @@ public class ValidationResult {
         return message;
     }
 
+    public ValidationStatus getValidationStatus() { return status; }
+
     public boolean isSuccess() {
-        return status.equals(ValidationStatus.VALIDATED_POSITIV);
+        return ValidationStatus.VALIDATED_POSITIV.equals(status);
     }
 }
