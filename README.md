@@ -57,7 +57,7 @@ The following tables lists all the gateleen components available.
 | [gateleen-integrationtest](gateleen-integrationtest/README_integrationtest.md)    | Add short description for this component |
 | [gateleen-packing](gateleen-packing/README_packing.md)                            | Add short description for this component |
 | [gateleen-player](gateleen-player/README_player.md)                               | Add short description for this component |
-| [gateleen-player](gateleen-playground/README_player.md)                               | Add short description for this component |
+| [gateleen-playground](gateleen-playground/README_playground.md)                   | This module provides a server example    |
 | [gateleen-qos](gateleen-qos/README_qos.md)                                        | Add short description for this component |
 | [gateleen-queue](gateleen-queue/README_queue.md)                                  | Add short description for this component |
 | [gateleen-routing](gateleen-routing/README_routing.md)                            | Add short description for this component |
