@@ -91,6 +91,9 @@
     <logger name="Request">
         <level value="INFO" />
     </logger>
+    <logger name="Metrics">
+        <level value="WARN" />
+    </logger>
 
     <root>
         <level value="DEBUG" />

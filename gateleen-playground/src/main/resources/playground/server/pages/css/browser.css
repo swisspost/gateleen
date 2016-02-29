@@ -1,0 +1,79 @@
+/* Copyright 2013 Laurent Bovet <laurent.bovet@windmaster.ch>
+ * Licensed under the Apache License, Version 2.0
+ */
+
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow:hidden;
+}   
+ 
+ .light {
+    opacity: 0.8;   
+ }
+ 
+ .lighter {
+    opacity: 0.6;   
+ }
+ 
+#header {   
+    position: absolute;
+    right: 0;
+    left: 0;
+    height:48px;
+    border-bottom: 1px solid lightgray;    
+}
+ 
+#title {
+    position: fixed;
+    padding: 12px;
+    color: darkgray;
+    text-decoration: none;
+    font-size: 2em;   
+    height: 48px;
+}
+ 
+#toolbar {
+    padding: 8px;
+    position: absolute;
+    right: 4px;
+}
+
+#container {
+    position: absolute;
+    top: 48px;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;   
+}
+
+#tree {
+    font-size: 1.1em;
+    position: absolute;
+    padding: 8px;   
+    top: 0;
+    bottom:0;
+    left: 0;
+    right: 0;
+}
+ 
+#borderContainer {
+    width: 100%;
+    height: 100%;
+}
+
+#frame {
+    border: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#close {
+  position: relative;
+  top: -6px;
+  left: 6px;
+  opacity: 0.3;  
+  cursor: pointer;
+}

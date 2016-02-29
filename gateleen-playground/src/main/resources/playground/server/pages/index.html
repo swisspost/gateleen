@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Gateleen Playground</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css" rel="stylesheet"
+          media="screen">
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="js/sockjs.js"></script>
+    <script src="js/vertxbus.js"></script>
+    <style>
+        @media ( max-width : 767px) {
+            h2 {
+                font-size: 20px;
+                line-height: 30px
+            }
+        }
+        #command-centre {
+            margin-left:20px;
+            margin-right: 30px;
+            height: 500px;
+        }
+        
+        
+        .small {
+            margin-left: 26px;
+            font-size: 70%;
+            color: #aaa;
+            line-height: 14px;
+        }
+
+        .serviceName {
+            font-size: 130%;
+        }
+
+        .serviceVersion {
+            font-size: 75%;
+        }
+
+        .serviceBuild {
+            font-size: 75%;
+            color: grey;
+        }
+
+        .small p {
+            margin-bottom: 0px;
+        }
+
+        .grey {
+            color: grey;
+        }
+
+        .light {
+            opacity: 0.5;
+        }
+
+        @font-face {
+            font-family: 'broccolidry';
+            src:url('fonts/broccolidry.eot');
+        }
+        @font-face {
+            font-family: 'broccolidry';
+            src: url(data:application/x-font-woff;charset=utf-8;base64,d09GRk9UVE8AAAVgAAsAAAAACOQAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAABDRkYgAAABCAAAAioAAAPss82QtUZGVE0AAAM0AAAAGgAAABxoDAkgR0RFRgAAA1AAAAAdAAAAIAAxAARPUy8yAAADcAAAAEsAAABgMY3d7mNtYXAAAAO8AAAAPQAAAVLgE/LNaGVhZAAAA/wAAAAwAAAANv1tqA1oaGVhAAAELAAAAB4AAAAkBRz/5GhtdHgAAARMAAAADgAAAA4FeAAAbWF4cAAABFwAAAAGAAAABgAEUABuYW1lAAAEZAAAAO8AAAG2Me89QXBvc3QAAAVUAAAADAAAACAAAwAAeJxtUEFrE0EUfpNsdkO6JK3sBg9hpmKPRVLwZhK96EnwDxSExktVrJR4MO2hh92o7EUED5689BhEyD9IA56LPXoQ8SIN2kPKTLqRcd7MZrNCL9/M+9773vfeI2BZQAhxt3Z32u2dp9uPdl8CyQGBhqA5wfLiqhW5+ci1aAn8rYdRNH9dJ3oy9cSkUIN3lRrAcg0+rNSgWMv/vAIF7FCEClThGqy/eLZ9r16vq+du+mxkDLPeAOQVeU3egIUtcuCSx/nb5UhMrL/e1HPKYsw9X0LV25ewchoghBjuMbHmGF7+niflr9OAzkY2fkLk90wSeTZT9ZrXLXQS+1C+aUtYaz6XcjB8G7vRZUWM37Tx00W+txgiusPdT+zWRx9FPazvLpIJZAXdTBMznh40mbabcj3G+2LZjwMnbbyfVOgVO9kVjYPqy3jgpKcKk3vhiqJjZ064OElZ3BcTdd31G56E68djKb+pn/x6PGazjqM/CTXnaRzYGV6LUM6Eql/0SXnKqw/UcS66P6SMQ4qwiuF3A2CZxKqEQkjZFzVm4QAUrQELCianRPGckxcHwOIqHn1yfiQlLzURGhiODEDxfGg4WCq1EkBOwQjDhgFV0jKckg3Zn9lnf6D2WKpsqpQCKJ4dqtTZIW3busQodA5p1nb0OzdEifKiA9s00XoDKmTc5a7PTxwzUOKAQnSI+/b/C7XMUPHJwuMo9WhS3r/cpDz1vMh/75b+AZ9o+VYAAHicY2BgYGQAgjO2i86D6LPPjTVgNABLNQaaAAB4nGNgZGBg4ANiCQYQYGJgBEJmIGYB8xgABGsANgAAAHicY2BmamCcwMDKwMG4gPEAAwNDJIRmNGaQZ1jKwMDEwMrMAAcCCCZDQJprCoPDA4YPDEwJ/x8wWDElMCg0ADXCFSgAISMAbwUMgQB4nGNgYGBmgGAZBkYGEPAB8hjBfBYGAyDNAYRMIIkHjB8Y/v8HsxggLAUmAUaoLjBgZGNA5o5IAADKgwivAAAAeJxjYGRgYADiLuZHVvH8Nl8ZuJkagCIMZ58bayDo/w+YGpgSgFwOBiaQKAAuSwrDeJxjYGRgYEr4/4DBiqmBgeFvA5AEiqAAZgCANQUCAAACgAAAAAAAAAKAAAAAeAAAAABQAAAEAAB4nI2OMU7DQBBFnxMnCAVRIUS5RSQqW16DIiWiTkmRIn3irCxLllfaJAV3oOYkHIMDcAwOQMF32IKCIrsazZudP7MfuOKNhP4kTLiLPOCCx8hD7nmNnErzEXkk/oo8ZpLcSJmkl3q5PU31POCaaeQhzzxFTqV5jzwSf0Yei7/ZEvBUup6Whp3qF9gGX1W+bXZBxQpHzVH9jbqsXH1sN4KlZjoOpxykcBhKcgrlheL/3b89y5yMmaKU3vKgdb47LH2onSnzwizMHw+q7DybZWVhJTzH81puAnt1e4/9f70v1i7sG98Zmxdn7fkBcblHYgB4nGNgZsALAAB9AAQ=) format('woff'),
+            url(data:application/x-font-ttf;charset=utf-8;base64,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) format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        /* Use the following CSS code if you want to use data attributes for inserting your icons */
+        [data-icon]:before {
+            font-family: 'broccolidry';
+            content: attr(data-icon);
+            speak: none;
+            font-weight: normal;
+            font-variant: normal;
+            text-transform: none;
+            line-height: 1;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Use the following CSS code if you want to have a class per icon */
+        /*
+        Instead of a list of all class selectors,
+        you can use the generic selector below, but it's slower:
+        [class*="icon-c"] {
+        */
+        .icon-cmonitor, .icon-cmobile {
+            font-family: 'broccolidry';
+            speak: none;
+            font-style: normal;
+            font-weight: normal;
+            font-variant: normal;
+            text-transform: none;
+            line-height: 1;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .icon-c {
+            font-size: 20px;
+            margin-right: 12px;
+            color: #aaa;
+        }
+        .centered {
+            text-align: center;
+        }
+        .stable {
+            color: #333;
+        }
+
+        .icon-cmonitor:before {
+            content: "\e000";
+        }
+        .icon-cmobile:before {
+            content: "\e001";
+        }
+        .app {
+            float: left;
+        }
+
+        .prototype {
+            display: hidden;
+        }
+        .gm-style-iw + div {display: none;}
+        .gmnoprint{ display: none }
+
+    </style>
+</head>
+<body>
+<div class="container" style="margin: 15px">
+    <div class="span6 centered">
+        <span class="hidden-phone">
+            <img src="server/pages/img/gateleen.png">
+        </span>
+    </div>
+    <div class="span6 well well-large">
+
+        <ul class="centered nav nav-pills">
+            <li><a href="server/pages/browser.html#/playground/server/">Resources</a></li>
+            <li><a href="server/pages/browser.html?editor=queue.html#/playground/server/queuing/queues/">Queues</a></li>
+            <li><a href="server/pages/browser.html#/playground/server/queuing/locks/">Locks</a></li>
+            <li><a href="debug">Debug</a></li>
+        </ul>
+
+        <script>
+            function edit() {
+                if(document.getElementById("uri").value) {
+                    document.getElementById("edit").action="/playground/server/pages/editor.html#/playground/"+document.getElementById("uri").value;
+                    document.getElementById("edit").submit();
+                }
+            }
+        </script>
+        <form id="edit">
+            <fieldset class="form-horizontal">
+                <div class="input-prepend input-append">
+                    <span class="add-on">/playground/</span>
+                    <input class="input-xlarge" id="uri" type="text" autocomplete="on" placeholder="Edit Resource&hellip;" onkeydown='if (event.keyCode == 13) { return edit() }'>
+                    <button title="Create/Edit Resource" class="btn" onclick="event.preventDefault();edit()"><i class="icon-pencil"></i></button>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+</div>
+</body>
+</html>
