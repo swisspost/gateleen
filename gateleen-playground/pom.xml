@@ -11,6 +11,11 @@
 
     <artifactId>gateleen-playground</artifactId>
 
+    <properties>
+        <server.host>localhost</server.host>
+        <server.port>7012</server.port>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.vertx</groupId>
@@ -131,7 +136,7 @@
                 <version>1.0-beta-4</version>
                 <configuration>
                     <fromDir>src/main/resources</fromDir>
-                    <url>http://localhost:7012</url>
+                    <url>http://${server.host}:${server.port}</url>
                 </configuration>
             </plugin>
             <plugin>
