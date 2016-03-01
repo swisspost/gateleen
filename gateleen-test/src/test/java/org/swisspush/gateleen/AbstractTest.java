@@ -1,11 +1,11 @@
 package org.swisspush.gateleen;
 
-import org.swisspush.gateleen.core.control.LogController;
+import org.swisspush.gateleen.logging.logging.LogController;
 import org.swisspush.gateleen.core.control.ResetMetricsController;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
-import org.swisspush.gateleen.core.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
 import org.swisspush.gateleen.core.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;

@@ -8,27 +8,9 @@
 
 package org.swisspush.gateleen.playground;
 
-import java.io.IOException;
-import java.util.Map;
-
-import io.vertx.core.Vertx;
-import org.swisspush.gateleen.core.control.LogController;
-import org.swisspush.gateleen.core.control.ResetMetricsController;
-import org.swisspush.gateleen.core.cors.CORSHandler;
-import org.swisspush.gateleen.core.event.EventBusHandler;
-import org.swisspush.gateleen.core.http.LocalHttpClient;
-import org.swisspush.gateleen.core.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.monitoring.CustomRedisMonitor;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.resource.CopyResourceHandler;
-import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.routing.routing.Router;
-import org.swisspush.gateleen.runconfig.RunConfig;
-import org.swisspush.gateleen.hook.HookHandler;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
@@ -40,17 +22,35 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import org.swisspush.gateleen.core.control.ResetMetricsController;
+import org.swisspush.gateleen.core.cors.CORSHandler;
+import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.http.LocalHttpClient;
+import org.swisspush.gateleen.core.monitoring.CustomRedisMonitor;
+import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.core.resource.CopyResourceHandler;
+import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.delta.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.expansion.ExpansionHandler;
+import org.swisspush.gateleen.hook.HookHandler;
+import org.swisspush.gateleen.logging.logging.LogController;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
+import org.swisspush.gateleen.routing.routing.Router;
+import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.security.authorization.Authorizer;
 import org.swisspush.gateleen.user.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.user.UserProfileHandler;
 import org.swisspush.gateleen.validation.validation.ValidationHandler;
 import org.swisspush.gateleen.validation.validation.ValidationResourceManager;
+
+import java.io.IOException;
+import java.util.Map;
 
 /**
  * Playground server to try Gateleen at home.

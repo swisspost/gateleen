@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.core.logging;
+package org.swisspush.gateleen.logging.logging;
 
 import org.swisspush.gateleen.core.event.EventBusWriter;
 import org.apache.log4j.WriterAppender;

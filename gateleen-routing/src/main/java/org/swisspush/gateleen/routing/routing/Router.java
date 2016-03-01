@@ -13,7 +13,7 @@ import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
 import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;

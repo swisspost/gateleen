@@ -1,6 +1,6 @@
 package org.swisspush.gateleen.user.user;
 
-import org.swisspush.gateleen.core.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
