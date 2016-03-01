@@ -1,14 +1,13 @@
 package org.swisspush.gateleen.validation.validation;
 
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.expansion.expansion.ExpansionHandler;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpServerRequest;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.Arrays;
 import java.util.List;
@@ -34,6 +33,7 @@ public class ValidationHandler {
     private List<String> outMethods = Arrays.asList("GET", "POST");
     private List<String> inMethods = Arrays.asList("PUT", "POST");
     private static final String VALID_HEADER = "X-Valid";
+    private static final String EXPAND_PARAM = "expand";
     private static final int TIMEOUT = 120000;
     private static final Pattern noExtension = Pattern.compile(".*/[^/\\.]*$");
     private Validator validator;
@@ -59,7 +59,7 @@ public class ValidationHandler {
         boolean doValidate = supportedMethods.contains(request.method().name()) &&
                 isJsonRequest(request) &&
                 !(request.headers().names().contains(VALID_HEADER)) &&
-                !(request.params().names().contains(ExpansionHandler.EXPAND_PARAM));
+                !(request.params().names().contains(EXPAND_PARAM));
         if (!doValidate) {
             return false;
         }

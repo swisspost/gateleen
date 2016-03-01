@@ -1,12 +1,9 @@
 package org.swisspush.gateleen.expansion.expansion;
 
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
-import org.swisspush.gateleen.core.util.ResourceCollectionException;
-import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.routing.routing.Rule;
 import org.swisspush.gateleen.routing.routing.RuleFactory;
 import org.swisspush.gateleen.routing.routing.RuleFeaturesProvider;
@@ -23,6 +20,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.validation.validation.ValidationException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -100,6 +98,8 @@ public class ExpansionHandler {
     private String serverRoot;
     private String rulesPath;
 
+    private String routingRulesSchema;
+
     /**
      * A list of parameters, which are always removed
      * from all requests.
@@ -131,6 +131,8 @@ public class ExpansionHandler {
         this.serverRoot = serverRoot;
         this.rulesPath = rulesPath;
 
+        routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
+
         initParameterRemovalLists();
         initConfigurationValues();
 
@@ -145,10 +147,10 @@ public class ExpansionHandler {
         storage.get(rulesPath, buffer -> {
             if (buffer != null) {
                 try {
-                    List<Rule> rules = new RuleFactory(properties).parseRules(buffer);
+                    List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
                     log.info("Update expandOnBackend and storageExpand information from changed routing rules");
                     ruleFeaturesProvider = new RuleFeaturesProvider(rules);
-                } catch (IllegalArgumentException e) {
+                } catch (ValidationException e) {
                     log.error("Could not update expandOnBackend and storageExpand information from changed routing rules", e);
                 }
             } else {
