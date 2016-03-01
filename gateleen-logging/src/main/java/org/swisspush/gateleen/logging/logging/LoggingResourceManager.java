@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.core.logging;
+package org.swisspush.gateleen.logging.logging;
 
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StatusCode;

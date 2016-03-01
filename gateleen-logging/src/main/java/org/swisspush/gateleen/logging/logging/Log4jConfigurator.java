@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.core.logging;
+package org.swisspush.gateleen.logging.logging;
 
 import org.apache.log4j.Appender;
 import org.apache.log4j.Level;

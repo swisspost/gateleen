@@ -55,6 +55,7 @@ The following tables lists all the gateleen components available.
 | [gateleen-expansion](gateleen-expansion/README_expansion.md)                      | Add short description for this component |
 | [gateleen-hook](gateleen-hook/README_hook.md)                                     | Add short description for this component |
 | [gateleen-integrationtest](gateleen-integrationtest/README_integrationtest.md)    | Add short description for this component |
+| [gateleen-logging](gateleen-logging/README_logging.md)                            | Log payload and header values of requests |
 | [gateleen-packing](gateleen-packing/README_packing.md)                            | Add short description for this component |
 | [gateleen-player](gateleen-player/README_player.md)                               | Add short description for this component |
 | [gateleen-playground](gateleen-playground/README_playground.md)                   | This module provides a server example    |

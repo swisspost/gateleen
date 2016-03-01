@@ -1,11 +1,11 @@
 package org.swisspush.gateleen;
 
-import org.swisspush.gateleen.core.control.LogController;
+import org.swisspush.gateleen.logging.logging.LogController;
 import org.swisspush.gateleen.core.control.ResetMetricsController;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
-import org.swisspush.gateleen.core.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
 import org.swisspush.gateleen.core.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
@@ -82,18 +82,18 @@ public abstract class AbstractTest {
      */
     @BeforeClass
     public static void setupBeforeClass(TestContext context) {
-        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.start();
-
-            // setting a shutdown hook for redis
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    RedisEmbeddedConfiguration.redisServer.stop();
-                } catch (Exception handled) {
-                    // ups
-                }
-            }));
-        }
+//        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
+//            RedisEmbeddedConfiguration.redisServer.start();
+//
+//            // setting a shutdown hook for redis
+//            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+//                try {
+//                    RedisEmbeddedConfiguration.redisServer.stop();
+//                } catch (Exception handled) {
+//                    // ups
+//                }
+//            }));
+//        }
 
         Async async = context.async();
         vertx = Vertx.vertx();
@@ -175,9 +175,9 @@ public abstract class AbstractTest {
     @AfterClass
     public static void tearDownAfterClass(TestContext context) {
         Async async = context.async();
-        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.stop();
-        }
+//        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
+//            RedisEmbeddedConfiguration.redisServer.stop();
+//        }
         jedis.close();
         mainServer.close();
         vertx.close(event -> async.complete());
