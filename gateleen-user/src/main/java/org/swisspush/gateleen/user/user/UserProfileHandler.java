@@ -1,23 +1,23 @@
 package org.swisspush.gateleen.user.user;
 
-import org.swisspush.gateleen.core.logging.LoggingHandler;
-import org.swisspush.gateleen.core.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.RoleExtractor;
-import org.swisspush.gateleen.core.util.StatusCode;
-import io.vertx.core.http.CaseInsensitiveHeaders;
-import io.vertx.core.http.HttpMethod;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.CaseInsensitiveHeaders;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.RoleExtractor;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.logging.LoggingHandler;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
 
 import java.util.HashMap;
 import java.util.Map;

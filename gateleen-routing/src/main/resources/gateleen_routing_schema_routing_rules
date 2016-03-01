@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "Routing rules",
+  "additionalProperties": {
+    "$ref": "#/definitions/Rule"
+  },
+  "properties": {},
+  "definitions": {
+    "Rule": {
+      "description": "Describe how and where to forward a request.",
+      "properties": {
+        "url": {
+          "description": "An absolute URL of the backend where the requests are forwarded.\nUse `$1`, `$2`, to insert the groups captured in the rule map index regexp.\nEither url or path must be specified, not both.",
+          "format": "uri",
+          "type": "string"
+        },
+        "path": {
+          "description": "A local or storage path where the request are forwarded.\nUse `$1`, `$2`, to insert the groups captured in the rule map index regexp.\nEither url or path must be specified, not both.",
+          "type": "string"
+        },
+        "storage": {
+          "description": "Specify that requests must be directly forwarded to the resource storage, not via HTTP.\nThe value specifies the storage to use. It is storage suffix appended to Address.storageAddress()+\"-\".\nTypically \"main\", \"add-0\", \"add-1\", ...",
+          "type": "string"
+        },
+        "description": {
+          "description": "Documents the rule.",
+          "type": "string"
+        },
+        "methods": {
+          "description": "Restricts the HTTP methods concerned by this rule (`GET`, `PUT`, `POST`, `DELETE`).\nWhen absent, all methods are concerned.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "basicAuth": {
+          "description": "To authenticate against the backend.",
+          "$ref": "#/definitions/BasicAuth"
+        },
+        "profile": {
+          "description": "The user profile fields to forward to backend as `X-User-*` HTTP header. Has o effect for local/storage forwarding.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timeout": {
+          "description": "The connection timeout in seconds when contacting the backend. Has no effect for local/storage forwarding.",
+          "type": "integer",
+          "default": 30
+        },
+        "connectionPoolSize": {
+          "description": "The maximum number of concurrent connections to the backend. Has no effect for local/storage forwarding.",
+          "type": "integer",
+          "default": 50
+        },
+        "keepAlive": {
+          "description": "Keeps the connection to the backend open.\nThis may improve performance but degrades the reliability in case of failure, requests can be lost.\nHas no effect for local/storage forwarding.",
+          "default": false,
+          "type": "boolean"
+        },
+        "logExpiry": {
+          "description": "The number of seconds to keep track of the response body in the request log. Has no effect for local/storage forwarding.",
+          "type": "integer",
+          "default": "4*3600"
+        },
+        "translateStatus": {
+          "description": "Mapping to transform backend HTTP status.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "staticHeaders": {
+          "description": "Headers to set or override in the request sent to backend.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "metricName": {
+          "description": "Activates metric collection (JMX and crush-metrics.log) under this name.",
+          "type": "string"
+        },
+        "expandOnBackend": {
+          "description": "Should stargate do the expansion or should it passthrough to the backend",
+          "type": "boolean"
+        },
+        "storageExpand": {
+          "description": "Should stargate do the expansion or should it passthrough to the storage",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "BasicAuth": {
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "username",
+        "password"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -8,6 +8,7 @@
 
 	<modules>
 		<module>gateleen-core</module>
+		<module>gateleen-logging</module>
 		<module>gateleen-queue</module>
 		<module>gateleen-routing</module>
 		<module>gateleen-security</module>

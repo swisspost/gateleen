@@ -6,6 +6,8 @@ import org.junit.Before;
 import org.junit.Test;
 import io.vertx.core.buffer.Buffer;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.validation.validation.ValidationException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -20,16 +22,17 @@ import java.util.Map;
 public class RuleFactoryTest {
 
     private Map<String, Object> properties;
-
+    private String routingRulesSchema;
 
     @Before
     public void setUp(){
         properties = new HashMap<>();
         properties.put("gateleen.test.prop.valid", "http://someserver/");
+        routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
     }
 
     @Test
-    public void testSimpleRuleConfigParsing(TestContext context){
+    public void testSimpleRuleConfigParsing(TestContext context) throws ValidationException {
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
                 + "    \"description\": \"Test Rule 1\","
@@ -44,7 +47,7 @@ public class RuleFactoryTest {
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         properties.put("gateleen.test.prop.2", "http://someserver2/");
 
-        List<Rule> rules =  new RuleFactory(properties).parseRules(Buffer.buffer(simpleExampleRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
 
         context.assertTrue(rules.size() == 2);
         context.assertEquals("someserver1", rules.get(0).getHost());
@@ -52,7 +55,7 @@ public class RuleFactoryTest {
     }
 
     @Test
-    public void testExpandOnBackendRule(TestContext context){
+    public void testExpandOnBackendRule(TestContext context) throws ValidationException {
         String expandOnBackendRule = "{"
                 + "  \"/gateleen/rule/1\": {"
                 + "    \"description\": \"Test Rule 1\","
@@ -63,14 +66,14 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
 
-        List<Rule> rules =  new RuleFactory(properties).parseRules(Buffer.buffer(expandOnBackendRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(expandOnBackendRule));
 
         context.assertTrue(rules.size() == 1);
         context.assertEquals(true, rules.get(0).isExpandOnBackend());
     }
 
     @Test
-    public void testStorageExpandRule(TestContext context){
+    public void testStorageExpandRule(TestContext context) throws ValidationException {
         String storageExpandRule = "{" +
                 " \"/gateleen/rule/1\": {" +
                 "  \"description\": \"Test Rule 1\"," +
@@ -93,11 +96,53 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
 
-        List<Rule> rules =  new RuleFactory(properties).parseRules(Buffer.buffer(storageExpandRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(storageExpandRule));
 
         context.assertEquals(3, rules.size());
         context.assertTrue(rules.get(0).isStorageExpand(), "Rule has property 'storageExpand' with value true. So isStorageExpand() should return true");
         context.assertFalse(rules.get(1).isStorageExpand(), "Rule has property 'storageExpand' with value false. So isStorageExpand() should return false");
         context.assertFalse(rules.get(2).isStorageExpand(), "Rule has no property 'storageExpand'. So isStorageExpand() should return false");
+    }
+
+    @Test(expected = ValidationException.class)
+    public void testAdditionalPropertyNotAllowed() throws ValidationException {
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
+                "  \"storageExpand\": true," +
+                "  \"storage\": \"main\"" +
+                " }," +
+                " \"/gateleen/rule/2\": {" +
+                "  \"description\": \"Test Rule 2\"," +
+                "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/2\"," +
+                "  \"storageExpand\": false," +
+                "  \"storage\": \"main\"" +
+                " }," +
+                " \"/gateleen/rule/3\": {" +
+                "  \"description\": \"Test Rule 3\"," +
+                "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/3\"," +
+                "  \"anAdditionalPropetyThatsNotAllowed\": 123456," +
+                "  \"storage\": \"main\"" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test(expected = ValidationException.class)
+    public void testStoragePropertyWrongFormat() throws ValidationException {
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
+                "  \"storageExpand\": true," +
+                "  \"storage\": 123" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
     }
 }

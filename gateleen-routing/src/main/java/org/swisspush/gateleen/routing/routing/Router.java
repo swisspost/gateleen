@@ -1,11 +1,5 @@
 package org.swisspush.gateleen.routing.routing;
 
-import org.swisspush.gateleen.core.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.core.util.StringUtils;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -19,6 +13,14 @@ import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
+import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.validation.validation.ValidationException;
 
 import java.net.HttpCookie;
 import java.util.*;
@@ -49,6 +51,8 @@ public class Router {
     private final Map<String, Object> properties;
     private Handler<Void> doneHandlers[];
     private LocalMap<String, Object> sharedData;
+
+    private String routingRulesSchema;
 
     public Router(Vertx vertx,
             final ResourceStorage storage,
@@ -100,6 +104,8 @@ public class Router {
         this.info = info;
         this.doneHandlers = doneHandlers;
 
+        routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
+
         final JsonObject initialRules = new JsonObject().put("/(.*)", new JsonObject().put("url", "http://localhost:8989/$1"));
 
         storage.get(rulesPath, buffer -> {
@@ -107,10 +113,10 @@ public class Router {
                 try {
                     log.info("Applying rules");
                     updateRouting(buffer);
-                } catch (IllegalArgumentException e) {
+                } catch (ValidationException e) {
                     log.error("Could not reconfigure routing", e);
                     updateRouting(initialRules);
-                    setRoutingBrokenMessage(e.getMessage());
+                    setRoutingBrokenMessage(e);
                 }
             } else {
                 log.warn("No rules in storage, using initial routing");
@@ -124,7 +130,7 @@ public class Router {
                 try {
                     log.info("Applying rules");
                     updateRouting(buffer);
-                } catch (IllegalArgumentException e) {
+                } catch (ValidationException e) {
                     log.error("Could not reconfigure routing", e);
                 }
             } else {
@@ -138,12 +144,17 @@ public class Router {
         if (request.uri().equals(rulesUri) && HttpMethod.PUT == request.method()) {
             request.bodyHandler(buffer -> {
                 try {
-                    new RuleFactory(properties).parseRules(buffer);
-                } catch (IllegalArgumentException e) {
-                    log.error("Could not parse rules", e);
+                    new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
+                } catch (ValidationException validationException) {
+                    log.error("Could not parse rules: " + validationException.toString());
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                    request.response().end(e.getMessage());
+                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
+                    if(validationException.getValidationDetails() != null){
+                        request.response().headers().add("content-type", "application/json");
+                        request.response().end(validationException.getValidationDetails().encode());
+                    } else {
+                        request.response().end(validationException.getMessage());
+                    }
                     return;
                 }
                 storage.put(rulesUri, buffer, status -> {
@@ -191,7 +202,13 @@ public class Router {
         return (String) getRouterStateMap().get(ROUTER_BROKEN_KEY);
     }
 
-    private void setRoutingBrokenMessage(String message) {
+    private void setRoutingBrokenMessage(ValidationException exception) {
+        StringBuilder msgBuilder = new StringBuilder(exception.getMessage());
+        if(exception.getValidationDetails() != null){
+            msgBuilder.append(": ").append(exception.getValidationDetails().toString());
+        }
+
+        String message = msgBuilder.toString();
         if (StringUtils.isEmpty(message)) {
             message = "No Message provided!";
         }
@@ -287,11 +304,12 @@ public class Router {
     }
 
     private void updateRouting(JsonObject rules) {
-        updateRouting(new RuleFactory(properties).createRules(rules));
+        updateRouting(new RuleFactory(properties, routingRulesSchema).createRules(rules));
     }
 
-    private void updateRouting(Buffer buffer) {
-        updateRouting(new RuleFactory(properties).parseRules(buffer));
+    private void updateRouting(Buffer buffer) throws ValidationException {
+        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
+        updateRouting(rules);
     }
 
     private void updateRouting(List<Rule> rules) {
