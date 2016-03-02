@@ -1,6 +1,6 @@
 # gateleen-qos
 Introduces a Quality of Service network traffic.
-An example on how to integrate this feature in a communication server can be found in the class [org.swisspush.gateleen.AbstractTest](src/test/java/org/swisspush/gateleen/AbstractTest.java).
+An example on how to integrate this feature in a communication server can be found in the class [org.swisspush.gateleen.AbstractTest](../gateleen-test/src/test/java/org/swisspush/gateleen/AbstractTest.java).
 
 The QoS feature is controlled by a ruleset which you have to PUT according to this example.
 
