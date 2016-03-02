@@ -2,7 +2,7 @@ package org.swisspush.gateleen.runconfig;
 
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
-import org.swisspush.gateleen.core.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
 import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.util.Address;

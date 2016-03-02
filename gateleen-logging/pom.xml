@@ -8,7 +8,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>gateleen-routing</artifactId>
+    <artifactId>gateleen-logging</artifactId>
 
     <dependencies>
         <dependency>
@@ -17,30 +17,21 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.swisspush.gateleen</groupId>
-            <artifactId>gateleen-logging</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-redis-client</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-web</artifactId>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-unit</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.floreysoft</groupId>
-            <artifactId>jmte</artifactId>
-            <version>3.0</version>
+            <groupId>com.github.fge</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>2.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

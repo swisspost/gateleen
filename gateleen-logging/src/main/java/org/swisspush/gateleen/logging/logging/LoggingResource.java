@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.core.logging;
+package org.swisspush.gateleen.logging.logging;
 
 import java.util.ArrayList;
 import java.util.HashMap;

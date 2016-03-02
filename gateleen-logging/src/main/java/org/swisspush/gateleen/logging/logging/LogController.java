@@ -1,6 +1,4 @@
-package org.swisspush.gateleen.core.control;
-
-import org.swisspush.gateleen.core.logging.Log4jConfiguratorMBean;
+package org.swisspush.gateleen.logging.logging;
 
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;

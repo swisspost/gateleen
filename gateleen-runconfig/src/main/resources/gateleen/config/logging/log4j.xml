@@ -85,7 +85,7 @@
     <logger name="li.chee.vertx~redisques~0-li.chee.vertx.redisques">
         <level value="INFO" />
     </logger>
-    <logger name="org.swisspush.gateleen.core.logging.Log4jConfiguratorMBean">
+    <logger name="org.swisspush.gateleen.logging.logging.Log4jConfiguratorMBean">
         <level value="FATAL" />
     </logger>
     <logger name="Request">

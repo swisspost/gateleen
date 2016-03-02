@@ -2,8 +2,8 @@ package org.swisspush.gateleen.routing.routing;
 
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.logging.LoggingHandler;
-import org.swisspush.gateleen.core.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.logging.LoggingHandler;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
 import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
