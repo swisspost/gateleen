@@ -3,7 +3,7 @@ package org.swisspush.gateleen.validation.validation;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.validation.validation.mocks.HttpServerRequestMock;
 import org.swisspush.gateleen.validation.validation.mocks.HttpServerResponseMock;
-import org.swisspush.gateleen.validation.validation.mocks.ResourceStorageMock;
+import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import com.google.common.collect.ImmutableMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
@@ -98,23 +98,23 @@ public class ValidationResourceManagerTest {
 
     @Test
     public void testInitWithValidResource(TestContext context){
-        validationResourceManager = new ValidationResourceManager(vertx, new ResourceStorageMock(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
         ValidationResource res = validationResourceManager.getValidationResource();
         context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a valid Resource should not result in an empty resources list");
     }
 
     @Test
     public void testInitWithInvalidResource(TestContext context){
-        validationResourceManager = new ValidationResourceManager(vertx, new ResourceStorageMock(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_INVALID)), VALIDATION_URI);
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_INVALID)), VALIDATION_URI);
         ValidationResource res = validationResourceManager.getValidationResource();
         context.assertTrue(res.getResources().isEmpty(), "Creating ValidationResourceManager with an invalid Resource should result in an empty resources list");
 
 
-        validationResourceManager = new ValidationResourceManager(vertx, new ResourceStorageMock(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_INVALID_2)), VALIDATION_URI);
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_INVALID_2)), VALIDATION_URI);
         res = validationResourceManager.getValidationResource();
         context.assertTrue(res.getResources().isEmpty(), "Creating ValidationResourceManager with an invalid Resource should result in an empty resources list");
 
-        validationResourceManager = new ValidationResourceManager(vertx, new ResourceStorageMock(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID_3)), VALIDATION_URI);
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID_3)), VALIDATION_URI);
         res = validationResourceManager.getValidationResource();
         context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a Resource missing the 'methods' property should not result in an empty resources list");
     }
@@ -122,7 +122,7 @@ public class ValidationResourceManagerTest {
     @Test
     public void testHandleValidationResourceWithPUTRequest(TestContext context){
         Async async = context.async();
-        ResourceStorageMock storage = new ResourceStorageMock(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID));
+        MockResourceStorage storage = new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID));
         validationResourceManager = new ValidationResourceManager(vertx, storage, VALIDATION_URI);
 
         ValidationResource res = validationResourceManager.getValidationResource();
@@ -164,7 +164,7 @@ public class ValidationResourceManagerTest {
     @Test
     public void testHandleValidationResourceWithInvalidPUTRequest(TestContext context){
         Async async = context.async();
-        ResourceStorageMock storage = new ResourceStorageMock(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID));
+        MockResourceStorage storage = new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID));
         validationResourceManager = new ValidationResourceManager(vertx, storage, VALIDATION_URI);
 
         ValidationResource res = validationResourceManager.getValidationResource();
@@ -214,7 +214,7 @@ public class ValidationResourceManagerTest {
 
     @Test
     public void testHandleValidationResourceWithPUTRequestToOtherResource(TestContext context){
-        validationResourceManager = new ValidationResourceManager(vertx, new ResourceStorageMock(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
 
         ValidationResource res = validationResourceManager.getValidationResource();
         context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a valid Resource should not result in an empty resources list");
@@ -241,7 +241,7 @@ public class ValidationResourceManagerTest {
 
     @Test
     public void testHandleValidationResourceWithGETRequests(TestContext context){
-        validationResourceManager = new ValidationResourceManager(vertx, new ResourceStorageMock(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
 
         class GETValidationResourceRequest extends HttpServerRequestMock{
             @Override public HttpMethod method() {
@@ -279,7 +279,7 @@ public class ValidationResourceManagerTest {
 
     @Test
     public void testHandleValidationResourceWithDeleteRequests(TestContext context){
-        validationResourceManager = new ValidationResourceManager(vertx, new ResourceStorageMock(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
 
         ValidationResource res = validationResourceManager.getValidationResource();
         context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a valid Resource should not result in an empty resources list");

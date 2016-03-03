@@ -1,0 +1,14 @@
+{
+  "payload": {
+    "filters": [
+      {
+        "url": "/gateleen/resources/.*",
+        "x-rp-mail": "john.doe@swisspush.org"
+      },
+      {
+        "url": "/gateleen/anotherres/.*",
+        "additionalPropertyWithInvalidType": 123456
+      }
+    ]
+  }
+}

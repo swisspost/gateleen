@@ -1,11 +1,6 @@
 package org.swisspush.gateleen.routing.routing;
 
-import org.swisspush.gateleen.logging.logging.LoggingResource;
-import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.StatusCode;
-import io.vertx.core.AsyncResult;
+import com.google.common.collect.ImmutableMap;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -13,8 +8,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.net.NetSocket;
-import io.vertx.core.net.SocketAddress;
 import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -23,9 +16,15 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
+import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
+import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.core.storage.MockResourceStorage;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.logging.LoggingResource;
+import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
 
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +38,6 @@ import java.util.Set;
 @RunWith(VertxUnitRunner.class)
 public class RouterTest {
 
-    private Map<String, String> localStorageValues;
     private Vertx vertx;
     private Map<String, Object> properties;
     private LoggingResourceManager loggingResourceManager;
@@ -52,6 +50,7 @@ public class RouterTest {
     private String randomResourcePath;
     private JsonObject info;
     private LocalMap<String, Object> routerStateMap;
+    private ResourceStorage storage;
 
     private final String RULES_WITH_MISSING_PROPS = "{\n"
             + "  \"/gateleen/rule/1\": {\n"
@@ -101,10 +100,7 @@ public class RouterTest {
         userProfilePath = serverUrl + "/users/v1/%s/profile";
         info = new JsonObject();
 
-        localStorageValues = new HashMap<String, String>(){{
-            put(rulesPath, RULES_WITH_MISSING_PROPS);
-            put(randomResourcePath, RANDOM_RESOURCE);
-        }};
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_MISSING_PROPS, randomResourcePath, RANDOM_RESOURCE));
 
         routerStateMap = new DummyLocalMap<>();
     }
@@ -113,14 +109,14 @@ public class RouterTest {
     public void testRouterConstructionValidConfiguration(TestContext context){
         properties.put("gateleen.test.prop.1", "http://someserver/");
         properties.put("gateleen.test.prop.2", "http://someserver/");
-        Router router = new Router(vertx, routerStateMap, new MockResourceStorage(), properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
         context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
     }
 
     @Test
     public void testRouterConstructionWithMissingProperty(TestContext context){
-        Router router = new Router(vertx, routerStateMap, new MockResourceStorage(), properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -128,7 +124,7 @@ public class RouterTest {
 
     @Test
     public void testFixBrokenRouting(TestContext context){
-        Router router = new Router(vertx, routerStateMap, new MockResourceStorage(), properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -163,7 +159,7 @@ public class RouterTest {
 
     @Test
     public void testGETRoutingRulesWithBrokenRouterShouldWork(TestContext context){
-        Router router = new Router(vertx, routerStateMap, new MockResourceStorage(), properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -196,7 +192,7 @@ public class RouterTest {
 
     @Test
     public void testGETAnyResourceWithBrokenRouterShouldNotWork(TestContext context){
-        Router router = new Router(vertx, routerStateMap, new MockResourceStorage(), properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -230,7 +226,7 @@ public class RouterTest {
 
     @Test
     public void testGETAnyResourceAfterFixingBrokenRouterShouldWorkAgain(TestContext context){
-        Router router = new Router(vertx, routerStateMap, new MockResourceStorage(), properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -294,7 +290,7 @@ public class RouterTest {
 
         // retry get random resource. Should work now
         final DummyHttpServerResponse responseRandomResource = new DummyHttpServerResponse();
-        class GETRandomResourceAgainRequest extends DummyHttpServerRequest{
+        class GETRandomResourceAgainRequest extends DummyHttpServerRequest {
             @Override public HttpMethod method() {
                 return HttpMethod.GET;
             }
@@ -318,292 +314,6 @@ public class RouterTest {
         router.route(requestRandomResource);
         context.assertFalse(router.isRoutingBroken(), "Routing should not be broken anymore");
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
-    }
-
-    class MockResourceStorage implements ResourceStorage {
-
-        @Override
-        public void get(String path, Handler<Buffer> bodyHandler) {
-            String result = localStorageValues.get(path);
-            if(result != null) {
-                bodyHandler.handle(Buffer.buffer(result));
-            } else {
-                bodyHandler.handle(null);
-            }
-        }
-
-        @Override
-        public void put(String uri, MultiMap headers, Buffer buffer, Handler<Integer> doneHandler) {
-
-        }
-
-        @Override
-        public void put(String uri, Buffer buffer, Handler<Integer> doneHandler) {
-            localStorageValues.put(uri, buffer.toString());
-            doneHandler.handle(200);
-        }
-
-        @Override
-        public void delete(String uri, Handler<Integer> doneHandler) {
-
-        }
-    }
-
-    class DummyHttpServerRequest implements HttpServerRequest {
-
-        @Override public HttpVersion version() {
-            return null;
-        }
-
-        @Override public HttpMethod method() {
-            return null;
-        }
-
-        @Override public String uri() {
-            return null;
-        }
-
-        @Override public String path() {
-            return "";
-        }
-
-        @Override public String query() {
-            return null;
-        }
-
-        @Override public HttpServerResponse response() {
-            return null;
-        }
-
-        @Override public MultiMap headers() {
-            return null;
-        }
-
-        @Override public String getHeader(String headerName) { return null; }
-
-        @Override public String getHeader(CharSequence headerName) { return null; }
-
-        @Override public MultiMap params() {
-            return null;
-        }
-
-        @Override public String getParam(String paramName) { return null; }
-
-        @Override public SocketAddress remoteAddress() {
-            return null;
-        }
-
-        @Override public SocketAddress localAddress() {
-            return null;
-        }
-
-        @Override public X509Certificate[] peerCertificateChain() throws SSLPeerUnverifiedException {
-            return new X509Certificate[0];
-        }
-
-        @Override public String absoluteURI() {
-            return null;
-        }
-
-        @Override public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
-            return null;
-        }
-
-        @Override public NetSocket netSocket() {
-            return null;
-        }
-
-        @Override public HttpServerRequest setExpectMultipart(boolean expect) { return null; }
-
-        @Override public boolean isExpectMultipart() { return false; }
-
-        @Override public HttpServerRequest uploadHandler(Handler<HttpServerFileUpload> uploadHandler) {
-            return null;
-        }
-
-        @Override public MultiMap formAttributes() {
-            return null;
-        }
-
-        @Override public String getFormAttribute(String attributeName) { return null; }
-
-        @Override public ServerWebSocket upgrade() { return null; }
-
-        @Override public boolean isEnded() { return false; }
-
-        @Override public HttpServerRequest endHandler(Handler<Void> endHandler) {
-            return null;
-        }
-
-        @Override public HttpServerRequest handler(Handler<Buffer> handler) {
-            return null;
-        }
-
-        @Override public HttpServerRequest pause() {
-            return null;
-        }
-
-        @Override public HttpServerRequest resume() {
-            return null;
-        }
-
-        @Override public HttpServerRequest exceptionHandler(Handler<Throwable> handler) {
-            return null;
-        }
-    }
-
-    class DummyHttpServerResponse implements HttpServerResponse{
-
-        private int statusCode;
-        private String statusMessage;
-        private String resultBuffer;
-
-        public String getResultBuffer(){
-            return resultBuffer;
-        }
-
-        @Override public int getStatusCode() {
-            return statusCode;
-        }
-
-        @Override public HttpServerResponse setStatusCode(int statusCode) {
-            this.statusCode = statusCode;
-            return this;
-        }
-
-        @Override public String getStatusMessage() {
-            return statusMessage;
-        }
-
-        @Override public HttpServerResponse setStatusMessage(String statusMessage) {
-            this.statusMessage = statusMessage;
-            return this;
-        }
-
-        @Override public HttpServerResponse setChunked(boolean chunked) {
-            return null;
-        }
-
-        @Override public boolean isChunked() {
-            return false;
-        }
-
-        @Override public MultiMap headers() {
-            return null;
-        }
-
-        @Override public HttpServerResponse putHeader(String name, String value) {
-            return null;
-        }
-
-        @Override public HttpServerResponse putHeader(CharSequence name, CharSequence value) {
-            return null;
-        }
-
-        @Override public HttpServerResponse putHeader(String name, Iterable<String> values) {
-            return null;
-        }
-
-        @Override public HttpServerResponse putHeader(CharSequence name, Iterable<CharSequence> values) {
-            return null;
-        }
-
-        @Override public MultiMap trailers() {
-            return null;
-        }
-
-        @Override public HttpServerResponse putTrailer(String name, String value) {
-            return null;
-        }
-
-        @Override public HttpServerResponse putTrailer(CharSequence name, CharSequence value) {
-            return null;
-        }
-
-        @Override public HttpServerResponse putTrailer(String name, Iterable<String> values) {
-            return null;
-        }
-
-        @Override public HttpServerResponse putTrailer(CharSequence name, Iterable<CharSequence> value) {
-            return null;
-        }
-
-        @Override public HttpServerResponse closeHandler(Handler<Void> handler) {
-            return null;
-        }
-
-        @Override public HttpServerResponse write(Buffer chunk) {
-            return null;
-        }
-
-        @Override public HttpServerResponse write(String chunk, String enc) {
-            return null;
-        }
-
-        @Override public HttpServerResponse write(String chunk) {
-            return null;
-        }
-
-        @Override public HttpServerResponse writeContinue() { return null; }
-
-        @Override public void end(String chunk) {
-            this.resultBuffer = chunk;
-        }
-
-        @Override public void end(String chunk, String enc) {}
-
-        @Override public void end(Buffer chunk) {
-            this.resultBuffer = chunk.toString();
-        }
-
-        @Override public void end() {}
-
-        @Override public HttpServerResponse sendFile(String filename) {
-            return null;
-        }
-
-        @Override public HttpServerResponse sendFile(String filename, long offset, long length) {
-            return null;
-        }
-
-        @Override public HttpServerResponse sendFile(String filename, Handler<AsyncResult<Void>> resultHandler) {
-            return null;
-        }
-
-        @Override
-        public HttpServerResponse sendFile(String filename, long offset, long length, Handler<AsyncResult<Void>> resultHandler) {
-            return null;
-        }
-
-        @Override public void close() {}
-
-        @Override public boolean ended() { return false; }
-
-        @Override public boolean closed() { return false; }
-
-        @Override public boolean headWritten() { return false; }
-
-        @Override public HttpServerResponse headersEndHandler(Handler<Void> handler) { return null; }
-
-        @Override public HttpServerResponse bodyEndHandler(Handler<Void> handler) { return null; }
-
-        @Override public long bytesWritten() { return 0; }
-
-        @Override public HttpServerResponse setWriteQueueMaxSize(int maxSize) {
-            return null;
-        }
-
-        @Override public boolean writeQueueFull() {
-            return false;
-        }
-
-        @Override public HttpServerResponse drainHandler(Handler<Void> handler) {
-            return null;
-        }
-
-        @Override public HttpServerResponse exceptionHandler(Handler<Throwable> handler) {
-            return null;
-        }
     }
 
     private class DummyLocalMap<K, V> implements LocalMap<String, Object> {

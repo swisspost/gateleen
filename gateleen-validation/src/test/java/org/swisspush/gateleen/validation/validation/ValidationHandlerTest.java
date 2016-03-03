@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.validation.validation;
 
 import org.swisspush.gateleen.validation.validation.mocks.HttpServerRequestMock;
-import org.swisspush.gateleen.validation.validation.mocks.ResourceStorageMock;
+import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpClient;
@@ -24,7 +24,7 @@ public class ValidationHandlerTest {
     private Vertx vertx;
     private HttpClient httpClient;
     private ValidationResourceManager validationResourceManager;
-    private ResourceStorageMock storage;
+    private MockResourceStorage storage;
 
     private final String VALIDATION_URI = "/gateleen/server/validation";
     private final String SCHEMA_ROOT = "/gateleen/schemas/apis/";
@@ -67,7 +67,7 @@ public class ValidationHandlerTest {
 
         httpClient = Mockito.mock(HttpClient.class);
 
-        storage = new ResourceStorageMock();
+        storage = new MockResourceStorage();
         validationResourceManager = new ValidationResourceManager(vertx, storage, VALIDATION_URI);
     }
 

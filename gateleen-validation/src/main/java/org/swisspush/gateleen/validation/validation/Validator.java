@@ -93,6 +93,12 @@ public class Validator {
     }
 
     public static ValidationResult validateStatic(Buffer dataToBeValidated, String schemaAsString, Logger log){
+        try {
+            new JsonObject(dataToBeValidated.toString());
+        } catch(Exception e){
+            return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Unable to parse json");
+        }
+
         JsonObject schemaObject = new JsonObject(schemaAsString);
         if(SCHEMA_DECLARATION.equals(schemaObject.getString("$schema"))) {
             JsonSchema schema;

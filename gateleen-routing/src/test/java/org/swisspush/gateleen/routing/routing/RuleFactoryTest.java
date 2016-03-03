@@ -1,10 +1,11 @@
 package org.swisspush.gateleen.routing.routing;
 
+import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
-import io.vertx.core.buffer.Buffer;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.validation.validation.ValidationException;
@@ -23,6 +24,9 @@ public class RuleFactoryTest {
 
     private Map<String, Object> properties;
     private String routingRulesSchema;
+
+    @org.junit.Rule
+    public ExpectedException thrown= ExpectedException.none();
 
     @Before
     public void setUp(){
@@ -104,8 +108,11 @@ public class RuleFactoryTest {
         context.assertFalse(rules.get(2).isStorageExpand(), "Rule has no property 'storageExpand'. So isStorageExpand() should return false");
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testAdditionalPropertyNotAllowed() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Validation failed");
+
         String rules = "{" +
                 " \"/gateleen/rule/1\": {" +
                 "  \"description\": \"Test Rule 1\"," +
@@ -131,9 +138,30 @@ public class RuleFactoryTest {
         new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testStoragePropertyWrongFormat() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Validation failed");
+
         String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
+                "  \"storageExpand\": true," +
+                "  \"storage\": 123" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testInvalidJson() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Unable to parse json");
+
+        String rules = "" +
                 " \"/gateleen/rule/1\": {" +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +

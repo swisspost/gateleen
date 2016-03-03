@@ -2,7 +2,7 @@ package org.swisspush.gateleen.validation.validation;
 
 import io.vertx.ext.unit.Async;
 import org.swisspush.gateleen.validation.validation.mocks.HttpServerRequestMock;
-import org.swisspush.gateleen.validation.validation.mocks.ResourceStorageMock;
+import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import com.google.common.util.concurrent.SettableFuture;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
@@ -15,7 +15,7 @@ import org.junit.runner.RunWith;
 @RunWith(VertxUnitRunner.class)
 public class ValidatorTest {
 
-    private ResourceStorageMock storage;
+    private MockResourceStorage storage;
     private final String SCHEMA_ROOT = "/foo/schemas/apis/";
     private Validator validator;
 
@@ -45,7 +45,7 @@ public class ValidatorTest {
 
     @Before
     public void setUp(){
-        storage = new ResourceStorageMock();
+        storage = new MockResourceStorage();
         validator = new Validator(storage, SCHEMA_ROOT);
 
         storage.putMockData("/foo/schemas/apis/","{\"apis\": [\"foo\"]}");

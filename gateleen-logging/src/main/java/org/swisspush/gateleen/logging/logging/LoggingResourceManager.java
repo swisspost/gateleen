@@ -1,7 +1,5 @@
 package org.swisspush.gateleen.logging.logging;
 
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -12,6 +10,12 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.validation.validation.ValidationException;
+import org.swisspush.gateleen.validation.validation.ValidationResult;
+import org.swisspush.gateleen.validation.validation.Validator;
 
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +38,8 @@ public class LoggingResourceManager {
 
     private LoggingResource loggingResource;
 
+    private String loggingResourceSchema;
+
     public LoggingResource getLoggingResource() {
         if (loggingResource == null) {
             loggingResource = new LoggingResource();
@@ -46,6 +52,8 @@ public class LoggingResourceManager {
         this.vertx = vertx;
         this.loggingUri = loggingUri;
 
+        loggingResourceSchema = ResourcesUtils.loadResource("gateleen_logging_schema_logging", true);
+
         updateLoggingResources();
 
         // Receive update notifications
@@ -57,7 +65,7 @@ public class LoggingResourceManager {
             if (buffer != null) {
                 try {
                     updateLoggingResources(buffer);
-                } catch (IllegalArgumentException e) {
+                } catch (ValidationException e) {
                     log.warn("Could not reconfigure logging resources (filters and headers)", e);
                 }
             } else {
@@ -66,7 +74,7 @@ public class LoggingResourceManager {
         });
     }
 
-    private void updateLoggingResources(Buffer buffer) {
+    private void updateLoggingResources(Buffer buffer) throws ValidationException{
         extractLoggingFilterValues(buffer);
 
         for (Map<String, String> payloadFilters : getLoggingResource().getPayloadFilters()) {
@@ -90,11 +98,16 @@ public class LoggingResourceManager {
             request.bodyHandler(loggingResourceBuffer -> {
                 try {
                     extractLoggingFilterValues(loggingResourceBuffer);
-                } catch (IllegalArgumentException e) {
-                    log.error("Could not parse logging resource", e);
+                } catch (ValidationException validationException) {
+                    log.error("Could not parse logging resource: " + validationException.toString());
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                    request.response().end(e.getMessage());
+                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
+                    if(validationException.getValidationDetails() != null){
+                        request.response().headers().add("content-type", "application/json");
+                        request.response().end(validationException.getValidationDetails().encode());
+                    } else {
+                        request.response().end(validationException.getMessage());
+                    }
                     return;
                 }
                 storage.put(loggingUri, loggingResourceBuffer, status -> {
@@ -117,7 +130,12 @@ public class LoggingResourceManager {
         return false;
     }
 
-    private void extractLoggingFilterValues(Buffer loggingResourceBuffer) {
+    private void extractLoggingFilterValues(Buffer loggingResourceBuffer) throws ValidationException {
+        ValidationResult validationResult = Validator.validateStatic(loggingResourceBuffer, loggingResourceSchema, log);
+        if(!validationResult.isSuccess()){
+            throw new ValidationException(validationResult);
+        }
+
         try {
             JsonObject loggingRes = new JsonObject(loggingResourceBuffer.toString("UTF-8"));
             getLoggingResource().reset();
@@ -183,7 +201,7 @@ public class LoggingResourceManager {
             }
         } catch (Exception ex) {
             getLoggingResource().reset();
-            throw new IllegalArgumentException(ex);
+            throw new ValidationException(ex);
         }
     }
 }
