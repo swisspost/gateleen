@@ -71,6 +71,9 @@ Logs all PUT, POST and DELETE Requests to /gateleen/server/test/sub/... and belo
 
 > <font color="orange">Attention: </font> Be aware of the order you define the payload filter configurations. Define "more" specific URLs before "less" specific URLs!
 
+#### Schema validation
+Updating the logging configuration resource requires a validation against a schema to be positive. Check the schema [gateleen_logging_schema_logging](src/main/resources/gateleen_logging_schema_logging)
+
 #### Update logging configuration
 Use **_LoggingResourceManager.handleLoggingResource(final HttpServerRequest request)_** method to update the logging configuration.
 
