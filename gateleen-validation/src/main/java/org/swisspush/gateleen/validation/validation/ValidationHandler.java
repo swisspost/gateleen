@@ -20,7 +20,7 @@ import java.util.regex.PatternSyntaxException;
 /**
  * Validates incoming and outgoing JSON and issues warnings in logs.
  *
- * @author https://github.com/mcweba [Marc-Andre Weber]
+ * @author https://github.com/lbovet [Laurent Bovet], https://github.com/mcweba [Marc-Andre Weber]
  */
 public class ValidationHandler {
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";

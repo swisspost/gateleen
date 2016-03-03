@@ -24,6 +24,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * @author https://github.com/lbovet [Laurent Bovet]
+ */
 public class Validator {
 
     private static final String SCHEMA_DECLARATION = "http://json-schema.org/draft-04/schema#";

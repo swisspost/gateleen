@@ -1,16 +1,11 @@
 package org.swisspush.gateleen.routing.routing;
 
-import com.floreysoft.jmte.DefaultModelAdaptor;
-import com.floreysoft.jmte.Engine;
-import com.floreysoft.jmte.ErrorHandler;
-import com.floreysoft.jmte.TemplateContext;
-import com.floreysoft.jmte.message.ParseException;
-import com.floreysoft.jmte.token.Token;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.validation.ValidationException;
 import org.swisspush.gateleen.validation.validation.ValidationResult;
 import org.swisspush.gateleen.validation.validation.Validator;
@@ -37,7 +32,7 @@ public class RuleFactory {
     public List<Rule> parseRules(Buffer buffer) throws ValidationException {
         String replacedConfig;
         try {
-            replacedConfig = replaceConfigWildcards(buffer.toString("UTF-8"));
+            replacedConfig = StringUtils.replaceWildcardConfigs(buffer.toString("UTF-8"), properties);
         } catch (Exception e) {
             throw new ValidationException(e);
         }
@@ -48,37 +43,6 @@ public class RuleFactory {
             throw new ValidationException(validationResult);
         }
     }
-
-    private String replaceConfigWildcards(String configWithWildcards) {
-        Engine engine = new Engine();
-        engine.setModelAdaptor(new DefaultModelAdaptor() {
-            @Override
-            public Object getValue(TemplateContext context, Token arg1, List<String> arg2, String expression) {
-                // First look in model map. Needed for dot-separated properties
-                Object value = context.model.get(expression);
-                if (value != null) {
-                    return value;
-                } else {
-                    return super.getValue(context, arg1, arg2, expression);
-                }
-            }
-
-            @Override
-            protected Object traverse(Object obj, List<String> arg1, int arg2, ErrorHandler arg3, Token token) {
-                // Throw exception if a token cannot be resolved instead of returning empty string.
-                if (obj == null) {
-                    throw new IllegalArgumentException("Could not resolve " + token);
-                }
-                return super.traverse(obj, arg1, arg2, arg3, token);
-            }
-        });
-        try {
-            return engine.transform(configWithWildcards, properties);
-        } catch (ParseException e) {
-            throw new IllegalArgumentException(e);
-        }
-    }
-
 
     public List<Rule> createRules(JsonObject rules) {
         List<Rule> result = new ArrayList<>();

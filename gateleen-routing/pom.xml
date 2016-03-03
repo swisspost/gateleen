@@ -43,11 +43,6 @@
             <artifactId>vertx-unit</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.floreysoft</groupId>
-            <artifactId>jmte</artifactId>
-            <version>3.0</version>
-        </dependency>
-        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>

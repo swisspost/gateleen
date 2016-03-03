@@ -1,5 +1,14 @@
 package org.swisspush.gateleen.core.util;
 
+import com.floreysoft.jmte.DefaultModelAdaptor;
+import com.floreysoft.jmte.Engine;
+import com.floreysoft.jmte.ErrorHandler;
+import com.floreysoft.jmte.TemplateContext;
+import com.floreysoft.jmte.token.Token;
+
+import java.util.List;
+import java.util.Map;
+
 /**
  * <p>
  * Utility class providing handy methods to deal with Strings.
@@ -97,6 +106,55 @@ public final class StringUtils {
             return "";
         } else {
             return trim(inputString);
+        }
+    }
+
+    /**
+     * Returns a String with replaced wildcard values from the provided properties.
+     * See example below:
+     * <pre>
+     * <b>Input:</b>
+     * contentWithWildcards: "This is a very ${adjective} helper method"
+     * properties: com.google.common.collect.ImmutableMap.of("adjective", "nice")
+     *
+     * <b>Output:</b>
+     * "This is a very nice helper method"
+     * </pre>
+     *
+     * @param contentWithWildcards the String containing the wildcards to replace
+     * @param properties the properties with the replacement values for the wildcards
+     * @return the String with replaced wildcard values. Returns the input String when input String or properties are <code>null</code>
+     */
+    public static String replaceWildcardConfigs(String contentWithWildcards, Map<String, Object> properties) {
+        if(properties == null || contentWithWildcards == null) {
+            return contentWithWildcards;
+        }
+        Engine engine = new Engine();
+        engine.setModelAdaptor(new DefaultModelAdaptor() {
+            @Override
+            public Object getValue(TemplateContext context, Token arg1, List<String> arg2, String expression) {
+                // First look in model map. Needed for dot-separated properties
+                Object value = context.model.get(expression);
+                if (value != null) {
+                    return value;
+                } else {
+                    return super.getValue(context, arg1, arg2, expression);
+                }
+            }
+
+            @Override
+            protected Object traverse(Object obj, List<String> arg1, int arg2, ErrorHandler arg3, Token token) {
+                // Throw exception if a token cannot be resolved instead of returning empty string.
+                if (obj == null) {
+                    throw new IllegalArgumentException("Could not resolve " + token);
+                }
+                return super.traverse(obj, arg1, arg2, arg3, token);
+            }
+        });
+        try {
+            return engine.transform(contentWithWildcards, properties);
+        } catch (com.floreysoft.jmte.message.ParseException e) {
+            throw new IllegalArgumentException(e);
         }
     }
 }

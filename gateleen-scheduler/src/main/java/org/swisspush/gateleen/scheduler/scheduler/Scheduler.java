@@ -25,6 +25,8 @@ import static org.swisspush.gateleen.queue.queuing.RedisquesAPI.STATUS;
 
 /**
  * Schedules requests to be queued. Synchronizes using redis to ensure only one instance is fired.
+ *
+ * @author https://github.com/lbovet [Laurent Bovet]
  */
 public class Scheduler {
 
