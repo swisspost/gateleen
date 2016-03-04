@@ -17,13 +17,17 @@
   "definitions": {
     "RequestFilter": {
       "description": "Matches request per URL or HTTP header.\n*It can contain additional properties named after headers and with a regexp value*",
-      "additionalProperties": {
-        "type": "string"
-      },
+      "additionalProperties": false,
       "properties": {
         "url": {
           "format": "regexp",
           "type": "string"
+        },
+        "reject": {
+          "enum": [
+            "true",
+            "false"
+          ]
         }
       }
     },
