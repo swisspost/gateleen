@@ -53,8 +53,7 @@
           ]
         },
         "payload": {
-          "description": "The payload to send in requests body",
-          "type": "string"
+          "description": "The payload to send in requests body"
         },
         "headers": {
           "description": "Headers to send with the request",
