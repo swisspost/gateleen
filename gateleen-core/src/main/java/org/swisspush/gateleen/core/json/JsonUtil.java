@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.core.json;
 
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 
 import java.util.Map;
@@ -21,5 +22,14 @@ public final class JsonUtil {
             }
         }
         return true;
+    }
+
+    public static boolean isValidJson(Buffer jsonBuffer){
+        try {
+            new JsonObject(jsonBuffer.toString());
+            return true;
+        } catch(Exception e){
+            return false;
+        }
     }
 }

@@ -2,6 +2,7 @@ package org.swisspush.gateleen.validation.validation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StringUtils;
 import com.github.fge.jsonschema.exceptions.ProcessingException;
@@ -96,9 +97,7 @@ public class Validator {
     }
 
     public static ValidationResult validateStatic(Buffer dataToBeValidated, String schemaAsString, Logger log){
-        try {
-            new JsonObject(dataToBeValidated.toString());
-        } catch(Exception e){
+        if(!JsonUtil.isValidJson(dataToBeValidated)){
             return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Unable to parse json");
         }
 

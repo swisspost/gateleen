@@ -88,6 +88,11 @@
 				<artifactId>spring-core</artifactId>
 				<version>${spring.core.version}</version>
 			</dependency>
+			<dependency>
+				<groupId>org.quartz-scheduler</groupId>
+				<artifactId>quartz</artifactId>
+				<version>${quartz.version}</version>
+			</dependency>
 
 			<!-- for testing -->
 			<dependency>
@@ -219,6 +224,7 @@
 		<junit.version>4.11</junit.version>
 		<joda-time.version>2.1</joda-time.version>
 		<spring.core.version>4.1.6.RELEASE</spring.core.version>
+		<quartz.version>2.2.1</quartz.version>
 		<embedded.redis.version>0.6</embedded.redis.version>
 		<rest.assured.version>2.4.1</rest.assured.version>
 		<rest-storage.version>2.0.2</rest-storage.version>

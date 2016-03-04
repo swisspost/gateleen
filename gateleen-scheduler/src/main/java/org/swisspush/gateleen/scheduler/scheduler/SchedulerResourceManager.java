@@ -11,6 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.validation.validation.ValidationException;
 
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,7 @@ public class SchedulerResourceManager {
     private List<Scheduler> schedulers;
     private Map<String, Object> properties;
     private SchedulerFactory schedulerFactory;
+    private String schedulersSchema;
 
     public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, MonitoringHandler monitoringHandler, String schedulersUri) {
         this(vertx, redisClient, storage, monitoringHandler, schedulersUri, null);
@@ -39,7 +43,8 @@ public class SchedulerResourceManager {
         this.schedulersUri = schedulersUri;
         this.properties = props;
 
-        this.schedulerFactory = new SchedulerFactory(properties, vertx, redisClient, monitoringHandler);
+        this.schedulersSchema = ResourcesUtils.loadResource("gateleen_scheduler_schema_schedulers", true);
+        this.schedulerFactory = new SchedulerFactory(properties, vertx, redisClient, monitoringHandler, schedulersSchema);
 
         updateSchedulers();
 
@@ -50,11 +55,7 @@ public class SchedulerResourceManager {
     private void updateSchedulers() {
         storage.get(schedulersUri, buffer -> {
             if (buffer != null) {
-                try {
-                    updateSchedulers(buffer);
-                } catch (IllegalArgumentException e) {
-                    log.error("Could not configure schedulers", e);
-                }
+                updateSchedulers(buffer);
             } else {
                 log.info("No schedulers configured");
             }
@@ -65,8 +66,8 @@ public class SchedulerResourceManager {
         stopSchedulers();
         try {
             schedulers = schedulerFactory.parseSchedulers(buffer);
-        } catch(Exception e) {
-            log.error("Could not parse schedulers", e);
+        } catch(ValidationException validationException) {
+            log.error("Could not parse schedulers: " + validationException.toString());
         } finally {
             vertx.setTimer(2000, aLong -> startSchedulers());
         }
@@ -77,11 +78,16 @@ public class SchedulerResourceManager {
             request.bodyHandler(buffer -> {
                 try {
                     schedulerFactory.parseSchedulers(buffer);
-                } catch (Exception e) {
-                    log.warn("Could not parse schedulers", e);
-                    request.response().setStatusCode(400);
-                    request.response().setStatusMessage("Bad Request");
-                    request.response().end(e.getMessage()+(e.getCause()!=null ? "\n"+e.getCause().getMessage():""));
+                } catch (ValidationException validationException) {
+                    log.warn("Could not parse schedulers: " + validationException.toString());
+                    request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
+                    if(validationException.getValidationDetails() != null){
+                        request.response().headers().add("content-type", "application/json");
+                        request.response().end(validationException.getValidationDetails().encode());
+                    } else {
+                        request.response().end(validationException.getMessage());
+                    }
                     return;
                 }
                 storage.put(schedulersUri, buffer, status -> {

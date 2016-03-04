@@ -13,6 +13,10 @@ public class ValidationException extends Exception {
         super(cause);
     }
 
+    public ValidationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
     public ValidationException(ValidationResult validationResult) {
         super(validationResult.getMessage());
         this.validationDetails = validationResult.getValidationDetails();
