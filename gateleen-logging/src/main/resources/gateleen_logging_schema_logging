@@ -1,55 +1,55 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
-  "properties": {
-    "headers": {
-      "description": "Headers matching any of the defined header names are logged",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/HeaderFilter"
-      }
-    },
-    "payload": {
-      "description": "Configures for which requests we log the payload.",
-      "$ref": "#/definitions/LoggingFilters"
-    }
-  },
-  "additionalProperties": false,
-  "definitions": {
-    "RequestFilter": {
-      "description": "Matches request per URL or HTTP header.\n*It can contain additional properties named after headers and with a regexp value*",
-      "additionalProperties": false,
-      "properties": {
-        "url": {
-          "format": "regexp",
-          "type": "string"
-        },
-        "reject": {
-          "enum": [
-            "true",
-            "false"
-          ]
-        }
-      }
-    },
-    "LoggingFilters": {
-      "properties": {
-        "filters": {
-          "description": "Requests matching any of the filters are logged",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/RequestFilter"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "HeaderFilter": {
-      "description": "Matches HTTP header names.\n*It can contain additional properties named after headers*",
-      "type": "string",
-      "additionalProperties": {
-        "type": "string"
-      },
-      "properties": {}
-    }
-  }
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"properties": {
+		"headers": {
+			"description": "Headers matching any of the defined header names are logged",
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/HeaderFilter"
+			}
+		},
+		"payload": {
+			"description": "Configures for which requests we log the payload.",
+			"$ref": "#/definitions/LoggingFilters"
+		}
+	},
+	"additionalProperties": false,
+	"definitions": {
+		"RequestFilter": {
+			"description": "Matches request per URL or HTTP header.\n*It can contain additional properties named after headers and with a regexp value*",
+			"additionalProperties": false,
+			"properties": {
+				"url": {
+					"format": "regexp",
+					"type": "string"
+				},
+				"reject": {
+					"enum": [
+						"true",
+						"false"
+					]
+				}
+			}
+		},
+		"LoggingFilters": {
+			"properties": {
+				"filters": {
+					"description": "Requests matching any of the filters are logged",
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/RequestFilter"
+					}
+				}
+			},
+			"additionalProperties": false
+		},
+		"HeaderFilter": {
+			"description": "Matches HTTP header names.\n*It can contain additional properties named after headers*",
+			"type": "string",
+			"additionalProperties": {
+				"type": "string"
+			},
+			"properties": {}
+		}
+	}
 }

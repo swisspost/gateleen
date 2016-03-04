@@ -1,77 +1,77 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
-  "properties": {
-    "schedulers": {
-      "description": "Keys are scheduler names.",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/Scheduler"
-      }
-    }
-  },
-  "required": [
-    "schedulers"
-  ],
-  "additionalProperties": false,
-  "definitions": {
-    "Scheduler": {
-      "properties": {
-        "description": {
-          "description": "documentation of the scheduler",
-          "type": "string"
-        },
-        "cronExpression": {
-          "description": "6-segment cron expression (first are seconds). Use ? as last segment. Example: `0 /3 * * * ?`.",
-          "type": "string"
-        },
-        "requests": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Request"
-          }
-        }
-      },
-      "required": [
-        "cronExpression",
-        "requests"
-      ],
-      "additionalProperties": false
-    },
-    "Request": {
-      "properties": {
-        "uri": {
-          "description": "The target of the request",
-          "type": "string"
-        },
-        "method": {
-          "description": "The operation to perform",
-          "enum": [
-            "GET",
-            "PUT",
-            "POST",
-            "DELETE"
-          ]
-        },
-        "payload": {
-          "description": "The payload to send in requests body"
-        },
-        "headers": {
-          "description": "Headers to send with the request",
-          "type": "array",
-          "items": {
-            "description": "Header value pairs",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "required": [
-        "uri",
-        "method"
-      ],
-      "additionalProperties": false
-    }
-  }
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"properties": {
+		"schedulers": {
+			"description": "Keys are scheduler names.",
+			"type": "object",
+			"additionalProperties": {
+				"$ref": "#/definitions/Scheduler"
+			}
+		}
+	},
+	"required": [
+		"schedulers"
+	],
+	"additionalProperties": false,
+	"definitions": {
+		"Scheduler": {
+			"properties": {
+				"description": {
+					"description": "documentation of the scheduler",
+					"type": "string"
+				},
+				"cronExpression": {
+					"description": "6-segment cron expression (first are seconds). Use ? as last segment. Example: `0 /3 * * * ?`.",
+					"type": "string"
+				},
+				"requests": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/Request"
+					}
+				}
+			},
+			"required": [
+				"cronExpression",
+				"requests"
+			],
+			"additionalProperties": false
+		},
+		"Request": {
+			"properties": {
+				"uri": {
+					"description": "The target of the request",
+					"type": "string"
+				},
+				"method": {
+					"description": "The operation to perform",
+					"enum": [
+						"GET",
+						"PUT",
+						"POST",
+						"DELETE"
+					]
+				},
+				"payload": {
+					"description": "The payload to send in requests body"
+				},
+				"headers": {
+					"description": "Headers to send with the request",
+					"type": "array",
+					"items": {
+						"description": "Header value pairs",
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				}
+			},
+			"required": [
+				"uri",
+				"method"
+			],
+			"additionalProperties": false
+		}
+	}
 }
