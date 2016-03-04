@@ -1,35 +1,33 @@
 package org.swisspush.gateleen.validation.validation;
 
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.core.util.StringUtils;
-import com.google.common.base.Joiner;
-import io.vertx.core.http.HttpMethod;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ValidationResourceManager {
 
     private static final String UPDATE_ADDRESS = "gateleen.validation-updated";
 
     private final String validationUri;
-
     private final ResourceStorage storage;
-
     private final Logger log = LoggerFactory.getLogger(ValidationResourceManager.class);
-
     private final Vertx vertx;
-
     private ValidationResource validationResource;
+    private String validationResourceSchema;
 
     public ValidationResource getValidationResource() {
         if (validationResource == null) {
@@ -43,6 +41,8 @@ public class ValidationResourceManager {
         this.vertx = vertx;
         this.validationUri = validationUri;
 
+        this.validationResourceSchema = ResourcesUtils.loadResource("gateleen_validation_schema_validation", true);
+
         updateValidationResource();
 
         // Receive update notifications
@@ -54,7 +54,7 @@ public class ValidationResourceManager {
             if (buffer != null) {
                 try {
                     updateValidationResource(buffer);
-                } catch (IllegalArgumentException e) {
+                } catch (ValidationException e) {
                     log.warn("Could not reconfigure validation resource", e);
                 }
             } else {
@@ -63,7 +63,7 @@ public class ValidationResourceManager {
         });
     }
 
-    private void updateValidationResource(Buffer buffer) {
+    private void updateValidationResource(Buffer buffer) throws ValidationException {
         extractValidationValues(buffer);
         for (Map<String, String> resourceToValidate : getValidationResource().getResources()) {
             log.info("Applying validation for resource: " + resourceToValidate);
@@ -78,12 +78,17 @@ public class ValidationResourceManager {
             request.bodyHandler(validationResourceBuffer -> {
                 try {
                     extractValidationValues(validationResourceBuffer);
-                } catch (IllegalArgumentException e) {
+                } catch (ValidationException validationException) {
                     updateValidationResource();
-                    log.error("Could not parse validation resource", e);
+                    log.error("Could not parse validation resource: " + validationException.toString());
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                    request.response().end(e.getMessage());
+                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
+                    if(validationException.getValidationDetails() != null){
+                        request.response().headers().add("content-type", "application/json");
+                        request.response().end(validationException.getValidationDetails().encode());
+                    } else {
+                        request.response().end(validationException.getMessage());
+                    }
                     return;
                 }
                 storage.put(validationUri, validationResourceBuffer, status -> {
@@ -106,59 +111,40 @@ public class ValidationResourceManager {
         return false;
     }
 
-    private void extractValidationValues(Buffer validationResourceBuffer) {
+    private void extractValidationValues(Buffer validationResourceBuffer) throws ValidationException {
+        ValidationResult validationResult = Validator.validateStatic(validationResourceBuffer, validationResourceSchema, log);
+        if(!validationResult.isSuccess()){
+            throw new ValidationException(validationResult);
+        }
+
         try {
             JsonObject validationRes = new JsonObject(validationResourceBuffer.toString("UTF-8"));
             getValidationResource().reset();
 
             JsonArray resourcesArray = validationRes.getJsonArray("resources");
-            if (resourcesArray != null) {
-                for (Object resourceEntry : resourcesArray) {
-                    JsonObject resJSO = (JsonObject) resourceEntry;
-                    Map<String, String> resProperties = new HashMap<>();
+            for (Object resourceEntry : resourcesArray) {
+                JsonObject resJSO = (JsonObject) resourceEntry;
+                Map<String, String> resProperties = new HashMap<>();
 
-                    String notAllowedProperties = checkProperties(resJSO.fieldNames());
-                    if(StringUtils.isNotEmpty(notAllowedProperties)){
-                        log.warn("Unknown properties '" + notAllowedProperties + "' in validation resource found. Ignoring them!");
-                    }
-
-                    String url = resJSO.getString(ValidationResource.URL_PROPERTY);
-                    if(!StringUtils.isEmpty(url)){
-                        resProperties.put(ValidationResource.URL_PROPERTY, url);
-                    } else {
-                        throw new IllegalArgumentException("Property '"+ValidationResource.URL_PROPERTY+"' is not allowed to be missing (or empty)");
-                    }
-
-                    String method = resJSO.getString(ValidationResource.METHOD_PROPERTY);
-                    if(!StringUtils.isEmpty(method)){
-                        resProperties.put(ValidationResource.METHOD_PROPERTY, method);
-                    } else {
-                        resProperties.put(ValidationResource.METHOD_PROPERTY, "PUT");
-                    }
-
-                    getValidationResource().addResource(resProperties);
+                String url = resJSO.getString(ValidationResource.URL_PROPERTY);
+                if(!StringUtils.isEmpty(url)){
+                    resProperties.put(ValidationResource.URL_PROPERTY, url);
+                } else {
+                    throw new IllegalArgumentException("Property '"+ValidationResource.URL_PROPERTY+"' is not allowed to be missing (or empty)");
                 }
-            } else {
-                getValidationResource().reset();
-                throw new IllegalArgumentException("No resources property defined in validation resource");
+
+                String method = resJSO.getString(ValidationResource.METHOD_PROPERTY);
+                if(!StringUtils.isEmpty(method)){
+                    resProperties.put(ValidationResource.METHOD_PROPERTY, method);
+                } else {
+                    resProperties.put(ValidationResource.METHOD_PROPERTY, "PUT");
+                }
+
+                getValidationResource().addResource(resProperties);
             }
         } catch (Exception ex) {
             getValidationResource().reset();
-            throw new IllegalArgumentException(ex);
+            throw new ValidationException(ex);
         }
-    }
-
-    private String checkProperties(Set<String> fieldnames){
-        String notAllowedProperties = "";
-        List<String> notAllowed = new ArrayList<>();
-        for (String fieldname : fieldnames) {
-            if(!ValidationResource.ALLOWED_VALIDATION_PROPERTIES.contains(fieldname)){
-                notAllowed.add(fieldname);
-            }
-        }
-        if(!notAllowed.isEmpty()){
-            return Joiner.on(",").join(notAllowed);
-        }
-        return notAllowedProperties;
     }
 }

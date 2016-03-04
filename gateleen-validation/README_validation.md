@@ -6,8 +6,8 @@ Use the ValidationResourceManager class to configure the validation configuratio
 
 | Property    | Description                              | 
 |:----------- | :--------------------------------------- | 
-| url         | A string containing the URL to log. Regex can be used to define a pattern |
-| method      | A string containing the HTTP method to log. Regex can be used to define a pattern. This property is optional. If not provided, "PUT" will be used as default |
+| url         | A string containing the URL to validate. Regex can be used to define a pattern |
+| method      | A string containing the HTTP method to validate. Regex can be used to define a pattern. This property is optional. If not provided, "PUT" will be used as default |
 
 All filter values inside a config property (url, method) have to match in order to validate the corresponding json resource.
 
@@ -29,6 +29,9 @@ Example of a validation configuration:
 ```
 
 > <font color="orange">Attention: </font> To validate a json resource, a schema for the resource must exist!
+
+#### Schema validation
+Updating the validation configuration resource requires a validation against a schema to be positive. Check the schema [gateleen_validation_schema_validation](src/main/resources/gateleen_validation_schema_validation)
 
 #### Request handling
 When a json resource is configured to be validated, requests are handled by the following rules:
