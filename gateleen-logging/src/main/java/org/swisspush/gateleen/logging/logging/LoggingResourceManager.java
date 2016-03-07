@@ -28,17 +28,12 @@ public class LoggingResourceManager {
 
     private static final String UPDATE_ADDRESS = "gateleen.logging-updated";
 
-    private String loggingUri;
-
-    private ResourceStorage storage;
-
-    private Logger log = LoggerFactory.getLogger(LoggingResourceManager.class);
-
-    private Vertx vertx;
-
+    private final String loggingUri;
+    private final ResourceStorage storage;
+    private final Logger log = LoggerFactory.getLogger(LoggingResourceManager.class);
+    private final Vertx vertx;
     private LoggingResource loggingResource;
-
-    private String loggingResourceSchema;
+    private final String loggingResourceSchema;
 
     public LoggingResource getLoggingResource() {
         if (loggingResource == null) {
@@ -160,12 +155,12 @@ public class LoggingResourceManager {
 
             JsonObject destinations = payload.getJsonObject("destinations");
             if (destinations != null) {
-                Map<String, Map<String, String>> destinationEntries = new HashMap<String, Map<String, String>>();
+                Map<String, Map<String, String>> destinationEntries = new HashMap<>();
 
                 for (String fieldName : destinations.fieldNames()) {
                     JsonObject destination = destinations.getJsonObject(fieldName);
 
-                    Map<String, String> options = new HashMap<String, String>();
+                    Map<String, String> options = new HashMap<>();
                     options.put("type", destination.getString("type"));
 
                     String typeLocation = null;
@@ -182,7 +177,7 @@ public class LoggingResourceManager {
                         destinationEntries.put(fieldName, options);
                     }
                     else {
-                        log.warn("Could not configure destination '" + fieldName + "'. Missing typeLocation (file|adress).");
+                        log.warn("Could not configure destination '" + fieldName + "'. Missing typeLocation (file|address).");
                     }
                 }
                 getLoggingResource().addFilterDestinations(destinationEntries);
@@ -192,7 +187,7 @@ public class LoggingResourceManager {
             if (filtersArray != null) {
                 for (Object filterEntry : filtersArray) {
                     JsonObject filterObject = (JsonObject) filterEntry;
-                    Map<String, String> filterEntries = new HashMap<String, String>();
+                    Map<String, String> filterEntries = new HashMap<>();
                     for (String filterName : filterObject.fieldNames()) {
                         filterEntries.put(filterName, filterObject.getString(filterName));
                     }
