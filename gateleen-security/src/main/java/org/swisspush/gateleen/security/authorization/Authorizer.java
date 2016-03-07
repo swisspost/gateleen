@@ -1,9 +1,5 @@
 package org.swisspush.gateleen.security.authorization;
 
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.RoleExtractor;
-import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -11,11 +7,16 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.RoleExtractor;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.validation.validation.ValidationException;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -32,14 +33,14 @@ public class Authorizer {
     private Pattern userUriPattern;
 
     private String aclKey = "acls";
-
     private String aclRoot;
-
     private String adminRole = "admin";
     private String anonymousRole = "everyone";
-
     private String deviceHeader = "x-rp-deviceid";
     private String userHeader = "x-rp-usr";
+
+    private String aclSchema;
+    private AclFactory aclFactory;
 
     private PatternHolder aclUriPattern;
 
@@ -47,9 +48,7 @@ public class Authorizer {
     private EventBus eb;
 
     private ResourceStorage storage;
-
     private RoleExtractor roleExtractor;
-
     private Map<PatternHolder, Map<String, Set<String>>> initialGrantedRoles;
 
     // URI -> Method -> Roles
@@ -64,6 +63,10 @@ public class Authorizer {
         this.aclUriPattern = new PatternHolder(Pattern.compile("^" + aclRoot + "(?<role>.+)$"));
         this.userUriPattern = Pattern.compile(securityRoot + "user(\\?.*)?");
         this.roleExtractor = new RoleExtractor(rolePattern);
+
+        this.aclSchema = ResourcesUtils.loadResource("gateleen_security_schema_acl", true);
+        this.aclFactory = new AclFactory(aclSchema);
+
         eb = vertx.eventBus();
 
         initialGrantedRoles = new HashMap<>();
@@ -122,11 +125,17 @@ public class Authorizer {
             if (HttpMethod.PUT == request.method()) {
                 request.bodyHandler(buffer -> {
                     try {
-                        parseAcl(buffer);
-                    } catch (IllegalArgumentException | DecodeException e) {
+                        aclFactory.parseAcl(buffer);
+                    } catch (ValidationException validationException) {
+                        log.warn("Could not parse acl: " + validationException.toString());
                         request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                        request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                        request.response().end(e.getMessage());
+                        request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
+                        if(validationException.getValidationDetails() != null){
+                            request.response().headers().add("content-type", "application/json");
+                            request.response().end(validationException.getValidationDetails().encode());
+                        } else {
+                            request.response().end(validationException.getMessage());
+                        }
                         return;
                     }
                     storage.put(request.uri(), buffer, status -> {
@@ -243,8 +252,8 @@ public class Authorizer {
                 try {
                     log.info("Applying acl for " + role);
                     mergeAcl(role, buffer);
-                } catch (IllegalArgumentException e) {
-                    log.error("Could not reconfigure routing", e);
+                } catch (ValidationException validationException) {
+                    log.error("Could not parse acls: " + validationException.toString());
                 }
             } else {
                 log.error("No acl for role " + role + " found in storage");
@@ -252,47 +261,8 @@ public class Authorizer {
         });
     }
 
-    private Map<PatternHolder, Set<String>> parseAcl(Buffer buffer) {
-        Map<PatternHolder, Set<String>> result = new HashMap<>();
-
-        JsonObject aclItems = new JsonObject(buffer.toString("UTF-8"));
-
-        for (String id : aclItems.fieldNames()) {
-            Object aclItemToTest = aclItems.getValue(id);
-            if (!(aclItemToTest instanceof JsonObject)) {
-                throw new IllegalArgumentException("acl item must be a map: " + id);
-            }
-            JsonObject aclItem = aclItems.getJsonObject(id);
-            aclItems.getValue("debug.read");
-            String path = aclItem.getString("path");
-            JsonArray methods = aclItem.getJsonArray("methods");
-            checkPropertiesValid(path, methods, id);
-            if (path != null) {
-                PatternHolder holder = new PatternHolder(Pattern.compile(path));
-                Set<String> methodSet = result.get(holder);
-                if (methodSet == null) {
-                    methodSet = new HashSet<>();
-                    result.put(holder, methodSet);
-                }
-                if (methods != null) {
-                    for (Object methodObj : methods) {
-                        String method = (String) methodObj;
-                        methodSet.add(method);
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    private void checkPropertiesValid(String path, JsonArray methods, String id) {
-        if (path == null && methods != null) {
-            throw new IllegalArgumentException("Missing path for defined method list permission " + id);
-        }
-    }
-
-    private void mergeAcl(String role, Buffer buffer) {
-        Map<PatternHolder, Set<String>> permissions = parseAcl(buffer);
+    private void mergeAcl(String role, Buffer buffer) throws ValidationException {
+        Map<PatternHolder, Set<String>> permissions = aclFactory.parseAcl(buffer);
         for (Entry<PatternHolder, Set<String>> entry : permissions.entrySet()) {
             PatternHolder holder = entry.getKey();
             Map<String, Set<String>> aclItem = grantedRoles.get(holder);

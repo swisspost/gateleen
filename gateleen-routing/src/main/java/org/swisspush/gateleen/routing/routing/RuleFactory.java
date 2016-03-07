@@ -1,16 +1,14 @@
 package org.swisspush.gateleen.routing.routing;
 
-import com.floreysoft.jmte.DefaultModelAdaptor;
-import com.floreysoft.jmte.Engine;
-import com.floreysoft.jmte.ErrorHandler;
-import com.floreysoft.jmte.TemplateContext;
-import com.floreysoft.jmte.message.ParseException;
-import com.floreysoft.jmte.token.Token;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.validation.validation.ValidationException;
+import org.swisspush.gateleen.validation.validation.ValidationResult;
+import org.swisspush.gateleen.validation.validation.Validator;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -24,50 +22,27 @@ public class RuleFactory {
     private Logger log = LoggerFactory.getLogger(RuleFactory.class);
     private Pattern urlParsePattern = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>[0-9]+))?(?<path>/.*)$");
     private final Map<String, Object> properties;
+    private String routingRulesSchema;
 
-    public RuleFactory(Map<String, Object> properties) {
+    public RuleFactory(Map<String, Object> properties, String routingRulesSchema) {
         this.properties = properties;
+        this.routingRulesSchema = routingRulesSchema;
     }
 
-    public List<Rule> parseRules(Buffer buffer) {
+    public List<Rule> parseRules(Buffer buffer) throws ValidationException {
+        String replacedConfig;
         try {
-            String replacedConfig = replaceConfigWildcards(buffer.toString("UTF-8"));
-            return createRules(new JsonObject(replacedConfig));
+            replacedConfig = StringUtils.replaceWildcardConfigs(buffer.toString("UTF-8"), properties);
         } catch (Exception e) {
-            throw new IllegalArgumentException(e);
+            throw new ValidationException(e);
+        }
+        ValidationResult validationResult = Validator.validateStatic(Buffer.buffer(replacedConfig), routingRulesSchema, log);
+        if (validationResult.isSuccess()) {
+            return createRules(new JsonObject(replacedConfig));
+        } else {
+            throw new ValidationException(validationResult);
         }
     }
-
-    private String replaceConfigWildcards(String configWithWildcards) {
-        Engine engine = new Engine();
-        engine.setModelAdaptor(new DefaultModelAdaptor() {
-            @Override
-            public Object getValue(TemplateContext context, Token arg1, List<String> arg2, String expression) {
-                // First look in model map. Needed for dot-separated properties
-                Object value = context.model.get(expression);
-                if (value != null) {
-                    return value;
-                } else {
-                    return super.getValue(context, arg1, arg2, expression);
-                }
-            }
-
-            @Override
-            protected Object traverse(Object obj, List<String> arg1, int arg2, ErrorHandler arg3, Token token) {
-                // Throw exception if a token cannot be resolved instead of returning empty string.
-                if (obj == null) {
-                    throw new IllegalArgumentException("Could not resolve " + token);
-                }
-                return super.traverse(obj, arg1, arg2, arg3, token);
-            }
-        });
-        try {
-            return engine.transform(configWithWildcards, properties);
-        } catch (ParseException e) {
-            throw new IllegalArgumentException(e);
-        }
-    }
-
 
     public List<Rule> createRules(JsonObject rules) {
         List<Rule> result = new ArrayList<>();

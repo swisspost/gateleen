@@ -17,32 +17,35 @@ headers:["x-user-zip", "x-user-tour", "x-rp-lang"]
 ```
 
 ##### Property: Payload
-An object called destinations (optional) which contains destination objects specifying the type of the destination (e.g. file or eventBus) and the filename in case of a file or the address in case of a eventBus. 
+An optional array called destinations which contains destination objects specifying the type of the destination (e.g. file or eventBus) and the filename in case of a file or the address in case of a eventBus. 
 
-| Property    | Description                              | 
-|:----------- | :--------------------------------------- | 
-| \<name\>      | The name of the object, used in the filters to reference the destination. |
-| type        | Specifies the type of the destination. This can be a file (file) or an address from the eventBus (address). |
-| file        | Used to specify the name of the file, where the filtered content should be logged. |
-| address     | Used to specify the address in the eventBus, where the filtered content should be logged. |
+| Property    | Required | Description                              | 
+|:----------- | :------: | :--------------------------------------- | 
+| name        | yes | The name of the object, used in the filters to reference the destination. |
+| type        | yes | Specifies the type of the destination. This can be a file (file) or an address from the eventBus (address). |
+| file        | | Used to specify the name of the file, where the filtered content should be logged. |
+| address     | | Used to specify the address in the eventBus, where the filtered content should be logged. |
 
 
 ```json
 "payload": {
-    "destinations": {
-      "requestLog": {
+    "destinations": [
+      {
+        "name" : "requestLog",
         "type" : "file",
         "file" : "requests.log"
       },
-      "default": {
+      {
+        "name" : "default",
         "type" : "file",
         "file" : "recording.log"
       },
-      "rec2": {
+      {
+        "name" : "rec2",
         "type" : "eventBus",
         "address" : "event/request-test"
       }
-    }
+    ]
 }
 ```
 
@@ -107,20 +110,23 @@ Example of a payload filters configuration using destinations to redirect the lo
 ```json
 {
   "payload": {
-    "destinations": {
-      "requestLog": {
+    "destinations": [
+      {
+        "name" : "requestLog",
         "type" : "file",
         "file" : "requests.log"
       },
-      "default": {
+      {
+        "name" : "default",
         "type" : "file",
         "file" : "recording.log"
       },
-      "rec2": {
+      {
+        "name" : "rec2",
         "type" : "eventBus",
         "address" : "event/request-test"
       }
-    },
+    ],
     "filters": [
       {
         "url": "/gateleen/audit/log",
@@ -137,6 +143,9 @@ Example of a payload filters configuration using destinations to redirect the lo
   }
 }
 ```
+
+#### Schema validation
+Updating the logging configuration resource requires a validation against a schema to be positive. Check the schema [gateleen_logging_schema_logging](src/main/resources/gateleen_logging_schema_logging)
 
 #### Update logging configuration
 Use **_LoggingResourceManager.handleLoggingResource(final HttpServerRequest request)_** method to update the logging configuration.

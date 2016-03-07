@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.validation.validation;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StringUtils;
 import com.github.fge.jsonschema.exceptions.ProcessingException;
@@ -23,11 +25,15 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * @author https://github.com/lbovet [Laurent Bovet]
+ */
 public class Validator {
 
-	private String schemaRoot;
+    private static final String SCHEMA_DECLARATION = "http://json-schema.org/draft-04/schema#";
+    private String schemaRoot;
 	private ResourceStorage storage;
-	private JsonSchemaFactory factory = JsonSchemaFactory.byDefault();
+	private static JsonSchemaFactory factory = JsonSchemaFactory.byDefault();
 
 	public Validator(ResourceStorage storage, String schemaRoot) {
         this.storage = storage;
@@ -90,8 +96,46 @@ public class Validator {
         }
     }
 
-    private void performValidation(String dataString, JsonObject data, Logger log, String base, Buffer jsonBuffer, String type, String path, Handler<ValidationResult> callback) {
-        if("http://json-schema.org/draft-04/schema#".equals(data.getString("$schema"))) {
+    public static ValidationResult validateStatic(Buffer dataToBeValidated, String schemaAsString, Logger log){
+        if(!JsonUtil.isValidJson(dataToBeValidated)){
+            return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Unable to parse json");
+        }
+
+        JsonObject schemaObject = new JsonObject(schemaAsString);
+        if(SCHEMA_DECLARATION.equals(schemaObject.getString("$schema"))) {
+            JsonSchema schema;
+            try {
+                schema = factory.getJsonSchema(JsonLoader.fromString(schemaAsString));
+            } catch (ProcessingException | IOException e) {
+                String message = "Cannot load schema";
+                log.warn(message, e);
+                return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message);
+            }
+            try {
+                ProcessingReport report = schema.validateUnchecked(JsonLoader.fromString(dataToBeValidated.toString()));
+                if(report.isSuccess()) {
+                    return new ValidationResult(ValidationStatus.VALIDATED_POSITIV);
+                } else {
+                    JsonArray validationDetails = extractMessagesAsJson(report);
+                    for(ProcessingMessage message: report) {
+                        log.warn(message.getMessage());
+                    }
+                    return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Validation failed", validationDetails);
+                }
+            } catch (IOException e) {
+                String message = "Cannot read JSON";
+                log.warn(message, e.getMessage());
+                return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message);
+            }
+        } else {
+            String message = "Invalid schema: Expected property '$schema' with content '"+SCHEMA_DECLARATION+"'";
+            log.warn(message);
+            return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message);
+        }
+    }
+
+    private static void performValidation(String dataString, JsonObject data, Logger log, String base, Buffer jsonBuffer, String type, String path, Handler<ValidationResult> callback) {
+        if(SCHEMA_DECLARATION.equals(data.getString("$schema"))) {
             JsonSchema schema;
             try {
                 schema = factory.getJsonSchema(JsonLoader.fromString(dataString));
@@ -133,7 +177,18 @@ public class Validator {
         }
     }
 
-    private String extractMessages(ProcessingReport report){
+    private static JsonArray extractMessagesAsJson(ProcessingReport report){
+        JsonArray resultArray = new JsonArray();
+        Iterator it = report.iterator();
+        while (it.hasNext()) {
+            ProcessingMessage msg = (ProcessingMessage) it.next();
+            JsonNode node = msg.asJson();
+            resultArray.add(new JsonObject(node.toString()));
+        }
+        return resultArray;
+    }
+
+    private static String extractMessages(ProcessingReport report){
         List<String> messages = new ArrayList<>();
         Iterator it = report.iterator();
         while (it.hasNext()) {
@@ -149,7 +204,7 @@ public class Validator {
         return joiner.join(messages);
     }
 
-    private String getReportAsString(ProcessingReport report){
+    private static String getReportAsString(ProcessingReport report){
         List<String> messages = new ArrayList<>();
         Iterator it = report.iterator();
         while (it.hasNext()) {

@@ -1,9 +1,9 @@
-package org.swisspush.gateleen.validation.validation.mocks;
+package org.swisspush.gateleen.core.storage;
 
-import org.swisspush.gateleen.core.storage.ResourceStorage;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,13 +13,13 @@ import java.util.Map;
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class ResourceStorageMock implements ResourceStorage {
+public class MockResourceStorage implements ResourceStorage {
 
     private Map<String, String> localStorageValues = new HashMap<>();
 
-    public ResourceStorageMock(){}
+    public MockResourceStorage(){}
 
-    public ResourceStorageMock(Map<String, String> initalMockData){
+    public MockResourceStorage(Map<String, String> initalMockData){
         localStorageValues.putAll(initalMockData);
     }
 
@@ -39,17 +39,19 @@ public class ResourceStorageMock implements ResourceStorage {
 
     @Override
     public void put(String uri, MultiMap headers, Buffer buffer, Handler<Integer> doneHandler) {
-
+        localStorageValues.put(uri, buffer.toString());
+        doneHandler.handle(StatusCode.OK.getStatusCode());
     }
 
     @Override
     public void put(String uri, Buffer buffer, Handler<Integer> doneHandler) {
         localStorageValues.put(uri, buffer.toString());
-        doneHandler.handle(200);
+        doneHandler.handle(StatusCode.OK.getStatusCode());
     }
 
     @Override
     public void delete(String uri, Handler<Integer> doneHandler) {
-
+        localStorageValues.remove(uri);
+        doneHandler.handle(StatusCode.OK.getStatusCode());
     }
 }

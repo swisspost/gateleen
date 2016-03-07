@@ -1,0 +1,33 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"properties": {
+		"resources": {
+			"description": "Array of resources to be validated",
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/Resource"
+			}
+		}
+	},
+	"additionalProperties": false,
+	"definitions": {
+		"Resource": {
+			"description": "Resource to be validated",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"url": {
+					"description": "The URL to validate. Regex can be used to define a pattern",
+					"format": "regexp",
+					"type": "string"
+				},
+				"method": {
+					"description": "The HTTP method to validate. Regex can be used to define a pattern. If not provided, PUT will be used as default",
+					"format": "regexp",
+					"type": "string"
+				}
+			},
+			"required": ["url"]
+		}
+	}
+}

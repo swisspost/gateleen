@@ -1,0 +1,11 @@
+{
+  "menu.display": {},
+  "resources.edit": {
+    "methods": [
+      "GET",
+      "POST",
+      "DELETE"
+    ],
+    "path": "/gateleen/resources/.*"
+  }
+}

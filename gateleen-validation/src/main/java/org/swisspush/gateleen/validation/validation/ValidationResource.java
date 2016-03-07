@@ -11,7 +11,6 @@ public class ValidationResource {
 
     public static final String URL_PROPERTY = "url";
     public static final String METHOD_PROPERTY = "method";
-    public static final List<String> ALLOWED_VALIDATION_PROPERTIES = Arrays.asList(URL_PROPERTY, METHOD_PROPERTY);
 
     private List<Map<String, String>> resources = new ArrayList<>();
 

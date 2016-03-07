@@ -1,0 +1,24 @@
+{
+  "schedulers": {
+    "queue-cleanup": {
+      "description": "Clean the active queue set and wake up consumers for orphan queues",
+      "cronExpression": "0 * * * * ?",
+      "requests": [
+        {
+          "uri": "/playground/server/cleanup",
+          "method": "POST"
+        }
+      ]
+    },
+    "main-storage-cleanup": {
+      "description": "Clean the expirable resources from main storage",
+      "cron": "0 /10 * * * ?",
+      "requests": [
+        {
+          "uri": "/playground/server/_cleanup",
+          "method": "POST"
+        }
+      ]
+    }
+  }
+}

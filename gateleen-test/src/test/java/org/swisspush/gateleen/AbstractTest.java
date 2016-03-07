@@ -82,18 +82,18 @@ public abstract class AbstractTest {
      */
     @BeforeClass
     public static void setupBeforeClass(TestContext context) {
-//        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
-//            RedisEmbeddedConfiguration.redisServer.start();
-//
-//            // setting a shutdown hook for redis
-//            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-//                try {
-//                    RedisEmbeddedConfiguration.redisServer.stop();
-//                } catch (Exception handled) {
-//                    // ups
-//                }
-//            }));
-//        }
+        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.start();
+
+            // setting a shutdown hook for redis
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    RedisEmbeddedConfiguration.redisServer.stop();
+                } catch (Exception handled) {
+                    // ups
+                }
+            }));
+        }
 
         Async async = context.async();
         vertx = Vertx.vertx();
@@ -175,9 +175,9 @@ public abstract class AbstractTest {
     @AfterClass
     public static void tearDownAfterClass(TestContext context) {
         Async async = context.async();
-//        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
-//            RedisEmbeddedConfiguration.redisServer.stop();
-//        }
+        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
+            RedisEmbeddedConfiguration.redisServer.stop();
+        }
         jedis.close();
         mainServer.close();
         vertx.close(event -> async.complete());

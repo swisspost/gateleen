@@ -1,0 +1,13 @@
+{
+  "menu.display": {
+    "notAllowedProperty": "someValue"
+  },
+  "resources.edit": {
+    "methods": [
+      "GET",
+      "POST",
+      "DELETE"
+    ],
+    "path": "/gateleen/resources/.*"
+  }
+}

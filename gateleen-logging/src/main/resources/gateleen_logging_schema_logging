@@ -1,0 +1,95 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"properties": {
+		"headers": {
+			"description": "Headers matching any of the defined header names are logged",
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/HeaderFilter"
+			}
+		},
+		"payload": {
+			"description": "Configures for which requests we log the payload.",
+			"$ref": "#/definitions/LoggingFilters"
+		}
+	},
+	"additionalProperties": false,
+	"definitions": {
+	    "Destination": {
+	      "description": "A configuration to define where to log the filtered requests",
+	      "properties": {
+	        "name": {
+	          "type": "string"
+	        },
+	        "type": {
+	          "enum": [
+	            "file",
+	            "eventBus"
+	          ]
+	        },
+	        "file": {
+	          "type": "string"
+	        },
+	        "address": {
+	          "type": "string"
+	        }
+	      },
+	      "additionalProperties": false,
+	      "required": ["name", "type"]
+	    },
+		"RequestFilter": {
+			"description": "Matches request per URL and/or HTTP method. It can contain additional properties named after headers and with a regexp value",
+			"properties": {
+				"url": {
+					"format": "regexp",
+					"type": "string"
+				},
+				"method": {
+					"description": "The HTTP method(s) to validate. Regex can be used to define a pattern",
+					"format": "regexp",
+					"type": "string"
+				},
+				"destination": {
+					"description": "The destination the filtered content will be logged to",
+					"type": "string"
+				},
+				"reject": {
+					"enum": [
+						"true",
+						"false"
+					]
+				}
+			},
+			"additionalProperties": {
+			    "type": "string"
+			}
+		},
+		"LoggingFilters": {
+			"properties": {
+			    "destinations": {
+			      "description": "Destinations where the filtered requests should be logged",
+			      "type": "array",
+			      "items": {
+			        "$ref": "#/definitions/Destination"
+			      }
+			    },
+				"filters": {
+					"description": "Requests matching any of the filters are logged",
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/RequestFilter"
+					}
+				}
+			},
+			"additionalProperties": false
+		},
+		"HeaderFilter": {
+			"description": "Matches HTTP header names.\n*It can contain additional properties named after headers*",
+			"type": "string",
+			"additionalProperties": {
+				"type": "string"
+			},
+			"properties": {}
+		}
+	}
+}

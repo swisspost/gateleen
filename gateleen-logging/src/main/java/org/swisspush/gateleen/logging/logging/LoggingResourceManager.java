@@ -1,7 +1,5 @@
 package org.swisspush.gateleen.logging.logging;
 
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -12,6 +10,12 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.validation.validation.ValidationException;
+import org.swisspush.gateleen.validation.validation.ValidationResult;
+import org.swisspush.gateleen.validation.validation.Validator;
 
 import java.util.HashMap;
 import java.util.List;
@@ -24,15 +28,12 @@ public class LoggingResourceManager {
 
     private static final String UPDATE_ADDRESS = "gateleen.logging-updated";
 
-    private String loggingUri;
-
-    private ResourceStorage storage;
-
-    private Logger log = LoggerFactory.getLogger(LoggingResourceManager.class);
-
-    private Vertx vertx;
-
+    private final String loggingUri;
+    private final ResourceStorage storage;
+    private final Logger log = LoggerFactory.getLogger(LoggingResourceManager.class);
+    private final Vertx vertx;
     private LoggingResource loggingResource;
+    private final String loggingResourceSchema;
 
     public LoggingResource getLoggingResource() {
         if (loggingResource == null) {
@@ -46,6 +47,8 @@ public class LoggingResourceManager {
         this.vertx = vertx;
         this.loggingUri = loggingUri;
 
+        loggingResourceSchema = ResourcesUtils.loadResource("gateleen_logging_schema_logging", true);
+
         updateLoggingResources();
 
         // Receive update notifications
@@ -57,7 +60,7 @@ public class LoggingResourceManager {
             if (buffer != null) {
                 try {
                     updateLoggingResources(buffer);
-                } catch (IllegalArgumentException e) {
+                } catch (ValidationException e) {
                     log.warn("Could not reconfigure logging resources (filters and headers)", e);
                 }
             } else {
@@ -66,7 +69,7 @@ public class LoggingResourceManager {
         });
     }
 
-    private void updateLoggingResources(Buffer buffer) {
+    private void updateLoggingResources(Buffer buffer) throws ValidationException{
         extractLoggingFilterValues(buffer);
 
         for (Map<String, String> payloadFilters : getLoggingResource().getPayloadFilters()) {
@@ -90,11 +93,16 @@ public class LoggingResourceManager {
             request.bodyHandler(loggingResourceBuffer -> {
                 try {
                     extractLoggingFilterValues(loggingResourceBuffer);
-                } catch (IllegalArgumentException e) {
-                    log.error("Could not parse logging resource", e);
+                } catch (ValidationException validationException) {
+                    log.error("Could not parse logging resource: " + validationException.toString());
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                    request.response().end(e.getMessage());
+                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
+                    if(validationException.getValidationDetails() != null){
+                        request.response().headers().add("content-type", "application/json");
+                        request.response().end(validationException.getValidationDetails().encode());
+                    } else {
+                        request.response().end(validationException.getMessage());
+                    }
                     return;
                 }
                 storage.put(loggingUri, loggingResourceBuffer, status -> {
@@ -117,7 +125,12 @@ public class LoggingResourceManager {
         return false;
     }
 
-    private void extractLoggingFilterValues(Buffer loggingResourceBuffer) {
+    private void extractLoggingFilterValues(Buffer loggingResourceBuffer) throws ValidationException {
+        ValidationResult validationResult = Validator.validateStatic(loggingResourceBuffer, loggingResourceSchema, log);
+        if(!validationResult.isSuccess()){
+            throw new ValidationException(validationResult);
+        }
+
         try {
             JsonObject loggingRes = new JsonObject(loggingResourceBuffer.toString("UTF-8"));
             getLoggingResource().reset();
@@ -140,14 +153,16 @@ public class LoggingResourceManager {
             /* Payload */
             JsonObject payload = loggingRes.getJsonObject("payload");
 
-            JsonObject destinations = payload.getJsonObject("destinations");
+            JsonArray destinations = payload.getJsonArray("destinations");
             if (destinations != null) {
-                Map<String, Map<String, String>> destinationEntries = new HashMap<String, Map<String, String>>();
+                Map<String, Map<String, String>> destinationEntries = new HashMap<>();
 
-                for (String fieldName : destinations.fieldNames()) {
-                    JsonObject destination = destinations.getJsonObject(fieldName);
+                for (Object destinationObj : destinations) {
+                    JsonObject destination = (JsonObject) destinationObj;
 
-                    Map<String, String> options = new HashMap<String, String>();
+                    String name = destination.getString("name");
+
+                    Map<String, String> options = new HashMap<>();
                     options.put("type", destination.getString("type"));
 
                     String typeLocation = null;
@@ -161,10 +176,10 @@ public class LoggingResourceManager {
 
                     if (typeLocation != null) {
                         options.put(typeLocation, destination.getString(typeLocation));
-                        destinationEntries.put(fieldName, options);
+                        destinationEntries.put(name, options);
                     }
                     else {
-                        log.warn("Could not configure destination '" + fieldName + "'. Missing typeLocation (file|adress).");
+                        log.warn("Could not configure destination '" + name + "'. Missing typeLocation (file|address).");
                     }
                 }
                 getLoggingResource().addFilterDestinations(destinationEntries);
@@ -174,7 +189,7 @@ public class LoggingResourceManager {
             if (filtersArray != null) {
                 for (Object filterEntry : filtersArray) {
                     JsonObject filterObject = (JsonObject) filterEntry;
-                    Map<String, String> filterEntries = new HashMap<String, String>();
+                    Map<String, String> filterEntries = new HashMap<>();
                     for (String filterName : filterObject.fieldNames()) {
                         filterEntries.put(filterName, filterObject.getString(filterName));
                     }
@@ -183,7 +198,7 @@ public class LoggingResourceManager {
             }
         } catch (Exception ex) {
             getLoggingResource().reset();
-            throw new IllegalArgumentException(ex);
+            throw new ValidationException(ex);
         }
     }
 }

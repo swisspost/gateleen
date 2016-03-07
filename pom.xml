@@ -53,6 +53,11 @@
 				<version>${guava.version}</version>
 			</dependency>
 			<dependency>
+				<groupId>com.floreysoft</groupId>
+				<artifactId>jmte</artifactId>
+				<version>${jmte.version}</version>
+			</dependency>
+			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-api</artifactId>
 				<version>${slf4j.version}</version>
@@ -82,6 +87,11 @@
 				<groupId>org.springframework</groupId>
 				<artifactId>spring-core</artifactId>
 				<version>${spring.core.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.quartz-scheduler</groupId>
+				<artifactId>quartz</artifactId>
+				<version>${quartz.version}</version>
 			</dependency>
 
 			<!-- for testing -->
@@ -208,11 +218,13 @@
 	<properties>
 		<vertx.version>3.2.0</vertx.version>
 		<guava.version>14.0.1</guava.version>
+		<jmte.version>3.0</jmte.version>
 		<slf4j.version>1.6.2</slf4j.version>
 		<log4j.version>1.2.17</log4j.version>
 		<junit.version>4.11</junit.version>
 		<joda-time.version>2.1</joda-time.version>
 		<spring.core.version>4.1.6.RELEASE</spring.core.version>
+		<quartz.version>2.2.1</quartz.version>
 		<embedded.redis.version>0.6</embedded.redis.version>
 		<rest.assured.version>2.4.1</rest.assured.version>
 		<rest-storage.version>2.0.2</rest-storage.version>
