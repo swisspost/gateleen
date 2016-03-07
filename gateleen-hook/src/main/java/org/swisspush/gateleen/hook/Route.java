@@ -1,10 +1,10 @@
 package org.swisspush.gateleen.hook;
 
-import org.swisspush.gateleen.logging.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.routing.routing.Forwarder;
-import org.swisspush.gateleen.routing.routing.Rule;
+import org.swisspush.gateleen.routing.Forwarder;
+import org.swisspush.gateleen.routing.Rule;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;

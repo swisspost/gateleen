@@ -10,7 +10,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
-import org.swisspush.gateleen.validation.validation.ValidationException;
+import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.Arrays;
 import java.util.Collection;
