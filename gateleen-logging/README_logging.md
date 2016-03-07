@@ -17,6 +17,36 @@ headers:["x-user-zip", "x-user-tour", "x-rp-lang"]
 ```
 
 ##### Property: Payload
+An object called destinations (optional) which contains destination objects specifying the type of the destination (e.g. file or eventBus) and the filename in case of a file or the address in case of a eventBus. 
+
+| Property    | Description                              | 
+|:----------- | :--------------------------------------- | 
+| \<name\>      | The name of the object, used in the filters to reference the destination. |
+| type        | Specifies the type of the destination. This can be a file (file) or an address from the eventBus (address). |
+| file        | Used to specify the name of the file, where the filtered content should be logged. |
+| address     | Used to specify the address in the eventBus, where the filtered content should be logged. |
+
+
+```json
+"payload": {
+    "destinations": {
+      "requestLog": {
+        "type" : "file",
+        "file" : "requests.log"
+      },
+      "default": {
+        "type" : "file",
+        "file" : "recording.log"
+      },
+      "rec2": {
+        "type" : "eventBus",
+        "address" : "event/request-test"
+      }
+    }
+}
+```
+
+
 An array called filters of filter entries to specify from what requests the payload should be logged. The filter entries can have the following values:
 
 | Property    | Description                              | 
@@ -25,6 +55,7 @@ An array called filters of filter entries to specify from what requests the payl
 | method      | A string containing the HTTP method to log. Regex can be used to define a pattern |
 | header name | An arbitrary header name. The request must contain the defined header to be logged |
 | reject      | Set to "true" in order to not log the corresponding request. |
+| destination | An optional reference to a destination specified in the property destinations. The filtered content will be logged to the referenced destination. |
 
 All filter values inside a filter entry have to match in order to log the request payload. Example of a payload filters configuration:
 
@@ -67,9 +98,45 @@ Example of a payload filters configuration using the reject property and the met
   ]
 }
 ```
+
 Logs all PUT, POST and DELETE Requests to /gateleen/server/test/sub/... and below but does not log requests to /gateleen/server/test/...
 
 > <font color="orange">Attention: </font> Be aware of the order you define the payload filter configurations. Define "more" specific URLs before "less" specific URLs!
+
+Example of a payload filters configuration using destinations to redirect the logging: 
+```json
+{
+  "payload": {
+    "destinations": {
+      "requestLog": {
+        "type" : "file",
+        "file" : "requests.log"
+      },
+      "default": {
+        "type" : "file",
+        "file" : "recording.log"
+      },
+      "rec2": {
+        "type" : "eventBus",
+        "address" : "event/request-test"
+      }
+    },
+    "filters": [
+      {
+        "url": "/gateleen/audit/log",
+        "destination": "requestLog"
+      },
+      {
+        "url": "/gateleen/navigation/.*"
+      },
+      {
+        "url": "/gateleen/trip/.*",
+        "destination": "rec2"
+      }
+    ]
+  }
+}
+```
 
 #### Update logging configuration
 Use **_LoggingResourceManager.handleLoggingResource(final HttpServerRequest request)_** method to update the logging configuration.
