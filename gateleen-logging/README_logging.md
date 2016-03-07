@@ -18,6 +18,7 @@ headers:["x-user-zip", "x-user-tour", "x-rp-lang"]
 
 ##### Property: Payload
 An object called destinations (optional) which contains destination objects specifying the type of the destination (e.g. file or eventBus) and the filename in case of a file or the address in case of a eventBus. 
+
 | Property    | Description                              | 
 |:----------- | :--------------------------------------- | 
 | \<name\>      | The name of the object, used in the filters to reference the destination. |
