@@ -202,7 +202,7 @@ public class ValidationResourceManagerTest {
         context.assertEquals(1, res.getResources().size(), "After update, there should still be 1 validation rule");
 
         context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
-        context.assertEquals(StatusCode.BAD_REQUEST.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be Bad Request");
+        context.assertEquals("Bad Request Validation failed", request.response().getStatusMessage(), "StatusMessage should be Bad Request Validation failed");
 
         /* check storage content */
         storage.get(VALIDATION_URI, buffer -> {

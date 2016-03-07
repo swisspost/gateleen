@@ -4,6 +4,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpServerResponse;
 
 /**
@@ -42,7 +43,7 @@ public class HttpServerResponseMock implements HttpServerResponse {
     }
 
     @Override public MultiMap headers() {
-        return null;
+        return new CaseInsensitiveHeaders();
     }
 
     @Override public HttpServerResponse putHeader(String name, String value) {
