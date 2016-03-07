@@ -99,6 +99,10 @@ Example of a payload filters configuration using the reject property and the met
 }
 ```
 
+Logs all PUT, POST and DELETE Requests to /gateleen/server/test/sub/... and below but does not log requests to /gateleen/server/test/...
+
+> <font color="orange">Attention: </font> Be aware of the order you define the payload filter configurations. Define "more" specific URLs before "less" specific URLs!
+
 Example of a payload filters configuration using destinations to redirect the logging: 
 ```json
 {
@@ -133,10 +137,6 @@ Example of a payload filters configuration using destinations to redirect the lo
   }
 }
 ```
-
-Logs all PUT, POST and DELETE Requests to /gateleen/server/test/sub/... and below but does not log requests to /gateleen/server/test/...
-
-> <font color="orange">Attention: </font> Be aware of the order you define the payload filter configurations. Define "more" specific URLs before "less" specific URLs!
 
 #### Update logging configuration
 Use **_LoggingResourceManager.handleLoggingResource(final HttpServerRequest request)_** method to update the logging configuration.
