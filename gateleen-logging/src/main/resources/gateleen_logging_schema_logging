@@ -15,6 +15,28 @@
 	},
 	"additionalProperties": false,
 	"definitions": {
+	    "Destination": {
+	      "description": "A configuration to define where to log the filtered requests",
+	      "properties": {
+	        "name": {
+	          "type": "string"
+	        },
+	        "type": {
+	          "enum": [
+	            "file",
+	            "eventBus"
+	          ]
+	        },
+	        "file": {
+	          "type": "string"
+	        },
+	        "address": {
+	          "type": "string"
+	        }
+	      },
+	      "additionalProperties": false,
+	      "required": ["name", "type"]
+	    },
 		"RequestFilter": {
 			"description": "Matches request per URL and/or HTTP method. It can contain additional properties named after headers and with a regexp value",
 			"properties": {
@@ -25,6 +47,10 @@
 				"method": {
 					"description": "The HTTP method(s) to validate. Regex can be used to define a pattern",
 					"format": "regexp",
+					"type": "string"
+				},
+				"destination": {
+					"description": "The destination the filtered content will be logged to",
 					"type": "string"
 				},
 				"reject": {
@@ -40,6 +66,13 @@
 		},
 		"LoggingFilters": {
 			"properties": {
+			    "destinations": {
+			      "description": "Destinations where the filtered requests should be logged",
+			      "type": "array",
+			      "items": {
+			        "$ref": "#/definitions/Destination"
+			      }
+			    },
 				"filters": {
 					"description": "Requests matching any of the filters are logged",
 					"type": "array",

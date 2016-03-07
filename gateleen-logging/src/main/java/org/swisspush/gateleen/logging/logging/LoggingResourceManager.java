@@ -153,12 +153,14 @@ public class LoggingResourceManager {
             /* Payload */
             JsonObject payload = loggingRes.getJsonObject("payload");
 
-            JsonObject destinations = payload.getJsonObject("destinations");
+            JsonArray destinations = payload.getJsonArray("destinations");
             if (destinations != null) {
                 Map<String, Map<String, String>> destinationEntries = new HashMap<>();
 
-                for (String fieldName : destinations.fieldNames()) {
-                    JsonObject destination = destinations.getJsonObject(fieldName);
+                for (Object destinationObj : destinations) {
+                    JsonObject destination = (JsonObject) destinationObj;
+
+                    String name = destination.getString("name");
 
                     Map<String, String> options = new HashMap<>();
                     options.put("type", destination.getString("type"));
@@ -174,10 +176,10 @@ public class LoggingResourceManager {
 
                     if (typeLocation != null) {
                         options.put(typeLocation, destination.getString(typeLocation));
-                        destinationEntries.put(fieldName, options);
+                        destinationEntries.put(name, options);
                     }
                     else {
-                        log.warn("Could not configure destination '" + fieldName + "'. Missing typeLocation (file|address).");
+                        log.warn("Could not configure destination '" + name + "'. Missing typeLocation (file|address).");
                     }
                 }
                 getLoggingResource().addFilterDestinations(destinationEntries);
