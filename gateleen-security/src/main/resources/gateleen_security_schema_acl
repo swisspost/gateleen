@@ -1,0 +1,27 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"type": "object",
+	"additionalProperties": {
+		"$ref": "#/definitions/AclEntry"
+	},
+	"definitions": {
+		"AclEntry": {
+			"description": "A single ACL entry",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"methods": {
+					"description": "Restricts the HTTP methods concerned by this entry (`GET`, `PUT`, `POST`, `DELETE`).",
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"path": {
+					"description": "The path this entry relates to",
+					"type": "string"
+				}
+			}
+		}
+	}
+}
