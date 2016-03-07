@@ -20,7 +20,7 @@ headers:["x-user-zip", "x-user-tour", "x-rp-lang"]
 An object called destinations (optional) which contains destination objects specifying the type of the destination (e.g. file or eventBus) and the filename in case of a file or the address in case of a eventBus. 
 | Property    | Description                              | 
 |:----------- | :--------------------------------------- | 
-| <name>      | The name of the object, used in the filters to reference the destination. |
+| \<name\>      | The name of the object, used in the filters to reference the destination. |
 | type        | Specifies the type of the destination. This can be a file (file) or an address from the eventBus (address). |
 | file        | Used to specify the name of the file, where the filtered content should be logged. |
 | address     | Used to specify the address in the eventBus, where the filtered content should be logged. |
