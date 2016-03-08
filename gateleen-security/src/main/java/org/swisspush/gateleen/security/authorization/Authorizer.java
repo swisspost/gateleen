@@ -16,7 +16,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.validation.validation.ValidationException;
+import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.*;
 import java.util.Map.Entry;

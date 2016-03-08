@@ -37,7 +37,7 @@
     <logger name="org.jminix">
         <level value="WARN" />
     </logger>
-    <logger name="org.swisspush.gateleen.core.authorization">
+    <logger name="org.swisspush.gateleen.security.authorization">
         <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.gateleen.core.cors">
@@ -46,7 +46,7 @@
     <logger name="org.swisspush.gateleen.core.delta">
         <level value="DEBUG" />
     </logger>
-    <logger name="org.swisspush.gateleen.expansion.expansion">
+    <logger name="org.swisspush.gateleen.expansion">
         <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.gateleen.core.http">
@@ -55,25 +55,25 @@
     <logger name="org.swisspush.gateleen.core.logging">
         <level value="INFO" />
     </logger>
-    <logger name="org.swisspush.gateleen.scheduler.scheduler">
+    <logger name="org.swisspush.gateleen.scheduler">
         <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.gateleen.core.monitoring">
         <level value="DEBUG" />
     </logger>
-    <logger name="org.swisspush.gateleen.queue.queuing">
+    <logger name="org.swisspush.gateleen.queue">
         <level value="INFO" />
     </logger>
-    <logger name="org.swisspush.gateleen.routing.routing">
+    <logger name="org.swisspush.gateleen.routing">
         <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.gateleen.core.storage">
         <level value="DEBUG" />
     </logger>
-    <logger name="org.swisspush.gateleen.user.user">
+    <logger name="org.swisspush.gateleen.user">
         <level value="DEBUG" />
     </logger>
-    <logger name="org.swisspush.gateleen.validation.validation">
+    <logger name="org.swisspush.gateleen.validation">
         <level value="INFO" />
     </logger>
     <logger name="org.swisspush.gateleen.integrationtest">
@@ -85,7 +85,7 @@
     <logger name="li.chee.vertx~redisques~0-li.chee.vertx.redisques">
         <level value="INFO" />
     </logger>
-    <logger name="org.swisspush.gateleen.logging.logging.Log4jConfiguratorMBean">
+    <logger name="org.swisspush.gateleen.logging.Log4jConfiguratorMBean">
         <level value="FATAL" />
     </logger>
     <logger name="Request">
