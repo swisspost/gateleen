@@ -145,8 +145,13 @@ public class ValidationHandler {
                     } else {
                         if (isFailOnError()) {
                             req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                            req.response().setStatusMessage(event.getMessage());
-                            req.response().end();
+                            req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + event.getMessage());
+                            if(event.getValidationDetails() != null){
+                                req.response().headers().add("content-type", "application/json");
+                                req.response().end(event.getValidationDetails().encode());
+                            } else {
+                                req.response().end(event.getMessage());
+                            }
                         } else {
                             log.warn(event.getMessage());
                             cReq.end(data);

@@ -152,14 +152,22 @@ public class Validator {
                     log.debug("Used schema: "+base);
                     callback.handle(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
                 } else {
+                    JsonArray validationDetails = extractMessagesAsJson(report);
                     String messages = StringUtils.getStringOrEmpty(extractMessages(report));
                     StringBuilder msgBuilder = new StringBuilder();
-                    msgBuilder.append("Invalid JSON for ").append(path).append(" (").append(type).append("). Messages: ").append(messages);
+                    msgBuilder.append("Invalid JSON for ")
+                            .append(path).append(" (")
+                            .append(type).append("). Messages: ")
+                            .append(messages)
+                            .append(" | Report: ").append(getReportAsString(report));
+
                     if(log.isDebugEnabled()){
-                        msgBuilder.append(" | Report: ").append(getReportAsString(report));
                         msgBuilder.append(" | Validated JSON: ").append(jsonBuffer.toString());
                     }
-                    callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString()));
+
+                    log.warn(msgBuilder.toString());
+
+                    callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Validation failed", validationDetails));
                     for(ProcessingMessage message: report) {
                         log.warn(message.getMessage());
                     }
