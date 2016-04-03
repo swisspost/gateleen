@@ -1,0 +1,18 @@
+apply plugin: 'java'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "io.vertx:vertx-core:$vertxVersion"
+    compile "io.vertx:vertx-web:$vertxVersion"
+    compile "io.vertx:vertx-redis-client:$vertxVersion"
+    compile "io.vertx:vertx-unit:$vertxVersion"
+    compile "com.floreysoft:jmte:$jmteVersion"
+    compile "com.google.guava:guava:$guavaVersion"
+    compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
+    compile "log4j:log4j:$log4jVersion"
+    compile "junit:junit:$junitVersion"
+
+}
