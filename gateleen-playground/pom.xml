@@ -118,11 +118,11 @@
             <artifactId>mod-metrics-vertx3</artifactId>
         </dependency>
         <dependency>
-            <groupId>li.chee.vertx</groupId>
+            <groupId>org.swisspush</groupId>
             <artifactId>rest-storage</artifactId>
         </dependency>
         <dependency>
-            <groupId>li.chee.vertx</groupId>
+            <groupId>org.swisspush</groupId>
             <artifactId>redisques</artifactId>
         </dependency>
         <dependency>

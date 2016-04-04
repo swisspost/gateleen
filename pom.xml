@@ -111,12 +111,12 @@
 				<version>${rest.assured.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>li.chee.vertx</groupId>
+				<groupId>org.swisspush</groupId>
 				<artifactId>rest-storage</artifactId>
 				<version>${rest-storage.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>li.chee.vertx</groupId>
+				<groupId>org.swisspush</groupId>
 				<artifactId>redisques</artifactId>
 				<version>${redisques.version}</version>
 			</dependency>
@@ -227,9 +227,9 @@
 		<quartz.version>2.2.1</quartz.version>
 		<embedded.redis.version>0.6</embedded.redis.version>
 		<rest.assured.version>2.4.1</rest.assured.version>
-		<rest-storage.version>2.0.2</rest-storage.version>
+		<rest-storage.version>2.1.0</rest-storage.version>
 		<awaitility.version>1.5.0</awaitility.version>
-		<redisques.version>2.0.1</redisques.version>
+		<redisques.version>2.1.0</redisques.version>
 		<mod-metrics.version>2.0.0</mod-metrics.version>
 		<metrics-core.version>3.0.2</metrics-core.version>
 		<mirror.version>2.0.0</mirror.version>

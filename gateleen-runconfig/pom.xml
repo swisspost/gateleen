@@ -72,12 +72,12 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>li.chee.vertx</groupId>
+            <groupId>org.swisspush</groupId>
             <artifactId>redisques</artifactId>
             <version>${redisques.version}</version>
         </dependency>
         <dependency>
-            <groupId>li.chee.vertx</groupId>
+            <groupId>org.swisspush</groupId>
             <artifactId>rest-storage</artifactId>
             <version>${rest-storage.version}</version>
         </dependency>

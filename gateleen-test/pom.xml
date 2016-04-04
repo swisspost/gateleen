@@ -105,12 +105,12 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>rest-storage</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>redisques</artifactId>
 			<scope>test</scope>
 		</dependency>

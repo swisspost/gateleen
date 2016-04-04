@@ -350,8 +350,8 @@ public class RunConfig {
     /**
      * Deploys the following modules in this order:
      * <ul>
-     * <li>li.chee.vertx~redisques
-     * <li>li.chee.vertx~rest-storage
+     * <li>org.swisspush.redisques.RedisQues
+     * <li>org.swisspush.reststorage.RestStorageMod
      * <li>com.bloidonia~mod-metrics
      * </ul><p>
      * The handler is called with Boolean.TRUE when all modules have been deployed successfully. When any of the modules
@@ -369,14 +369,14 @@ public class RunConfig {
         log.info("deploying redis module with host:" + redisHost + " port:" + redisPort);
 
         // redisques module
-        vertx.deployVerticle("li.chee.vertx.redisques.RedisQues", new DeploymentOptions().setConfig(RunConfig.buildRedisquesConfig()).setInstances(4), event -> {
+        vertx.deployVerticle("org.swisspush.redisques.RedisQues", new DeploymentOptions().setConfig(RunConfig.buildRedisquesConfig()).setInstances(4), event -> {
             if (event.failed()) {
                 log.error("Could not load redisques module", event.cause());
                 handler.handle(false);
                 return;
             }
             // rest storage module
-            vertx.deployVerticle("li.chee.vertx.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
+            vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
                 if (event1.failed()) {
                     log.error("Could not load rest storage redis module", event1.cause());
                     handler.handle(false);
