@@ -1,13 +1,5 @@
 package org.swisspush.gateleen.routing;
 
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.logging.LoggingHandler;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.core.util.StringUtils;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -17,7 +9,14 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.logging.LoggingHandler;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
 
 import java.util.Base64;
 import java.util.HashMap;
@@ -32,7 +31,6 @@ import java.util.regex.Pattern;
  */
 public class Forwarder implements Handler<RoutingContext> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
     private String userProfilePath;
     private HttpClient client;
     private Pattern urlPattern;
@@ -67,7 +65,7 @@ public class Forwarder implements Handler<RoutingContext> {
         }
     }
 
-    private Map<String, String> createProfileHeaderValues(JsonObject profile) {
+    private Map<String, String> createProfileHeaderValues(JsonObject profile, Logger log) {
         Map<String, String> profileValues = new HashMap<>();
         if (rule.getProfile() != null) {
             String[] ruleProfile = rule.getProfile();
@@ -76,17 +74,17 @@ public class Forwarder implements Handler<RoutingContext> {
                 String headerValue = profile.getString(headerKey);
                 if (headerKey != null && headerValue != null) {
                     profileValues.put(USER_HEADER_PREFIX + headerKey, headerValue);
-                    LOG.debug("Sending header-information for key " + headerKey + ", value = " + headerValue);
+                    log.debug("Sending header-information for key " + headerKey + ", value = " + headerValue);
                 } else {
                     if (headerKey != null) {
-                        LOG.debug("We should send profile information '" + headerKey + "' but this information was not found in profile.");
+                        log.debug("We should send profile information '" + headerKey + "' but this information was not found in profile.");
                     } else {
-                        LOG.debug("We should send profile information but header key is null.");
+                        log.debug("We should send profile information but header key is null.");
                     }
                 }
             }
         } else {
-            LOG.debug("rule.profile is null, this rule will not send profile information.");
+            log.debug("rule.profile is null, this rule will not send profile information.");
         }
         return profileValues;
     }
@@ -122,7 +120,7 @@ public class Forwarder implements Handler<RoutingContext> {
                 Map<String, String> profileHeaderMap = new HashMap<>();
                 if (buffer != null) {
                     JsonObject profile = new JsonObject(buffer.toString());
-                    profileHeaderMap = createProfileHeaderValues(profile);
+                    profileHeaderMap = createProfileHeaderValues(profile, log);
                     log.debug("Got profile information of user '" + userId + "'");
                     log.debug("Going to send parts of the profile in header: " + profileHeaderMap);
                 } else {
