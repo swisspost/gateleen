@@ -1,13 +1,12 @@
 package org.swisspush.gateleen.core.resource;
 
-import org.swisspush.gateleen.core.util.StatusCode;
-import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.Map;
 
@@ -17,14 +16,10 @@ import java.util.Map;
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 public class CopyResourceHandler {
-    private Logger log = LoggerFactory.getLogger(CopyResourceHandler.class);
     private static final String SLASH = "/";
-    private static final String POST_METHOD = "POST";
-    private static final String GET_METHOD = "GET";
-    private static final String PUT_METHOD = "PUT";
     private static final int DEFAULT_TIMEOUT = 120000;
 
-    private String copyPath;
+    private final String copyPath;
     private final HttpClient selfClient;
 
     public CopyResourceHandler(HttpClient selfClient, String copyPath) {
@@ -39,6 +34,7 @@ public class CopyResourceHandler {
      * @return true if the request was handled, false otherwise
      */
     public boolean handle(final HttpServerRequest request) {
+        Logger log = RequestLoggerFactory.getLogger(CopyResourceHandler.class, request);
         // check if request is copy task and POST
         if (request.uri().equalsIgnoreCase(copyPath) && HttpMethod.POST == request.method()) {
             log.debug("handle -> {}", request.uri());
@@ -67,6 +63,7 @@ public class CopyResourceHandler {
     protected boolean validTask(HttpServerRequest request, CopyTask task) {
         // source or destination is collection?
         if (task.getSourceUri().endsWith(SLASH) || task.getDestinationUri().endsWith(SLASH)) {
+            Logger log = RequestLoggerFactory.getLogger(CopyResourceHandler.class, request);
             log.debug("invalid copy task, collections are not allowed!");
             request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
             request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
@@ -79,7 +76,7 @@ public class CopyResourceHandler {
     }
 
     /**
-     * Performs the intial GET request to the source.
+     * Performs the initial GET request to the source.
      * 
      * @param request - the original request
      * @param task - the task which has to be performed
@@ -114,33 +111,29 @@ public class CopyResourceHandler {
      * @param task - the task
      */
     protected void performPUTRequest(final HttpServerRequest request, final HttpClientResponse getResponse, final CopyTask task) {
-        getResponse.bodyHandler(new Handler<Buffer>() {
+        getResponse.bodyHandler(data -> {
+            // GET response is OK
+            if (getResponse.statusCode() == StatusCode.OK.getStatusCode()) {
 
-            @Override
-            public void handle(final Buffer data) {
-                // GET response is OK
-                if (getResponse.statusCode() == StatusCode.OK.getStatusCode()) {
+                HttpClientRequest selfRequest = selfClient.put(task.getDestinationUri(), response -> {
+                    createResponse(request, response, task);
+                });
 
-                    HttpClientRequest selfRequest = selfClient.put(task.getDestinationUri(), response -> {
-                        createResponse(request, response, task);
-                    });
+                // setting headers
+                selfRequest.headers().addAll(task.getHeaders());
+                selfRequest.headers().addAll(task.getStaticHeaders());
 
-                    // setting headers
-                    selfRequest.headers().addAll(task.getHeaders());
-                    selfRequest.headers().addAll(task.getStaticHeaders());
+                // writing data
+                selfRequest.write(data);
 
-                    // writing data
-                    selfRequest.write(data);
+                // avoids blocking other requests
+                selfRequest.setTimeout(DEFAULT_TIMEOUT);
 
-                    // avoids blocking other requests
-                    selfRequest.setTimeout(DEFAULT_TIMEOUT);
+                // fire
+                selfRequest.end();
 
-                    // fire
-                    selfRequest.end();
-
-                } else {
-                    createResponse(request, getResponse, task);
-                }
+            } else {
+                createResponse(request, getResponse, task);
             }
         });
     }
@@ -152,6 +145,7 @@ public class CopyResourceHandler {
      * @param response - the resulting response
      */
     private void createResponse(final HttpServerRequest request, final HttpClientResponse response, final CopyTask task) {
+        Logger log = RequestLoggerFactory.getLogger(CopyResourceHandler.class, request);
         if (response.statusCode() == StatusCode.OK.getStatusCode()) {
             log.debug("copy resource task successfully executed: {} -> {}", task.getSourceUri(), task.getDestinationUri());
         } else {
@@ -160,13 +154,7 @@ public class CopyResourceHandler {
 
         request.response().setStatusCode(response.statusCode());
         request.response().setStatusMessage(response.statusMessage());
-        response.bodyHandler(new Handler<Buffer>() {
-
-            @Override
-            public void handle(Buffer buffer) {
-                request.response().end(buffer);
-            }
-        });
+        response.bodyHandler(buffer -> request.response().end(buffer));
     }
 
     /**
