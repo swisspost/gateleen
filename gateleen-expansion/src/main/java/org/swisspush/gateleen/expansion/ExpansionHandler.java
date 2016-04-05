@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.expansion;
 
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
@@ -284,6 +285,8 @@ public class ExpansionHandler {
     private void handleExpansionRequest(final HttpServerRequest req, final RecursiveHandlerFactory.RecursiveHandlerTypes recursiveHandlerType) {
         req.pause();
 
+        Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
+
         // store the parameters for later use
         // ----
         Set<String> originalParams = null;
@@ -303,7 +306,7 @@ public class ExpansionHandler {
          * the possibility anymore to get the wished
          * parameter!
          */
-        final int recursionDepth = getRecursionDepth(req);
+        final int recursionDepth = getRecursionDepth(req, log);
 
         if(isStorageExpand(req.uri()) && recursionDepth > 1){
             req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
@@ -395,7 +398,7 @@ public class ExpansionHandler {
      * @param req req
      * @return int
      */
-    private int getRecursionDepth(final HttpServerRequest req) {
+    private int getRecursionDepth(final HttpServerRequest req, final Logger log) {
         String expandValue = req.params().get(EXPAND_PARAM);
         log.debug("expandValue = " + expandValue);
         int depth;
@@ -442,6 +445,7 @@ public class ExpansionHandler {
     }
 
     private void makeStorageExpandRequest(final String targetUri, final List subResourceNames, final HttpServerRequest req, final DeltaHandler<ResourceNode> handler){
+        Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
         final HttpClientRequest cReq = httpClient.request(HttpMethod.POST, targetUri + "?storageExpand=true", cRes -> {
             cRes.bodyHandler(data -> {
                 if (StatusCode.NOT_FOUND.getStatusCode() == cRes.statusCode()) {
@@ -487,6 +491,8 @@ public class ExpansionHandler {
      * @param collection - indicates if the just passed targetUri belongs to a collection or a resource
      */
     private void makeResourceSubRequest(final String targetUri, final HttpServerRequest req, final int recursionLevel, final AtomicInteger subRequestCounter, final RecursiveHandlerFactory.RecursiveHandlerTypes recursionHandlerType, final DeltaHandler<ResourceNode> handler, final boolean collection) {
+
+        Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
 
         /*
          * each call of this method creates a self request.
@@ -615,7 +621,7 @@ public class ExpansionHandler {
      */
     private void handleCollectionResource(final String targetUri, final HttpServerRequest req, final int recursionLevel, final AtomicInteger subRequestCounter, final RecursiveHandlerFactory.RecursiveHandlerTypes recursionHandlerType, final DeltaHandler<ResourceNode> handler, final Buffer data, final String eTag) throws ResourceCollectionException {
         CollectionResourceContainer collectionResourceContainer = ExpansionDeltaUtil.verifyCollectionResponse(targetUri, data, null);
-
+        Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
         if (log.isTraceEnabled()) {
             log.trace("Collection resource: " + collectionResourceContainer.getCollectionName());
             log.trace("actual recursion level: " + recursionLevel);
