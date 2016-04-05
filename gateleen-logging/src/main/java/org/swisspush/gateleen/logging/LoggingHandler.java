@@ -291,13 +291,11 @@ public class LoggingHandler {
     }
 
     private void aboutToLogRequest(String currentDestination){
-        StringBuilder sb = new StringBuilder("About to log to destination ").append(currentDestination);
-        log.info(sb.toString());
+        log.info("About to log to destination " + currentDestination);
     }
 
     private void errorLogRequest(String currentDestination, Exception ex){
-        StringBuilder sb = new StringBuilder("Error logging to destination ").append(currentDestination).append(". Cause: ").append(ex.toString());
-        log.error(sb.toString());
+        log.error("Error logging to destination " + currentDestination + ". Cause: " + ex.toString());
     }
 
     private JsonObject headersAsJson(MultiMap headers) {

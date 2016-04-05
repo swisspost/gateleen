@@ -54,7 +54,7 @@ public class LoggingResource {
      */
     public List<String> getHeaders() {
         if (headers == null) {
-            headers = new ArrayList<String>();
+            headers = new ArrayList<>();
         }
         return headers;
     }

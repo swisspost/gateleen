@@ -13,5 +13,5 @@ public interface CloneableDynamicMBean extends DynamicMBean, Cloneable {
      *
      * @return The MBean's clone.
      */
-    public abstract Object clone() throws CloneNotSupportedException;
+    Object clone() throws CloneNotSupportedException;
 }
