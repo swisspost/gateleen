@@ -75,7 +75,7 @@ public class LoggingResource {
      */
     public final List<Map<String, String>> getPayloadFilters() {
         if (payloadFilters == null) {
-            Map<String, String> filters = new HashMap<String, String>();
+            Map<String, String> filters = new HashMap<>();
             payloadFilters = new ArrayList<>();
             payloadFilters.add(filters);
         }
@@ -89,7 +89,7 @@ public class LoggingResource {
      */
     public final Map<String, Map<String, String>> getDestinationEntries() {
         if (destinationEntries == null) {
-            destinationEntries = new HashMap<String, Map<String, String>>();
+            destinationEntries = new HashMap<>();
         }
         return destinationEntries;
     }
