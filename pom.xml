@@ -15,6 +15,7 @@
 		<module>gateleen-delta</module>
 		<module>gateleen-expansion</module>
 		<module>gateleen-scheduler</module>
+		<module>gateleen-monitoring</module>
 		<module>gateleen-user</module>
 		<module>gateleen-validation</module>
 		<module>gateleen-packing</module>

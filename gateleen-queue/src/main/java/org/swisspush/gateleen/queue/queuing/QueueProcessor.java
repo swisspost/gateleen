@@ -2,7 +2,7 @@ package org.swisspush.gateleen.queue.queuing;
 
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;

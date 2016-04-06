@@ -1,10 +1,10 @@
-package org.swisspush.gateleen.core.monitoring;
+package org.swisspush.gateleen.monitoring;
 
 import io.vertx.core.Vertx;
 import io.vertx.redis.RedisClient;
 
 /**
- * Created by bovetl on 19.09.2014.
+ * @author https://github.com/lbovet [Laurent Bovet] 19.09.2014
  */
 public class CustomRedisMonitor extends RedisMonitor {
 

@@ -6,7 +6,7 @@ import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonMultiMap;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;

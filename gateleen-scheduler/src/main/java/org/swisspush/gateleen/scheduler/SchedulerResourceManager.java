@@ -9,7 +9,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;

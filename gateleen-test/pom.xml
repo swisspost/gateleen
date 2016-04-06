@@ -36,6 +36,12 @@
 		</dependency>
 		<dependency>
 			<groupId>org.swisspush.gateleen</groupId>
+			<artifactId>gateleen-monitoring</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.swisspush.gateleen</groupId>
 			<artifactId>gateleen-delta</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>

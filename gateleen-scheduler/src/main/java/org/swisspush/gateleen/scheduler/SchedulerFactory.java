@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.vertx.redis.RedisClient;
 import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.ValidationResult;

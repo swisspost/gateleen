@@ -1,6 +1,6 @@
 package org.swisspush.gateleen.queue.queuing;
 
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import io.vertx.core.AsyncResult;

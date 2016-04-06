@@ -40,6 +40,11 @@
             <artifactId>gateleen-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+		<dependency>
+			<groupId>org.swisspush.gateleen</groupId>
+			<artifactId>gateleen-monitoring</artifactId>
+			<version>${project.version}</version>
+		</dependency>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-runconfig</artifactId>

@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.scheduler;
 
 import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.queue.queuing.RedisquesAPI;
 import io.vertx.core.AsyncResult;

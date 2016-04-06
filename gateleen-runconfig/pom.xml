@@ -23,6 +23,11 @@
         </dependency>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
+            <artifactId>gateleen-monitoring</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-routing</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -1,19 +1,5 @@
 package org.swisspush.gateleen.runconfig;
 
-import org.swisspush.gateleen.core.cors.CORSHandler;
-import org.swisspush.gateleen.core.event.EventBusHandler;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.resource.CopyResourceHandler;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.delta.DeltaHandler;
-import org.swisspush.gateleen.expansion.ExpansionHandler;
-import org.swisspush.gateleen.hook.HookHandler;
-import org.swisspush.gateleen.packing.PackingHandler;
-import org.swisspush.gateleen.queue.queuing.QueueBrowser;
-import org.swisspush.gateleen.queue.queuing.QueuingHandler;
-import org.swisspush.gateleen.routing.Router;
-import org.swisspush.gateleen.security.authorization.Authorizer;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -29,8 +15,22 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Log4jConfigurer;
+import org.swisspush.gateleen.core.cors.CORSHandler;
+import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.resource.CopyResourceHandler;
+import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.delta.DeltaHandler;
+import org.swisspush.gateleen.expansion.ExpansionHandler;
+import org.swisspush.gateleen.hook.HookHandler;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.packing.PackingHandler;
 import org.swisspush.gateleen.qos.QoSHandler;
+import org.swisspush.gateleen.queue.queuing.QueueBrowser;
+import org.swisspush.gateleen.queue.queuing.QueuingHandler;
+import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
+import org.swisspush.gateleen.security.authorization.Authorizer;
 import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileConfiguration;
 import org.swisspush.gateleen.user.UserProfileHandler;
@@ -414,8 +414,6 @@ public class RunConfig {
                 if (qosHandler != null && qosHandler.handle(request)) {
                     return;
                 }
-
-                monitoringHandler.updateIncomingRequests(request);
 
                 if(corsHandler != null) {
                     corsHandler.handle(request);

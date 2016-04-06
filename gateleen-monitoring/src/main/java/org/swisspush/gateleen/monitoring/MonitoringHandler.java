@@ -1,8 +1,5 @@
-package org.swisspush.gateleen.core.monitoring;
+package org.swisspush.gateleen.monitoring;
 
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
-import org.swisspush.gateleen.core.util.StatusCode;
 import com.google.common.collect.Ordering;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -14,6 +11,9 @@ import io.vertx.redis.RedisClient;
 import io.vertx.redis.op.RangeLimitOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;

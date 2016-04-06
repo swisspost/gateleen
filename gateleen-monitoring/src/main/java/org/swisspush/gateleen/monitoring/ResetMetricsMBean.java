@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.core.control;
+package org.swisspush.gateleen.monitoring;
 
 /**
  * MBean defining operations to reset metric values from JMX

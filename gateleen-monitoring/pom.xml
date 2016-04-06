@@ -8,17 +8,12 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>gateleen-queue</artifactId>
+    <artifactId>gateleen-monitoring</artifactId>
 
     <dependencies>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.swisspush.gateleen</groupId>
-            <artifactId>gateleen-monitoring</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -31,11 +26,12 @@
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
-            <artifactId>vertx-web</artifactId>
+            <artifactId>vertx-unit</artifactId>
         </dependency>
         <dependency>
-            <groupId>joda-time</groupId>
-            <artifactId>joda-time</artifactId>
-        </dependency>        
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
     </dependencies>
+
 </project>

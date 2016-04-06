@@ -2,7 +2,7 @@ package org.swisspush.gateleen.hook;
 
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;

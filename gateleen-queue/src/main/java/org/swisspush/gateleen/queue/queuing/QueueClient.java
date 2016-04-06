@@ -10,7 +10,7 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 

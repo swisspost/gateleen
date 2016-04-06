@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.core.control;
+package org.swisspush.gateleen.monitoring;
 
 import io.vertx.core.Vertx;
 

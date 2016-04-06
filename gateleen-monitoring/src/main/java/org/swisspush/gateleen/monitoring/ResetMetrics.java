@@ -1,15 +1,14 @@
-package org.swisspush.gateleen.core.control;
+package org.swisspush.gateleen.monitoring;
 
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.core.util.RedisUtils;
 import io.vertx.core.AsyncResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.RedisUtils;
 
 /**
  * Implementation of the ResetMetricsMBean using the vertx eventbus
