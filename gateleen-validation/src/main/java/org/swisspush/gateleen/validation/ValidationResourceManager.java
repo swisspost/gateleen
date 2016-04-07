@@ -127,11 +127,7 @@ public class ValidationResourceManager {
                 Map<String, String> resProperties = new HashMap<>();
 
                 String url = resJSO.getString(ValidationResource.URL_PROPERTY);
-                if(!StringUtils.isEmpty(url)){
-                    resProperties.put(ValidationResource.URL_PROPERTY, url);
-                } else {
-                    throw new IllegalArgumentException("Property '"+ValidationResource.URL_PROPERTY+"' is not allowed to be missing (or empty)");
-                }
+                resProperties.put(ValidationResource.URL_PROPERTY, url);
 
                 String method = resJSO.getString(ValidationResource.METHOD_PROPERTY);
                 if(!StringUtils.isEmpty(method)){

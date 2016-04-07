@@ -19,7 +19,8 @@
 				"url": {
 					"description": "The URL to validate. Regex can be used to define a pattern",
 					"format": "regexp",
-					"type": "string"
+					"type": "string",
+					"minLength": 1
 				},
 				"method": {
 					"description": "The HTTP method to validate. Regex can be used to define a pattern. If not provided, PUT will be used as default",
