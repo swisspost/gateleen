@@ -101,6 +101,8 @@ public class OnBehalfOfTest extends AbstractTest {
 
     private JsonObject createOnBehalfOfRoutingRule() {
         JsonObject newRule = TestUtils.createRoutingRule(ImmutableMap.of(
+                "name",
+                "onbehalfof_rule",
                 "description",
                 "RoutingRule to test the x-on-behalf-header.",
                 "url",

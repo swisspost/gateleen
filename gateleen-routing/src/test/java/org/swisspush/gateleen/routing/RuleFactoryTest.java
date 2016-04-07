@@ -39,10 +39,12 @@ public class RuleFactoryTest {
     public void testSimpleRuleConfigParsing(TestContext context) throws ValidationException {
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"test_rule_1\","
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
                 + "  },"
                 + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_2\","
                 + "    \"description\": \"Test Rule 2\","
                 + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
                 + "  }"
@@ -59,9 +61,98 @@ public class RuleFactoryTest {
     }
 
     @Test
+    public void testWithNameProperty(TestContext context) throws ValidationException {
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"test_rule_1\","
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_2\","
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testMissingNameProperty(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Validation failed");
+
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"test_rule_1\","
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testEmptyNameProperty(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Validation failed");
+
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"\","
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_2\","
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testNamePropertyMustBeUnique(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Property 'name' must be unique. There are multiple rules with name 'test_rule_1'");
+
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"test_rule_1\","
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_1\","
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
     public void testExpandOnBackendRule(TestContext context) throws ValidationException {
         String expandOnBackendRule = "{"
                 + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"test_rule_1\","
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"expandOnBackend\": true,"
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
@@ -80,18 +171,21 @@ public class RuleFactoryTest {
     public void testStorageExpandRule(TestContext context) throws ValidationException {
         String storageExpandRule = "{" +
                 " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"storageExpand\": true," +
                 "  \"storage\": \"main\"" +
                 " }," +
                 " \"/gateleen/rule/2\": {" +
+                "  \"name\": \"test_rule_2\"," +
                 "  \"description\": \"Test Rule 2\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/2\"," +
                 "  \"storageExpand\": false," +
                 "  \"storage\": \"main\"" +
                 " }," +
                 " \"/gateleen/rule/3\": {" +
+                "  \"name\": \"test_rule_3\"," +
                 "  \"description\": \"Test Rule 3\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/3\"," +
                 "  \"storage\": \"main\"" +
@@ -163,6 +257,7 @@ public class RuleFactoryTest {
 
         String rules = "{" +
                 " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"storage\": \"main\"" +
                 " }" +
@@ -179,6 +274,7 @@ public class RuleFactoryTest {
 
         String rules = "{" +
                 " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\"," +
@@ -197,6 +293,7 @@ public class RuleFactoryTest {
 
         String rules = "{" +
                 " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\"" +
                 " }" +
@@ -213,6 +310,7 @@ public class RuleFactoryTest {
 
         String rules = "{" +
                 " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"storage\": \"main\"" +
@@ -230,6 +328,7 @@ public class RuleFactoryTest {
 
         String rules = "" +
                 " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"storageExpand\": true," +

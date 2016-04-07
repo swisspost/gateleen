@@ -106,7 +106,10 @@ public class Router {
 
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
 
-        final JsonObject initialRules = new JsonObject().put("/(.*)", new JsonObject().put("url", "http://localhost:8989/$1"));
+        final JsonObject initialRules = new JsonObject()
+                .put("/(.*)",new JsonObject()
+                        .put("name", "resource_storage")
+                        .put("url", "http://localhost:8989/$1"));
 
         storage.get(rulesPath, buffer -> {
             try {

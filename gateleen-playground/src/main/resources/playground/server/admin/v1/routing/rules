@@ -1,39 +1,47 @@
 {
   "/playground/": {
+    "name": "start_page",
     "description": "Home Page",
     "path": "/playground/server/pages/index.html",
     "storage": "main"
   },
   "/playground/([^/]*\\\\.html)": {
+    "name": "html_pages",
     "description": "Pages",
     "path": "/playground/server/pages/$1",
     "storage": "main"
   },
   "/playground/css/(.*)": {
+    "name": "css_resources",
     "description": "Pages CSS",
     "path": "/playground/server/pages/css/$1",
     "storage": "main"
   },
   "/playground/js/(.*)": {
+    "name": "js_resources",
     "description": "Pages JS",
     "path": "/playground/server/pages/js/$1",
     "storage": "main"
   },
   "/playground/img/(.*)": {
+    "name": "image_resources",
     "description": "Pages Images",
     "path": "/playground/server/pages/img/$1",
     "storage": "main"
   },
   "/playground/server/storage/empty": {
+    "name": "storage_empty",
     "description": "Placeholder to make this folder appear when browsing",
     "path": "/playground/server/storage/empty",
     "storage": "main"
   },
   "/playground/server/storage(.*)": {
+    "name": "playground_storage",
     "path": "/playground$1",
     "storage": "main"
   },
   "/(.*)": {
+    "name": "resource_storage",
     "description": "Resource Storage",
     "path": "/$1",
     "storage": "main"
