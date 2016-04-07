@@ -44,7 +44,7 @@ public class RuleFactory {
         }
     }
 
-    public List<Rule> createRules(JsonObject rules) {
+    public List<Rule> createRules(JsonObject rules) throws ValidationException {
         List<Rule> result = new ArrayList<>();
         for (String urlPattern : rules.fieldNames()) {
             log.debug("Creating a new rule-object for URL pattern " + urlPattern);
@@ -106,11 +106,11 @@ public class RuleFactory {
         return result;
     }
 
-    private void setStorage(Rule ruleObj, JsonObject rule, String path) {
+    private void setStorage(Rule ruleObj, JsonObject rule, String path) throws ValidationException {
         String ruleStorage = rule.getString("storage");
         if (ruleStorage != null) {
             if (path == null) {
-                throw new IllegalArgumentException("For storage routing, 'path' must be specified.");
+                throw new ValidationException("For storage routing, 'path' must be specified.");
             }
             ruleObj.setScheme("storage");
             ruleObj.setStorage(ruleStorage);
@@ -137,15 +137,15 @@ public class RuleFactory {
         }
     }
 
-    private void prepareUrl(String urlPattern, Rule ruleObj, String targetUrl, String path) {
+    private void prepareUrl(String urlPattern, Rule ruleObj, String targetUrl, String path) throws ValidationException {
         if (targetUrl != null || path != null) {
             if (targetUrl != null && path != null) {
-                throw new IllegalArgumentException("Either 'url' or 'path' must be given, not both");
+                throw new ValidationException("Either 'url' or 'path' must be given, not both");
             }
             if (targetUrl != null) {
                 Matcher urlMatcher = urlParsePattern.matcher(targetUrl);
                 if (!urlMatcher.matches()) {
-                    throw new IllegalArgumentException("Invalid url for pattern " + urlPattern + ": " + targetUrl);
+                    throw new ValidationException("Invalid url for pattern " + urlPattern + ": " + targetUrl);
                 }
                 ruleObj.setHost(urlMatcher.group("host"));
                 ruleObj.setScheme(urlMatcher.group("scheme"));
@@ -159,7 +159,7 @@ public class RuleFactory {
                 ruleObj.setPath(urlMatcher.group("path"));
             } else {
                 if (!path.startsWith("/")) {
-                    throw new IllegalArgumentException("Illegal value for 'path', it must be a path starting with slash");
+                    throw new ValidationException("Illegal value for 'path', it must be a path starting with slash");
                 }
                 ruleObj.setPath(path);
                 ruleObj.setHost("localhost");

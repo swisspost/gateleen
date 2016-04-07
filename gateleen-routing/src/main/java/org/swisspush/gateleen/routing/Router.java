@@ -109,18 +109,23 @@ public class Router {
         final JsonObject initialRules = new JsonObject().put("/(.*)", new JsonObject().put("url", "http://localhost:8989/$1"));
 
         storage.get(rulesPath, buffer -> {
-            if (buffer != null) {
-                try {
-                    log.info("Applying rules");
-                    updateRouting(buffer);
-                } catch (ValidationException e) {
-                    log.error("Could not reconfigure routing", e);
+            try {
+                if (buffer != null) {
+                    try {
+                        log.info("Applying rules");
+                        updateRouting(buffer);
+                    } catch (ValidationException e) {
+                        log.error("Could not reconfigure routing", e);
+                        updateRouting(initialRules);
+                        setRoutingBrokenMessage(e);
+                    }
+                } else {
+                    log.warn("No rules in storage, using initial routing");
                     updateRouting(initialRules);
-                    setRoutingBrokenMessage(e);
                 }
-            } else {
-                log.warn("No rules in storage, using initial routing");
-                updateRouting(initialRules);
+            } catch (ValidationException e) {
+                log.error("Could not reconfigure routing", e);
+                setRoutingBrokenMessage(e);
             }
         });
 
@@ -303,7 +308,7 @@ public class Router {
         });
     }
 
-    private void updateRouting(JsonObject rules) {
+    private void updateRouting(JsonObject rules) throws ValidationException {
         updateRouting(new RuleFactory(properties, routingRulesSchema).createRules(rules));
     }
 

@@ -157,6 +157,73 @@ public class RuleFactoryTest {
     }
 
     @Test
+    public void testMissingPathProperty() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("For storage routing, 'path' must be specified.");
+
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"storage\": \"main\"" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testUrlAndPathProperty() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Either 'url' or 'path' must be given, not both");
+
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
+                "  \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\"," +
+                "  \"storage\": \"main\"" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testInvalidUrlPattern() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Invalid url for pattern");
+
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\"" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1:1234:1234/"); // port information is not valid
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testMissingLeadingSlashForPathProperty() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Illegal value for 'path', it must be a path starting with slash");
+
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"path\": \"${gateleen.test.prop.1}/gateleen/rule/1\"," +
+                "  \"storage\": \"main\"" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
     public void testInvalidJson() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Unable to parse json");
