@@ -96,7 +96,6 @@
 					"type": "boolean"
 				}
 			},
-			"required": ["name"],
 			"additionalProperties": false
 		},
 		"BasicAuth": {

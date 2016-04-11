@@ -58,8 +58,9 @@ public class StorageForwarder implements Handler<RoutingContext> {
         final String targetUri = urlPattern.matcher(ctx.request().uri()).replaceAll(rule.getPath()).replaceAll("\\/\\/", "/");
         final Logger log = RequestLoggerFactory.getLogger(StorageForwarder.class, ctx.request());
         monitoringHandler.updateRequestsMeter("localhost", ctx.request().uri());
+        monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getName());
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), ctx.request().uri());
-        log.debug("Forwarding request: " + ctx.request().uri() + " to storage " + rule.getStorage() + " " + targetUri);
+        log.debug("Forwarding request: " + ctx.request().uri() + " to storage " + rule.getStorage() + " " + targetUri + " with rule " + rule.getRuleIdentifier());
         final MultiMap requestHeaders = new CaseInsensitiveHeaders();
         requestHeaders.addAll(ctx.request().headers());
         if (rule.getStaticHeaders() != null) {

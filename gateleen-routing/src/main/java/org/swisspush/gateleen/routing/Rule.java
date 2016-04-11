@@ -28,6 +28,13 @@ public class Rule {
     private Map<String, String> staticHeaders = new HashMap<>();
     private String storage;
 
+    public String getRuleIdentifier() {
+        if(name != null){
+            return name;
+        }
+        return urlPattern;
+    }
+
     public String getName() { return name; }
 
     public void setName(String name) { this.name = name; }

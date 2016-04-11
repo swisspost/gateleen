@@ -1,16 +1,17 @@
 package org.swisspush.gateleen.routing;
 
-import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.logging.LoggingHandler;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.LoggingHandler;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.Map;
 
@@ -22,18 +23,21 @@ import java.util.Map;
 public class NullForwarder implements Handler<RoutingContext> {
 
     private LoggingResourceManager loggingResourceManager;
+    private MonitoringHandler monitoringHandler;
     private Rule rule;
 
-    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager){
+    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler){
         this.rule = rule;
         this.loggingResourceManager = loggingResourceManager;
+        this.monitoringHandler = monitoringHandler;
     }
 
     @Override
     public void handle(final RoutingContext ctx) {
+        monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getName());
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request());
         final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
-        log.debug("Not forwarding request: " + ctx.request().uri());
+        log.debug("Not forwarding request: " + ctx.request().uri() + " with rule " + rule.getRuleIdentifier());
         final MultiMap requestHeaders = new CaseInsensitiveHeaders();
         requestHeaders.addAll(ctx.request().headers());
         if (rule.getStaticHeaders() != null) {

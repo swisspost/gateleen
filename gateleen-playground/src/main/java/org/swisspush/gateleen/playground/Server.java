@@ -100,6 +100,12 @@ public class Server extends AbstractVerticle {
         final JsonObject info = new JsonObject();
         final Map<String, Object> props = RunConfig.buildRedisProps("localhost", defaultRedisPort);
 
+        /*
+         * Just for demonstration purposes. In real-life use a request header name to group the requests
+         * and set it as vm option like -Dorg.swisspush.request.rule.property=MY_HEADER_NAME
+         */
+        System.setProperty(MonitoringHandler.REQUEST_PER_RULE_PROPERTY, "x-appid");
+
         try {
             String externalConfig = System.getProperty("org.swisspush.config.dir") + "/config.properties";
             Resource externalConfigResource = new FileSystemResource(externalConfig);
@@ -127,7 +133,7 @@ public class Server extends AbstractVerticle {
                     deltaHandler = new DeltaHandler(redisClient, selfClient);
                     expansionHandler = new ExpansionHandler(vertx, storage, selfClientExpansionHandler, props, ROOT, RULES_ROOT);
                     copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
-                    monitoringHandler = new MonitoringHandler(vertx, redisClient, PREFIX);
+                    monitoringHandler = new MonitoringHandler(vertx, redisClient, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
                     qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                     eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/push/v1/", SERVER_ROOT + "/push/v1/sock", "push-", "devices/([^/]+).*");
                     eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);

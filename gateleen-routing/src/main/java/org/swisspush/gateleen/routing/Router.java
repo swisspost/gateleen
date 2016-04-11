@@ -260,7 +260,7 @@ public class Router {
              */
             Handler<RoutingContext> forwarder;
             if (rule.getPath() == null) {
-                forwarder = new NullForwarder(rule, loggingResourceManager);
+                forwarder = new NullForwarder(rule, loggingResourceManager, monitoringHandler);
             } else if (rule.getStorage() != null) {
                 forwarder = new StorageForwarder(vertx.eventBus(), rule, loggingResourceManager, monitoringHandler);
             } else if (rule.getScheme().equals("local")) {

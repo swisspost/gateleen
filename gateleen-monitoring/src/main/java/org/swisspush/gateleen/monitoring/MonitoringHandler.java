@@ -2,8 +2,11 @@ package org.swisspush.gateleen.monitoring;
 
 import com.google.common.collect.Ordering;
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -11,9 +14,11 @@ import io.vertx.redis.RedisClient;
 import io.vertx.redis.op.RangeLimitOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,8 +33,18 @@ public class MonitoringHandler {
     public static final String METRIC_NAME = "name";
     public static final String METRIC_ACTION = "action";
     public static final String MARK = "mark";
+    public static final String SET = "set";
+
+    private static final String DELIMITER = "=";
+
     private Vertx vertx;
     private RedisClient redisClient;
+    private ResourceStorage storage;
+
+    private boolean requestPerRuleMonitoringActive;
+    private String requestPerRuleMonitoringProperty;
+    private final String requestPerRuleMonitoringPath;
+    private Map<String, Long> requestPerRuleMonitoringMap;
 
     private static Logger log = LoggerFactory.getLogger(MonitoringHandler.class);
 
@@ -48,7 +63,19 @@ public class MonitoringHandler {
     public static final int MAX_AGE_MILLISECONDS = 120000; // 120 seconds
     private static final int QUEUE_SIZE_REFRESH_TIME = 5000; // 5 seconds
 
+    public static final String REQUEST_PER_RULE_PREFIX = "rpr.";
+    public static final String REQUEST_PER_RULE_PROPERTY = "org.swisspush.request.rule.property";
+    public static final String REQUEST_PER_RULE_SAMPLING_PROPERTY = "org.swisspush.request.rule.sampling";
+    public static final String REQUEST_PER_RULE_EXPIRY_PROPERTY = "org.swisspush.request.rule.expiry";
+    public static final long REQUEST_PER_RULE_DEFAULT_SAMPLING = 60000; // 60 seconds
+    public static final long REQUEST_PER_RULE_DEFAULT_EXPIRY = 86400; // 24 hours
+    private final String UNKNOWN_VALUE = "unknown";
+    private final String EXPIRE_AFTER_HEADER = "x-expire-after";
+
     private String prefix;
+    private long requestPerRuleSampling;
+    private long requestPerRuleExpiry;
+    private final UUID uuid;
 
     public interface MonitoringCallback {
 
@@ -62,11 +89,21 @@ public class MonitoringHandler {
         void onDone(List<Map.Entry<String, Long>> mapEntries);
     }
 
-    public MonitoringHandler(Vertx vertx, RedisClient redisClient, String prefix) {
+    public MonitoringHandler(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, String prefix) {
+        this(vertx, redisClient, storage, prefix, null);
+    }
+
+    public MonitoringHandler(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, String prefix, String requestPerRulePath) {
         this.vertx = vertx;
         this.redisClient = redisClient;
+        this.storage = storage;
         this.prefix = prefix;
+        this.requestPerRuleMonitoringPath = initRequestPerRuleMonitoringPath(requestPerRulePath);
+        this.uuid = UUID.randomUUID();
+
         registerQueueSizeTrackingTimer();
+
+        initRequestPerRuleMonitoring();
 
         final Logger metricLogger = LoggerFactory.getLogger("Metrics");
 
@@ -78,6 +115,7 @@ public class MonitoringHandler {
                 final JsonObject body = message.body();
                 final String action = body.getString(METRIC_ACTION);
                 final String name = body.getString(METRIC_NAME);
+                handleRequestPerRuleMessage(name);
                 long now;
                 switch (action) {
                 case "set":
@@ -97,13 +135,128 @@ public class MonitoringHandler {
         });
     }
 
+    public String getRequestPerRuleMonitoringPath() {
+        return requestPerRuleMonitoringPath;
+    }
+
+    private String initRequestPerRuleMonitoringPath(String requestPerRuleMonitoringPath){
+        String str = StringUtils.trim(requestPerRuleMonitoringPath);
+        if(StringUtils.isNotEmpty(str) && str.endsWith("/")){
+            str = str.substring(0, str.length()-1);
+        }
+        return str;
+    }
+
+    private void handleRequestPerRuleMessage(String metricName){
+        if(StringUtils.isNotEmpty(metricName) && metricName.startsWith(prefix + REQUEST_PER_RULE_PREFIX)){
+            writeRequestPerRuleMonitoringMetricsToStorage(metricName.replaceAll(prefix+REQUEST_PER_RULE_PREFIX, ""));
+        }
+    }
+
+    private void initRequestPerRuleMonitoring(){
+        requestPerRuleMonitoringProperty = StringUtils.getStringOrEmpty(System.getProperty(REQUEST_PER_RULE_PROPERTY));
+        if(StringUtils.isNotEmpty(requestPerRuleMonitoringProperty)){
+            requestPerRuleMonitoringActive = true;
+            log.info("Activated request per rule monitoring for request header property '" + requestPerRuleMonitoringProperty + "'");
+            configureSamplingAndExpiry();
+            registerRequestPerRuleMonitoringTimer();
+        } else {
+            requestPerRuleMonitoringActive = false;
+            log.info("Request per rule monitoring not active since system property '" + REQUEST_PER_RULE_PROPERTY + "' was not set (or empty)");
+        }
+    }
+
+    public boolean isRequestPerRuleMonitoringActive() {
+        return requestPerRuleMonitoringActive;
+    }
+
+    private Map<String, Long> getRequestPerRuleMonitoringMap() {
+        if(requestPerRuleMonitoringMap == null){
+            requestPerRuleMonitoringMap = new HashMap<>();
+        }
+        return requestPerRuleMonitoringMap;
+    }
+
     private void registerQueueSizeTrackingTimer() {
         vertx.setPeriodic(QUEUE_SIZE_REFRESH_TIME, event -> updateQueueCountInformation());
+    }
+
+    private void registerRequestPerRuleMonitoringTimer(){
+        vertx.setPeriodic(requestPerRuleSampling, event -> submitRequestPerRuleMonitoringMetrics());
+    }
+
+    private void configureSamplingAndExpiry(){
+        String sampling = System.getProperty(REQUEST_PER_RULE_SAMPLING_PROPERTY, String.valueOf(REQUEST_PER_RULE_DEFAULT_SAMPLING));
+        String expiry = System.getProperty(REQUEST_PER_RULE_EXPIRY_PROPERTY, String.valueOf(REQUEST_PER_RULE_DEFAULT_EXPIRY));
+
+        try {
+            this.requestPerRuleSampling = Long.parseLong(sampling);
+            log.info("Initializing request per rule monitoring with a sampling rate of [ms] " + requestPerRuleSampling);
+        } catch (NumberFormatException ex){
+            log.warn("Unable to parse system property '" + REQUEST_PER_RULE_SAMPLING_PROPERTY + "'. Using default value instead: " + REQUEST_PER_RULE_DEFAULT_SAMPLING);
+            this.requestPerRuleSampling = REQUEST_PER_RULE_DEFAULT_SAMPLING;
+        }
+
+        try {
+            this.requestPerRuleExpiry = Long.parseLong(expiry);
+            log.info("Initializing request per rule monitoring with an expiry value of [ms] " + requestPerRuleExpiry);
+        } catch (NumberFormatException ex){
+            log.warn("Unable to parse system property '" + REQUEST_PER_RULE_EXPIRY_PROPERTY + "'. Using default value instead: " + REQUEST_PER_RULE_DEFAULT_EXPIRY);
+            this.requestPerRuleExpiry= REQUEST_PER_RULE_DEFAULT_EXPIRY;
+        }
+    }
+
+    public long getRequestPerRuleSampling() {
+        return requestPerRuleSampling;
+    }
+
+    public long getRequestPerRuleExpiry() {
+        return requestPerRuleExpiry;
     }
 
     public void updateIncomingRequests(HttpServerRequest request) {
         if (!HttpServerRequestUtil.isRemoteAddressLoopbackAddress(request) && shouldBeTracked(request.uri())) {
             vertx.eventBus().publish(Address.monitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + REQUESTS_INCOMING_NAME).put(METRIC_ACTION, MARK));
+        }
+    }
+
+    public void updateRequestPerRuleMonitoring(HttpServerRequest request, String ruleName){
+        if(isRequestPerRuleMonitoringActive()){
+            String headerValue = StringUtils.getStringOrDefault(request.getHeader(requestPerRuleMonitoringProperty), UNKNOWN_VALUE);
+            if(StringUtils.isNotEmptyTrimmed(ruleName)){
+                String key = headerValue + DELIMITER + ruleName;
+                getRequestPerRuleMonitoringMap().merge(key, 1L, (oldValue, one) -> oldValue + one);
+            } else {
+                log.warn("Request per rule monitoring is active but was called without a rule name. This request will be ignored.");
+            }
+        }
+    }
+
+    private void submitRequestPerRuleMonitoringMetrics(){
+        log.info("About to send " + getRequestPerRuleMonitoringMap().size() + " request per rule monitoring values to metrics");
+        for (Iterator<Map.Entry<String, Long>> it = getRequestPerRuleMonitoringMap().entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<String, Long> entry = it.next();
+            vertx.eventBus().publish(Address.monitoringAddress(),
+                    new JsonObject()
+                            .put(METRIC_NAME, prefix + REQUEST_PER_RULE_PREFIX + entry.getKey())
+                            .put(METRIC_ACTION, SET)
+                            .put("n", entry.getValue()));
+            it.remove();
+        }
+    }
+
+    private void writeRequestPerRuleMonitoringMetricsToStorage(String name){
+        if(StringUtils.isNotEmptyTrimmed(requestPerRuleMonitoringPath)) {
+            String path = requestPerRuleMonitoringPath + "/" + uuid + "/" + name;
+            JsonObject obj = new JsonObject().put("timestamp", System.currentTimeMillis());
+            MultiMap headers = new CaseInsensitiveHeaders().add(EXPIRE_AFTER_HEADER, String.valueOf(requestPerRuleExpiry));
+            storage.put(path, headers, Buffer.buffer(obj.encode()), status -> {
+                if (status != StatusCode.OK.getStatusCode()) {
+                    log.error("Error putting resource " + path + " to storage");
+                }
+            });
+        } else {
+            log.warn("No path configured for the request per rule monitoring");
         }
     }
 
@@ -176,7 +329,7 @@ public class MonitoringHandler {
                 log.error("Error gathering count of active queues");
             } else {
                 final long count = reply.result();
-                vertx.eventBus().publish(Address.monitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ACTIVE_QUEUE_COUNT_METRIC).put(METRIC_ACTION, "set").put("n", count));
+                vertx.eventBus().publish(Address.monitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ACTIVE_QUEUE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n", count));
             }
         });
     }

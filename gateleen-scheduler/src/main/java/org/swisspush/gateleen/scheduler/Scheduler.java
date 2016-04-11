@@ -1,19 +1,18 @@
 package org.swisspush.gateleen.scheduler;
 
-import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.queue.queuing.RedisquesAPI;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.RedisClient;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.queue.queuing.RedisquesAPI;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -52,7 +51,6 @@ public class Scheduler {
 
     public void start() {
         log.info("Starting scheduler [ "+cronExpression.getCronExpression()+" ]");
-        final EventBus eventBus = vertx.eventBus();
         timer = vertx.setPeriodic(5000, timer -> redisClient.get("schedulers:" + name, reply -> {
             final String stringValue = reply.result();
             if (stringValue == null || Long.parseLong(stringValue) <= System.currentTimeMillis()) {

@@ -106,10 +106,10 @@ public class Forwarder implements Handler<RoutingContext> {
      */
     public void handle(final HttpServerRequest req, final Buffer bodyData) {
         monitoringHandler.updateRequestsMeter(target, req.uri());
+        monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getName());
         final String targetUri = urlPattern.matcher(req.uri()).replaceAll(rule.getPath()).replaceAll("\\/\\/", "/");
         final Logger log = RequestLoggerFactory.getLogger(Forwarder.class, req);
-        log.debug("Forwarding request: " + req.uri() + " to " + rule.getScheme() + "://" + target + targetUri);
-
+        log.debug("Forwarding request: " + req.uri() + " to " + rule.getScheme() + "://" + target + targetUri + " with rule " + rule.getRuleIdentifier());
         final String userId = extractUserId(req, log);
 
         if (userId != null && rule.getProfile() != null && userProfilePath != null) {

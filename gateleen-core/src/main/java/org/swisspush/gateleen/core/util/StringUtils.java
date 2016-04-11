@@ -64,6 +64,26 @@ public final class StringUtils {
 
     /**
      * <p>
+     * Checks if a trimmed String is not empty ("") and not null.
+     * </p>
+     *
+     * <pre>
+     * StringUtils.isNotEmpty(null)      = false
+     * StringUtils.isNotEmpty("")        = false
+     * StringUtils.isNotEmpty(" ")       = false
+     * StringUtils.isNotEmpty("bob")     = true
+     * StringUtils.isNotEmpty("  bob  ") = true
+     * </pre>
+     *
+     * @param str the String to check, may be null
+     * @return {@code true} if the String is not empty and not null
+     */
+    public static boolean isNotEmptyTrimmed(String str) {
+        return !StringUtils.isEmpty(trim(str));
+    }
+
+    /**
+     * <p>
      * Removes control characters (char &lt;= 32) from both ends of this String, handling {@code null} by returning {@code null}.
      * </p>
      * <p>
@@ -106,6 +126,32 @@ public final class StringUtils {
             return "";
         } else {
             return trim(inputString);
+        }
+    }
+
+    /**
+     * <p>
+     * Returns a trimmed String containing the provided value or the provided default String.
+     * </p>
+     *
+     * <pre>
+     * StringUtils.getStringOrDefault(null, "bob")        = "bob"
+     * StringUtils.getStringOrDefault("", "bob")          = "bob"
+     * StringUtils.getStringOrDefault(" ", "bob")         = "bob"
+     * StringUtils.getStringOrDefault("alice", "bob")     = "alice"
+     * StringUtils.getStringOrDefault("  alice  ", "bob") = "alice"
+     * </pre>
+     *
+     * @param inputString the String to check, may be null
+     * @param def the default value to return when inputString is null or empty
+     * @return the trimmed inputString or the provided default value
+     */
+    public static String getStringOrDefault(String inputString, String def) {
+        String stringOrEmpty = getStringOrEmpty(inputString);
+        if (isEmpty(stringOrEmpty)) {
+            return def;
+        } else {
+            return stringOrEmpty;
         }
     }
 

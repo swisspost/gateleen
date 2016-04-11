@@ -27,6 +27,13 @@ public class MockResourceStorage implements ResourceStorage {
         localStorageValues.put(key, value);
     }
 
+    /**
+     * Synchronous access to the mocked data
+     */
+    public Map<String, String> getMockData(){
+        return localStorageValues;
+    }
+
     @Override
     public void get(String path, Handler<Buffer> bodyHandler) {
         String result = localStorageValues.get(path);
