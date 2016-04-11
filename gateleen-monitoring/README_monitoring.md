@@ -24,12 +24,14 @@ Each storage entry is configured to expire (configurable via expiry system prope
 ### Usage
 The following steps are used to correctly setup the **Request per Rule Monitoring** feature:
 
-1. Set system property _org.swisspush.request.rule.property_ with the request header used to group the requests
-2. Configure the _requestPerRulePath_ value by using the corresponding MonitoringHandler constructor
+* Set system property _org.swisspush.request.rule.property_ with the request header used to group the requests
+* Configure the _requestPerRulePath_ value by using the corresponding MonitoringHandler constructor
+
 > MonitoringHandler(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, String prefix, **String requestPerRulePath**)
-3. [Optional] Set system property _org.swisspush.request.rule.sampling_ to override the default sampling rate
-4. [Optional] Set system property _org.swisspush.request.rule.expiry_ to override the default expiry
-5. Set property _name_ on each routing rule
+
+* [Optional] Set system property _org.swisspush.request.rule.sampling_ to override the default sampling rate
+* [Optional] Set system property _org.swisspush.request.rule.expiry_ to override the default expiry
+* Set property _name_ on each routing rule
 
 ```json
 "/playground/img/(.*)": {
