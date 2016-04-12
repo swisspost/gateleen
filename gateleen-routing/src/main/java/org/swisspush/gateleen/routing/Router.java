@@ -21,6 +21,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.validation.ValidationException;
+import org.swisspush.gateleen.core.refresh.Refreshable;
 
 import java.net.HttpCookie;
 import java.util.*;
@@ -28,7 +29,7 @@ import java.util.*;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class Router {
+public class Router implements Refreshable {
 
     /**
      * How long to let the http clients live before closing them after a re-configuration
@@ -51,8 +52,62 @@ public class Router {
     private final Map<String, Object> properties;
     private Handler<Void> doneHandlers[];
     private LocalMap<String, Object> sharedData;
+    private int storagePort;
 
     private String routingRulesSchema;
+
+    public Router(Vertx vertx,
+                  LocalMap<String, Object> sharedData,
+                  final ResourceStorage storage,
+                  final Map<String, Object> properties,
+                  LoggingResourceManager loggingResourceManager,
+                  MonitoringHandler monitoringHandler,
+                  HttpClient selfClient,
+                  String serverPath,
+                  String rulesPath,
+                  String userProfilePath,
+                  JsonObject info,
+                  Handler<Void>... doneHandlers) {
+        this(vertx,
+                sharedData,
+                storage,
+                properties,
+                loggingResourceManager,
+                monitoringHandler,
+                selfClient,
+                serverPath,
+                rulesPath,
+                userProfilePath,
+                info,
+                8989,
+                doneHandlers);
+    }
+
+    public Router(Vertx vertx,
+                  final ResourceStorage storage,
+                  final Map<String, Object> properties,
+                  LoggingResourceManager loggingResourceManager,
+                  MonitoringHandler monitoringHandler,
+                  HttpClient selfClient,
+                  String serverPath,
+                  String rulesPath,
+                  String userProfilePath,
+                  JsonObject info,
+                  Handler<Void>... doneHandlers) {
+        this(vertx,
+                vertx.sharedData().<String, Object> getLocalMap(ROUTER_STATE_MAP),
+                storage,
+                properties,
+                loggingResourceManager,
+                monitoringHandler,
+                selfClient,
+                serverPath,
+                rulesPath,
+                userProfilePath,
+                info,
+                8989,
+                doneHandlers);
+    }
 
     public Router(Vertx vertx,
             final ResourceStorage storage,
@@ -64,6 +119,7 @@ public class Router {
             String rulesPath,
             String userProfilePath,
             JsonObject info,
+            int storagePort,
             Handler<Void>... doneHandlers) {
         this(vertx,
                 vertx.sharedData().<String, Object> getLocalMap(ROUTER_STATE_MAP),
@@ -76,6 +132,7 @@ public class Router {
                 rulesPath,
                 userProfilePath,
                 info,
+                storagePort,
                 doneHandlers);
     }
 
@@ -90,6 +147,7 @@ public class Router {
             String rulesPath,
             String userProfilePath,
             JsonObject info,
+            int storagePort,
             Handler<Void>... doneHandlers) {
         this.storage = storage;
         this.properties = properties;
@@ -102,6 +160,7 @@ public class Router {
         this.userProfileUri = userProfilePath;
         this.serverUri = serverPath;
         this.info = info;
+        this.storagePort = storagePort;
         this.doneHandlers = doneHandlers;
 
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
@@ -109,7 +168,7 @@ public class Router {
         final JsonObject initialRules = new JsonObject()
                 .put("/(.*)",new JsonObject()
                         .put("name", "resource_storage")
-                        .put("url", "http://localhost:8989/$1"));
+                        .put("url", "http://localhost:" + String.valueOf(storagePort) + "/$1"));
 
         storage.get(rulesPath, buffer -> {
             try {
@@ -396,5 +455,11 @@ public class Router {
         for (Handler<Void> doneHandler : doneHandlers) {
             doneHandler.handle(null);
         }
+    }
+
+    @Override
+    public void refresh() {
+        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        resetRouterBrokenState();
     }
 }

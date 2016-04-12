@@ -23,6 +23,7 @@ import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
+import org.swisspush.gateleen.core.property.PropertyHandler;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -45,6 +46,7 @@ import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
 import redis.clients.jedis.Jedis;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -74,8 +76,11 @@ public abstract class AbstractTest {
 
     protected static Vertx vertx;
     protected static QoSHandler qosHandler;
+    protected static PropertyHandler propertyHandler;
     protected static Jedis jedis;
     private static HttpServer mainServer;
+
+    protected final static Map<String, Object> props = new HashMap<>();
 
     /**
      * Starts redis before the test classes are instantiated.
@@ -104,7 +109,7 @@ public abstract class AbstractTest {
         final JsonObject info = new JsonObject();
         final LocalHttpClient selfClient = new LocalHttpClient(vertx);
         final HttpClient selfClientExpansionHandler = selfClient;
-        final Map<String, Object> props = RunConfig.buildRedisProps("localhost", RedisEmbeddedConfiguration.REDIS_PORT);
+        props.putAll(RunConfig.buildRedisProps("localhost", RedisEmbeddedConfiguration.REDIS_PORT));
 
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
@@ -121,6 +126,7 @@ public abstract class AbstractTest {
                 RoleProfileHandler roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]*)/profile");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 HookHandler hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/");
+                propertyHandler = new PropertyHandler(ROOT, props);
 
                 ResetMetricsController resetMetricsController = new ResetMetricsController(vertx);
                 resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
@@ -150,6 +156,7 @@ public abstract class AbstractTest {
                                 .userProfileHandler(userProfileHandler)
                                 .loggingResourceManager(loggingResourceManager)
                                 .schedulerResourceManager(new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers"))
+                                .propertyHandler(propertyHandler)
                                 .build(vertx, redisClient, AbstractTest.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);

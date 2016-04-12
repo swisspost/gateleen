@@ -9,6 +9,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
@@ -21,7 +22,7 @@ import java.util.Map;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class SchedulerResourceManager {
+public class SchedulerResourceManager implements Refreshable {
 
     private static final String UPDATE_ADDRESS = "gateleen.schedulers-updated";
     private String schedulersUri;
@@ -118,5 +119,10 @@ public class SchedulerResourceManager {
         if(schedulers != null) {
             schedulers.forEach(Scheduler::stop);
         }
+    }
+
+    @Override
+    public void refresh() {
+        updateSchedulers();
     }
 }
