@@ -55,11 +55,13 @@ public class RuleFactory {
             JsonObject rule = rules.getJsonObject(urlPattern);
 
             String name = rule.getString("name");
-            if(ruleNames.contains(name)){
-                throw new ValidationException("Property 'name' must be unique. There are multiple rules with name '" + name + "'");
-            } else {
-                ruleNames.add(name);
-                ruleObj.setName(name);
+            if(name != null) {
+                if (ruleNames.contains(name)) {
+                    throw new ValidationException("Property 'name' must be unique. There are multiple rules with name '" + name + "'");
+                } else {
+                    ruleNames.add(name);
+                    ruleObj.setName(name);
+                }
             }
 
             String targetUrl = rule.getString("url");

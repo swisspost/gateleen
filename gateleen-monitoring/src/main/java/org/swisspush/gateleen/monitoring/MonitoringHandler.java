@@ -14,6 +14,7 @@ import io.vertx.redis.RedisClient;
 import io.vertx.redis.op.RangeLimitOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
@@ -227,7 +228,8 @@ public class MonitoringHandler {
                 String key = headerValue + DELIMITER + ruleName;
                 getRequestPerRuleMonitoringMap().merge(key, 1L, (oldValue, one) -> oldValue + one);
             } else {
-                log.warn("Request per rule monitoring is active but was called without a rule name. This request will be ignored.");
+                Logger requestlog = RequestLoggerFactory.getLogger(MonitoringHandler.class, request);
+                requestlog.warn("Request per rule monitoring is active but was called without a rule name. This request will be ignored.");
             }
         }
     }
