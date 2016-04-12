@@ -405,6 +405,47 @@ public class ListenerTest extends AbstractTest {
     }
 
     @Test
+    public void testHookFilter(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+        String pattern = ROOT + "/.*/notfiltered/.*";
+
+        String serviceName = "aPatternCheck";
+        String serviceId = "1";
+        String target = targetUrlBase + "/" + serviceName;
+
+        String registerUrlListener = requestUrlBase + "/1stTest" + TestUtils.getHookListenersUrlSuffix() + serviceName + "/" + serviceId;
+
+        String body = "{\"foo\" : \"bar1\"}";
+
+        // should be filtered (means, should not be found by the test).
+        String put1 = requestUrlBase + "/1stTest/123/filtered/v1/body";
+
+        // should not be filtered (means, should be found by the test).
+        String put2 = requestUrlBase + "/1stTest/456/notfiltered/v1/body";
+
+        String target1 = target + "/123/filtered/v1/body";
+        String target2 = target + "/456/notfiltered/v1/body";
+
+        // register listener
+        registerListener(registerUrlListener, target, null, null, pattern);
+
+        // Put1
+        checkPUTStatusCode(put1, body, 200);
+        checkGETStatusCodeWithAwait(target1, 404);
+
+        // Put2
+        checkPUTStatusCode(put2, body, 200);
+        checkGETStatusCodeWithAwait(target2, 200);
+        checkGETBodyWithAwait(target2, body);
+
+        unregisterListener(registerUrlListener);
+
+        async.complete();
+    }
+
+    @Test
     public void testDeadLock(TestContext context) {
         Async async = context.async();
         delete();
@@ -490,6 +531,19 @@ public class ListenerTest extends AbstractTest {
      * @param expireTime
      */
     private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime) {
+        registerListener(requestUrl, target, methods, expireTime, null);
+    }
+
+    /**
+     * Registers a listener with a filter.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param expireTime
+     * @param filter
+     */
+    private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter) {
         String body = "{ \"destination\":\"" + target + "\"";
 
         String m = null;

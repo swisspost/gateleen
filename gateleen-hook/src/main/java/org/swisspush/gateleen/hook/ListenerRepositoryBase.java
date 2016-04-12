@@ -1,8 +1,10 @@
 package org.swisspush.gateleen.hook;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Abstrac base class for all ListenerRepositires.
@@ -32,13 +34,33 @@ public abstract class ListenerRepositoryBase<T> implements ListenerRepository {
 
             // found
             if (containsKey(urlToListenerContainer, tUrl)) {
-                foundListener.addAll(get(urlToListenerContainer, tUrl));
+                foundListener.addAll(filter(get(urlToListenerContainer, tUrl), url));
             }
 
             tUrl = tUrl.substring(0, index);
         }
 
         return foundListener;
+    }
+
+    /**
+     * Filters the given set of listener, to match the pattern defined in the
+     * respective hook (if a pattern is defined).
+     * 
+     * @param set - a set of listeners, matching the first search criteria.
+     * @param url - the url, which should be checked, if a listener matches
+     * @return a filtered set of listeners, which matches the given url.
+     */
+    private Set<Listener> filter(Set<Listener> listeners, String url) {
+        Set<Listener> filteredListener = new HashSet<>();
+        for (Listener listener : listeners) {
+            Pattern pattern = listener.getHook().getFilter();
+
+            if (pattern == null || pattern.matcher(url).matches()) {
+                filteredListener.add(listener);
+            }
+        }
+        return filteredListener;
     }
 
     /**

@@ -784,6 +784,14 @@ public class HookHandler {
             hook.setMethods(jsonMethods.getList());
         }
 
+        if (jsonHook.containsKey("filter")) {
+            hook.setFilter(jsonHook.getString("filter"));
+        }
+
+        if (jsonHook.containsKey("filter")) {
+            hook.setFilter(jsonHook.getString("filter"));
+        }
+
         if (jsonHook.getInteger(EXPIRE_AFTER) != null) {
             hook.setExpireAfter(jsonHook.getInteger(EXPIRE_AFTER));
         } else {
