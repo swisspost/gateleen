@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.Log4jConfigurer;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.property.PropertyHandler;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.delta.DeltaHandler;
@@ -86,12 +87,13 @@ public class RunConfig {
     private Authorizer authorizer;
     private CopyResourceHandler copyResourceHandler;
     private QoSHandler qosHandler;
+    private PropertyHandler propertyHandler;
 
     public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
                      EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
-                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler){
+                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler) {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.verticleClass = verticleClass;
@@ -112,6 +114,7 @@ public class RunConfig {
         this.authorizer = authorizer;
         this.copyResourceHandler = copyResourceHandler;
         this.qosHandler = qosHandler;
+        this.propertyHandler = propertyHandler;
         init();
     }
 
@@ -135,8 +138,8 @@ public class RunConfig {
                 builder.deltaHandler,
                 builder.authorizer,
                 builder.copyResourceHandler,
-                builder.qosHandler
-        );
+                builder.qosHandler,
+                builder.propertyHandler);
     }
 
     private void init(){
@@ -183,10 +186,11 @@ public class RunConfig {
         private Authorizer authorizer;
         private CopyResourceHandler copyResourceHandler;
         private QoSHandler qosHandler;
+        public PropertyHandler propertyHandler;
 
         public RunConfigBuilder(){}
 
-        public RunConfigBuilder corsHandler(CORSHandler corsHandler){
+        public RunConfigBuilder     corsHandler(CORSHandler corsHandler){
             this.corsHandler = corsHandler;
             return this;
         }
@@ -253,6 +257,11 @@ public class RunConfig {
 
         public RunConfigBuilder qosHandler(QoSHandler qosHandler){
             this.qosHandler = qosHandler;
+            return this;
+        }
+
+        public RunConfigBuilder propertyHandler(PropertyHandler propertyHandler) {
+            this.propertyHandler = propertyHandler;
             return this;
         }
 
@@ -466,6 +475,9 @@ public class RunConfig {
                             return;
                         }
                         if (schedulerResourceManager != null && schedulerResourceManager.handleSchedulerResource(request)) {
+                            return;
+                        }
+                        if (propertyHandler != null && propertyHandler.handle(request)) {
                             return;
                         }
                         if (userProfileHandler != null && userProfileHandler.isUserProfileRequest(request)) {

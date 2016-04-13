@@ -9,7 +9,6 @@ import io.vertx.core.http.HttpServerRequest;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -70,7 +69,7 @@ public class RecursiveZipRootHandler extends RecursiveRootHandlerBase {
             try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                     ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream);) {
 
-                List<ResourceNode> zipableNodes = (List<ResourceNode>) node.getObject();
+                Iterable<ResourceNode> zipableNodes = (Iterable<ResourceNode>) node.getObject();
 
                 for (ResourceNode resourceNode : zipableNodes) {
                     if (log.isTraceEnabled()) {

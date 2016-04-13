@@ -4,6 +4,8 @@ import org.joda.time.LocalDateTime;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
+import org.joda.time.LocalDateTime;
 
 /**
  * Represents a hook.
@@ -16,6 +18,7 @@ public class HttpHook {
     private int expireAfter;
     private LocalDateTime expirationTime;
     private boolean fullUrl = false;
+    private Pattern filter = null;
 
     /**
      * Creates a new hook.
@@ -117,5 +120,24 @@ public class HttpHook {
      */
     public void setFullUrl(boolean fullUrl) {
         this.fullUrl = fullUrl;
+    }
+
+    /**
+     * Returns the precompiled pattern, to match
+     * a given url.
+     * 
+     * @return - a precompiled pattern
+     */
+    public Pattern getFilter() {
+        return filter;
+    }
+
+    /**
+     * Set a regexp to filter the hook. <br >
+     * 
+     * @param regex - a regular expression
+     */
+    public void setFilter(String regex) {
+        filter = Pattern.compile(regex);
     }
 }
