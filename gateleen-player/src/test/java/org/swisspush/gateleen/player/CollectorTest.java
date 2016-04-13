@@ -24,13 +24,12 @@ import static org.swisspush.gateleen.player.exchange.Exchange.request;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-@Ignore
+@Ignore // assumes a running server on localhost
 public class CollectorTest {
 
     public static final String URL = "http://localhost:7012";
 
     @Test
-    @Ignore // assumes a real server running on localhost
     public void testEventBusCollector() throws Exception {
         Collector collector = new EventBusCollector(URL, "/gateleen/server/event/v1/sock", "event/gateleen-request-log", alwaysTrue());
         new Player().
@@ -48,7 +47,6 @@ public class CollectorTest {
     }
 
     @Test
-    @Ignore // assumes a real server running on localhost
     public void testFullOutputLog() throws Exception {
         Iterator<Exchange> outputLog = new Player().
                 setInputLog(URL, "classpath:logs/simple.log").

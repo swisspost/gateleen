@@ -1,12 +1,11 @@
 package org.swisspush.gateleen.player;
 
-import org.junit.Ignore;
-import org.swisspush.gateleen.player.exchange.Exchange;
-import org.swisspush.gateleen.player.log.ResourceRequestLog;
 import org.junit.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
+import org.swisspush.gateleen.player.exchange.Exchange;
 import org.swisspush.gateleen.player.exchange.IgnoreHeadersTransformer;
+import org.swisspush.gateleen.player.log.ResourceRequestLog;
 
 import java.net.URI;
 import java.util.Iterator;
@@ -16,7 +15,6 @@ import static org.swisspush.gateleen.player.exchange.Exchange.assertSameExchange
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-@Ignore
 public class CompareTest {
 
     @Test
