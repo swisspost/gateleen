@@ -46,6 +46,11 @@ public class MonitoringHandlerTest {
         vertx = Vertx.vertx();
         redisClient = Mockito.mock(RedisClient.class);
         storage = new MockResourceStorage();
+
+        // remove system properties to prevent side effects in tests
+        System.clearProperty(MonitoringHandler.REQUEST_PER_RULE_PROPERTY);
+        System.clearProperty(MonitoringHandler.REQUEST_PER_RULE_SAMPLING_PROPERTY);
+        System.clearProperty(MonitoringHandler.REQUEST_PER_RULE_EXPIRY_PROPERTY);
     }
 
     @Test
