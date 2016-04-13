@@ -64,6 +64,7 @@ public abstract class AbstractTest {
     public static final String SERVER_ROOT = ROOT + "/server";
     public static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
     public static final int MAIN_PORT = 3332;
+    public static final int REDIS_PORT = 6379;
 
     /**
      * Basis configuration for RestAssured
@@ -87,29 +88,16 @@ public abstract class AbstractTest {
      */
     @BeforeClass
     public static void setupBeforeClass(TestContext context) {
-        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.start();
-
-            // setting a shutdown hook for redis
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    RedisEmbeddedConfiguration.redisServer.stop();
-                } catch (Exception handled) {
-                    // ups
-                }
-            }));
-        }
-
         Async async = context.async();
         vertx = Vertx.vertx();
 
-        jedis = new Jedis("localhost", RedisEmbeddedConfiguration.REDIS_PORT);
+        jedis = new Jedis("localhost", REDIS_PORT);
         jedis.flushAll();
 
         final JsonObject info = new JsonObject();
         final LocalHttpClient selfClient = new LocalHttpClient(vertx);
         final HttpClient selfClientExpansionHandler = selfClient;
-        props.putAll(RunConfig.buildRedisProps("localhost", RedisEmbeddedConfiguration.REDIS_PORT));
+        props.putAll(RunConfig.buildRedisProps("localhost", REDIS_PORT));
 
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
@@ -182,9 +170,6 @@ public abstract class AbstractTest {
     @AfterClass
     public static void tearDownAfterClass(TestContext context) {
         Async async = context.async();
-        if (!RedisEmbeddedConfiguration.useExternalRedis()) {
-            RedisEmbeddedConfiguration.redisServer.stop();
-        }
         jedis.close();
         mainServer.close();
         vertx.close(event -> async.complete());

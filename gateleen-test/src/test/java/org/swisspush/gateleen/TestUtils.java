@@ -123,7 +123,7 @@ public class TestUtils {
                 "description",
                 "enhanced timeout for cleaning up the resources",
                 "url",
-                "http://localhost:" + RedisEmbeddedConfiguration.REDIS_PORT + AbstractTest.SERVER_ROOT + "/_cleanup",
+                "http://localhost:" + AbstractTest.REDIS_PORT + AbstractTest.SERVER_ROOT + "/_cleanup",
                 "timeout",
                 120));
 

@@ -9,13 +9,18 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>gateleen-test</artifactId>
+
+	<properties>
+		<skipTests>true</skipTests>
+	</properties>
+
 	<build>
 		<plugins>
 			<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.18.1</version>
 				<configuration>
-					<skip>true</skip>
+					<skip>${skipTests}</skip>
 				</configuration>
 			</plugin>
 		</plugins>
@@ -126,13 +131,6 @@
 			<artifactId>rest-mirror</artifactId>
 			<classifier>mod</classifier>
 			<type>zip</type>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- redis stuff -->
-		<dependency>
-			<groupId>com.github.kstyrc</groupId>
-			<artifactId>embedded-redis</artifactId>
 			<scope>test</scope>
 		</dependency>
 
