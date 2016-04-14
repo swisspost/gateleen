@@ -128,6 +128,8 @@
 		<dependency>
 			<groupId>org.swisspush</groupId>
 			<artifactId>rest-mirror</artifactId>
+			<classifier>mod</classifier>
+			<type>zip</type>
 		</dependency>
     </dependencies>
 
