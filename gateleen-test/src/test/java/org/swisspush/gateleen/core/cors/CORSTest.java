@@ -109,6 +109,8 @@ public class CORSTest extends AbstractTest {
 
     private JsonObject createForwarderRoutingRule() {
         return TestUtils.createRoutingRule(ImmutableMap.of(
+                "name",
+                "cors_forwarder_rule",
                 "description",
                 "RoutingRule to test CORS with the Forwarder (http).",
                 "url",
@@ -117,6 +119,8 @@ public class CORSTest extends AbstractTest {
 
     private JsonObject createStorageForwarderRoutingRule() {
         return TestUtils.createRoutingRule(ImmutableMap.of(
+                "name",
+                "cors_storageforwarder_rule",
                 "description",
                 "RoutingRule to test CORS with the StorageForwarder.",
                 "path",

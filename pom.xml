@@ -4,7 +4,7 @@
 
 	<groupId>org.swisspush.gateleen</groupId>
 	<artifactId>gateleen</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.2-SNAPSHOT</version>
 
 	<modules>
 		<module>gateleen-core</module>
@@ -15,6 +15,7 @@
 		<module>gateleen-delta</module>
 		<module>gateleen-expansion</module>
 		<module>gateleen-scheduler</module>
+		<module>gateleen-monitoring</module>
 		<module>gateleen-user</module>
 		<module>gateleen-validation</module>
 		<module>gateleen-packing</module>
@@ -101,36 +102,29 @@
 				<version>${vertx.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>com.github.kstyrc</groupId>
-				<artifactId>embedded-redis</artifactId>
-				<version>${embedded.redis.version}</version>
-			</dependency>
-			<dependency>
 				<groupId>com.jayway.restassured</groupId>
 				<artifactId>rest-assured</artifactId>
 				<version>${rest.assured.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>li.chee.vertx</groupId>
+				<groupId>org.swisspush</groupId>
 				<artifactId>rest-storage</artifactId>
 				<version>${rest-storage.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>li.chee.vertx</groupId>
+				<groupId>org.swisspush</groupId>
 				<artifactId>redisques</artifactId>
 				<version>${redisques.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>com.bloidonia</groupId>
-				<artifactId>mod-metrics-vertx3</artifactId>
+				<groupId>org.swisspush</groupId>
+				<artifactId>mod-metrics</artifactId>
 				<version>${mod-metrics.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>li.chee.vertx</groupId>
+				<groupId>org.swisspush</groupId>
 				<artifactId>rest-mirror</artifactId>
 				<version>${mirror.version}</version>
-				<classifier>mod</classifier>
-				<type>zip</type>
 			</dependency>
 			<dependency>
 				<groupId>com.codahale.metrics</groupId>
@@ -160,6 +154,7 @@
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.5.1</version>
 				<configuration>
 					<source>1.8</source>
 					<target>1.8</target>
@@ -216,6 +211,7 @@
 	</profiles>
 
 	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<vertx.version>3.2.0</vertx.version>
 		<guava.version>14.0.1</guava.version>
 		<jmte.version>3.0</jmte.version>
@@ -225,14 +221,13 @@
 		<joda-time.version>2.1</joda-time.version>
 		<spring.core.version>4.1.6.RELEASE</spring.core.version>
 		<quartz.version>2.2.1</quartz.version>
-		<embedded.redis.version>0.6</embedded.redis.version>
 		<rest.assured.version>2.4.1</rest.assured.version>
-		<rest-storage.version>2.0.2</rest-storage.version>
+		<rest-storage.version>2.1.0</rest-storage.version>
 		<awaitility.version>1.5.0</awaitility.version>
-		<redisques.version>2.0.1</redisques.version>
-		<mod-metrics.version>2.0.0</mod-metrics.version>
+		<redisques.version>2.1.0</redisques.version>
+		<mod-metrics.version>2.1.0</mod-metrics.version>
 		<metrics-core.version>3.0.2</metrics-core.version>
-		<mirror.version>2.0.0</mirror.version>
+		<mirror.version>2.1.1</mirror.version>
 		<jedis.version>2.4.1</jedis.version>
 		<mockito.version>1.9.5</mockito.version>
 	</properties>

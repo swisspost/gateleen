@@ -14,12 +14,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
-import org.swisspush.gateleen.core.control.ResetMetricsController;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
-import org.swisspush.gateleen.core.monitoring.CustomRedisMonitor;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -29,6 +26,9 @@ import org.swisspush.gateleen.expansion.ExpansionHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.ResetMetricsController;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
@@ -100,6 +100,12 @@ public class Server extends AbstractVerticle {
         final JsonObject info = new JsonObject();
         final Map<String, Object> props = RunConfig.buildRedisProps("localhost", defaultRedisPort);
 
+        /*
+         * Just for demonstration purposes. In real-life use a request header name to group the requests
+         * and set it as vm option like -Dorg.swisspush.request.rule.property=MY_HEADER_NAME
+         */
+        System.setProperty(MonitoringHandler.REQUEST_PER_RULE_PROPERTY, "x-appid");
+
         try {
             String externalConfig = System.getProperty("org.swisspush.config.dir") + "/config.properties";
             Resource externalConfigResource = new FileSystemResource(externalConfig);
@@ -127,7 +133,7 @@ public class Server extends AbstractVerticle {
                     deltaHandler = new DeltaHandler(redisClient, selfClient);
                     expansionHandler = new ExpansionHandler(vertx, storage, selfClientExpansionHandler, props, ROOT, RULES_ROOT);
                     copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
-                    monitoringHandler = new MonitoringHandler(vertx, redisClient, PREFIX);
+                    monitoringHandler = new MonitoringHandler(vertx, redisClient, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
                     qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                     eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/push/v1/", SERVER_ROOT + "/push/v1/sock", "push-", "devices/([^/]+).*");
                     eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);

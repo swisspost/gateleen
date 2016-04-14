@@ -158,6 +158,8 @@ public class StorageExpandTest extends AbstractTest {
 
     private void createRoutingRule(boolean storageExpand) {
         JsonObject newRule =  TestUtils.createRoutingRule(ImmutableMap.of(
+                "name",
+                "storage_expand_rule",
                 "description",
                 "ExpandTest which should expand in storage.",
                 "storageExpand",

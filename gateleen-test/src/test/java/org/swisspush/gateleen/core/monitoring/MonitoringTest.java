@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+import java.io.Serializable;
 import java.lang.management.ManagementFactory;
 
 import static com.jayway.restassured.RestAssured.*;
@@ -52,17 +53,14 @@ public class MonitoringTest extends AbstractTest {
         String metricName = "mainstorage";
 
         // add a routing
-        JsonObject storageRule = TestUtils.createRoutingRule(ImmutableMap.of(
-                "description",
-                "a routing for the metric tests",
-                "metricName",
-                metricName,
-                "path",
-                "/$1",
-                "storage",
-                "main",
-                "logExpiry",
-                0));
+        JsonObject storageRule = TestUtils.createRoutingRule(ImmutableMap.<String, Serializable>builder()
+                .put("name", "metric_test_rule")
+                .put("description", "a routing for the metric tests")
+                .put("metricName", metricName)
+                .put("path", "/$1")
+                .put("storage", "main")
+                .put("logExpiry", 0)
+                .build());
         JsonObject rules = TestUtils.addRoutingRule(new JsonObject(), "/(.*)", storageRule);
         TestUtils.putRoutingRules(rules);
 

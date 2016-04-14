@@ -20,6 +20,7 @@ import java.util.Map;
 public class StringUtilsTest {
 
     private String text = "Test";
+    private String def = "Default";
     private String empty = "";
     private String nullText = null;
 
@@ -45,12 +46,30 @@ public class StringUtilsTest {
     }
 
     @Test
+    public void testIsNotEmptyTrimmed(TestContext context) {
+        context.assertFalse(StringUtils.isNotEmptyTrimmed(nullText));
+        context.assertFalse(StringUtils.isNotEmptyTrimmed(""));
+        context.assertFalse(StringUtils.isNotEmptyTrimmed("  "));
+        context.assertTrue(StringUtils.isNotEmptyTrimmed(text));
+        context.assertTrue(StringUtils.isNotEmptyTrimmed(" " + text + " "));
+    }
+
+    @Test
     public void testGetStringOrEmpty(TestContext context){
         context.assertEquals(empty, StringUtils.getStringOrEmpty(null));
         context.assertEquals(empty, StringUtils.getStringOrEmpty(""));
         context.assertEquals(empty, StringUtils.getStringOrEmpty(" "));
         context.assertEquals(text, StringUtils.getStringOrEmpty(text));
         context.assertEquals(text, StringUtils.getStringOrEmpty(" " + text + " "));
+    }
+
+    @Test
+    public void testGetStringOrDefault(TestContext context){
+        context.assertEquals(def, StringUtils.getStringOrDefault(null, def));
+        context.assertEquals(def, StringUtils.getStringOrDefault(empty, def));
+        context.assertEquals(def, StringUtils.getStringOrDefault(" ", def));
+        context.assertEquals(text, StringUtils.getStringOrDefault(text, def));
+        context.assertEquals(text, StringUtils.getStringOrDefault(" " + text + " ", def));
     }
 
     @Test

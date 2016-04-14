@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.core.monitoring;
+package org.swisspush.gateleen.monitoring;
 
 import org.swisspush.gateleen.core.util.Address;
 import io.vertx.core.Vertx;

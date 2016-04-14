@@ -42,7 +42,7 @@ public class AclFactory {
         for (String id : aclItems.fieldNames()) {
             Object aclItemToTest = aclItems.getValue(id);
             if (!(aclItemToTest instanceof JsonObject)) {
-                throw new IllegalArgumentException("acl item must be a map: " + id);
+                throw new ValidationException("acl item must be a map: " + id);
             }
             JsonObject aclItem = aclItems.getJsonObject(id);
             aclItems.getValue("debug.read");

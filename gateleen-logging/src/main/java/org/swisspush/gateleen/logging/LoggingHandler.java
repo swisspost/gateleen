@@ -2,7 +2,6 @@ package org.swisspush.gateleen.logging;
 
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -12,13 +11,11 @@ import org.apache.log4j.Appender;
 import org.apache.log4j.DailyRollingFileAppender;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -34,6 +31,8 @@ public class LoggingHandler {
     private LoggingResource loggingResource;
 
     private String currentDestination;
+
+    private static final String LOGGING_DIR_PROPERTY = "org.swisspush.logging.dir";
 
     private static final String CONTENT_TYPE = "content-type";
     private static final String APPLICATION_JSON = "application/json";
@@ -54,15 +53,12 @@ public class LoggingHandler {
     private Map<String, org.apache.log4j.Logger> loggers = new HashMap<>();
     private Map<String, Appender> appenders = new HashMap<>();
 
-    private static final Logger log = LoggerFactory.getLogger(LoggingHandler.class);
-
-    private enum FilterResult {
-        FILTER, REJECT, NO_MATCH;
-    }
+    private Logger log;
 
     public LoggingHandler(LoggingResourceManager loggingResourceManager, HttpServerRequest request) {
         this.request = request;
         this.loggingResource = loggingResourceManager.getLoggingResource();
+        this.log = RequestLoggerFactory.getLogger(LoggingHandler.class, request);
 
         boolean stopValidation = false;
         for (Map<String, String> payloadFilter : loggingResource.getPayloadFilters()) {
@@ -71,12 +67,12 @@ public class LoggingHandler {
             }
 
             boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
-            for (Entry<String, String> payloadFilterEntry : payloadFilter.entrySet()) {
-                if (REJECT.equalsIgnoreCase(payloadFilterEntry.getKey()) || DESTINATION.equalsIgnoreCase(payloadFilterEntry.getKey())) {
+            for (Entry<String, String> filterEntry : payloadFilter.entrySet()) {
+                if (REJECT.equalsIgnoreCase(filterEntry.getKey()) || DESTINATION.equalsIgnoreCase(filterEntry.getKey())) {
                     continue;
                 }
 
-                FilterResult result = filterRequest(request, payloadFilterEntry, reject);
+                FilterResult result = RequestPropertyFilter.filterProperty(request, filterEntry.getKey(), filterEntry.getValue(), reject);
                 if (result == FilterResult.FILTER) {
                     active = true;
                     currentDestination = createLoggerAndGetDestination(payloadFilter);
@@ -93,16 +89,16 @@ public class LoggingHandler {
     }
 
     /**
-     * Returns the destination key for the given filter. If no destination is
+     * Returns the destination key for the given filterProperty. If no destination is
      * set the default key is used instead. <br />
      * A logger for the given destination is created if necessary or reused if
      * it already exists.
-     * 
+     *
      * @param payloadFilter
      * @return currentDestination
      */
     private String createLoggerAndGetDestination(Map<String, String> payloadFilter) {
-        // the destination of the active filter
+        // the destination of the active filterProperty
         String filterDestination = payloadFilter.get(DESTINATION);
 
         // if not available set to 'default'
@@ -155,7 +151,7 @@ public class LoggingHandler {
      * filterDestination. If no appender exists for the
      * given filterDestination, a new one is created and
      * returned.
-     * 
+     *
      * @param filterDestination
      * @param address
      * @return
@@ -188,7 +184,7 @@ public class LoggingHandler {
      * filterDestination. If no appender exists for the
      * given filterDestination, a new one is created and
      * returned.
-     * 
+     *
      * @param filterDestination
      * @param fileName
      * @return
@@ -207,11 +203,11 @@ public class LoggingHandler {
              * </appender>
              */
 
-            log.debug("file path: " + System.getProperty("org.swisspush.logging.dir") + fileName);
+            log.debug("file path: " + System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
 
             DailyRollingFileAppender appender = new DailyRollingFileAppender();
             appender.setName(filterDestination);
-            appender.setFile(System.getProperty("org.swisspush.logging.dir") + fileName);
+            appender.setFile(System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
             appender.setEncoding("UTF-8");
             appender.setAppend(true);
             EnhancedPatternLayout layout = new EnhancedPatternLayout();
@@ -274,42 +270,55 @@ public class LoggingHandler {
                 try {
                     requestLog.put(BODY, new JsonObject(requestPayload.toString("UTF-8")));
                 } catch (DecodeException e) {
-                    // ignore, bogous JSON
+                    // ignore, bogus JSON
                 }
             }
             if (responsePayload != null) {
                 try {
                     responseLog.put(BODY, new JsonObject(responsePayload.toString("UTF-8")));
                 } catch (DecodeException e) {
-                    // ignore, bogous JSON
+                    // ignore, bogus JSON
                 }
             }
 
-            loggers.get(currentDestination).info(logEvent.encode());
+            try {
+                aboutToLogRequest(currentDestination);
+                loggers.get(currentDestination).info(logEvent.encode());
+            } catch(Exception ex){
+                errorLogRequest(currentDestination, ex);
+            }
         }
+    }
+
+    private void aboutToLogRequest(String currentDestination){
+        log.info("About to log to destination " + currentDestination);
+    }
+
+    private void errorLogRequest(String currentDestination, Exception ex){
+        log.error("Error logging to destination " + currentDestination + ". Cause: " + ex.toString());
     }
 
     private JsonObject headersAsJson(MultiMap headers) {
         JsonObject obj = new JsonObject();
         switch (loggingResource.getHeaderLogStrategy()) {
-        case LOG_ALL:
-            for (Entry<String, String> entry : headers) {
-                String key = entry.getKey().toLowerCase();
-                obj.put(key, entry.getValue());
-            }
-            break;
-        case LOG_LIST:
-            for (String header : loggingResource.getHeaders()) {
-                String value = headers.get(header);
-                if (value != null) {
-                    obj.put(header, value);
+            case LOG_ALL:
+                for (Entry<String, String> entry : headers) {
+                    String key = entry.getKey().toLowerCase();
+                    obj.put(key, entry.getValue());
                 }
-            }
-            break;
-        case LOG_NONE:
-            return obj;
-        default:
-            loggers.get(currentDestination).warn("Unsupported HeaderLogStrategy '" + loggingResource.getHeaderLogStrategy() + "' used. Log nothing!");
+                break;
+            case LOG_LIST:
+                for (String header : loggingResource.getHeaders()) {
+                    String value = headers.get(header);
+                    if (value != null) {
+                        obj.put(header, value);
+                    }
+                }
+                break;
+            case LOG_NONE:
+                return obj;
+            default:
+                loggers.get(currentDestination).warn("Unsupported HeaderLogStrategy '" + loggingResource.getHeaderLogStrategy() + "' used. Log nothing!");
         }
         return obj;
     }
@@ -330,43 +339,5 @@ public class LoggingHandler {
 
     private boolean isJsonContent(MultiMap headers) {
         return headers.contains(CONTENT_TYPE) && headers.get(CONTENT_TYPE).contains(APPLICATION_JSON);
-    }
-
-    private FilterResult filterRequest(HttpServerRequest request, Entry<String, String> filterEntry, boolean reject) {
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.setAll(request.headers());
-
-        if (URL.equals(filterEntry.getKey())) {
-            boolean matches = filterRequestURL(request, filterEntry.getValue());
-            return rejectIfNeeded(reject, matches);
-        }
-        if (METHOD.equals(filterEntry.getKey())) {
-            boolean matches = filterRequestMethod(request, filterEntry.getValue());
-            return rejectIfNeeded(reject, matches);
-        }
-        if (headers.names().contains(filterEntry.getKey()) && headers.get(filterEntry.getKey()).equalsIgnoreCase(filterEntry.getValue())) {
-            return reject ? FilterResult.REJECT : FilterResult.FILTER;
-        }
-        return FilterResult.REJECT;
-    }
-
-    private FilterResult rejectIfNeeded(boolean reject, boolean matches) {
-        if (reject) {
-            return matches ? FilterResult.REJECT : FilterResult.NO_MATCH;
-        } else {
-            return matches ? FilterResult.FILTER : FilterResult.NO_MATCH;
-        }
-    }
-
-    private boolean filterRequestURL(HttpServerRequest request, String url) {
-        Pattern urlPattern = Pattern.compile(url);
-        Matcher urlMatcher = urlPattern.matcher(request.uri());
-        return urlMatcher.matches();
-    }
-
-    private boolean filterRequestMethod(HttpServerRequest request, String method) {
-        Pattern methodPattern = Pattern.compile(method);
-        Matcher methodMatcher = methodPattern.matcher(request.method().toString());
-        return methodMatcher.matches();
     }
 }

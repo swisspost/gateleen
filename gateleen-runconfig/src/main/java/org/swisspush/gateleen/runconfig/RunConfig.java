@@ -1,19 +1,5 @@
 package org.swisspush.gateleen.runconfig;
 
-import org.swisspush.gateleen.core.cors.CORSHandler;
-import org.swisspush.gateleen.core.event.EventBusHandler;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.resource.CopyResourceHandler;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.delta.DeltaHandler;
-import org.swisspush.gateleen.expansion.ExpansionHandler;
-import org.swisspush.gateleen.hook.HookHandler;
-import org.swisspush.gateleen.packing.PackingHandler;
-import org.swisspush.gateleen.queue.queuing.QueueBrowser;
-import org.swisspush.gateleen.queue.queuing.QueuingHandler;
-import org.swisspush.gateleen.routing.Router;
-import org.swisspush.gateleen.security.authorization.Authorizer;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -29,8 +15,23 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Log4jConfigurer;
+import org.swisspush.gateleen.core.cors.CORSHandler;
+import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.property.PropertyHandler;
+import org.swisspush.gateleen.core.resource.CopyResourceHandler;
+import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.delta.DeltaHandler;
+import org.swisspush.gateleen.expansion.ExpansionHandler;
+import org.swisspush.gateleen.hook.HookHandler;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.packing.PackingHandler;
 import org.swisspush.gateleen.qos.QoSHandler;
+import org.swisspush.gateleen.queue.queuing.QueueBrowser;
+import org.swisspush.gateleen.queue.queuing.QueuingHandler;
+import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
+import org.swisspush.gateleen.security.authorization.Authorizer;
 import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileConfiguration;
 import org.swisspush.gateleen.user.UserProfileHandler;
@@ -86,12 +87,13 @@ public class RunConfig {
     private Authorizer authorizer;
     private CopyResourceHandler copyResourceHandler;
     private QoSHandler qosHandler;
+    private PropertyHandler propertyHandler;
 
     public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
                      EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
-                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler){
+                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler) {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.verticleClass = verticleClass;
@@ -112,6 +114,7 @@ public class RunConfig {
         this.authorizer = authorizer;
         this.copyResourceHandler = copyResourceHandler;
         this.qosHandler = qosHandler;
+        this.propertyHandler = propertyHandler;
         init();
     }
 
@@ -135,8 +138,8 @@ public class RunConfig {
                 builder.deltaHandler,
                 builder.authorizer,
                 builder.copyResourceHandler,
-                builder.qosHandler
-        );
+                builder.qosHandler,
+                builder.propertyHandler);
     }
 
     private void init(){
@@ -183,10 +186,11 @@ public class RunConfig {
         private Authorizer authorizer;
         private CopyResourceHandler copyResourceHandler;
         private QoSHandler qosHandler;
+        public PropertyHandler propertyHandler;
 
         public RunConfigBuilder(){}
 
-        public RunConfigBuilder corsHandler(CORSHandler corsHandler){
+        public RunConfigBuilder     corsHandler(CORSHandler corsHandler){
             this.corsHandler = corsHandler;
             return this;
         }
@@ -253,6 +257,11 @@ public class RunConfig {
 
         public RunConfigBuilder qosHandler(QoSHandler qosHandler){
             this.qosHandler = qosHandler;
+            return this;
+        }
+
+        public RunConfigBuilder propertyHandler(PropertyHandler propertyHandler) {
+            this.propertyHandler = propertyHandler;
             return this;
         }
 
@@ -350,9 +359,9 @@ public class RunConfig {
     /**
      * Deploys the following modules in this order:
      * <ul>
-     * <li>li.chee.vertx~redisques
-     * <li>li.chee.vertx~rest-storage
-     * <li>com.bloidonia~mod-metrics
+     * <li>org.swisspush.redisques.RedisQues
+     * <li>org.swisspush.reststorage.RestStorageMod
+     * <li>org.swisspush.metrics.MetricsModule
      * </ul><p>
      * The handler is called with Boolean.TRUE when all modules have been deployed successfully. When any of the modules
      * could not be deployed correctly, the handler returns Boolean.FALSE.
@@ -369,14 +378,14 @@ public class RunConfig {
         log.info("deploying redis module with host:" + redisHost + " port:" + redisPort);
 
         // redisques module
-        vertx.deployVerticle("li.chee.vertx.redisques.RedisQues", new DeploymentOptions().setConfig(RunConfig.buildRedisquesConfig()).setInstances(4), event -> {
+        vertx.deployVerticle("org.swisspush.redisques.RedisQues", new DeploymentOptions().setConfig(RunConfig.buildRedisquesConfig()).setInstances(4), event -> {
             if (event.failed()) {
                 log.error("Could not load redisques module", event.cause());
                 handler.handle(false);
                 return;
             }
             // rest storage module
-            vertx.deployVerticle("li.chee.vertx.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
+            vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
                 if (event1.failed()) {
                     log.error("Could not load rest storage redis module", event1.cause());
                     handler.handle(false);
@@ -384,7 +393,7 @@ public class RunConfig {
                 }
 
                 // metrics module
-                vertx.deployVerticle("com.bloidonia.vertx.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
+                vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
                     if (event2.failed()) {
                         log.error("Could not load metrics module", event2.cause());
                         handler.handle(false);
@@ -414,8 +423,6 @@ public class RunConfig {
                 if (qosHandler != null && qosHandler.handle(request)) {
                     return;
                 }
-
-                monitoringHandler.updateIncomingRequests(request);
 
                 if(corsHandler != null) {
                     corsHandler.handle(request);
@@ -468,6 +475,9 @@ public class RunConfig {
                             return;
                         }
                         if (schedulerResourceManager != null && schedulerResourceManager.handleSchedulerResource(request)) {
+                            return;
+                        }
+                        if (propertyHandler != null && propertyHandler.handle(request)) {
                             return;
                         }
                         if (userProfileHandler != null && userProfileHandler.isUserProfileRequest(request)) {

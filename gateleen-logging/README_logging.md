@@ -26,6 +26,7 @@ An optional array called destinations which contains destination objects specify
 | file        | | Used to specify the name of the file, where the filtered content should be logged. |
 | address     | | Used to specify the address in the eventBus, where the filtered content should be logged. |
 
+> <font color="orange">Attention: </font> You have to set the property **_org.swisspush.logging.dir_** to configure the path where the log files should be stored.
 
 ```json
 "payload": {

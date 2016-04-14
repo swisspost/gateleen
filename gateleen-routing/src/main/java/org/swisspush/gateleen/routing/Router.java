@@ -13,7 +13,7 @@ import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
@@ -21,6 +21,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.validation.ValidationException;
+import org.swisspush.gateleen.core.refresh.Refreshable;
 
 import java.net.HttpCookie;
 import java.util.*;
@@ -28,7 +29,7 @@ import java.util.*;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class Router {
+public class Router implements Refreshable {
 
     /**
      * How long to let the http clients live before closing them after a re-configuration
@@ -51,8 +52,62 @@ public class Router {
     private final Map<String, Object> properties;
     private Handler<Void> doneHandlers[];
     private LocalMap<String, Object> sharedData;
+    private int storagePort;
 
     private String routingRulesSchema;
+
+    public Router(Vertx vertx,
+                  LocalMap<String, Object> sharedData,
+                  final ResourceStorage storage,
+                  final Map<String, Object> properties,
+                  LoggingResourceManager loggingResourceManager,
+                  MonitoringHandler monitoringHandler,
+                  HttpClient selfClient,
+                  String serverPath,
+                  String rulesPath,
+                  String userProfilePath,
+                  JsonObject info,
+                  Handler<Void>... doneHandlers) {
+        this(vertx,
+                sharedData,
+                storage,
+                properties,
+                loggingResourceManager,
+                monitoringHandler,
+                selfClient,
+                serverPath,
+                rulesPath,
+                userProfilePath,
+                info,
+                8989,
+                doneHandlers);
+    }
+
+    public Router(Vertx vertx,
+                  final ResourceStorage storage,
+                  final Map<String, Object> properties,
+                  LoggingResourceManager loggingResourceManager,
+                  MonitoringHandler monitoringHandler,
+                  HttpClient selfClient,
+                  String serverPath,
+                  String rulesPath,
+                  String userProfilePath,
+                  JsonObject info,
+                  Handler<Void>... doneHandlers) {
+        this(vertx,
+                vertx.sharedData().<String, Object> getLocalMap(ROUTER_STATE_MAP),
+                storage,
+                properties,
+                loggingResourceManager,
+                monitoringHandler,
+                selfClient,
+                serverPath,
+                rulesPath,
+                userProfilePath,
+                info,
+                8989,
+                doneHandlers);
+    }
 
     public Router(Vertx vertx,
             final ResourceStorage storage,
@@ -64,6 +119,7 @@ public class Router {
             String rulesPath,
             String userProfilePath,
             JsonObject info,
+            int storagePort,
             Handler<Void>... doneHandlers) {
         this(vertx,
                 vertx.sharedData().<String, Object> getLocalMap(ROUTER_STATE_MAP),
@@ -76,6 +132,7 @@ public class Router {
                 rulesPath,
                 userProfilePath,
                 info,
+                storagePort,
                 doneHandlers);
     }
 
@@ -90,6 +147,7 @@ public class Router {
             String rulesPath,
             String userProfilePath,
             JsonObject info,
+            int storagePort,
             Handler<Void>... doneHandlers) {
         this.storage = storage;
         this.properties = properties;
@@ -102,25 +160,34 @@ public class Router {
         this.userProfileUri = userProfilePath;
         this.serverUri = serverPath;
         this.info = info;
+        this.storagePort = storagePort;
         this.doneHandlers = doneHandlers;
 
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
 
-        final JsonObject initialRules = new JsonObject().put("/(.*)", new JsonObject().put("url", "http://localhost:8989/$1"));
+        final JsonObject initialRules = new JsonObject()
+                .put("/(.*)",new JsonObject()
+                        .put("name", "resource_storage")
+                        .put("url", "http://localhost:" + String.valueOf(storagePort) + "/$1"));
 
         storage.get(rulesPath, buffer -> {
-            if (buffer != null) {
-                try {
-                    log.info("Applying rules");
-                    updateRouting(buffer);
-                } catch (ValidationException e) {
-                    log.error("Could not reconfigure routing", e);
+            try {
+                if (buffer != null) {
+                    try {
+                        log.info("Applying rules");
+                        updateRouting(buffer);
+                    } catch (ValidationException e) {
+                        log.error("Could not reconfigure routing", e);
+                        updateRouting(initialRules);
+                        setRoutingBrokenMessage(e);
+                    }
+                } else {
+                    log.warn("No rules in storage, using initial routing");
                     updateRouting(initialRules);
-                    setRoutingBrokenMessage(e);
                 }
-            } else {
-                log.warn("No rules in storage, using initial routing");
-                updateRouting(initialRules);
+            } catch (ValidationException e) {
+                log.error("Could not reconfigure routing", e);
+                setRoutingBrokenMessage(e);
             }
         });
 
@@ -252,7 +319,7 @@ public class Router {
              */
             Handler<RoutingContext> forwarder;
             if (rule.getPath() == null) {
-                forwarder = new NullForwarder(rule, loggingResourceManager);
+                forwarder = new NullForwarder(rule, loggingResourceManager, monitoringHandler);
             } else if (rule.getStorage() != null) {
                 forwarder = new StorageForwarder(vertx.eventBus(), rule, loggingResourceManager, monitoringHandler);
             } else if (rule.getScheme().equals("local")) {
@@ -303,7 +370,7 @@ public class Router {
         });
     }
 
-    private void updateRouting(JsonObject rules) {
+    private void updateRouting(JsonObject rules) throws ValidationException {
         updateRouting(new RuleFactory(properties, routingRulesSchema).createRules(rules));
     }
 
@@ -388,5 +455,11 @@ public class Router {
         for (Handler<Void> doneHandler : doneHandlers) {
             doneHandler.handle(null);
         }
+    }
+
+    @Override
+    public void refresh() {
+        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        resetRouterBrokenState();
     }
 }

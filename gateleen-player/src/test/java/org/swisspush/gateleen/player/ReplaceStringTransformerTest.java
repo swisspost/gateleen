@@ -1,17 +1,15 @@
 package org.swisspush.gateleen.player;
 
-import org.junit.Ignore;
+import org.junit.Test;
 import org.swisspush.gateleen.player.exchange.Exchange;
 import org.swisspush.gateleen.player.exchange.ReplaceStringTransformer;
 import org.swisspush.gateleen.player.log.ResourceRequestLog;
-import org.junit.Test;
 
 import static junit.framework.TestCase.assertTrue;
 
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-@Ignore
 public class ReplaceStringTransformerTest {
     @Test
     public void testVariableData() {

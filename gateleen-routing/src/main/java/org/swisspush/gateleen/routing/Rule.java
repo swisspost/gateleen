@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 public class Rule {
+    private String name;
     private String scheme;
     private String host;
     private String metricName;
@@ -26,6 +27,17 @@ public class Rule {
     private String[] profile;
     private Map<String, String> staticHeaders = new HashMap<>();
     private String storage;
+
+    public String getRuleIdentifier() {
+        if(name != null){
+            return name;
+        }
+        return urlPattern;
+    }
+
+    public String getName() { return name; }
+
+    public void setName(String name) { this.name = name; }
 
     public String getScheme() {
         return scheme;

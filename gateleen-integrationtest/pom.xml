@@ -3,7 +3,7 @@
 	<parent>
 		<artifactId>gateleen</artifactId>
 		<groupId>org.swisspush.gateleen</groupId>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>1.0.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
@@ -40,6 +40,11 @@
             <artifactId>gateleen-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+		<dependency>
+			<groupId>org.swisspush.gateleen</groupId>
+			<artifactId>gateleen-monitoring</artifactId>
+			<version>${project.version}</version>
+		</dependency>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-runconfig</artifactId>
@@ -109,22 +114,20 @@
             <artifactId>metrics-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.bloidonia</groupId>
-            <artifactId>mod-metrics-vertx3</artifactId>
+			<groupId>org.swisspush</groupId>
+			<artifactId>mod-metrics</artifactId>
         </dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>rest-storage</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>redisques</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>rest-mirror</artifactId>
-			<classifier>mod</classifier>
-			<type>zip</type>
 		</dependency>
     </dependencies>
 
@@ -137,69 +140,6 @@
 				<configuration>
 					<instances>1</instances>
 				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
-				</configuration>
-			</plugin>
-			<plugin>
-				<artifactId>maven-resources-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>copy-mod-to-target</id>
-						<phase>process-classes</phase>
-						<goals>
-							<goal>copy-resources</goal>
-						</goals>
-						<configuration>
-							<overwrite>true</overwrite>
-							<outputDirectory>target/mods/${module.name}</outputDirectory>
-							<resources>
-								<resource>
-									<directory>target/classes</directory>
-								</resource>
-							</resources>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>copy-mod-dependencies-to-target</id>
-						<phase>process-classes</phase>
-						<goals>
-							<goal>copy-dependencies</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>target/mods/${module.name}/lib</outputDirectory>
-							<includeScope>runtime</includeScope>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<descriptors>
-						<descriptor>src/main/assembly/mod.xml</descriptor>
-					</descriptors>
-				</configuration>
-				<executions>
-					<execution>
-						<id>assemble</id>
-						<phase>package</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>

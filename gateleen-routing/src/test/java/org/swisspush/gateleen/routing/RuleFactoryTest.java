@@ -39,10 +39,12 @@ public class RuleFactoryTest {
     public void testSimpleRuleConfigParsing(TestContext context) throws ValidationException {
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"test_rule_1\","
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
                 + "  },"
                 + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_2\","
                 + "    \"description\": \"Test Rule 2\","
                 + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
                 + "  }"
@@ -59,9 +61,141 @@ public class RuleFactoryTest {
     }
 
     @Test
+    public void testWithNameProperty(TestContext context) throws ValidationException {
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"test_rule_1\","
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_2\","
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testNoNamePropertiesDefined(TestContext context) throws ValidationException {
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testMixedNameProperties(TestContext context) throws ValidationException {
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_2\","
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testMixedNamePropertiesUnique(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Property 'name' must be unique. There are multiple rules with name 'test_rule_2'");
+
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_2\","
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  },"
+                + "  \"/gateleen/rule/3\": {"
+                + "    \"name\": \"test_rule_2\","
+                + "    \"description\": \"Test Rule 3\","
+                + "    \"url\": \"${gateleen.test.prop.3}/gateleen/rule/3\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        properties.put("gateleen.test.prop.3", "http://someserver3/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testEmptyNameProperty(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Validation failed");
+
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"\","
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_2\","
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testNamePropertyMustBeUnique(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Property 'name' must be unique. There are multiple rules with name 'test_rule_1'");
+
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"test_rule_1\","
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"name\": \"test_rule_1\","
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
     public void testExpandOnBackendRule(TestContext context) throws ValidationException {
         String expandOnBackendRule = "{"
                 + "  \"/gateleen/rule/1\": {"
+                + "    \"name\": \"test_rule_1\","
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"expandOnBackend\": true,"
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
@@ -80,18 +214,21 @@ public class RuleFactoryTest {
     public void testStorageExpandRule(TestContext context) throws ValidationException {
         String storageExpandRule = "{" +
                 " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"storageExpand\": true," +
                 "  \"storage\": \"main\"" +
                 " }," +
                 " \"/gateleen/rule/2\": {" +
+                "  \"name\": \"test_rule_2\"," +
                 "  \"description\": \"Test Rule 2\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/2\"," +
                 "  \"storageExpand\": false," +
                 "  \"storage\": \"main\"" +
                 " }," +
                 " \"/gateleen/rule/3\": {" +
+                "  \"name\": \"test_rule_3\"," +
                 "  \"description\": \"Test Rule 3\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/3\"," +
                 "  \"storage\": \"main\"" +
@@ -157,12 +294,84 @@ public class RuleFactoryTest {
     }
 
     @Test
+    public void testMissingPathProperty() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("For storage routing, 'path' must be specified.");
+
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"storage\": \"main\"" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testUrlAndPathProperty() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Either 'url' or 'path' must be given, not both");
+
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
+                "  \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\"," +
+                "  \"storage\": \"main\"" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testInvalidUrlPattern() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Invalid url for pattern");
+
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\"" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1:1234:1234/"); // port information is not valid
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testMissingLeadingSlashForPathProperty() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Illegal value for 'path', it must be a path starting with slash");
+
+        String rules = "{" +
+                " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
+                "  \"description\": \"Test Rule 1\"," +
+                "  \"path\": \"${gateleen.test.prop.1}/gateleen/rule/1\"," +
+                "  \"storage\": \"main\"" +
+                " }" +
+                "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
     public void testInvalidJson() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Unable to parse json");
 
         String rules = "" +
                 " \"/gateleen/rule/1\": {" +
+                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"storageExpand\": true," +

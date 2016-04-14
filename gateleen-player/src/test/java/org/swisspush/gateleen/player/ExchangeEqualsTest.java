@@ -1,14 +1,13 @@
 package org.swisspush.gateleen.player;
 
-import org.junit.Ignore;
-import org.swisspush.gateleen.player.exchange.Exchange;
-import org.swisspush.gateleen.player.log.ResourceRequestLog;
 import com.google.common.collect.Sets;
 import org.json.JSONObject;
 import org.junit.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
+import org.swisspush.gateleen.player.exchange.Exchange;
 import org.swisspush.gateleen.player.exchange.IgnoreHeadersTransformer;
+import org.swisspush.gateleen.player.log.ResourceRequestLog;
 
 import java.net.URI;
 import java.util.HashSet;
@@ -20,7 +19,6 @@ import static junit.framework.TestCase.assertFalse;
 /**
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-@Ignore
 public class ExchangeEqualsTest {
 
     @Test

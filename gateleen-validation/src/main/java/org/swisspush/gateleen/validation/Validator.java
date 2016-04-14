@@ -167,7 +167,7 @@ public class Validator {
 
                     log.warn(msgBuilder.toString());
 
-                    callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Validation failed", validationDetails));
+                    callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString(), validationDetails));
                     for(ProcessingMessage message: report) {
                         log.warn(message.getMessage());
                     }

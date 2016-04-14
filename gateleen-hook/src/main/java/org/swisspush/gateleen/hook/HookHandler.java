@@ -2,7 +2,7 @@ package org.swisspush.gateleen.hook;
 
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
@@ -782,6 +782,14 @@ public class HookHandler {
         HttpHook hook = new HttpHook(jsonHook.getString("destination"));
         if (jsonMethods != null) {
             hook.setMethods(jsonMethods.getList());
+        }
+
+        if (jsonHook.containsKey("filter")) {
+            hook.setFilter(jsonHook.getString("filter"));
+        }
+
+        if (jsonHook.containsKey("filter")) {
+            hook.setFilter(jsonHook.getString("filter"));
         }
 
         if (jsonHook.getInteger(EXPIRE_AFTER) != null) {

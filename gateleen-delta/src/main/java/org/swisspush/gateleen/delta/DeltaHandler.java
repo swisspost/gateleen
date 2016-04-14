@@ -1,12 +1,5 @@
 package org.swisspush.gateleen.delta;
 
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
-import org.swisspush.gateleen.core.util.ResourceCollectionException;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.core.util.StringUtils;
-import org.swisspush.gateleen.routing.Router;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -21,7 +14,14 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
+import org.swisspush.gateleen.core.util.ResourceCollectionException;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.routing.Router;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,8 +31,6 @@ import java.util.Set;
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class DeltaHandler {
-
-    private Logger log = LoggerFactory.getLogger(DeltaHandler.class);
 
     private static final String DELTA_PARAM = "delta";
     private static final String DELTA_HEADER = "x-delta";
@@ -81,20 +79,21 @@ public class DeltaHandler {
     }
 
     public void handle(final HttpServerRequest request, Router router) {
+        Logger log = RequestLoggerFactory.getLogger(DeltaHandler.class, request);
         if (isDeltaPUTRequest(request)) {
-            handleResourcePUT(request, router);
+            handleResourcePUT(request, router, log);
         }
         if (isDeltaGETRequest(request)) {
-            String updateId = extractStringDeltaParameter(request);
+            String updateId = extractStringDeltaParameter(request, log);
             if (updateId != null) {
-                handleCollectionGET(request, updateId);
+                handleCollectionGET(request, updateId, log);
             }
         }
     }
 
-    private void handleResourcePUT(final HttpServerRequest request, final Router router) {
+    private void handleResourcePUT(final HttpServerRequest request, final Router router, final Logger log) {
         request.pause(); // pause the request to avoid problems with starting another async request (storage)
-        handleDeltaEtag(request, updateDelta -> {
+        handleDeltaEtag(request, log, updateDelta -> {
             if(updateDelta){
                 // increment and get update-id
                 redisClient.incr(SEQUENCE_KEY, reply -> {
@@ -105,7 +104,7 @@ public class DeltaHandler {
                     }
 
                     final String resourceKey = getResourceKey(request.path(), false);
-                    long expireAfter = getExpireAfterValue(request.headers());
+                    long expireAfter = getExpireAfterValue(request, log);
                     long updateId = reply.result();
 
                     // save to storage
@@ -129,7 +128,7 @@ public class DeltaHandler {
         });
     }
 
-    private void handleDeltaEtag(final HttpServerRequest request, final Handler<Boolean> callback){
+    private void handleDeltaEtag(final HttpServerRequest request, final Logger log, final Handler<Boolean> callback){
         /*
          * When no Etag is provided we just do the delta update
          */
@@ -155,7 +154,7 @@ public class DeltaHandler {
                     /*
                      * No Etag entry found. Store it and then do the delta update
                      */
-                saveOrUpdateDeltaEtag(etagResourceKey, request, aBoolean -> callback.handle(Boolean.TRUE));
+                saveOrUpdateDeltaEtag(etagResourceKey, request, log, aBoolean -> callback.handle(Boolean.TRUE));
             } else {
                     /*
                      * If etags match, no delta update has to be made.
@@ -164,15 +163,15 @@ public class DeltaHandler {
                 if(etagFromStorage.equals(requestEtag)){
                     callback.handle(Boolean.FALSE);
                 } else {
-                    saveOrUpdateDeltaEtag(etagResourceKey, request, aBoolean -> callback.handle(Boolean.TRUE));
+                    saveOrUpdateDeltaEtag(etagResourceKey, request, log, aBoolean -> callback.handle(Boolean.TRUE));
                 }
             }
         });
     }
 
-    private void saveOrUpdateDeltaEtag(final String etagResourceKey, final HttpServerRequest request, final Handler<Boolean> updateCallback){
+    private void saveOrUpdateDeltaEtag(final String etagResourceKey, final HttpServerRequest request, final Logger log, final Handler<Boolean> updateCallback){
         final String requestEtag = request.headers().get(IF_NONE_MATCH_HEADER);
-        long expireAfter = getExpireAfterValue(request.headers());
+        long expireAfter = getExpireAfterValue(request, log);
         redisClient.setex(etagResourceKey, expireAfter, requestEtag, event -> {
             if(event.failed()){
                 log.error("setex command for redisKey " + etagResourceKey + " failed with cause: " + logCause(event));
@@ -181,30 +180,31 @@ public class DeltaHandler {
         });
     }
 
-    private String extractStringDeltaParameter(HttpServerRequest request) {
+    private String extractStringDeltaParameter(HttpServerRequest request, Logger log) {
 	    String updateIdValue = request.params().get(DELTA_PARAM);
 	    if(updateIdValue == null) {
-	    	request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-	        request.response().setStatusMessage("Invalid delta parameter");
-	        request.response().end(request.response().getStatusMessage());
-	        log.error("Bad Request: " + request.response().getStatusMessage() + " '" + updateIdValue + "'");
+            respondInvalidDeltaParameter(updateIdValue, request, log);
 	        return null;
 	    } else {
 	    	return updateIdValue;
 	    }
     }
     
-    private Integer extractNumberDeltaParameter(String deltaStringId, HttpServerRequest request) {
+    private Integer extractNumberDeltaParameter(String deltaStringId, HttpServerRequest request, Logger log) {
         String updateIdValue = null;
         try {
             return Integer.parseInt(deltaStringId);
         } catch (Exception exception) {
-            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-            request.response().setStatusMessage("Invalid delta parameter");
-            request.response().end(request.response().getStatusMessage());
-            log.error("Bad Request: " + request.response().getStatusMessage() + " '" + updateIdValue + "'");
+            respondInvalidDeltaParameter(deltaStringId, request, log);
             return null;
         }
+    }
+
+    private void respondInvalidDeltaParameter(String deltaStringId, HttpServerRequest request, Logger log){
+        request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        request.response().setStatusMessage("Invalid delta parameter");
+        request.response().end(request.response().getStatusMessage());
+        log.error("Bad Request: " + request.response().getStatusMessage() + " '" + deltaStringId + "'");
     }
 
     private DeltaResourcesContainer getDeltaResourceNames(List<String> subResourceNames, JsonArray storageUpdateIds, int updateId) {
@@ -229,7 +229,7 @@ public class DeltaHandler {
         return new DeltaResourcesContainer(maxUpdateId, deltaResourceNames);
     }
 
-    private void handleCollectionGET(final HttpServerRequest request, final String updateId) {
+    private void handleCollectionGET(final HttpServerRequest request, final String updateId, final Logger log) {
         request.pause();
         
         final String targetUri = ExpansionDeltaUtil.constructRequestUri(request.path(), request.params(), null, null, SlashHandling.KEEP);
@@ -255,7 +255,7 @@ public class DeltaHandler {
                         final List<String> subResourceNames = dataContainer.getResourceNames();
                         final List<String> deltaResourceKeys = buildDeltaResourceKeys(request.path(), subResourceNames);
 
-                        final int updateIdNumber = extractNumberDeltaParameter(updateId, request);
+                        final int updateIdNumber = extractNumberDeltaParameter(updateId, request, log);
 
                         if(log.isTraceEnabled())  {
                             log.trace("DeltaHandler: deltaResourceKeys for targetUri ("+targetUri+"): " + deltaResourceKeys.toString());
@@ -345,9 +345,9 @@ public class DeltaHandler {
         return Joiner.on(":").skipNulls().join(pathSegments);
     }
 
-    private long getExpireAfterValue(MultiMap requestHeaders) {
+    private long getExpireAfterValue(HttpServerRequest request, Logger log) {
         long value = DEFAULT_EXPIRE;
-
+        MultiMap requestHeaders = request.headers();
         String expireAfterHeaderValue = requestHeaders.get(EXPIRE_AFTER_HEADER);
         if (expireAfterHeaderValue == null) {
             log.debug("Setting Expire-After value to a default of " + DEFAULT_EXPIRE + " seconds since header " + EXPIRE_AFTER_HEADER + " not defined");

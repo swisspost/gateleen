@@ -3,18 +3,24 @@
 	<parent>
 		<artifactId>gateleen</artifactId>
 		<groupId>org.swisspush.gateleen</groupId>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>1.0.2-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>gateleen-test</artifactId>
+
+	<properties>
+		<skipTests>true</skipTests>
+	</properties>
+
 	<build>
 		<plugins>
 			<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.18.1</version>
 				<configuration>
-					<skip>true</skip>
+					<skip>${skipTests}</skip>
 				</configuration>
 			</plugin>
 		</plugins>
@@ -31,6 +37,12 @@
 		<dependency>
 			<groupId>org.swisspush.gateleen</groupId>
 			<artifactId>gateleen-runconfig</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.swisspush.gateleen</groupId>
+			<artifactId>gateleen-monitoring</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -105,27 +117,18 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>rest-storage</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>redisques</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>rest-mirror</artifactId>
-			<classifier>mod</classifier>
-			<type>zip</type>
-			<scope>test</scope>
-		</dependency>
-
-		<!-- redis stuff -->
-		<dependency>
-			<groupId>com.github.kstyrc</groupId>
-			<artifactId>embedded-redis</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -136,8 +139,8 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.bloidonia</groupId>
-			<artifactId>mod-metrics-vertx3</artifactId>
+			<groupId>org.swisspush</groupId>
+			<artifactId>mod-metrics</artifactId>
 			<scope>test</scope>
 		</dependency>
 

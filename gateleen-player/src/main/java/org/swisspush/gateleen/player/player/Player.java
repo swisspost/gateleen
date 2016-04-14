@@ -30,6 +30,7 @@ public class Player {
     private long gracePeriod = 200L;
     private boolean keepCollectorOpen = false;
     private Thread shutdownHook;
+    private boolean resetElapsedTime = false;
 
     public Player() {
         shutdownHook = new Thread(new Runnable() {
@@ -61,6 +62,14 @@ public class Player {
 
     public RequestLog getOutputLog() {
         return outputLog;
+    }
+
+    public boolean isResetElapsedTime() {
+        return resetElapsedTime;
+    }
+
+    public void setResetElapsedTime(boolean resetElapsedTime) {
+        this.resetElapsedTime = resetElapsedTime;
     }
 
     public Player setOutputCollector(Collector collector) {
@@ -157,7 +166,7 @@ public class Player {
                             LoggerFactory.getLogger(this.getClass()).warn("Time to wait until firing next exchange is greater than 1 minute: " + exchange);
                         }
                         lastRecordedTime = recordedTime;
-                        long elapsedTime = System.currentTimeMillis() - absoluteTime;
+                        long elapsedTime = resetElapsedTime?0:System.currentTimeMillis() - absoluteTime;
                         try {
                             Thread.sleep(Math.max(delay - elapsedTime, 0));
                         } catch (InterruptedException e) {

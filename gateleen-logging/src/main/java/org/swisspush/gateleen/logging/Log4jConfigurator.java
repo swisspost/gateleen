@@ -63,7 +63,7 @@ public class Log4jConfigurator {
     @SuppressWarnings("unchecked")
     public synchronized List<String> getLoggers() {
         // Get all logger
-        List<String> list = new ArrayList<String>();
+        List<String> list = new ArrayList<>();
         list.add(getLoggerName(LogManager.getRootLogger()));
         Enumeration<Logger> enumer = LogManager.getCurrentLoggers();
         while (enumer.hasMoreElements()) {
@@ -106,7 +106,7 @@ public class Log4jConfigurator {
     @SuppressWarnings("unchecked")
     public synchronized List<String> getAppenders(String logger) throws IllegalArgumentException {
         Logger logobj = getLoggerFromName(logger);
-        List<String> list = new ArrayList<String>();
+        List<String> list = new ArrayList<>();
         Enumeration<Appender> e = logobj.getAllAppenders();
         while (e.hasMoreElements()) {
             list.add(e.nextElement().getName());
@@ -201,7 +201,7 @@ public class Log4jConfigurator {
             logger = Logger.getLogger(name);
         }
         if (logger == null) {
-            throw new IllegalArgumentException("Unknown logger '" + logger + "'");
+            throw new IllegalArgumentException("Unknown logger 'null'");
         }
         return logger;
     }

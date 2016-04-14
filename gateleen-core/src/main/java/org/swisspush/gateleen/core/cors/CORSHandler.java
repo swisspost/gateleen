@@ -1,10 +1,10 @@
 package org.swisspush.gateleen.core.cors;
 
-import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.http.HttpMethod;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.vertx.core.http.HttpServerRequest;
+import org.slf4j.Logger;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.util.StatusCode;
 
 /**
  * Handles Cross-Origin Resource Sharing (CORS) requests.
@@ -14,7 +14,6 @@ import io.vertx.core.http.HttpServerRequest;
  */
 public class CORSHandler {
 
-    private Logger log = LoggerFactory.getLogger(CORSHandler.class);
     private boolean addCORSheaders = false;
 
     public boolean isOptionsRequest(HttpServerRequest request) {
@@ -26,7 +25,8 @@ public class CORSHandler {
     }
 
     public void handle(final HttpServerRequest request) {
-        addCORSHeaders(request);
+        Logger log = RequestLoggerFactory.getLogger(CORSHandler.class, request);
+        addCORSHeaders(request, log);
         if (isOptionsRequest(request)) {
             log.info("Got OPTIONS request. Respond with statusCode 200");
             request.response().setStatusCode(StatusCode.OK.getStatusCode());
@@ -39,7 +39,7 @@ public class CORSHandler {
      * 
      * @param request
      */
-    private void addCORSHeaders(HttpServerRequest request) {
+    private void addCORSHeaders(HttpServerRequest request, Logger log) {
         String originHeader = request.headers().get("Origin");
         if (addCORSheaders && originHeader != null) {
             request.response().headers().set("Access-Control-Allow-Origin", originHeader);

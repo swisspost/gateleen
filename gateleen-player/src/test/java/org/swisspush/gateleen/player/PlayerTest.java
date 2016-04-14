@@ -1,15 +1,15 @@
 package org.swisspush.gateleen.player;
 
-import org.swisspush.gateleen.player.exchange.Exchange;
-import org.swisspush.gateleen.player.log.ResourceRequestLog;
-import org.swisspush.gateleen.player.player.Client;
-import org.swisspush.gateleen.player.player.Player;
 import org.json.JSONObject;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
+import org.swisspush.gateleen.player.exchange.Exchange;
 import org.swisspush.gateleen.player.exchange.IgnoreHeadersTransformer;
+import org.swisspush.gateleen.player.log.ResourceRequestLog;
+import org.swisspush.gateleen.player.player.Client;
+import org.swisspush.gateleen.player.player.Player;
 
 import java.util.Iterator;
 
@@ -21,7 +21,6 @@ import static org.swisspush.gateleen.player.exchange.Exchange.*;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-@Ignore
 public class PlayerTest {
 
     public static final String URL = "http://localhost:7012";
@@ -46,7 +45,7 @@ public class PlayerTest {
     }
 
     @Test
-    //@Ignore // assumes a running server on localhost
+    @Ignore // assumes a running server on localhost
     public void testCompare() {
         new Player().
                 setInputLog(URL, "classpath:logs/simple.log").

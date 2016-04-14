@@ -23,6 +23,6 @@ public final class Address {
     }
 
     public static String monitoringAddress(){
-        return "com.bloidonia.metrics-"+ID;
+        return "org.swisspush.metrics-"+ID;
     }
 }

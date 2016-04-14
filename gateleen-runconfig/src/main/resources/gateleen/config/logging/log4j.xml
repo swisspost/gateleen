@@ -79,10 +79,10 @@
     <logger name="org.swisspush.gateleen.integrationtest">
         <level value="DEBUG" />
     </logger>
-    <logger name="li.chee.vertx~rest-storage~0-li.chee.vertx.reststorage">
+    <logger name="org.swisspush.reststorage">
         <level value="INFO" />
     </logger>
-    <logger name="li.chee.vertx~redisques~0-li.chee.vertx.redisques">
+    <logger name="org.swisspush.redisques">
         <level value="INFO" />
     </logger>
     <logger name="org.swisspush.gateleen.logging.Log4jConfiguratorMBean">
