@@ -409,6 +409,18 @@ public class RunConfig {
      * Builds a handler for {@link RoutingContext}s with a "default" behaviour.
      */
     public Handler<RoutingContext> buildRoutingContextHandler(){
+
+        // add refreshables
+        if (propertyHandler != null) {
+            if (router != null) {
+                propertyHandler.addRefreshable(router);
+            }
+
+            if (schedulerResourceManager != null) {
+                propertyHandler.addRefreshable(schedulerResourceManager);
+            }
+        }
+
         return new Handler<RoutingContext>() {
 
             @Override

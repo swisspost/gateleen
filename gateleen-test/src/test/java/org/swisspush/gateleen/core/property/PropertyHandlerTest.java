@@ -159,7 +159,7 @@ public class PropertyHandlerTest extends AbstractTest {
         Assert.assertFalse(freshi.isRefreshed());
 
         // put something to testserver
-        with().body(getBody("myPropId", "test")).put("/myprop/v1/id").then().assertThat().statusCode(200);
+        with().body(getBody("myPropIdOther", "test")).put("/myprop/v1/id").then().assertThat().statusCode(200);
 
         // check property
         Assert.assertTrue(props.get(property).equals(propertyValue));
