@@ -1,10 +1,38 @@
-apply plugin: 'java'
-
 subprojects {
+
   apply plugin: "java"
+
   repositories {
     mavenCentral()
   }
-}
 
-group = modowner
+  task sourceJar(type: Jar) {
+    description = 'Builds a source jar artifact suitable for maven deployment.'
+    classifier = 'sources'
+    from sourceSets.main.java
+  }
+
+  compileJava {
+    options.encoding = "UTF-8"
+  }
+
+  javadoc {
+    options.encoding = "UTF-8"
+    classpath = configurations.compile
+  }
+
+  task javadocJar(type: Jar) {
+    description = 'Builds a javadoc jar artifact suitable for maven deployment.'
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+  }
+  javadocJar.dependsOn javadoc
+
+  build.dependsOn sourceJar, javadocJar
+
+  artifacts {
+    archives jar, sourceJar, javadocJar
+  }
+
+
+}
