@@ -141,8 +141,8 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.bloidonia</groupId>
-			<artifactId>mod-metrics-vertx3</artifactId>
+			<groupId>org.swisspush</groupId>
+			<artifactId>mod-metrics</artifactId>
 			<scope>test</scope>
 		</dependency>
 

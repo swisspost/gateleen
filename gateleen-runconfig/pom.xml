@@ -87,8 +87,8 @@
             <version>${rest-storage.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.bloidonia</groupId>
-            <artifactId>mod-metrics-vertx3</artifactId>
+            <groupId>org.swisspush</groupId>
+            <artifactId>mod-metrics</artifactId>
             <version>${mod-metrics.version}</version>
         </dependency>
         <dependency>

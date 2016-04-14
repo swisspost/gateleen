@@ -361,7 +361,7 @@ public class RunConfig {
      * <ul>
      * <li>org.swisspush.redisques.RedisQues
      * <li>org.swisspush.reststorage.RestStorageMod
-     * <li>com.bloidonia~mod-metrics
+     * <li>org.swisspush.metrics.MetricsModule
      * </ul><p>
      * The handler is called with Boolean.TRUE when all modules have been deployed successfully. When any of the modules
      * could not be deployed correctly, the handler returns Boolean.FALSE.
@@ -393,7 +393,7 @@ public class RunConfig {
                 }
 
                 // metrics module
-                vertx.deployVerticle("com.bloidonia.vertx.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
+                vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
                     if (event2.failed()) {
                         log.error("Could not load metrics module", event2.cause());
                         handler.handle(false);

@@ -119,8 +119,8 @@
             <artifactId>metrics-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.bloidonia</groupId>
-            <artifactId>mod-metrics-vertx3</artifactId>
+            <groupId>org.swisspush</groupId>
+            <artifactId>mod-metrics</artifactId>
         </dependency>
         <dependency>
             <groupId>org.swisspush</groupId>
