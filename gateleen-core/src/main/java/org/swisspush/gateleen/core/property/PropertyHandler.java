@@ -14,6 +14,7 @@ import java.util.Map;
 
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -114,8 +115,7 @@ public class PropertyHandler {
      */
     public boolean handle(final HttpServerRequest request) {
         // Only process PUT requests and request, which URL can be found
-        if (request.method().equals("PUT") && propertyUrls.containsKey(request.uri())) {
-
+        if (request.method().equals(HttpMethod.PUT) && propertyUrls.containsKey(request.uri())) {
             // process body
             request.bodyHandler(new Handler<Buffer>() {
                 public void handle(final Buffer buffer) {
