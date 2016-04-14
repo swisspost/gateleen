@@ -1,0 +1,6 @@
+dependencies {
+    compile project(':gateleen-core')
+    compile project(':gateleen-validation')
+    compile "io.vertx:vertx-core:$vertxVersion"
+    compile "junit:junit:$junitVersion"
+}

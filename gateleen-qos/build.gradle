@@ -1,0 +1,7 @@
+dependencies {
+    compile project(':gateleen-core')
+    compile "io.vertx:vertx-core:$vertxVersion"
+    compile "com.floreysoft:jmte:$jmteVersion"
+    compile "junit:junit:$junitVersion"
+    compile "org.mockito:mockito-core:$mockitoVersion"
+}
