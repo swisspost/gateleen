@@ -1,0 +1,10 @@
+apply plugin: 'java'
+
+subprojects {
+  apply plugin: "java"
+  repositories {
+    mavenCentral()
+  }
+}
+
+group = modowner

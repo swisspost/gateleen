@@ -1,0 +1,4 @@
+dependencies {
+    compile project(':gateleen-core')
+    compile "io.vertx:vertx-core:$vertxVersion"
+}

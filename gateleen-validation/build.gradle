@@ -1,0 +1,9 @@
+dependencies {
+    compile project(':gateleen-core')
+    compile "io.vertx:vertx-core:$vertxVersion"
+    compile "io.vertx:vertx-unit:$vertxVersion"
+    compile "com.github.fge:json-schema-validator:$jsonSchemaValidatorVersion"
+    compile "com.google.guava:guava:$guavaVersion"
+    compile "junit:junit:$junitVersion"
+    compile "org.mockito:mockito-core:$mockitoVersion"
+}

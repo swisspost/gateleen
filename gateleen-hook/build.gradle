@@ -1,0 +1,8 @@
+dependencies {
+    compile project(':gateleen-core')
+    compile project(':gateleen-logging')
+    compile project(':gateleen-queue')
+    compile project(':gateleen-routing')
+    compile "io.vertx:vertx-core:$vertxVersion"
+    compile "io.vertx:vertx-web:$vertxVersion"
+}
