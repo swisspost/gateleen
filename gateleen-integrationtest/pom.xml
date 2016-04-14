@@ -126,10 +126,8 @@
 			<artifactId>redisques</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>rest-mirror</artifactId>
-			<classifier>mod</classifier>
-			<type>zip</type>
 		</dependency>
     </dependencies>
 

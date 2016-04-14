@@ -127,10 +127,8 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>li.chee.vertx</groupId>
+			<groupId>org.swisspush</groupId>
 			<artifactId>rest-mirror</artifactId>
-			<classifier>mod</classifier>
-			<type>zip</type>
 			<scope>test</scope>
 		</dependency>
 

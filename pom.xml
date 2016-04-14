@@ -122,11 +122,9 @@
 				<version>${mod-metrics.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>li.chee.vertx</groupId>
+				<groupId>org.swisspush</groupId>
 				<artifactId>rest-mirror</artifactId>
 				<version>${mirror.version}</version>
-				<classifier>mod</classifier>
-				<type>zip</type>
 			</dependency>
 			<dependency>
 				<groupId>com.codahale.metrics</groupId>
@@ -229,7 +227,7 @@
 		<redisques.version>2.1.0</redisques.version>
 		<mod-metrics.version>2.1.0</mod-metrics.version>
 		<metrics-core.version>3.0.2</metrics-core.version>
-		<mirror.version>2.0.0</mirror.version>
+		<mirror.version>2.1.1</mirror.version>
 		<jedis.version>2.4.1</jedis.version>
 		<mockito.version>1.9.5</mockito.version>
 	</properties>
