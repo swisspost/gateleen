@@ -34,7 +34,7 @@ public class NullForwarder implements Handler<RoutingContext> {
 
     @Override
     public void handle(final RoutingContext ctx) {
-        monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getName());
+        monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request());
         final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
         log.debug("Not forwarding request: " + ctx.request().uri() + " with rule " + rule.getRuleIdentifier());

@@ -45,7 +45,7 @@ public class RuleFactory {
     }
 
     public List<Rule> createRules(JsonObject rules) throws ValidationException {
-        Set<String> ruleNames = new HashSet<>();
+        Set<String> metricNames = new HashSet<>();
         List<Rule> result = new ArrayList<>();
         for (String urlPattern : rules.fieldNames()) {
             log.debug("Creating a new rule-object for URL pattern " + urlPattern);
@@ -54,16 +54,6 @@ public class RuleFactory {
             ruleObj.setUrlPattern(urlPattern);
             JsonObject rule = rules.getJsonObject(urlPattern);
 
-            String name = rule.getString("name");
-            if(name != null) {
-                if (ruleNames.contains(name)) {
-                    throw new ValidationException("Property 'name' must be unique. There are multiple rules with name '" + name + "'");
-                } else {
-                    ruleNames.add(name);
-                    ruleObj.setName(name);
-                }
-            }
-
             String targetUrl = rule.getString("url");
             String path = rule.getString("path");
 
@@ -71,7 +61,12 @@ public class RuleFactory {
 
             String metricName = rule.getString("metricName");
             if (metricName != null) {
-                ruleObj.setMetricName(metricName);
+                if(metricNames.contains(metricName)){
+                    throw new ValidationException("Property 'metricName' must be unique. There are multiple rules with metricName '" + metricName + "'");
+                } else {
+                    metricNames.add(metricName);
+                    ruleObj.setMetricName(metricName);
+                }
             }
 
             JsonObject basicAuth = rule.getJsonObject("basicAuth");

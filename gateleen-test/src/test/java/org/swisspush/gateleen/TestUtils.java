@@ -40,15 +40,11 @@ public class TestUtils {
      */
     public static JsonObject addRoutingRuleHooks(JsonObject rules) {
         JsonObject nullForwarder = createRoutingRule(ImmutableMap.of(
-                "name",
-                "null_forwarder_rule",
                 "description",
                 "Null destination"));
         rules = addRoutingRule(rules, AbstractTest.SERVER_ROOT + "/null/?.*", nullForwarder);
 
         JsonObject hooks = createRoutingRule(ImmutableMap.of(
-                "name",
-                "hooks_rule",
                 "description",
                 "Null destination"));
         rules = addRoutingRule(rules, AbstractTest.SERVER_ROOT + "/hooks/v1/listeners/?.*", hooks);
@@ -63,8 +59,6 @@ public class TestUtils {
      */
     public static JsonObject addRoutingRuleMainStorage(JsonObject rules) {
         JsonObject mstorage = createRoutingRule(ImmutableMap.of(
-                "name",
-                "main_storage_rule",
                 "description",
                 "a default routing for the source storage",
                 "path",
@@ -118,8 +112,6 @@ public class TestUtils {
     public static JsonObject addRoutingRuleCleanup(JsonObject rules) {
 
         JsonObject cleanup = createRoutingRule(ImmutableMap.of(
-                "name",
-                "cleanup_rule",
                 "description",
                 "enhanced timeout for cleaning up the resources",
                 "url",

@@ -39,12 +39,10 @@ public class RuleFactoryTest {
     public void testSimpleRuleConfigParsing(TestContext context) throws ValidationException {
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
-                + "    \"name\": \"test_rule_1\","
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
                 + "  },"
                 + "  \"/gateleen/rule/2\": {"
-                + "    \"name\": \"test_rule_2\","
                 + "    \"description\": \"Test Rule 2\","
                 + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
                 + "  }"
@@ -61,15 +59,15 @@ public class RuleFactoryTest {
     }
 
     @Test
-    public void testWithNameProperty(TestContext context) throws ValidationException {
+    public void testWithMetricNameProperty(TestContext context) throws ValidationException {
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
-                + "    \"name\": \"test_rule_1\","
+                + "    \"metricName\": \"test_rule_1\","
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
                 + "  },"
                 + "  \"/gateleen/rule/2\": {"
-                + "    \"name\": \"test_rule_2\","
+                + "    \"metricName\": \"test_rule_2\","
                 + "    \"description\": \"Test Rule 2\","
                 + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
                 + "  }"
@@ -81,7 +79,7 @@ public class RuleFactoryTest {
     }
 
     @Test
-    public void testNoNamePropertiesDefined(TestContext context) throws ValidationException {
+    public void testNoMetricNamePropertiesDefined(TestContext context) throws ValidationException {
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
                 + "    \"description\": \"Test Rule 1\","
@@ -99,14 +97,14 @@ public class RuleFactoryTest {
     }
 
     @Test
-    public void testMixedNameProperties(TestContext context) throws ValidationException {
+    public void testMixedMetricNameProperties(TestContext context) throws ValidationException {
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
                 + "  },"
                 + "  \"/gateleen/rule/2\": {"
-                + "    \"name\": \"test_rule_2\","
+                + "    \"metricName\": \"test_rule_2\","
                 + "    \"description\": \"Test Rule 2\","
                 + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
                 + "  }"
@@ -118,9 +116,9 @@ public class RuleFactoryTest {
     }
 
     @Test
-    public void testMixedNamePropertiesUnique(TestContext context) throws ValidationException {
+    public void testMixedMetricNamePropertiesUnique(TestContext context) throws ValidationException {
         thrown.expect( ValidationException.class );
-        thrown.expectMessage("Property 'name' must be unique. There are multiple rules with name 'test_rule_2'");
+        thrown.expectMessage("Property 'metricName' must be unique. There are multiple rules with metricName 'test_rule_2'");
 
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
@@ -128,12 +126,12 @@ public class RuleFactoryTest {
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
                 + "  },"
                 + "  \"/gateleen/rule/2\": {"
-                + "    \"name\": \"test_rule_2\","
+                + "    \"metricName\": \"test_rule_2\","
                 + "    \"description\": \"Test Rule 2\","
                 + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
                 + "  },"
                 + "  \"/gateleen/rule/3\": {"
-                + "    \"name\": \"test_rule_2\","
+                + "    \"metricName\": \"test_rule_2\","
                 + "    \"description\": \"Test Rule 3\","
                 + "    \"url\": \"${gateleen.test.prop.3}/gateleen/rule/3\""
                 + "  }"
@@ -146,18 +144,18 @@ public class RuleFactoryTest {
     }
 
     @Test
-    public void testEmptyNameProperty(TestContext context) throws ValidationException {
+    public void testEmptyMetricNameProperty(TestContext context) throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Validation failed");
 
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
-                + "    \"name\": \"\","
+                + "    \"metricName\": \"\","
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
                 + "  },"
                 + "  \"/gateleen/rule/2\": {"
-                + "    \"name\": \"test_rule_2\","
+                + "    \"metricName\": \"test_rule_2\","
                 + "    \"description\": \"Test Rule 2\","
                 + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
                 + "  }"
@@ -169,18 +167,18 @@ public class RuleFactoryTest {
     }
 
     @Test
-    public void testNamePropertyMustBeUnique(TestContext context) throws ValidationException {
+    public void testMetricNamePropertyMustBeUnique(TestContext context) throws ValidationException {
         thrown.expect( ValidationException.class );
-        thrown.expectMessage("Property 'name' must be unique. There are multiple rules with name 'test_rule_1'");
+        thrown.expectMessage("Property 'metricName' must be unique. There are multiple rules with metricName 'test_rule_1'");
 
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
-                + "    \"name\": \"test_rule_1\","
+                + "    \"metricName\": \"test_rule_1\","
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
                 + "  },"
                 + "  \"/gateleen/rule/2\": {"
-                + "    \"name\": \"test_rule_1\","
+                + "    \"metricName\": \"test_rule_1\","
                 + "    \"description\": \"Test Rule 2\","
                 + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
                 + "  }"
@@ -195,7 +193,6 @@ public class RuleFactoryTest {
     public void testExpandOnBackendRule(TestContext context) throws ValidationException {
         String expandOnBackendRule = "{"
                 + "  \"/gateleen/rule/1\": {"
-                + "    \"name\": \"test_rule_1\","
                 + "    \"description\": \"Test Rule 1\","
                 + "    \"expandOnBackend\": true,"
                 + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
@@ -214,21 +211,18 @@ public class RuleFactoryTest {
     public void testStorageExpandRule(TestContext context) throws ValidationException {
         String storageExpandRule = "{" +
                 " \"/gateleen/rule/1\": {" +
-                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"storageExpand\": true," +
                 "  \"storage\": \"main\"" +
                 " }," +
                 " \"/gateleen/rule/2\": {" +
-                "  \"name\": \"test_rule_2\"," +
                 "  \"description\": \"Test Rule 2\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/2\"," +
                 "  \"storageExpand\": false," +
                 "  \"storage\": \"main\"" +
                 " }," +
                 " \"/gateleen/rule/3\": {" +
-                "  \"name\": \"test_rule_3\"," +
                 "  \"description\": \"Test Rule 3\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/3\"," +
                 "  \"storage\": \"main\"" +
@@ -300,7 +294,6 @@ public class RuleFactoryTest {
 
         String rules = "{" +
                 " \"/gateleen/rule/1\": {" +
-                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"storage\": \"main\"" +
                 " }" +
@@ -317,7 +310,6 @@ public class RuleFactoryTest {
 
         String rules = "{" +
                 " \"/gateleen/rule/1\": {" +
-                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\"," +
@@ -336,7 +328,6 @@ public class RuleFactoryTest {
 
         String rules = "{" +
                 " \"/gateleen/rule/1\": {" +
-                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\"" +
                 " }" +
@@ -353,7 +344,6 @@ public class RuleFactoryTest {
 
         String rules = "{" +
                 " \"/gateleen/rule/1\": {" +
-                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"storage\": \"main\"" +
@@ -371,7 +361,6 @@ public class RuleFactoryTest {
 
         String rules = "" +
                 " \"/gateleen/rule/1\": {" +
-                "  \"name\": \"test_rule_1\"," +
                 "  \"description\": \"Test Rule 1\"," +
                 "  \"path\": \"/${gateleen.test.prop.1}/gateleen/rule/1\"," +
                 "  \"storageExpand\": true," +

@@ -9,11 +9,6 @@
 		"Rule": {
 			"description": "Describe how and where to forward a request.",
 			"properties": {
-				"name": {
-					"description": "Specifies the name of the routing rule. The name is required and has to be unique over all rules",
-					"type": "string",
-					"minLength": 1
-				},
 				"url": {
 					"description": "An absolute URL of the backend where the requests are forwarded.\nUse `$1`, `$2`, to insert the groups captured in the rule map index regexp.\nEither url or path must be specified, not both.",
 					"format": "uri",
@@ -84,8 +79,9 @@
 					}
 				},
 				"metricName": {
-					"description": "Activates metric collection (JMX and crush-metrics.log) under this name.",
-					"type": "string"
+					"description": "Activates metric collection (JMX and crush-metrics.log) under this name. The metricName has to be unique over all rules",
+					"type": "string",
+					"minLength": 1
 				},
 				"expandOnBackend": {
 					"description": "Should stargate do the expansion or should it passthrough to the backend",

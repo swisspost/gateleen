@@ -67,8 +67,6 @@ public class QoSTest extends AbstractTest {
 
         // add a routing
         JsonObject rule = TestUtils.createRoutingRule(ImmutableMap.of(
-                "name",
-                "main_storage_rule",
                 "metricName",
                 "mainStorage",
                 "path",
@@ -81,7 +79,6 @@ public class QoSTest extends AbstractTest {
 
         // sentinel 1
         rule = TestUtils.createRoutingRule(ImmutableMap.of(
-                "name", "sentinel_1_rule",
                 "description", "sentinel 1",
                 "metricName", "sentinelA",
                 "url", "http://localhost:" + MAIN_PORT + "/$1"));
@@ -89,7 +86,6 @@ public class QoSTest extends AbstractTest {
 
         // sentinel 2
         rule = TestUtils.createRoutingRule(ImmutableMap.of(
-                "name", "sentinel_2_rule",
                 "description", "sentinel 2",
                 "metricName", "sentinelB",
                 "url", "http://localhost:" + MAIN_PORT + "/$1"));
@@ -97,7 +93,6 @@ public class QoSTest extends AbstractTest {
 
         // sentinel 3
         rule = TestUtils.createRoutingRule(ImmutableMap.of(
-                "name", "sentinel_3_rule",
                 "description", "sentinel 3",
                 "metricName", "sentinelC",
                 "url", "http://localhost:" + MAIN_PORT + "/$1"));
@@ -105,7 +100,6 @@ public class QoSTest extends AbstractTest {
 
         // sentinel 4
         rule = TestUtils.createRoutingRule(ImmutableMap.of(
-                "name", "sentinel_4_rule",
                 "description", "sentinel 4",
                 "metricName", "sentinelD",
                 "url", "http://localhost:" + MAIN_PORT + "/$1"));

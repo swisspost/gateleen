@@ -54,7 +54,6 @@ public class MonitoringTest extends AbstractTest {
 
         // add a routing
         JsonObject storageRule = TestUtils.createRoutingRule(ImmutableMap.<String, Serializable>builder()
-                .put("name", "metric_test_rule")
                 .put("description", "a routing for the metric tests")
                 .put("metricName", metricName)
                 .put("path", "/$1")
