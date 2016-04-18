@@ -555,6 +555,7 @@ public class ListenerTest extends AbstractTest {
             m = "\"methods\": [" + m + "]";
         }
         body += expireTime != null ? ", \"expireTime\" : " + expireTime : "";
+        body += filter != null ? ", \"filter\" : \"" + filter + "\"" : "";
         body = body + "}";
 
         with().body(body).put(requestUrl).then().assertThat().statusCode(200);
