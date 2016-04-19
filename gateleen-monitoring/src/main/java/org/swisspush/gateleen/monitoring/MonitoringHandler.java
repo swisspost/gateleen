@@ -36,8 +36,6 @@ public class MonitoringHandler {
     public static final String MARK = "mark";
     public static final String SET = "set";
 
-    private static final String DELIMITER = "=";
-
     private Vertx vertx;
     private RedisClient redisClient;
     private ResourceStorage storage;
@@ -221,15 +219,15 @@ public class MonitoringHandler {
         }
     }
 
-    public void updateRequestPerRuleMonitoring(HttpServerRequest request, String ruleName){
+    public void updateRequestPerRuleMonitoring(HttpServerRequest request, String metricName){
         if(isRequestPerRuleMonitoringActive()){
             String headerValue = StringUtils.getStringOrDefault(request.getHeader(requestPerRuleMonitoringProperty), UNKNOWN_VALUE);
-            if(StringUtils.isNotEmptyTrimmed(ruleName)){
-                String key = headerValue + DELIMITER + ruleName;
+            if(StringUtils.isNotEmptyTrimmed(metricName)){
+                String key = headerValue + "." + metricName;
                 getRequestPerRuleMonitoringMap().merge(key, 1L, (oldValue, one) -> oldValue + one);
             } else {
                 Logger requestlog = RequestLoggerFactory.getLogger(MonitoringHandler.class, request);
-                requestlog.warn("Request per rule monitoring is active but was called without a rule name. This request will be ignored.");
+                requestlog.warn("Request per rule monitoring is active but was called without a rule metricName. This request will be ignored.");
             }
         }
     }

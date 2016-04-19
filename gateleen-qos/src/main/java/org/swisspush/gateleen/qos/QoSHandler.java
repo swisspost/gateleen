@@ -24,7 +24,6 @@ import java.util.regex.Pattern;
 /**
  * QoS Handler.
  * <pre>
- * @formatter:off
      {
         "config":{
             "percentile":75,
@@ -51,7 +50,6 @@ import java.util.regex.Pattern;
             }
         }
     }
- * @formatter:on
  * </pre>
  * <p>
  * The <b><code>config</code></b> section defines the global settings of the QoS. <br> 
@@ -384,7 +382,7 @@ public class QoSHandler {
      * We try to retrive the old sentinel (if available).
      * 
      * @param sentinelName the name of the sentinel.
-     * @reutn old sentinel object or null if no sentinel was found
+     * @return old sentinel object or null if no sentinel was found
      */
     public QoSSentinel getOldSentinel(String sentinelName) {
         if (qosSentinels == null || qosSentinels.isEmpty()) {

@@ -265,7 +265,7 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
 
     /**
      * Directly sets a level on one ore more loggers. Therefore the loggers to modify are selected via a pattern - all
-     * loggers with a name matching the provided pattern are set to the new level.<br/>
+     * loggers with a name matching the provided pattern are set to the new level.<br>
      * Example: ^org\.swisspush\..* matches all names beginning with org.swisspush (this is the exact expression - in almost
      * every case this expression can be simplified to ^org.swisspush.*). <br>
      * This method is only invoked by the <code>invoke</code> method of this class and has to be public (since it is

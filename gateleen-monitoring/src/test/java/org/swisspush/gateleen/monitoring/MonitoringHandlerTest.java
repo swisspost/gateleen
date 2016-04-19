@@ -112,7 +112,7 @@ public class MonitoringHandlerTest {
         vertx.eventBus().consumer(Address.monitoringAddress(), new Handler<Message<JsonObject>>() {
             public void handle(Message<JsonObject> message) {
                 final JsonObject body = message.body();
-                testContext.assertEquals("gateleen.rpr.my_value_123=a_fancy_rule", body.getString("name"));
+                testContext.assertEquals("gateleen.rpr.my_value_123.a_fancy_rule", body.getString("name"));
                 async.complete();
             }
         });
@@ -129,7 +129,7 @@ public class MonitoringHandlerTest {
         request.addHeader(PROPERTY_NAME, "my_value_123");
         mh.updateRequestPerRuleMonitoring(request, "a_fancy_rule");
 
-        await().atMost(Duration.ONE_SECOND).until(storageContainsData("my_value_123=a_fancy_rule"));
+        await().atMost(Duration.ONE_SECOND).until(storageContainsData("my_value_123.a_fancy_rule"));
     }
 
     private Callable<Boolean> storageContainsData(String valueToLookFor) {

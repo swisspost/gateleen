@@ -44,8 +44,6 @@ public class ExpandByBackendTest extends AbstractTest {
 
     private void createLocalRoutingRule() {
         JsonObject newRule =  TestUtils.createRoutingRule(ImmutableMap.of(
-                "name",
-                "local_rule",
                 "description",
                 "ExpandTest which should not expand but route to backend.",
                 "expandOnBackend",
@@ -79,8 +77,6 @@ public class ExpandByBackendTest extends AbstractTest {
 
     private void createRemoteRoutingRule() {
         JsonObject newRule =  TestUtils.createRoutingRule(ImmutableMap.of(
-                "name",
-                "remote_routing_rule",
                 "description",
                 "ExpandTest which should to backend.",
                 "expandOnBackend",

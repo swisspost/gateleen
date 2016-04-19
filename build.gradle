@@ -1,9 +1,20 @@
 subprojects {
 
   apply plugin: "java"
+  apply plugin: 'maven'
+  apply plugin: 'signing'
 
   repositories {
+
+    try {
+      maven { url "$repository" }
+      println 'use custom repository: $repository'
+    } catch(Exception e) {
+      maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+      println 'use standard repository'
+    }
     mavenCentral()
+
   }
 
   task sourceJar(type: Jar) {
@@ -34,5 +45,94 @@ subprojects {
     archives jar, sourceJar, javadocJar
   }
 
+  ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
+  signing {
+    required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
+    sign configurations.archives
+  }
+
+  if (!project.hasProperty('repoUsername')) {
+    ext.repoUsername = 'randomUsername'
+  } else {
+    println 'got property repoUsername: ' + repoUsername
+  }
+
+  if (!project.hasProperty('repoPassword')) {
+    ext.repoPassword = 'randomPassword'
+  } else {
+    println 'got property repoPassword: ' + repoPassword
+  }
+
+  if(!project.hasProperty('uploadRepository')) {
+    ext.uploadRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+  } else {
+    println 'found custom uploadRepository: ' + uploadRepository
+  }
+
+  if(!project.hasProperty('snapshotRepository')) {
+    ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+  } else {
+    println 'found custom snapshotRepository: ' + snapshotRepository
+  }
+
+  uploadArchives {
+    group 'build'
+    description = "Does a maven deploy of archives artifacts"
+
+    repositories {
+      mavenDeployer {
+
+        configuration = configurations.archives
+
+        repository(url: "$uploadRepository") {
+          authentication(userName: "$repoUsername", password: "$repoPassword")
+        }
+
+        snapshotRepository(url: "$snapshotRepository") {
+          authentication(userName: "$repoUsername", password: "$repoPassword")
+        }
+
+        if (isReleaseVersion) {
+          beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+        }
+
+        configurePom(pom)
+      }
+    }
+  }
+}
+
+def configurePom(def pom) {
+  pom.project {
+    name 'gateleen'
+    description 'Middleware library based on Vert.x to build advanced JSON/REST communication servers'
+    inceptionYear '2016'
+    packaging 'jar'
+    url 'https://github.com/swisspush/gateleen'
+
+    developers {
+      developer {
+        id 'floriankammermann'
+        name 'Florian Kammermann'
+        email 'florian@kammermann.me'
+      }
+    }
+
+    scm {
+      url 'https://github.com/swisspush/gateleen.git'
+    }
+
+    licenses {
+      license {
+        name 'The Apache Software License, Version 2.0'
+        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+        distribution 'repo'
+      }
+    }
+
+    properties {
+      setProperty('project.build.sourceEncoding', 'UTF8')
+    }
+  }
 }
