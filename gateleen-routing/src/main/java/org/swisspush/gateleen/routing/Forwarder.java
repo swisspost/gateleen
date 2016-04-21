@@ -213,7 +213,7 @@ public class Forwarder implements Handler<RoutingContext> {
         if (rule.getStaticHeaders() != null) {
             for (Map.Entry<String, String> entry : rule.getStaticHeaders().entrySet()) {
                 String entryValue = entry.getValue();
-                if (entryValue != null && entryValue.length() >0 && !entryValue.equalsIgnoreCase("null")) {
+                if (entryValue != null && entryValue.length() > 0 ) {
                     cReq.headers().set(entry.getKey(), entry.getValue());
                 } else {
                     cReq.headers().remove(entry.getKey());

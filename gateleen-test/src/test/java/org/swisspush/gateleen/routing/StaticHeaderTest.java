@@ -1,11 +1,7 @@
 package org.swisspush.gateleen.routing;
 
-import com.fasterxml.jackson.databind.util.JSONPObject;
 import com.google.common.collect.ImmutableMap;
 import com.jayway.restassured.RestAssured;
-import com.jayway.restassured.http.ContentType;
-import com.jayway.restassured.response.Response;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -15,8 +11,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
-
-import java.io.File;
 
 import static com.jayway.restassured.RestAssured.*;
 
@@ -44,11 +38,10 @@ public class StaticHeaderTest extends AbstractTest {
 
 	public JsonObject createStaticHeaderRules(JsonObject rules){
 		JsonObject header = new JsonObject();
-		JsonObject nullObj = null;
 		header.put("x-queue", "position");
 		header.put("x-expire-after", "30");
 		header.put("x-flow-control-window", "5");
-		header.put("notpresentheaderelement", "null" );
+		header.put("notpresentheaderelement", "");
 
 		JsonObject translate = new JsonObject();
 		translate.put("202",200);
@@ -91,7 +84,7 @@ public class StaticHeaderTest extends AbstractTest {
 		Async async = context.async();
 		delete();
 		init();
-		String body = with().get("/test/test1").getBody().asString();
+		String body = with().header("notpresentheaderelement", "value").get("/test/test1").getBody().asString();
 		System.out.println(body);
 		Assert.assertFalse(body.contains("notpresentheaderelement"));
 		async.complete();
@@ -111,4 +104,17 @@ public class StaticHeaderTest extends AbstractTest {
 		async.complete();
 	}
 
+	/**
+	 * Test if static header are set if it does not contain null values
+	 */
+	@Test
+	public void testStaticHeaderOverwrite(TestContext context){
+		Async async = context.async();
+		delete();
+		init();
+		String body = with().header("presentheaderelement", "value").get("/test/test2").getBody().asString();
+		System.out.println(body);
+		Assert.assertTrue(body.contains("presentheaderelement: notnull"));
+		async.complete();
+	}
 }
