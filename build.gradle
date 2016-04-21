@@ -117,6 +117,11 @@ def configurePom(def pom) {
         name 'Florian Kammermann'
         email 'florian@kammermann.me'
       }
+      developer {
+        id 'mcweba'
+        name 'Marc-Andre Weber'
+        url 'https://github.com/mcweba'
+      }
     }
 
     scm {
