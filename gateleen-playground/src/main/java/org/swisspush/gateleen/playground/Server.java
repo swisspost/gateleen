@@ -1,14 +1,7 @@
 package org.swisspush.gateleen.playground;
 
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpServer;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.RedisClient;
-import io.vertx.redis.RedisOptions;
+import java.io.IOException;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
@@ -40,9 +33,16 @@ import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
 import org.swisspush.gateleen.validation.ValidationHandler;
 import org.swisspush.gateleen.validation.ValidationResourceManager;
-
-import java.io.IOException;
-import java.util.Map;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.RedisClient;
+import io.vertx.redis.RedisOptions;
 
 /**
  * Playground server to try Gateleen at home.
@@ -158,26 +158,31 @@ public class Server extends AbstractVerticle {
                     ResetMetricsController resetMetricsController = new ResetMetricsController(vertx);
                     resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
 
-                    RunConfig runConfig =
-                            RunConfig.with()
-                                    .authorizer(authorizer)
-                                    .validationResourceManager(validationResourceManager)
-                                    .validationHandler(validationHandler)
-                                    .corsHandler(corsHandler)
-                                    .deltaHandler(deltaHandler)
-                                    .expansionHandler(expansionHandler)
-                                    .hookHandler(hookHandler)
-                                    .qosHandler(qosHandler)
-                                    .copyResourceHandler(copyResourceHandler)
-                                    .eventBusHandler(eventBusHandler)
-                                    .roleProfileHandler(roleProfileHandler)
-                                    .userProfileHandler(userProfileHandler)
-                                    .loggingResourceManager(loggingResourceManager)
-                                    .schedulerResourceManager(schedulerResourceManager)
-                                    .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
+                    RunConfig runConfig = RunConfig.with()
+                            .authorizer(authorizer)
+                            .validationResourceManager(validationResourceManager)
+                            .validationHandler(validationHandler)
+                            .corsHandler(corsHandler)
+                            .deltaHandler(deltaHandler)
+                            .expansionHandler(expansionHandler)
+                            .hookHandler(hookHandler)
+                            .qosHandler(qosHandler)
+                            .copyResourceHandler(copyResourceHandler)
+                            .eventBusHandler(eventBusHandler)
+                            .roleProfileHandler(roleProfileHandler)
+                            .userProfileHandler(userProfileHandler)
+                            .loggingResourceManager(loggingResourceManager)
+                            .schedulerResourceManager(schedulerResourceManager)
+                            .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
                     Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                     selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
-                    mainServer = vertx.createHttpServer();
+
+                    HttpServerOptions options = new HttpServerOptions();
+                    // till vertx2 100-continues was performed automatically (per default),
+                    // since vertx3 it is off per default.
+                    options.setHandle100ContinueAutomatically(true);
+
+                    mainServer = vertx.createHttpServer(options);
                     io.vertx.ext.web.Router vertxRouter = io.vertx.ext.web.Router.router(vertx);
                     eventBusHandler.install(vertxRouter);
                     vertxRouter.route().handler(routingContextHandlerrNew);
