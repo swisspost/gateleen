@@ -1,0 +1,37 @@
+dependencies {
+    compile project(':gateleen-core')
+    compile project(':gateleen-runconfig')
+    compile project(':gateleen-logging')
+    compile project(':gateleen-monitoring')
+    compile project(':gateleen-routing')
+    compile project(':gateleen-scheduler')
+    compile project(':gateleen-validation')
+    compile project(':gateleen-queue')
+    compile project(':gateleen-hook')
+    compile project(':gateleen-packing')
+    compile project(':gateleen-user')
+    compile project(':gateleen-expansion')
+    compile project(':gateleen-delta')
+    compile project(':gateleen-security')
+    compile project(':gateleen-qos')
+    compile "org.swisspush:redisques:$redisquesVersion"
+    compile "org.swisspush:rest-storage:$reststorageVersion"
+    compile "org.swisspush:rest-mirror:$mirrorVersion"
+    compile "org.swisspush:mod-metrics:$modmetricsVersion"
+    compile "io.vertx:vertx-core:$vertxVersion"
+    compile "io.vertx:vertx-web:$vertxVersion"
+    compile "io.vertx:vertx-redis-client:$vertxVersion"
+    compile "io.vertx:vertx-unit:$vertxVersion"
+    compile "com.google.guava:guava:$guavaVersion"
+    compile "com.codahale.metrics:metrics-core:$metricCoreVersion"
+    compile "com.jayway.restassured:rest-assured:$restAssuredVersion"
+    compile "com.jayway.awaitility:awaitility:$awaitilityVersion"
+    compile "joda-time:joda-time:$jodaTimeVersion"
+    compile "org.springframework:spring-core:$springframeworkVersion"
+    compile "redis.clients:jedis:$jedisVersion"
+    compile "org.mockito:mockito-core:$mockitoVersion"
+    compile "junit:junit:$junitVersion"
+    compile "org.slf4j:slf4j-api:$slf4jVersion"
+    compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
+    compile "log4j:log4j:$log4jVersion"
+}
