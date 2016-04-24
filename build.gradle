@@ -1,6 +1,7 @@
 subprojects {
 
-  apply plugin: "java"
+  apply plugin: 'idea'
+  apply plugin: 'java'
   apply plugin: 'maven'
   apply plugin: 'signing'
 
@@ -8,7 +9,7 @@ subprojects {
 
     try {
       maven { url "$repository" }
-      println 'use custom repository: $repository'
+      println 'use custom repository: ' + "$repository"
     } catch(Exception e) {
       maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
       println 'use standard repository'
