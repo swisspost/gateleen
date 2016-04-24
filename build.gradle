@@ -56,11 +56,11 @@ subprojects {
   test {
     testLogging {
       // set options for log level LIFECYCLE
-      events "failed"
-      exceptionFormat "short"
+      events "started", "skipped", "failed"
+      exceptionFormat "full"
 
       // set options for log level DEBUG
-      debug {
+      quiet {
         events "started", "skipped", "failed"
         exceptionFormat "full"
       }
