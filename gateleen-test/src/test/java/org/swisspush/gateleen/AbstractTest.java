@@ -60,7 +60,7 @@ public abstract class AbstractTest {
     public static final String PREFIX = SERVER_NAME + ".";
     public static final String JMX_DOMAIN = "org.swisspush.gateleen";
 
-    public static final String ROOT = "/test";
+    public static final String ROOT = "/playground";
     public static final String SERVER_ROOT = ROOT + "/server";
     public static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
     public static final int MAIN_PORT = 3332;
