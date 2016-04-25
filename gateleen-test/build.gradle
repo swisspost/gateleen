@@ -35,3 +35,9 @@ dependencies {
     compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
     compile "log4j:log4j:$log4jVersion"
 }
+
+test {
+    onlyIf {
+        project.hasProperty("integrationTests")
+    }
+}
