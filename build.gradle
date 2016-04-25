@@ -103,7 +103,7 @@ subprojects {
   }
 
   signing {
-    if ("$repository".toLowerCase().contains("sonatype")) {
+    if (project.hasProperty('repository') && "$repository".toLowerCase().contains("sonatype")) {
       sign configurations.archives
     }
   }
