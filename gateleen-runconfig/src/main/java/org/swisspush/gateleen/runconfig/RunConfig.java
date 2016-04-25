@@ -54,7 +54,7 @@ public class RunConfig {
     public static final String SERVER_TIMESTAMP_HEADER = "X-Server-Timestamp";
     public static final String SERVER_ARRIVAL_TIMESTAMP_HEADER = "X-Server-Arrival-Timestamp";
     public static final long EVENTBUS_BRIDGE_PING_INTERVAL = 10 * 60 * 1000L;
-    public static final String ROOT = "/test";
+    public static final String ROOT = "/playground";
     public static final String SERVER_NAME = "gateleen";
     public static final String SERVER_ROOT = ROOT + "/server";
     public static final String ROLE_PATTERN = "^z-gateleen[-_](.*)$";

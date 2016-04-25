@@ -33,30 +33,32 @@ public class QueueProcessor {
                 HttpRequest queuedRequestTry = null;
                 try {
                     queuedRequestTry = new HttpRequest(new JsonObject(message.body().getString("payload")));
-                } catch (Exception e) {
-                    LoggerFactory.getLogger(QueueProcessor.class).error("QueueProcessor QUEUE_ERROR: Could not build request: " + message.body().toString());
+                } catch (Exception exception) {
+                    LoggerFactory.getLogger(QueueProcessor.class).error("QUEUE_ERROR: Could not build request: " + message.body().toString() + " error is " + exception.getMessage());
+                    message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
+                    return;
                 }
                 final HttpRequest queuedRequest = queuedRequestTry;
                 final Logger logger = RequestLoggerFactory.getLogger(QueueProcessor.class, queuedRequest.getHeaders());
                 if (logger.isTraceEnabled()) {
-                    logger.trace("QueueProcessor process message: " + message);
+                    logger.trace("process message: " + message);
                 }
 
                 vertx.eventBus().send(Address.redisquesAddress(), buildGetLockOperation(message.body().getString("queue")), new Handler<AsyncResult<Message<JsonObject>>>(){
                     @Override
                     public void handle(AsyncResult<Message<JsonObject>> reply) {
                         if (NO_SUCH_LOCK.equals(reply.result().body().getString(STATUS))) {
-                            logger.debug("QueueProcessor Performing request " + queuedRequest.getMethod() + " " + queuedRequest.getUri());
+                            logger.debug("performing request " + queuedRequest.getMethod() + " " + queuedRequest.getUri());
 
                             if (ExpiryCheckHandler.isExpired(queuedRequest)) {
-                                logger.debug("QueueProcessor request expired to " + queuedRequest.getUri());
+                                logger.debug("request expired to " + queuedRequest.getUri());
                                 message.reply(new JsonObject().put(STATUS, OK));
                                 return;
                             }
 
                             HttpClientRequest request = httpClient.request(queuedRequest.getMethod(), queuedRequest.getUri(), response -> {
                                 if (logger.isTraceEnabled()) {
-                                    logger.trace("QueueProcessor response: " + response.statusCode());
+                                    logger.trace("response: " + response.statusCode());
                                 }
                                 if (response.statusCode() >= 200 && response.statusCode() < 300 || response.statusCode() == 409) {
                                     if (response.statusCode() != StatusCode.CONFLICT.getStatusCode()) {
@@ -64,16 +66,16 @@ public class QueueProcessor {
                                     } else {
                                         logger.warn("Ignoring request conflict to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
                                     }
-                                    message.reply(new JsonObject().put(STATUS, "ok"));
+                                    message.reply(new JsonObject().put(STATUS, OK));
                                     monitoringHandler.updateDequeue();
                                 } else {
-                                    logger.error("QueueProcessor QUEUE_ERROR: Failed request to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
+                                    logger.error("QUEUE_ERROR: Failed request to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
                                     message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, response.statusCode() + " " + response.statusMessage()));
                                 }
                                 response.bodyHandler(event -> logger.debug("Discarding backend body"));
                                 response.endHandler(event -> logger.debug("Backend response end"));
                                 response.exceptionHandler(exception -> {
-                                    logger.warn("QueueProcessor QUEUE_ERROR: Exception on response from " + queuedRequest.getUri() + ": " + exception.getMessage());
+                                    logger.warn("QUEUE_ERROR: Exception on response from " + queuedRequest.getUri() + ": " + exception.getMessage());
                                     message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
                                 });
                             });
@@ -83,7 +85,7 @@ public class QueueProcessor {
                             }
 
                             request.exceptionHandler(exception -> {
-                                logger.warn("QueueProcessor QUEUE_ERROR: Failed request to " + queuedRequest.getUri() + ": " + exception.getMessage());
+                                logger.warn("QUEUE_ERROR: Failed request to " + queuedRequest.getUri() + ": " + exception.getMessage());
                                 message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
                             });
                             request.setTimeout(120000); // avoids blocking other requests
