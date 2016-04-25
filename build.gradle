@@ -51,10 +51,7 @@ subprojects {
     archives jar, sourceJar, javadocJar
   }
 
-  signing {
-    required { isReleaseVersion }
-    sign configurations.archives
-  }
+
 
   test {
     testLogging {
@@ -107,6 +104,12 @@ subprojects {
     println 'found custom snapshotRepository: ' + snapshotRepository
   }
 
+  signing {
+    if ("$uploadRepository".toLowerCase().contains("sonatype")) {
+      sign configurations.archives
+    }
+  }
+  
   uploadArchives {
     group 'build'
     description = "Does a maven deploy of archives artifacts"
@@ -124,7 +127,7 @@ subprojects {
           authentication(userName: "$repoUsername", password: "$repoPassword")
         }
 
-        if (isReleaseVersion) {
+        if ("$uploadRepository".toLowerCase().contains("sonatype")) {
           beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
         }
 
