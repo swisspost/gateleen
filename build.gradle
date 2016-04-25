@@ -35,6 +35,7 @@ subprojects {
     options.encoding = "UTF-8"
     classpath = configurations.compile
   }
+  javadoc.onlyIf { isReleaseVersion }
 
   task javadocJar(type: Jar) {
     description = 'Builds a javadoc jar artifact suitable for maven deployment.'
