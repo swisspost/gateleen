@@ -68,6 +68,15 @@ subprojects {
       // remove standard output/error logging from --info builds
       // by assigning only 'failed' and 'skipped' events
       info.events = ["failed", "skipped"]
+
+      afterSuite { desc, result ->
+        if (!desc.parent) { // will match the outermost suite
+          def output = "Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} successes, ${result.failedTestCount} failures, ${result.skippedTestCount} skipped)"
+          def startItem = '|  ', endItem = '  |'
+          def repeatLength = startItem.length() + output.length() + endItem.length()
+          println('\n' + ('-' * repeatLength) + '\n' + startItem + output + endItem + '\n' + ('-' * repeatLength))
+        }
+      }
     }
   }
 
