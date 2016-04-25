@@ -18,11 +18,14 @@ subprojects {
 
   }
 
+  ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+
   task sourceJar(type: Jar) {
     description = 'Builds a source jar artifact suitable for maven deployment.'
     classifier = 'sources'
     from sourceSets.main.java
   }
+  sourceJar.onlyIf { isReleaseVersion }
 
   compileJava {
     options.encoding = "UTF-8"
@@ -39,6 +42,7 @@ subprojects {
     from javadoc.destinationDir
   }
   javadocJar.dependsOn javadoc
+  javadocJar.onlyIf { isReleaseVersion }
 
   build.dependsOn sourceJar, javadocJar
 
@@ -46,10 +50,8 @@ subprojects {
     archives jar, sourceJar, javadocJar
   }
 
-  ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
-
   signing {
-    required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
+    required { isReleaseVersion }
     sign configurations.archives
   }
 
