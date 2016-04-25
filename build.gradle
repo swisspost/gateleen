@@ -51,8 +51,6 @@ subprojects {
     archives jar, sourceJar, javadocJar
   }
 
-
-
   test {
     testLogging {
       // set options for log level LIFECYCLE
@@ -105,11 +103,11 @@ subprojects {
   }
 
   signing {
-    if ("$uploadRepository".toLowerCase().contains("sonatype")) {
+    if ("$repository".toLowerCase().contains("sonatype")) {
       sign configurations.archives
     }
   }
-  
+
   uploadArchives {
     group 'build'
     description = "Does a maven deploy of archives artifacts"
