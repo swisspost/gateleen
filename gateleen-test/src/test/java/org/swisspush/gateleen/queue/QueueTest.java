@@ -169,22 +169,22 @@ public class QueueTest extends AbstractTest {
 
             given().header("x-queue", "gateleen-update-test").body("{ \"a\": 3}").when().put("tests/gateleen/update-resource3");
 
-            when().get("queuing/queues/gateleen-update-test/0").then().assertThat().statusCode(200).body("uri", equalTo("/test/server/tests/gateleen/update-resource1"));
+            when().get("queuing/queues/gateleen-update-test/0").then().assertThat().statusCode(200).body("uri", equalTo("/playground/server/tests/gateleen/update-resource1"));
 
-            when().get("queuing/queues/gateleen-update-test/1").then().assertThat().statusCode(200).body("uri", equalTo("/test/server/tests/gateleen/update-resource2"));
+            when().get("queuing/queues/gateleen-update-test/1").then().assertThat().statusCode(200).body("uri", equalTo("/playground/server/tests/gateleen/update-resource2"));
 
-            when().get("queuing/queues/gateleen-update-test/2").then().assertThat().statusCode(200).body("uri", equalTo("/test/server/tests/gateleen/update-resource3"));
+            when().get("queuing/queues/gateleen-update-test/2").then().assertThat().statusCode(200).body("uri", equalTo("/playground/server/tests/gateleen/update-resource3"));
 
             delete("queuing/queues/gateleen-update-test/1");
 
-            when().get("queuing/queues/gateleen-update-test/1").then().assertThat().statusCode(200).body("uri", equalTo("/test/server/tests/gateleen/update-resource3"));
+            when().get("queuing/queues/gateleen-update-test/1").then().assertThat().statusCode(200).body("uri", equalTo("/playground/server/tests/gateleen/update-resource3"));
 
             JsonObject req = new JsonObject(get("queuing/queues/gateleen-update-test/1").then().extract().body().asString());
-            req.put("uri", "/test/server/tests/gateleen/update-resource4");
+            req.put("uri", "/playground/server/tests/gateleen/update-resource4");
 
             given().body(req.toString()).when().put("queuing/queues/gateleen-update-test/1").then().assertThat().statusCode(200);
 
-            when().get("queuing/queues/gateleen-update-test/1").then().assertThat().statusCode(200).body("uri", equalTo("/test/server/tests/gateleen/update-resource4"));
+            when().get("queuing/queues/gateleen-update-test/1").then().assertThat().statusCode(200).body("uri", equalTo("/playground/server/tests/gateleen/update-resource4"));
         } finally {
 
             // unlock the queue

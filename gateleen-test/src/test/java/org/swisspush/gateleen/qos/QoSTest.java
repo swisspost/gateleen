@@ -82,28 +82,28 @@ public class QoSTest extends AbstractTest {
                 "description", "sentinel 1",
                 "metricName", "sentinelA",
                 "url", "http://localhost:" + MAIN_PORT + "/$1"));
-        rules = TestUtils.addRoutingRule(rules, "/test/test/sapi1/(.*)", rule);
+        rules = TestUtils.addRoutingRule(rules, "/playground/test/sapi1/(.*)", rule);
 
         // sentinel 2
         rule = TestUtils.createRoutingRule(ImmutableMap.of(
                 "description", "sentinel 2",
                 "metricName", "sentinelB",
                 "url", "http://localhost:" + MAIN_PORT + "/$1"));
-        rules = TestUtils.addRoutingRule(rules, "/test/test/sapi2/(.*)", rule);
+        rules = TestUtils.addRoutingRule(rules, "/playground/test/sapi2/(.*)", rule);
 
         // sentinel 3
         rule = TestUtils.createRoutingRule(ImmutableMap.of(
                 "description", "sentinel 3",
                 "metricName", "sentinelC",
                 "url", "http://localhost:" + MAIN_PORT + "/$1"));
-        rules = TestUtils.addRoutingRule(rules, "/test/test/sapi3/(.*)", rule);
+        rules = TestUtils.addRoutingRule(rules, "/playground/test/sapi3/(.*)", rule);
 
         // sentinel 4
         rule = TestUtils.createRoutingRule(ImmutableMap.of(
                 "description", "sentinel 4",
                 "metricName", "sentinelD",
                 "url", "http://localhost:" + MAIN_PORT + "/$1"));
-        rules = TestUtils.addRoutingRule(rules, "/test/test/sapi4/(.*)", rule);
+        rules = TestUtils.addRoutingRule(rules, "/playground/test/sapi4/(.*)", rule);
 
         // PUT rules
         TestUtils.putRoutingRules(rules);
@@ -153,11 +153,11 @@ public class QoSTest extends AbstractTest {
         JsonObject rule1 = new JsonObject();
         rule1.put("reject", 1.3);
         rule1.put("warn", 1.1);
-        rules.put("/test/myapi1/v1/.*", rule1);
+        rules.put("/playground/myapi1/v1/.*", rule1);
 
         JsonObject rule2 = new JsonObject();
         rule2.put("reject", 1.7);
-        rules.put("/test/myapi2/v1/.*", rule2);
+        rules.put("/playground/myapi2/v1/.*", rule2);
 
         settings.put("rules", rules);
 

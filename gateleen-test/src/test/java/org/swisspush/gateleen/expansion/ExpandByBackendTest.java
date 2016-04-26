@@ -1,8 +1,8 @@
 package org.swisspush.gateleen.expansion;
 
-import org.swisspush.gateleen.AbstractTest;
-import org.swisspush.gateleen.TestUtils;
 import com.google.common.collect.ImmutableMap;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -10,8 +10,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.vertx.core.http.HttpServer;
-import io.vertx.core.json.JsonObject;
+import org.swisspush.gateleen.AbstractTest;
+import org.swisspush.gateleen.TestUtils;
 
 import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -88,7 +88,7 @@ public class ExpandByBackendTest extends AbstractTest {
         JsonObject rules = new JsonObject();
         rules = TestUtils.addRoutingRuleMainStorage(rules);
 
-        String TEST_RULE_NAME = "/test/backend(.*)";
+        String TEST_RULE_NAME = "/playground/backend(.*)";
         rules = TestUtils.addRoutingRule(rules, TEST_RULE_NAME, newRule);
 
         TestUtils.putRoutingRules(rules);

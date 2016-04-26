@@ -165,13 +165,13 @@ public class StorageExpandTest extends AbstractTest {
                 "storage",
                 "main",
                 "path",
-                "/test/$1"));
+                "/playground/$1"));
 
         // create routing rules
         JsonObject rules = new JsonObject();
         rules = TestUtils.addRoutingRuleMainStorage(rules);
 
-        String TEST_RULE_NAME = "/test/(.*)";
+        String TEST_RULE_NAME = "/playground/(.*)";
         rules = TestUtils.addRoutingRule(rules, TEST_RULE_NAME, newRule);
 
         TestUtils.putRoutingRules(rules);
