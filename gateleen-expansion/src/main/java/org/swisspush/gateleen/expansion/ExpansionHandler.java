@@ -380,7 +380,7 @@ public class ExpansionHandler {
         }
         req.endHandler(v -> {
             cReq.end();
-            log.debug("Request done. Request : " + cReq);
+            log.debug("Request done");
         });
         cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(req, targetUri, ExpansionHandler.class));
 
