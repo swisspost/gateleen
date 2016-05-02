@@ -1,4 +1,7 @@
 # [\_] Gateleen
+
+[![Build Status](https://drone.io/github.com/swisspush/gateleen/status.png)](https://drone.io/github.com/swisspush/gateleen/latest)
+
 Middleware library based on Vert.x to build advanced JSON/REST communication servers.
 
 ## Getting Started
