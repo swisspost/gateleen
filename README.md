@@ -50,25 +50,25 @@ The following tables lists all the gateleen components available.
 
 | Component                                                                         | Description                              |
 |:---------------------------------------------------------------------------------:| ---------------------------------------- |
-| [gateleen-core](gateleen-core/README_core.md)                                     | Add short description for this component |
-| [gateleen-delta](gateleen-delta/README_delta.md)                                  | Add short description for this component |
-| [gateleen-expansion](gateleen-expansion/README_expansion.md)                      | Add short description for this component |
-| [gateleen-hook](gateleen-hook/README_hook.md)                                     | Add short description for this component |
-| [gateleen-integrationtest](gateleen-integrationtest/README_integrationtest.md)    | Add short description for this component |
-| [gateleen-logging](gateleen-logging/README_logging.md)                            | Log payload and header values of requests |
+| [gateleen-core](gateleen-core/README_core.md)                                     | HTTP infrastructure and hierarchical resource storage that can be used as cache, intermediate storage for backend-pushed data, user and apps data |
+| [gateleen-delta](gateleen-delta/README_delta.md)                                  | Traffic optimization allowing clients to fetch only data that actually changed from the last time they fetched it  |
+| [gateleen-expansion](gateleen-expansion/README_expansion.md)                      | Traffic optimization allowing clients to fetch a sub-tree of data in one request instead of many requests |
+| [gateleen-hook](gateleen-hook/README_hook.md)                                     | Server push and callback support allowing backends to push data to clients and be notified when data is pushed by clients |
+| [gateleen-integrationtest](gateleen-integrationtest/README_integrationtest.md)    | Test infrastructure |
+| [gateleen-logging](gateleen-logging/README_logging.md)                            | Logs request with configurable filtering for later data analysis |
 | [gateleen-monitoring](gateleen-monitoring/README_monitoring.md)                   | Monitor useful information like number of requests, queue sizes, etc. |
-| [gateleen-packing](gateleen-packing/README_packing.md)                            | Add short description for this component |
-| [gateleen-player](gateleen-player/README_player.md)                               | Add short description for this component |
-| [gateleen-playground](gateleen-playground/README_playground.md)                   | This module provides a server example    |
-| [gateleen-qos](gateleen-qos/README_qos.md)                                        | Add short description for this component |
-| [gateleen-queue](gateleen-queue/README_queue.md)                                  | Add short description for this component |
-| [gateleen-routing](gateleen-routing/README_routing.md)                            | Add short description for this component |
-| [gateleen-runconfig](gateleen-runconfig/README_runconfig.md)                      | Add short description for this component |
-| [gateleen-scheduler](gateleen-scheduler/README_scheduler.md)                      | Add short description for this component |
-| [gateleen-security](gateleen-security/README_security.md)                         | Add short description for this component |
-| [gateleen-test](gateleen-test/README_test.md)                                     | Add short description for this component |
-| [gateleen-user](gateleen-user/README_user.md)                                     | Add short description for this component |
-| [gateleen-validation](gateleen-validation/README_validation.md)                   | Add short description for this component |
+| [gateleen-packing](gateleen-packing/README_packing.md)                            | Traffic optimization gathering multiple requests in one |
+| [gateleen-player](gateleen-player/README_player.md)                               | Test tool to replay traffic recorded with gateleen-logging for automated tests and troubleshooting |
+| [gateleen-playground](gateleen-playground/README_playground.md)                   | Server example    |
+| [gateleen-qos](gateleen-qos/README_qos.md)                                        | Traffic priorization by rejecting requests to low-priority routes to keep more important features working when backends go down and load increases due to timeouts and retries |
+| [gateleen-queue](gateleen-queue/README_queue.md)                                  | Request queuing to be robust to slow and available backends keeping the client connections short-lived |
+| [gateleen-routing](gateleen-routing/README_routing.md)                            | Configurable URL patterns and method based routing to backends and resource storage |
+| [gateleen-runconfig](gateleen-runconfig/README_runconfig.md)                      | Test infrastructure |
+| [gateleen-scheduler](gateleen-scheduler/README_scheduler.md)                      | Performs planned operations like data cleaning |
+| [gateleen-security](gateleen-security/README_security.md)                         | Fine grained authorization for URL patterns and methods against principal headers  |
+| [gateleen-test](gateleen-test/README_test.md)                                     | Integration tests |
+| [gateleen-user](gateleen-user/README_user.md)                                     | Manages user profile merges user preferences and identity information |
+| [gateleen-validation](gateleen-validation/README_validation.md)                   | Validates data according to JSON schemas  |
 
 ## Headers
 This is a list of the custom headers used by Gateleen.
