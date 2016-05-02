@@ -45,30 +45,29 @@ This just PUTs all resources from folder `src/main/resources`
 
 Then go again on [http://localhost:7012/playground](http://localhost:7012/playground)
 
-## Components
-The following tables lists all the gateleen components available.
+## Modules
 
-| Component                                                                         | Description                              |
+| Module                                                                         | Description                              |
 |:---------------------------------------------------------------------------------:| ---------------------------------------- |
-| [gateleen-core](gateleen-core/README_core.md)                                     | HTTP infrastructure and hierarchical resource storage that can be used as cache, intermediate storage for backend-pushed data, user and apps data |
-| [gateleen-delta](gateleen-delta/README_delta.md)                                  | Traffic optimization allowing clients to fetch only data that actually changed from the last time they fetched it  |
-| [gateleen-expansion](gateleen-expansion/README_expansion.md)                      | Traffic optimization allowing clients to fetch a sub-tree of data in one request instead of many requests |
-| [gateleen-hook](gateleen-hook/README_hook.md)                                     | Server push and callback support allowing backends to push data to clients and be notified when data is pushed by clients |
-| [gateleen-integrationtest](gateleen-integrationtest/README_integrationtest.md)    | Test infrastructure |
-| [gateleen-logging](gateleen-logging/README_logging.md)                            | Logs request with configurable filtering for later data analysis |
-| [gateleen-monitoring](gateleen-monitoring/README_monitoring.md)                   | Monitor useful information like number of requests, queue sizes, etc. |
-| [gateleen-packing](gateleen-packing/README_packing.md)                            | Traffic optimization gathering multiple requests in one |
-| [gateleen-player](gateleen-player/README_player.md)                               | Test tool to replay traffic recorded with gateleen-logging for automated tests and troubleshooting |
-| [gateleen-playground](gateleen-playground/README_playground.md)                   | Server example    |
-| [gateleen-qos](gateleen-qos/README_qos.md)                                        | Traffic priorization by rejecting requests to low-priority routes to keep more important features working when backends go down and load increases due to timeouts and retries |
-| [gateleen-queue](gateleen-queue/README_queue.md)                                  | Request queuing to be robust to slow and available backends keeping the client connections short-lived |
-| [gateleen-routing](gateleen-routing/README_routing.md)                            | Configurable URL patterns and method based routing to backends and resource storage |
-| [gateleen-runconfig](gateleen-runconfig/README_runconfig.md)                      | Test infrastructure |
-| [gateleen-scheduler](gateleen-scheduler/README_scheduler.md)                      | Performs planned operations like data cleaning |
-| [gateleen-security](gateleen-security/README_security.md)                         | Fine grained authorization for URL patterns and methods against principal headers  |
-| [gateleen-test](gateleen-test/README_test.md)                                     | Integration tests |
-| [gateleen-user](gateleen-user/README_user.md)                                     | Manages user profile merges user preferences and identity information |
-| [gateleen-validation](gateleen-validation/README_validation.md)                   | Validates data according to JSON schemas  |
+| [core](gateleen-core/README_core.md)                                     | HTTP infrastructure and hierarchical resource storage that can be used as cache, intermediate storage for backend-pushed data, user and apps data |
+| [delta](gateleen-delta/README_delta.md)                                  | Traffic optimization allowing clients to fetch only data that actually changed from the last time they fetched it  |
+| [expansion](gateleen-expansion/README_expansion.md)                      | Traffic optimization allowing clients to fetch a sub-tree of data in one request instead of many requests |
+| [hook](gateleen-hook/README_hook.md)                                     | Server push and callback support allowing backends to push data to clients and be notified when data is pushed by clients |
+| [integrationtest](gateleen-integrationtest/README_integrationtest.md)    | Test infrastructure |
+| [logging](gateleen-logging/README_logging.md)                            | Logs request with configurable filtering for later data analysis |
+| [monitoring](gateleen-monitoring/README_monitoring.md)                   | Monitor useful information like number of requests, queue sizes, etc. |
+| [packing](gateleen-packing/README_packing.md)                            | Traffic optimization gathering multiple requests in one |
+| [player](gateleen-player/README_player.md)                               | Test tool to replay traffic recorded with gateleen-logging for automated tests and troubleshooting |
+| [playground](gateleen-playground/README_playground.md)                   | Server example    |
+| [qos](gateleen-qos/README_qos.md)                                        | Traffic priorization by rejecting requests to low-priority routes to keep more important features working when backends go down and load increases due to timeouts and retries |
+| [queue](gateleen-queue/README_queue.md)                                  | Request queuing to be robust to slow and available backends keeping the client connections short-lived |
+| [routing](gateleen-routing/README_routing.md)                            | Configurable URL patterns and method based routing to backends and resource storage |
+| [runconfig](gateleen-runconfig/README_runconfig.md)                      | Test infrastructure |
+| [scheduler](gateleen-scheduler/README_scheduler.md)                      | Performs planned operations like data cleaning |
+| [security](gateleen-security/README_security.md)                         | Fine grained authorization for URL patterns and methods against principal headers  |
+| [test](gateleen-test/README_test.md)                                     | Integration tests |
+| [user](gateleen-user/README_user.md)                                     | Manages user profile merges user preferences and identity information |
+| [validation](gateleen-validation/README_validation.md)                   | Validates data according to JSON schemas  |
 
 ## Headers
 This is a list of the custom headers used by Gateleen.
