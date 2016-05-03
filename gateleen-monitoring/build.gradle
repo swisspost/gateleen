@@ -1,6 +1,7 @@
 dependencies {
     compile project(':gateleen-core')
     compile "io.vertx:vertx-core:$vertxVersion"
+    compile "org.swisspush:redisques:$redisquesVersion"
     compile "io.vertx:vertx-redis-client:$vertxVersion"
     compile "io.vertx:vertx-unit:$vertxVersion"
     compile "com.google.guava:guava:$guavaVersion"

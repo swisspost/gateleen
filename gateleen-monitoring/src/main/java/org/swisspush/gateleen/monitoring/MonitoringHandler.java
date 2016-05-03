@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.monitoring;
 
 import com.google.common.collect.Ordering;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -11,7 +12,6 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.RedisClient;
-import io.vertx.redis.op.RangeLimitOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -23,6 +23,8 @@ import org.swisspush.gateleen.core.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
  * Handler to monitor the server state using the Metrics library. The recorded informations are accessible through JMX MBeans.
@@ -37,7 +39,6 @@ public class MonitoringHandler {
     public static final String SET = "set";
 
     private Vertx vertx;
-    private RedisClient redisClient;
     private ResourceStorage storage;
 
     private boolean requestPerRuleMonitoringActive;
@@ -58,8 +59,11 @@ public class MonitoringHandler {
     public static final String ENQUEUE_METRIC = "queues.enqueue";
     public static final String DEQUEUE_METRIC = "queues.dequeue";
 
+    @Deprecated
     public static final String QUEUES_KEY_PREFIX = "redisques:queues";
+    @Deprecated
     public static final int MAX_AGE_MILLISECONDS = 120000; // 120 seconds
+
     private static final int QUEUE_SIZE_REFRESH_TIME = 5000; // 5 seconds
 
     public static final String REQUEST_PER_RULE_PREFIX = "rpr.";
@@ -88,13 +92,32 @@ public class MonitoringHandler {
         void onDone(List<Map.Entry<String, Long>> mapEntries);
     }
 
+    /**
+     * Constructor
+     * @deprecated use {@link #MonitoringHandler(Vertx, ResourceStorage, String)} instead
+     */
+    @Deprecated
     public MonitoringHandler(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, String prefix) {
-        this(vertx, redisClient, storage, prefix, null);
+        this(vertx, storage, prefix);
+        log.warn("Deprecated constructor used. This constructor should not be used anymore since it may be removed in future releases.");
     }
 
+    /**
+     * Constructor
+     * @deprecated use {@link #MonitoringHandler(Vertx, ResourceStorage, String, String)} instead
+     */
+    @Deprecated
     public MonitoringHandler(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, String prefix, String requestPerRulePath) {
+        this(vertx, storage, prefix, requestPerRulePath);
+        log.warn("Deprecated constructor used. This constructor should not be used anymore since it may be removed in future releases.");
+    }
+
+    public MonitoringHandler(Vertx vertx, final ResourceStorage storage, String prefix) {
+        this(vertx, storage, prefix, null);
+    }
+
+    public MonitoringHandler(Vertx vertx, final ResourceStorage storage, String prefix, String requestPerRulePath) {
         this.vertx = vertx;
-        this.redisClient = redisClient;
         this.storage = storage;
         this.prefix = prefix;
         this.requestPerRuleMonitoringPath = initRequestPerRuleMonitoringPath(requestPerRulePath);
@@ -117,18 +140,18 @@ public class MonitoringHandler {
                 handleRequestPerRuleMessage(name);
                 long now;
                 switch (action) {
-                case "set":
-                case "update":
-                    Long currentValue = metricCache.get(name);
-                    Long newValue = body.getLong("n");
-                    Long lastDump = lastDumps.get(name);
-                    now = System.currentTimeMillis() / 1000;
-                    if (!newValue.equals(currentValue) || lastDump != null && lastDump < now - 300) {
-                        metricLogger.info(name + " " + body.getLong("n") + " " + now);
-                        metricCache.put(name, newValue);
-                        lastDumps.put(name, now);
-                    }
-                    break;
+                    case "set":
+                    case "update":
+                        Long currentValue = metricCache.get(name);
+                        Long newValue = body.getLong("n");
+                        Long lastDump = lastDumps.get(name);
+                        now = System.currentTimeMillis() / 1000;
+                        if (!newValue.equals(currentValue) || lastDump != null && lastDump < now - 300) {
+                            metricLogger.info(name + " " + body.getLong("n") + " " + now);
+                            metricCache.put(name, newValue);
+                            lastDumps.put(name, now);
+                        }
+                        break;
                 }
             }
         });
@@ -323,13 +346,15 @@ public class MonitoringHandler {
      * Update the count of active queues. Reads the count from redis and stores it to JMX.
      */
     public void updateQueueCountInformation() {
-        long timestamp = System.currentTimeMillis() - MAX_AGE_MILLISECONDS;
-        redisClient.zcount(QUEUES_KEY_PREFIX, timestamp, Double.MAX_VALUE, reply -> {
-            if(reply.failed()){
-                log.error("Error gathering count of active queues");
-            } else {
-                final long count = reply.result();
-                vertx.eventBus().publish(Address.monitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ACTIVE_QUEUE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n", count));
+        vertx.eventBus().send(Address.redisquesAddress(), buildGetQueuesCountOperation(), new Handler<AsyncResult<Message<JsonObject>>>() {
+            @Override
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
+                if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
+                    final long count = reply.result().body().getLong(VALUE);
+                    vertx.eventBus().publish(Address.monitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ACTIVE_QUEUE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n", count));
+                } else {
+                    log.error("Error gathering count of active queues");
+                }
             }
         });
     }
@@ -341,13 +366,15 @@ public class MonitoringHandler {
      */
     public void updateLastUsedQueueSizeInformation(final String queue) {
         log.trace("About to update last used Queue size counter");
-        String queueName = QUEUES_KEY_PREFIX + ":" + queue;
-        redisClient.llen(queueName, reply -> {
-            if(reply.failed()){
-                log.error("Error gathering queue size for queue '" + queue + "'");
-            } else {
-                final long count = reply.result();
-                vertx.eventBus().publish(Address.monitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "update").put("n", count));
+        vertx.eventBus().send(Address.redisquesAddress(), buildGetQueueItemsCountOperation(queue), new Handler<AsyncResult<Message<JsonObject>>>() {
+            @Override
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
+                if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
+                    final long count = reply.result().body().getLong(VALUE);
+                    vertx.eventBus().publish(Address.monitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "update").put("n", count));
+                } else {
+                    log.error("Error gathering queue size for queue '" + queue + "'");
+                }
             }
         });
     }
@@ -362,26 +389,27 @@ public class MonitoringHandler {
     public void updateQueuesSizesInformation(final int numQueues, final boolean showEmptyQueues, final MonitoringCallback callback) {
         final JsonObject resultObject = new JsonObject();
         final JsonArray queuesArray = new JsonArray();
-        long timestamp = System.currentTimeMillis() - MAX_AGE_MILLISECONDS;
-        redisClient.zrangebyscore(QUEUES_KEY_PREFIX, String.valueOf(timestamp), "+inf", RangeLimitOptions.NONE, reply -> {
-            if(reply.failed()){
-                String error = "Error gathering names of active queues";
-                log.error(error);
-                callback.onFail(error, StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-            } else {
-                final List<String> queueNames = reply.result().getList();
-                collectQueueLengths(queueNames, numQueues, showEmptyQueues, mapEntries -> {
-                    for (Map.Entry<String, Long> entry : mapEntries) {
-                        JsonObject obj = new JsonObject();
-                        obj.put(METRIC_NAME, entry.getKey());
-                        obj.put("size", entry.getValue());
-                        queuesArray.add(obj);
-                    }
-                    resultObject.put("queues", queuesArray);
-                    callback.onDone(resultObject);
-                });
-            }
-        });
+        vertx.eventBus().send(Address.redisquesAddress(), buildGetQueuesOperation(), new Handler<AsyncResult<Message<JsonObject>>>() {
+            @Override
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
+                if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
+                    final List<String> queueNames = reply.result().body().getJsonObject(VALUE).getJsonArray("queues").getList();
+                    collectQueueLengths(queueNames, numQueues, showEmptyQueues, mapEntries -> {
+                        for (Map.Entry<String, Long> entry : mapEntries) {
+                            JsonObject obj = new JsonObject();
+                            obj.put(METRIC_NAME, entry.getKey());
+                            obj.put("size", entry.getValue());
+                            queuesArray.add(obj);
+                        }
+                        resultObject.put("queues", queuesArray);
+                        callback.onDone(resultObject);
+                    });
+                } else {
+                    String error = "Error gathering names of active queues";
+                    log.error(error);
+                    callback.onFail(error, StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                }
+        }});
     }
 
     private void collectQueueLengths(final List<String> queueNames, final int numOfQueues, final boolean showEmptyQueues, final QueueLengthCollectingCallback callback) {
@@ -390,24 +418,26 @@ public class MonitoringHandler {
         final AtomicInteger subCommandCount = new AtomicInteger(queueNames.size());
         if (!queueNames.isEmpty()) {
             for (final String name : queueNames) {
-                final String queueName = QUEUES_KEY_PREFIX + ":" + name;
-                redisClient.llen(queueName, reply -> {
-                    subCommandCount.decrementAndGet();
-                    if(reply.failed()){
-                        log.error("Error gathering size of queue " + queueName);
-                    } else {
-                        final long count = reply.result();
-                        if (showEmptyQueues || count > 0) {
-                            resultMap.put(name, count);
+                vertx.eventBus().send(Address.redisquesAddress(), buildGetQueueItemsCountOperation(name), new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        subCommandCount.decrementAndGet();
+                        if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
+                            final long count = reply.result().body().getLong(VALUE);
+                            if (showEmptyQueues || count > 0) {
+                                resultMap.put(name, count);
+                            }
+                        } else {
+                            log.error("Error gathering size of queue " + name);
                         }
-                    }
 
-                    if (subCommandCount.get() == 0) {
-                        mapEntryList.addAll(resultMap.entrySet());
-                        sortResultMap(mapEntryList);
-                        int toIndex = numOfQueues > queueNames.size() ? queueNames.size() : numOfQueues;
-                        toIndex = Math.min(mapEntryList.size(), toIndex);
-                        callback.onDone(mapEntryList.subList(0, toIndex));
+                        if (subCommandCount.get() == 0) {
+                            mapEntryList.addAll(resultMap.entrySet());
+                            sortResultMap(mapEntryList);
+                            int toIndex = numOfQueues > queueNames.size() ? queueNames.size() : numOfQueues;
+                            toIndex = Math.min(mapEntryList.size(), toIndex);
+                            callback.onDone(mapEntryList.subList(0, toIndex));
+                        }
                     }
                 });
             }
