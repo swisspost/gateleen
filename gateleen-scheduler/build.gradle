@@ -2,6 +2,7 @@ dependencies {
     compile project(':gateleen-core')
     compile project(':gateleen-validation')
     compile project(':gateleen-queue')
+    compile "org.swisspush:redisques:$redisquesVersion"
     compile "io.vertx:vertx-core:$vertxVersion"
     compile "io.vertx:vertx-redis-client:$vertxVersion"
     compile "org.quartz-scheduler:quartz:$quartzVersion"
