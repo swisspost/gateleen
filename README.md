@@ -1,6 +1,7 @@
 # [\_] Gateleen
 
 [![Build Status](https://drone.io/github.com/swisspush/gateleen/status.png)](https://drone.io/github.com/swisspush/gateleen/latest)
+[![Maven Central](https://img.shields.io/maven-central/v/org.swisspush/gateleen-core.svg)]()
 
 Middleware library based on Vert.x to build advanced JSON/REST communication servers.
 
