@@ -133,7 +133,7 @@ public class Server extends AbstractVerticle {
                     deltaHandler = new DeltaHandler(redisClient, selfClient);
                     expansionHandler = new ExpansionHandler(vertx, storage, selfClientExpansionHandler, props, ROOT, RULES_ROOT);
                     copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
-                    monitoringHandler = new MonitoringHandler(vertx, redisClient, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
+                    monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
                     qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                     eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event-", "channels/([^/]+).*");
                     eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);

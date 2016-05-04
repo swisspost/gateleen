@@ -115,7 +115,7 @@ public class IntegrationTestVerticle extends AbstractVerticle {
         deltaHandler = new DeltaHandler(redisClient, selfClient);
         expansionHandler = new ExpansionHandler(vertx, storage, selfClientExpansionHandler, props, ROOT, RULES_ROOT);
         copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
-        monitoringHandler = new MonitoringHandler(vertx, redisClient, storage, PREFIX);
+        monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX);
         qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
         eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/push/v1/", SERVER_ROOT + "/push/v1/sock", "push-", "devices/([^/]+).*");
         eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);

@@ -56,27 +56,27 @@ public class MonitoringHandlerTest {
     @Test
     public void testActiveRequestPerRuleMonitoring(TestContext testContext){
         activateRequestPerRuleMonitoring(false);
-        MonitoringHandler mh = new MonitoringHandler(vertx, redisClient, storage, PREFIX);
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
         testContext.assertFalse(mh.isRequestPerRuleMonitoringActive(),
                 "request per rule monitoring should not be active since no system property was set");
 
         // set system property and check again
         activateRequestPerRuleMonitoring(true);
-        MonitoringHandler mh2 = new MonitoringHandler(vertx, redisClient, storage, PREFIX);
+        MonitoringHandler mh2 = new MonitoringHandler(vertx, storage, PREFIX);
         testContext.assertTrue(mh2.isRequestPerRuleMonitoringActive(),
                 "request per rule monitoring should be active since the correct system property was set");
     }
 
     @Test
     public void testInitRequestPerRuleMonitoringPath(TestContext testContext){
-        MonitoringHandler mh = new MonitoringHandler(vertx, redisClient, storage, PREFIX);
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
         testContext.assertNull(mh.getRequestPerRuleMonitoringPath());
 
-        mh = new MonitoringHandler(vertx, redisClient, storage, PREFIX, "/gateleen/monitoring/rpr/");
+        mh = new MonitoringHandler(vertx, storage, PREFIX, "/gateleen/monitoring/rpr/");
         testContext.assertNotNull(mh.getRequestPerRuleMonitoringPath());
         testContext.assertFalse(mh.getRequestPerRuleMonitoringPath().endsWith("/"));
 
-        mh = new MonitoringHandler(vertx, redisClient, storage, PREFIX, "/gateleen/monitoring/rpr");
+        mh = new MonitoringHandler(vertx, storage, PREFIX, "/gateleen/monitoring/rpr");
         testContext.assertNotNull(mh.getRequestPerRuleMonitoringPath());
         testContext.assertFalse(mh.getRequestPerRuleMonitoringPath().endsWith("/"));
     }
@@ -84,14 +84,14 @@ public class MonitoringHandlerTest {
     @Test
     public void testInitSamplingAndExpiry(TestContext testContext){
         activateRequestPerRuleMonitoring(true);
-        MonitoringHandler mh = new MonitoringHandler(vertx, redisClient, storage, PREFIX);
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
         testContext.assertEquals(MonitoringHandler.REQUEST_PER_RULE_DEFAULT_SAMPLING, mh.getRequestPerRuleSampling());
         testContext.assertEquals(MonitoringHandler.REQUEST_PER_RULE_DEFAULT_EXPIRY, mh.getRequestPerRuleExpiry());
 
         // change sampling and expiry through system property
         System.setProperty(MonitoringHandler.REQUEST_PER_RULE_SAMPLING_PROPERTY, "10000");
         System.setProperty(MonitoringHandler.REQUEST_PER_RULE_EXPIRY_PROPERTY, "120");
-        mh = new MonitoringHandler(vertx, redisClient, storage, PREFIX);
+        mh = new MonitoringHandler(vertx, storage, PREFIX);
 
         testContext.assertEquals(10000L, mh.getRequestPerRuleSampling());
         testContext.assertEquals(120L, mh.getRequestPerRuleExpiry());
@@ -103,7 +103,7 @@ public class MonitoringHandlerTest {
 
         activateRequestPerRuleMonitoring(true);
         System.setProperty(MonitoringHandler.REQUEST_PER_RULE_SAMPLING_PROPERTY, "100");
-        MonitoringHandler mh = new MonitoringHandler(vertx, redisClient, storage, PREFIX);
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
 
         PUTRequest request = new PUTRequest();
         request.addHeader(PROPERTY_NAME, "my_value_123");
@@ -123,7 +123,7 @@ public class MonitoringHandlerTest {
 
         activateRequestPerRuleMonitoring(true);
         System.setProperty(MonitoringHandler.REQUEST_PER_RULE_SAMPLING_PROPERTY, "100");
-        MonitoringHandler mh = new MonitoringHandler(vertx, redisClient, storage, PREFIX, REQUEST_PER_RULE_MONITORING_PATH);
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX, REQUEST_PER_RULE_MONITORING_PATH);
 
         PUTRequest request = new PUTRequest();
         request.addHeader(PROPERTY_NAME, "my_value_123");

@@ -106,7 +106,7 @@ public abstract class AbstractTest {
             if(success){
                 RedisClient redisClient = RedisClient.create(vertx, new RedisOptions().setHost(redisHost).setPort(redisPort));
                 ResourceStorage storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
-                MonitoringHandler monitoringHandler = new MonitoringHandler(vertx, redisClient, storage, PREFIX);
+                MonitoringHandler monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX);
                 EventBusHandler eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/push/v1/", SERVER_ROOT + "/push/v1/sock", "push-", "devices/([^/]+).*");
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
                 LoggingResourceManager loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
