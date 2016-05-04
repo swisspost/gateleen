@@ -31,6 +31,9 @@ public class HttpServerRequestMock implements HttpServerRequest {
         return null;
     }
 
+    @Override
+    public boolean isSSL() { return false; }
+
     @Override public String uri() {
         return null;
     }

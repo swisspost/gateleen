@@ -25,6 +25,8 @@ public class DummyHttpServerRequest implements HttpServerRequest {
         throw new UnsupportedOperationException();
     }
 
+    @Override public boolean isSSL() { return false; }
+
     @Override public String uri() {
         throw new UnsupportedOperationException();
     }

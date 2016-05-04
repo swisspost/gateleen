@@ -7,6 +7,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VoidHandler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
@@ -49,6 +50,9 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         public HttpMethod method() {
             return method;
         }
+
+        @Override
+        public boolean isSSL() { return false; }
 
         @Override
         public String uri() {
@@ -315,6 +319,9 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
+        public JsonArray getBodyAsJsonArray() { throw new UnsupportedOperationException(); }
+
+        @Override
         public Buffer getBody() {
             throw new UnsupportedOperationException();
         }
@@ -400,6 +407,9 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
+        public void reroute(String path) { throw new UnsupportedOperationException(); }
+
+        @Override
         public void reroute(HttpMethod method, String path) {
             throw new UnsupportedOperationException();
         }
@@ -408,6 +418,9 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         public List<Locale> acceptableLocales() {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public Locale preferredLocale() { throw new UnsupportedOperationException(); }
     };
 
     public LocalHttpClientRequest(HttpMethod method, String uri, Vertx vertx, Handler<RoutingContext> routingContextHandler, HttpServerResponse response) {
