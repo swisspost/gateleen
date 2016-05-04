@@ -5,8 +5,10 @@ import io.vertx.core.json.JsonObject;
 /**
  * Class RedisquesAPI.
  *
+ * @deprecated Use RedisquesAPI class from vertx-redisques module instead
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
+@Deprecated
 public class RedisquesAPI {
 
     public static final String OK = "ok";

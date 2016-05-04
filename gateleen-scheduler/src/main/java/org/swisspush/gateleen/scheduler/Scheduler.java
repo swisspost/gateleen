@@ -12,15 +12,15 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.queue.queuing.RedisquesAPI;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
-import static org.swisspush.gateleen.queue.queuing.RedisquesAPI.OK;
-import static org.swisspush.gateleen.queue.queuing.RedisquesAPI.STATUS;
+import static org.swisspush.redisques.util.RedisquesAPI.OK;
+import static org.swisspush.redisques.util.RedisquesAPI.STATUS;
+import static org.swisspush.redisques.util.RedisquesAPI.buildEnqueueOperation;
 
 /**
  * Schedules requests to be queued. Synchronizes using redis to ensure only one instance is fired.
@@ -90,7 +90,7 @@ public class Scheduler {
                 log.trace("Triggering request "+request.toJsonObject().encodePrettily());
             }
 
-            vertx.eventBus().send(Address.redisquesAddress(), RedisquesAPI.buildEnqueueOperation("scheduler-" + name, request.toJsonObject().encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
+            vertx.eventBus().send(Address.redisquesAddress(), buildEnqueueOperation("scheduler-" + name, request.toJsonObject().encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
                 @Override
                 public void handle(AsyncResult<Message<JsonObject>> event) {
                     if (!OK.equals(event.result().body().getString(STATUS))) {

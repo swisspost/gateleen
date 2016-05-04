@@ -17,7 +17,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.swisspush.gateleen.queue.queuing.RedisquesAPI.*;
+import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
  * @author https://github.com/lbovet [Laurent Bovet]

@@ -12,6 +12,8 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.queue.duplicate.DuplicateCheckHandler;
 import io.vertx.redis.RedisClient;
 
+import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
+
 /**
  * Queues requests.
  *
@@ -67,6 +69,6 @@ public class QueuingHandler implements Handler<Buffer> {
     }
 
     public static void cleanup(Vertx vertx) {
-        vertx.eventBus().send(Address.redisquesAddress(), RedisquesAPI.buildCheckOperation());
+        vertx.eventBus().send(Address.redisquesAddress(), buildCheckOperation());
     }
 }

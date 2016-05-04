@@ -21,7 +21,7 @@ import io.vertx.core.json.JsonObject;
 import java.nio.charset.Charset;
 import java.util.*;
 
-import static org.swisspush.gateleen.queue.queuing.RedisquesAPI.*;
+import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
@@ -87,7 +87,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
             if(ctx.request() != null && ctx.request().params().contains("limit")) {
                 limitParam = ctx.request().params().get("limit");
             }
-            eb.send(redisquesAddress, buildGetListRangeOperation(queue, limitParam), new Handler<AsyncResult<Message<JsonObject>>>() {
+            eb.send(redisquesAddress, buildGetQueueItemsOperation(queue, limitParam), new Handler<AsyncResult<Message<JsonObject>>>() {
                 @Override
                 public void handle(AsyncResult<Message<JsonObject>> reply) {
                     JsonObject replyBody = reply.result().body();
@@ -120,7 +120,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         router.getWithRegex(prefix + "/queues/([^/]+)/[0-9]+").handler(ctx -> {
             final String queue = lastPart(ctx.request().path().substring(0, ctx.request().path().length() - 2), "/");
             final int index = Integer.parseInt(lastPart(ctx.request().path(), "/"));
-            eb.send(redisquesAddress, buildGetItemOperation(queue, index), new Handler<AsyncResult<Message<JsonObject>>>() {
+            eb.send(redisquesAddress, buildGetQueueItemOperation(queue, index), new Handler<AsyncResult<Message<JsonObject>>>() {
                 @Override
                 public void handle(AsyncResult<Message<JsonObject>> reply) {
                     JsonObject replyBody = reply.result().body();
@@ -143,7 +143,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
                 final int index = Integer.parseInt(lastPart(ctx.request().path(), "/"));
                 ctx.request().bodyHandler(buffer -> {
                     String strBuffer = encode(buffer.toString());
-                    eb.send(redisquesAddress, buildReplaceItemOperation(queue, index, strBuffer), new Handler<AsyncResult<Message<JsonObject>>>() {
+                    eb.send(redisquesAddress, buildReplaceQueueItemOperation(queue, index, strBuffer), new Handler<AsyncResult<Message<JsonObject>>>() {
                         @Override
                         public void handle(AsyncResult<Message<JsonObject>> reply) {
                             checkReply(reply.result(), ctx.request(), StatusCode.NOT_FOUND);
@@ -157,7 +157,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         router.deleteWithRegex(prefix + "/queues/([^/]+)/[0-9]+").handler(ctx -> {
             final String queue = part(ctx.request().path(), "/", 2);
             final int index = Integer.parseInt(lastPart(ctx.request().path(), "/"));
-            checkLocked(queue, ctx.request(), aVoid -> eb.send(redisquesAddress, buildDeleteItemOperation(queue, index), new Handler<AsyncResult<Message<JsonObject>>>() {
+            checkLocked(queue, ctx.request(), aVoid -> eb.send(redisquesAddress, buildDeleteQueueItemOperation(queue, index), new Handler<AsyncResult<Message<JsonObject>>>() {
                 @Override
                 public void handle(AsyncResult<Message<JsonObject>> reply) {
                     checkReply(reply.result(), ctx.request(), StatusCode.NOT_FOUND);
@@ -170,7 +170,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
             final String queue = part(ctx.request().path(), "/", 1);
             ctx.request().bodyHandler(buffer -> {
                 String strBuffer = encode(buffer.toString());
-                eb.send(redisquesAddress, buildAddItemOperation(queue, strBuffer), new Handler<AsyncResult<Message<JsonObject>>>() {
+                eb.send(redisquesAddress, buildAddQueueItemOperation(queue, strBuffer), new Handler<AsyncResult<Message<JsonObject>>>() {
                     @Override
                     public void handle(AsyncResult<Message<JsonObject>> reply) {
                         checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST);

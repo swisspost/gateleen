@@ -14,9 +14,7 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 
-import static org.swisspush.gateleen.queue.queuing.RedisquesAPI.MESSAGE;
-import static org.swisspush.gateleen.queue.queuing.RedisquesAPI.OK;
-import static org.swisspush.gateleen.queue.queuing.RedisquesAPI.STATUS;
+import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
  * The QueueClient allows you to enqueue various requests.
@@ -111,7 +109,7 @@ public class QueueClient {
     private void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Void> doneHandler) {
         // setting a server-timestamp header if not already set
         ExpiryCheckHandler.updateServerTimestampHeader(queuedRequest);
-        vertx.eventBus().send(Address.redisquesAddress(), RedisquesAPI.buildEnqueueOperation(queue, queuedRequest.toJsonObject().encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
+        vertx.eventBus().send(Address.redisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
             public void handle(AsyncResult<Message<JsonObject>> event) {
                 if (OK.equals(event.result().body().getString(STATUS))) {
