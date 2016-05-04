@@ -125,10 +125,6 @@
 			<groupId>org.swisspush</groupId>
 			<artifactId>redisques</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>org.swisspush</groupId>
-			<artifactId>rest-mirror</artifactId>
-		</dependency>
     </dependencies>
 
 	<build>

@@ -16,7 +16,6 @@ dependencies {
     compile project(':gateleen-qos')
     compile "org.swisspush:redisques:$redisquesVersion"
     compile "org.swisspush:rest-storage:$reststorageVersion"
-    compile "org.swisspush:rest-mirror:$mirrorVersion"
     compile "org.swisspush:mod-metrics:$modmetricsVersion"
     compile "io.vertx:vertx-core:$vertxVersion"
     compile "io.vertx:vertx-web:$vertxVersion"
