@@ -3,7 +3,7 @@
 [![Build Status](https://drone.io/github.com/swisspush/gateleen/status.png)](https://drone.io/github.com/swisspush/gateleen/latest)
 [![Maven Central](https://img.shields.io/maven-central/v/org.swisspush.gateleen/gateleen-core.svg)](https://search.maven.org/#search|ga|1|g%3A%22org.swisspush.gateleen%22%20AND%20v%3A%221.0.4%22)
 
-Middleware library based on Vert.x to build advanced JSON/REST communication servers.
+API-Gateway / Middleware library based on Vert.x to build advanced JSON/REST communication servers.
 
 ## Getting Started
 ### Install
