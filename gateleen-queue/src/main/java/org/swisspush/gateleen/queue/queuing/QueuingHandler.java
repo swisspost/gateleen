@@ -22,13 +22,15 @@ import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
 public class QueuingHandler implements Handler<Buffer> {
 
     public static final String QUEUE_HEADER = "x-queue";
+    public static final String QUEUE_PROCESSING_HEADER = "x-queue-inbound-processed";
     public static final String DUPLICATE_CHECK_HEADER = "x-duplicate-check";
 
     private QueueClient queueClient;
 
     public static boolean isQueued(HttpServerRequest request) {
-        String queue = request.headers().get(QUEUE_HEADER);
-        return HttpMethod.GET != request.method() && queue != null && !queue.trim().isEmpty();
+        String queue = request.getHeader(QUEUE_HEADER);
+        Boolean queueInboundProcessed = Boolean.parseBoolean(request.getHeader(QUEUE_PROCESSING_HEADER));
+        return HttpMethod.GET != request.method() && queue != null && !queue.trim().isEmpty() && !queueInboundProcessed;
     }
 
     private HttpServerRequest request;
@@ -46,10 +48,9 @@ public class QueuingHandler implements Handler<Buffer> {
 
     @Override
     public void handle(final Buffer buffer) {
-        final String queue = request.headers().get(QUEUE_HEADER);
+        final String queue = request.getHeader(QUEUE_HEADER);
         final MultiMap headers = request.headers();
-        // Remove the queue header to avoid feedback loop
-        headers.remove(QUEUE_HEADER);
+        headers.add(QUEUE_PROCESSING_HEADER, Boolean.TRUE.toString());
 
         if (headers.names().contains(DUPLICATE_CHECK_HEADER)) {
             DuplicateCheckHandler.checkDuplicateRequest(redisClient, request.uri(), buffer, headers.get(DUPLICATE_CHECK_HEADER), requestIsDuplicate -> {

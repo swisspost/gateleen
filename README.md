@@ -91,6 +91,7 @@ This is a list of the custom headers used by Gateleen.
 | x-client-timestamp | timestamp of the client while sending the request | |
 | x-server-timestamp | timestamp of the server while sending the request | |
 | x-queue            | indicates a queued request | [gateleen-queue](gateleen-queue/README_queue.md) |
+| x-queue-inbound-processed | used in _queue_ module to mark a received request (having the _x-queue_ header) as processed | [gateleen-queue](gateleen-queue/README_queue.md) |
 | x-duplicate-check  | indicates if a request is a duplicate or not | |
 | x-on-behalf-of     | indicates the user the request originally was made from. This header is used when the request of a user is sent by another user because it couldn't be sent at that time (offline) | |
 | x-user-\<pattern\> | used for the user profile | |
