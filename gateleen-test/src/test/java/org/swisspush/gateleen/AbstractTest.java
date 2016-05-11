@@ -111,7 +111,7 @@ public abstract class AbstractTest {
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
                 LoggingResourceManager loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
                 UserProfileHandler userProfileHandler = new UserProfileHandler(vertx, storage, loggingResourceManager, RunConfig.buildUserProfileConfiguration());
-                RoleProfileHandler roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]*)/profile");
+                RoleProfileHandler roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 HookHandler hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/");
                 propertyHandler = new PropertyHandler(ROOT, props);

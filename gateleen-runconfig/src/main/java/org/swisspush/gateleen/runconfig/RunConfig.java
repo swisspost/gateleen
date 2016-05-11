@@ -344,7 +344,7 @@ public class RunConfig {
         final UserProfileConfiguration.ProfileProperty fullNameConfig = UserProfileConfiguration.ProfileProperty.with("x-rp-displayname", "fullName").setUpdateStrategy(UserProfileConfiguration.UpdateStrategy.UPDATE_ALWAYS).setOptional(false).build();
 
         return UserProfileConfiguration.create()
-                .userProfileUriPattern(SERVER_ROOT + "/users/v1/([^/]*)/profile")
+                .userProfileUriPattern(SERVER_ROOT + "/users/v1/([^/]+)/profile")
                 .roleProfilesRoot(SERVER_ROOT + "/roles/v1/")
                 .rolePattern(ROLE_PATTERN)
                 .addAllowedProfileProperties(allAllowedProfileProperties)

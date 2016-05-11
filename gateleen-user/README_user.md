@@ -48,7 +48,7 @@ To add additional allowed properties you have to create the **allowedProfileProp
 
 To use the allowedProfileProperties resource you have to define the path of the resource in the constructor of the UserProfileHandler. See example below:
 ```java
-new UserProfileHandler(vertx, storage, SERVER_ROOT + "/users/v1/([^/]*)/profile", SERVER_ROOT + "/roles/v1/", SERVER_ROOT + "/users/v1/allowedProfileProperties", 
+new UserProfileHandler(vertx, storage, SERVER_ROOT + "/users/v1/([^/]+)/profile", SERVER_ROOT + "/roles/v1/", SERVER_ROOT + "/users/v1/allowedProfileProperties",
                         Arrays.asList("username", "personalNumber", "mail", "department", "lang"), ROLE_PATTERN);
 ```
 

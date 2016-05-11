@@ -112,7 +112,7 @@ public class UserProfileConfigurationTest {
     public void urlProfileMatch() {
 
         // ARRANGE
-        UserProfileConfiguration userProfileConfiguration = UserProfileConfiguration.create().userProfileUriPattern("/server/users/v1/([^/]*)/profile").build();
+        UserProfileConfiguration userProfileConfiguration = UserProfileConfiguration.create().userProfileUriPattern("/server/users/v1/([^/]+)/profile").build();
 
         // ACT, ASSERT
         assertThat(userProfileConfiguration.doesUrlMatchTheProfileUriPattern("/server/users/v1/09000555/profile"), is(Boolean.TRUE));
@@ -122,13 +122,14 @@ public class UserProfileConfigurationTest {
         assertThat(userProfileConfiguration.doesUrlMatchTheProfileUriPattern("server/users/v1/99999999/profile"), is(Boolean.FALSE));
         assertThat(userProfileConfiguration.doesUrlMatchTheProfileUriPattern("/server/users/v2/99999999/profile"), is(Boolean.FALSE));
 
+        assertThat(userProfileConfiguration.doesUrlMatchTheProfileUriPattern("/server/users/v1//profile"), is(Boolean.FALSE));
     }
 
     @Test
     public void urlUseridExtraction() {
 
         // ARRANGE
-        UserProfileConfiguration userProfileConfiguration = UserProfileConfiguration.create().userProfileUriPattern("/server/users/v1/([^/]*)/profile").build();
+        UserProfileConfiguration userProfileConfiguration = UserProfileConfiguration.create().userProfileUriPattern("/server/users/v1/([^/]+)/profile").build();
 
         // ACT, ASSERT
         assertThat(userProfileConfiguration.extractUserIdFromProfileUri("/server/users/v1/09000555/profile"), is("09000555"));

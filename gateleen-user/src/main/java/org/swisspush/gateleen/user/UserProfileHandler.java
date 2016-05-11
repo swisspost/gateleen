@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.user;
 
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -62,6 +63,7 @@ public class UserProfileHandler {
     }
 
     public void handle(final HttpServerRequest request) {
+        RequestLoggerFactory.getLogger(UserProfileHandler.class, request).info("handling " + request.method() + " " + request.path());
         switch (request.method()) {
         case GET:
             storage.get(request.path(), buffer -> {

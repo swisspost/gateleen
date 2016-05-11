@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.user;
 
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StatusCode;
@@ -40,7 +41,7 @@ public class RoleProfileHandler {
     }
 
     public void handle(final HttpServerRequest request) {
-
+        RequestLoggerFactory.getLogger(RoleProfileHandler.class, request).info("handling " + request.method() + " " + request.path());
         switch (request.method()) {
         case GET:
             storage.get(request.path(), buffer -> {

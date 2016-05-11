@@ -33,7 +33,7 @@ public class UserProfileHandlerTest {
 
         UserProfileConfiguration userProfileConfiguration =
                 UserProfileConfiguration.create()
-                        .userProfileUriPattern("/users/v1/([^/]*)/profile")
+                        .userProfileUriPattern("/users/v1/([^/]+)/profile")
                         .addAllowedProfileProperties("username", "personalNumber", "fullname", "mail", "department", "lang",
                                 "addAttr1", "addAttr2", "addAttr3")
                         .rolePattern("^z-gateleen[-_](.*)$")
@@ -73,7 +73,7 @@ public class UserProfileHandlerTest {
         LoggingResourceManager loggingResourceManager = mock(LoggingResourceManager.class);
         UserProfileConfiguration userProfileConfiguration =
                 UserProfileConfiguration.create()
-                        .userProfileUriPattern("/users/v1/([^/]*)/profile")
+                        .userProfileUriPattern("/users/v1/([^/]+)/profile")
                         .addAllowedProfileProperties("username", "personalNumber", "fullname", "mail", "department", "lang",
                                 "addAttr1", "addAttr2", "addAttr3")
                         .rolePattern("^z-gateleen[-_](.*)$")
