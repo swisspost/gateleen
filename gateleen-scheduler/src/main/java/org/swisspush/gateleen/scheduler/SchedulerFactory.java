@@ -32,6 +32,7 @@ public class SchedulerFactory {
     private static final String PAYLOAD = "payload";
     private static final String REQUESTS = "requests";
     private static final String SCHEDULERS = "schedulers";
+    private static final String RANDOM_OFFSET = "randomOffset";
 
     private final Map<String, Object> properties;
     private Vertx vertx;
@@ -66,6 +67,17 @@ public class SchedulerFactory {
         JsonObject mainObject = new JsonObject(configString);
         for(Map.Entry<String,Object> entry: mainObject.getJsonObject(SCHEDULERS).getMap().entrySet()) {
             Map<String,Object> schedulerJson = (Map<String,Object>)entry.getValue();
+
+            int maxRandomOffset = 0;
+            if ( schedulerJson.containsKey(RANDOM_OFFSET) ) {
+                try {
+                    maxRandomOffset = (Integer) schedulerJson.get(RANDOM_OFFSET);
+                }
+                catch(NumberFormatException e) {
+                    throw new ValidationException("Could not parse " + RANDOM_OFFSET + " of scheduler '"+entry.getKey()+"'", e);
+                }
+            }
+
             List<HttpRequest> requests = new ArrayList<>();
             for(int i = 0; i< ((ArrayList<Object>)schedulerJson.get(REQUESTS)).size(); i++) {
                 try {
@@ -75,7 +87,7 @@ public class SchedulerFactory {
                 }
             }
             try {
-                result.add(new Scheduler(vertx, redisClient, entry.getKey(), (String)schedulerJson.get("cronExpression"), requests, monitoringHandler));
+                result.add(new Scheduler(vertx, redisClient, entry.getKey(), (String)schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset));
             } catch (ParseException e) {
                 throw new ValidationException("Could not parse cron expression of scheduler '"+entry.getKey()+"'", e);
             }

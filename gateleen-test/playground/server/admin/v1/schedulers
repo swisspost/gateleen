@@ -1,0 +1,15 @@
+{
+  "schedulers": {
+    "scheduler-randomOffset-test": {
+      "cronExpression": "/15 * * * * ?",
+      "randomOffset": 20,
+      "requests": [
+        {
+          "uri": "/playground/server/tests/gateleen/schedulerWithRandomOffset",
+          "method": "PUT",
+          "payload": {"content": "1463141793169"}
+        }
+      ]
+    }
+  }
+}

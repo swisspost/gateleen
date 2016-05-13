@@ -1,6 +1,7 @@
 {
   "schedulers": {
     "queue-cleanup": {
+      "randomOffset" : 30,
       "description": "Clean the active queue set and wake up consumers for orphan queues",
       "cronExpression": "0 * * * * ?",
       "requests": [

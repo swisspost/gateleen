@@ -17,10 +17,9 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Random;
 
-import static org.swisspush.redisques.util.RedisquesAPI.OK;
-import static org.swisspush.redisques.util.RedisquesAPI.STATUS;
-import static org.swisspush.redisques.util.RedisquesAPI.buildEnqueueOperation;
+import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
  * Schedules requests to be queued. Synchronizes using redis to ensure only one instance is fired.
@@ -36,10 +35,11 @@ public class Scheduler {
     private List<HttpRequest> requests;
     private long timer;
     private MonitoringHandler monitoringHandler;
+    private long randomOffset = 0L;
 
     private Logger log;
 
-    public Scheduler(Vertx vertx, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler) throws ParseException {
+    public Scheduler(Vertx vertx, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset) throws ParseException {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.name = name;
@@ -47,13 +47,36 @@ public class Scheduler {
         this.requests = requests;
         this.log = LoggerFactory.getLogger(Scheduler.class.getName()+".scheduler-"+name);
         this.monitoringHandler = monitoringHandler;
+        caltRandomOffset(maxRandomOffset);
+    }
+
+    /**
+     * Calculates a randomOffset (delay) before a scheduler
+     * is triggered. The possible offset range is limited bx the
+     * maxRandomOffeset. If the maxRandomOffset is 0, no calculation
+     * is performed.
+     *
+     * @param maxRandomOffset possible offset range in seconds
+     */
+    private void caltRandomOffset(int maxRandomOffset) {
+        // only calc randomOffset if maxRandomOffset is set
+        if ( maxRandomOffset != 0 ) {
+            // offset between 0 and maxRandomOffset (from seconds to miliseconds)
+            randomOffset = new Random().nextInt(maxRandomOffset + 1) * 1000L;
+        }
     }
 
     public void start() {
         log.info("Starting scheduler [ "+cronExpression.getCronExpression()+" ]");
         timer = vertx.setPeriodic(5000, timer -> redisClient.get("schedulers:" + name, reply -> {
             final String stringValue = reply.result();
-            if (stringValue == null || Long.parseLong(stringValue) <= System.currentTimeMillis()) {
+
+            /*
+                To guarantee that a scheduler is always triggered after the same interval,
+                we have to subtract the randomOffset from the current time. This way we don’t
+                change the behavior of the scheduler, because we simply “adjust” the current time.
+             */
+            if (stringValue == null || Long.parseLong(stringValue) <= ( System.currentTimeMillis() - randomOffset) ) {
                 // Either first use of the scheduler or run time reached.
                 // We need to set the next run time
                 final long nextRunTime = nextRunTime();
@@ -102,6 +125,30 @@ public class Scheduler {
     }
 
     private long nextRunTime() {
-        return cronExpression.getNextValidTimeAfter(new Date()).getTime();
+        /*
+            To not increase the interval, we also have to adapt the
+            current time, by subtracting the randomOffset. Otherwise
+            the interval will be increased by the randomOffset.
+         */
+        return cronExpression.getNextValidTimeAfter(new Date(System.currentTimeMillis() - randomOffset)).getTime();
+    }
+
+    /**
+     * Returns the name of the scheduler.
+     *
+     * @return name
+     */
+    protected String getName() {
+        return name;
+    }
+
+    /**
+     * Returns the calculated random offset
+     * for this scheduler.
+     *
+     * @return randomOffset
+     */
+    protected long getRandomOffset() {
+        return randomOffset;
     }
 }

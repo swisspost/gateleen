@@ -121,6 +121,15 @@ public class SchedulerResourceManager implements Refreshable {
         }
     }
 
+    /**
+     * Returns a list of all registred
+     * schedulers.
+     * @return List<Scheduler>
+     */
+    protected List<Scheduler> getSchedulers() {
+        return schedulers;
+    }
+
     @Override
     public void refresh() {
         updateSchedulers();
