@@ -103,9 +103,7 @@ subprojects {
   }
 
   signing {
-    if (project.hasProperty('repository') && "$repository".toLowerCase().contains("sonatype")) {
-      sign configurations.archives
-    }
+    sign configurations.archives
   }
 
   uploadArchives {
@@ -126,7 +124,7 @@ subprojects {
         }
 
         if ("$uploadRepository".toLowerCase().contains("sonatype")) {
-          beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+          beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
         }
 
         configurePom(pom)
