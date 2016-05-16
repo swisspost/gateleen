@@ -1,0 +1,65 @@
+buildscript {
+    repositories {
+
+        try {
+            maven { url "$repository" }
+            println 'use custom plugin repository: ' + "$repository"
+        } catch(Exception e) {
+            maven { url "https://plugins.gradle.org/m2/" }
+            println 'use standard plugin repository'
+        }
+        maven {
+            url "http://artifactory.pnet.ch/artifactory/swisspost/"
+        }
+    }
+    dependencies {
+        classpath "com.github.jengelman.gradle.plugins:shadow:1.2.3"
+    }
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+
+shadowJar {
+    manifest {
+        attributes 'Main-Class': 'org.swisspush.gateleen.playground.Server'
+    }
+}
+
+dependencies {
+    compile project(':gateleen-core')
+    compile project(':gateleen-logging')
+    compile project(':gateleen-monitoring')
+    compile project(':gateleen-runconfig')
+    compile project(':gateleen-routing')
+    compile project(':gateleen-scheduler')
+    compile project(':gateleen-validation')
+    compile project(':gateleen-hook')
+    compile project(':gateleen-packing')
+    compile project(':gateleen-user')
+    compile project(':gateleen-queue')
+    compile project(':gateleen-expansion')
+    compile project(':gateleen-delta')
+    compile project(':gateleen-security')
+    compile project(':gateleen-qos')
+    compile "org.swisspush:redisques:$redisquesVersion"
+    compile "org.swisspush:rest-storage:$reststorageVersion"
+    compile "org.swisspush:rest-mirror:$mirrorVersion"
+    compile "org.swisspush:mod-metrics:$modmetricsVersion"
+    compile "com.codahale.metrics:metrics-core:$metricCoreVersion"
+    compile "io.vertx:vertx-core:$vertxVersion"
+    compile "io.vertx:vertx-web:$vertxVersion"
+    compile "io.vertx:vertx-redis-client:$vertxVersion"
+    compile "commons-lang:commons-lang:$commonsLangVersion"
+    compile "org.springframework:spring-core:$springframeworkVersion"
+    compile "org.slf4j:slf4j-api:$slf4jVersion"
+    compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
+    compile "log4j:log4j:$log4jVersion"
+}
+
+task uploadStaticFiles << {
+    //def restClient = new RESTClient('http://localhost:7012')
+    FileTree tree = fileTree('src/main/resources')
+    tree.each {File file ->
+        println file
+    }
+}
