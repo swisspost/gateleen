@@ -14,8 +14,10 @@ buildscript {
     }
     dependencies {
         classpath "com.github.jengelman.gradle.plugins:shadow:1.2.3"
+        classpath "org.codehaus.groovy.modules.http-builder:http-builder:0.7.1"
     }
 }
+import groovyx.net.http.RESTClient
 
 apply plugin: 'com.github.johnrengelman.shadow'
 
@@ -43,7 +45,6 @@ dependencies {
     compile project(':gateleen-qos')
     compile "org.swisspush:redisques:$redisquesVersion"
     compile "org.swisspush:rest-storage:$reststorageVersion"
-    compile "org.swisspush:rest-mirror:$mirrorVersion"
     compile "org.swisspush:mod-metrics:$modmetricsVersion"
     compile "com.codahale.metrics:metrics-core:$metricCoreVersion"
     compile "io.vertx:vertx-core:$vertxVersion"
@@ -57,9 +58,11 @@ dependencies {
 }
 
 task uploadStaticFiles << {
-    //def restClient = new RESTClient('http://localhost:7012')
+    def rest = new RESTClient( 'http://localhost:7012/' )
     FileTree tree = fileTree('src/main/resources')
     tree.each {File file ->
-        println file
+        def path = file.toURI().getPath().split("src/main/resources/")[1]
+        def resp = rest.put(path: path, body: file.bytes, requestContentType: 'application/octet-stream')
+        println resp.statusLine
     }
 }
