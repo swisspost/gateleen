@@ -140,7 +140,7 @@ public class RoleProfileTest extends AbstractTest {
         // Arrange
         String roleProfilePropertyValue = setRoleProfileProperty();
 
-        TestUtils.waitSomeTime(3);
+        TestUtils.waitSomeTime(5);
         RestAssured.requestSpecification.basePath("/server/users/v1");
         Response response = given().header("x-rp-grp", "z-gateleen-known-role,z-gateleen-admin").get("known-user/profile").then().assertThat().body("foo", equalTo(roleProfilePropertyValue)).extract().response();
 
