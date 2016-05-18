@@ -37,6 +37,8 @@ import org.swisspush.gateleen.user.UserProfileConfiguration;
 import org.swisspush.gateleen.user.UserProfileHandler;
 import org.swisspush.gateleen.validation.ValidationHandler;
 import org.swisspush.gateleen.validation.ValidationResourceManager;
+import org.swisspush.redisques.util.RedisquesConfiguration;
+import org.swisspush.reststorage.util.ModuleConfiguration;
 
 import java.io.FileNotFoundException;
 import java.util.HashMap;
@@ -311,20 +313,23 @@ public class RunConfig {
      * Builds a standard redisques configuration.
      */
     public static JsonObject buildRedisquesConfig(){
-        JsonObject redisquesConfig = new JsonObject();
-        redisquesConfig.put("address", Address.redisquesAddress());
-        redisquesConfig.put("processor-address", Address.queueProcessorAddress());
-        return redisquesConfig;
+        return RedisquesConfiguration.with()
+                .address(Address.redisquesAddress())
+                .processorAddress(Address.queueProcessorAddress())
+                .build()
+                .asJsonObject();
     }
 
     /**
      * Builds a standard storage configuration.
      */
     public static JsonObject buildStorageConfig(){
-        JsonObject storageConfig = new JsonObject();
-        storageConfig.put("storage", "redis");
-        storageConfig.put("storageAddress", Address.storageAddress() + "-main");
-        return storageConfig;
+        return ModuleConfiguration
+                .with()
+                .storageType(ModuleConfiguration.StorageType.redis)
+                .storageAddress(Address.storageAddress() + "-main")
+                .build()
+                .asJsonObject();
     }
 
     /**
