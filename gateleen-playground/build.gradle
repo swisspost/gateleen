@@ -22,10 +22,12 @@ import groovyx.net.http.RESTClient
 apply plugin: 'com.github.johnrengelman.shadow'
 
 shadowJar {
+    archiveName="playground.jar"
     manifest {
         attributes 'Main-Class': 'org.swisspush.gateleen.playground.Server'
     }
 }
+build.finalizedBy(shadowJar)
 
 dependencies {
     compile project(':gateleen-core')
