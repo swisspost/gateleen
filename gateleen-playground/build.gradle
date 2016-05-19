@@ -63,6 +63,7 @@ task uploadStaticFiles << {
     def rest = new RESTClient( 'http://localhost:7012/' )
     FileTree tree = fileTree('src/main/resources')
     tree.each {File file ->
+        println file.name
         def path = file.toURI().getPath().split("src/main/resources/")[1]
         def resp = rest.put(path: path, body: file.bytes, requestContentType: 'application/octet-stream')
         println resp.statusLine
