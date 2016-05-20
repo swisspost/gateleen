@@ -16,15 +16,16 @@ Gateleen is a RESTFul middleware toolkit for building API gateways.
   * [Other](http://redis.io/download)
 
 ### Build
-You need Java 8 and Maven.
+You need Java 8 and gradle.
 ```
 cd gateleen
-mvn install
+gradle build
 ```
 ### Play
 The `gateleen-playground` module provides a server example.
 ```
-java -jar gateleen-playground/target/playground.jar
+gradle gateleen-playground:shadowJar
+java -jar gateleen-playground/build/libs/playground.jar
 ```
 It starts on [http://localhost:7012/playground](http://localhost:7012/playground)
 
@@ -42,8 +43,7 @@ The playground module provides a convenient web client for manipulating resource
 
 You can push them with
 ```
-cd gateleen-playground
-mvn wagon:upload
+gradle gateleen-playground:uploadStaticFiles
 ```
 This just PUTs all resources from folder `src/main/resources`
 
