@@ -24,7 +24,6 @@ gradle build
 ### Play
 The `gateleen-playground` module provides a server example.
 ```
-gradle gateleen-playground:shadowJar
 java -jar gateleen-playground/build/libs/playground.jar
 ```
 It starts on [http://localhost:7012/playground](http://localhost:7012/playground)
