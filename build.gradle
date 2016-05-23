@@ -5,6 +5,30 @@ subprojects {
   apply plugin: 'maven'
   apply plugin: 'signing'
 
+  if (!project.hasProperty('repoUsername')) {
+    ext.repoUsername = 'randomUsername'
+  } else {
+    println 'got property repoUsername: ' + repoUsername
+  }
+
+  if (!project.hasProperty('repoPassword')) {
+    ext.repoPassword = 'randomPassword'
+  } else {
+    //println 'got property repoPassword: ' + repoPassword
+  }
+
+  if(!project.hasProperty('uploadRepository')) {
+    ext.uploadRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+  } else {
+    //println 'found custom uploadRepository: ' + uploadRepository
+  }
+
+  if(!project.hasProperty('snapshotRepository')) {
+    ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+  } else {
+    println 'found custom snapshotRepository: ' + snapshotRepository
+  }
+
   repositories {
 
     try {
@@ -12,20 +36,26 @@ subprojects {
       println 'use custom repository: ' + "$repository"
     } catch(Exception e) {
       maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-      println 'use standard repository'
     }
     mavenCentral()
-
   }
 
-  ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+  ext.uploadToMavenCentral = false
+  gradle.taskGraph.whenReady {taskGraph ->
+    if (taskGraph.hasTask(uploadArchives) && "$uploadRepository".toLowerCase().contains("sonatype")) {
+      //println "uploadToMavenCentral: true"
+      ext.uploadToMavenCentral = true
+    } else {
+      //println "uploadToMavenCentral: false"
+    }
+  }
 
   task sourceJar(type: Jar) {
     description = 'Builds a source jar artifact suitable for maven deployment.'
     classifier = 'sources'
     from sourceSets.main.java
   }
-  sourceJar.onlyIf { isReleaseVersion }
+  sourceJar.onlyIf { uploadToMavenCentral }
 
   compileJava {
     options.encoding = "UTF-8"
@@ -35,7 +65,7 @@ subprojects {
     options.encoding = "UTF-8"
     classpath = configurations.compile
   }
-  javadoc.onlyIf { isReleaseVersion }
+  javadoc.onlyIf { uploadToMavenCentral }
 
   task javadocJar(type: Jar) {
     description = 'Builds a javadoc jar artifact suitable for maven deployment.'
@@ -43,12 +73,16 @@ subprojects {
     from javadoc.destinationDir
   }
   javadocJar.dependsOn javadoc
-  javadocJar.onlyIf { isReleaseVersion }
+  javadocJar.onlyIf { uploadToMavenCentral }
 
   build.dependsOn sourceJar, javadocJar
 
   artifacts {
     archives jar, sourceJar, javadocJar
+  }
+  signing {
+    required { uploadToMavenCentral }
+    sign configurations.archives
   }
 
   test {
@@ -78,35 +112,7 @@ subprojects {
     }
   }
 
-  if (!project.hasProperty('repoUsername')) {
-    ext.repoUsername = 'randomUsername'
-  } else {
-    println 'got property repoUsername: ' + repoUsername
-  }
 
-  if (!project.hasProperty('repoPassword')) {
-    ext.repoPassword = 'randomPassword'
-  } else {
-    println 'got property repoPassword: ' + repoPassword
-  }
-
-  if(!project.hasProperty('uploadRepository')) {
-    ext.uploadRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
-  } else {
-    println 'found custom uploadRepository: ' + uploadRepository
-  }
-
-  if(!project.hasProperty('snapshotRepository')) {
-    ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
-  } else {
-    println 'found custom snapshotRepository: ' + snapshotRepository
-  }
-
-  signing {
-    if (project.hasProperty('repository') && "$repository".toLowerCase().contains("sonatype")) {
-      sign configurations.archives
-    }
-  }
 
   uploadArchives {
     group 'build'
@@ -125,9 +131,7 @@ subprojects {
           authentication(userName: "$repoUsername", password: "$repoPassword")
         }
 
-        if ("$uploadRepository".toLowerCase().contains("sonatype")) {
-          beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-        }
+        beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
 
         configurePom(pom)
       }
@@ -173,3 +177,4 @@ def configurePom(def pom) {
     }
   }
 }
+
