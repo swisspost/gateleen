@@ -47,7 +47,7 @@ public class Scheduler {
         this.requests = requests;
         this.log = LoggerFactory.getLogger(Scheduler.class.getName()+".scheduler-"+name);
         this.monitoringHandler = monitoringHandler;
-        caltRandomOffset(maxRandomOffset);
+        calcRandomOffset(maxRandomOffset);
     }
 
     /**
@@ -58,7 +58,7 @@ public class Scheduler {
      *
      * @param maxRandomOffset possible offset range in seconds
      */
-    private void caltRandomOffset(int maxRandomOffset) {
+    private void calcRandomOffset(int maxRandomOffset) {
         // only calc randomOffset if maxRandomOffset is set
         if ( maxRandomOffset != 0 ) {
             // offset between 0 and maxRandomOffset (from seconds to miliseconds)
