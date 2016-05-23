@@ -16,6 +16,10 @@
 	"definitions": {
 		"Scheduler": {
 			"properties": {
+				"randomOffset" : {
+				    "description" : "maximal random delay offset in seconds for better load balancing",
+					"type": "integer"
+				},
 				"description": {
 					"description": "documentation of the scheduler",
 					"type": "string"

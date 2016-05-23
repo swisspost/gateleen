@@ -80,8 +80,8 @@ public abstract class AbstractTest {
     protected static PropertyHandler propertyHandler;
     protected static Jedis jedis;
     private static HttpServer mainServer;
-
     protected final static Map<String, Object> props = new HashMap<>();
+    protected static SchedulerResourceManager schedulerResourceManager;
 
     /**
      * Starts redis before the test classes are instantiated.
@@ -115,7 +115,7 @@ public abstract class AbstractTest {
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 HookHandler hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/");
                 propertyHandler = new PropertyHandler(ROOT, props);
-
+                schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
                 ResetMetricsController resetMetricsController = new ResetMetricsController(vertx);
                 resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
                 LogController logController = new LogController();
@@ -143,7 +143,7 @@ public abstract class AbstractTest {
                                 .roleProfileHandler(roleProfileHandler)
                                 .userProfileHandler(userProfileHandler)
                                 .loggingResourceManager(loggingResourceManager)
-                                .schedulerResourceManager(new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers"))
+                                .schedulerResourceManager(schedulerResourceManager)
                                 .propertyHandler(propertyHandler)
                                 .build(vertx, redisClient, AbstractTest.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
