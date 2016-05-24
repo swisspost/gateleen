@@ -41,12 +41,15 @@ subprojects {
   }
 
   ext.uploadToMavenCentral = false
-  gradle.taskGraph.whenReady {taskGraph ->
-    if (taskGraph.hasTask(uploadArchives) && "$uploadRepository".toLowerCase().contains("sonatype")) {
-      //println "uploadToMavenCentral: true"
-      ext.uploadToMavenCentral = true
-    } else {
-      //println "uploadToMavenCentral: false"
+  ext.upload = false
+  gradle.taskGraph.whenReady { taskGraph ->
+    if (taskGraph.hasTask(uploadArchives)) {
+      ext.upload = true
+      println "upload: true"
+      if ("$uploadRepository".toLowerCase().contains("sonatype")  && "$snapshotRepository".toLowerCase().contains("sonatype")) {
+        println "uploadToMavenCentral: true"
+        ext.uploadToMavenCentral = true
+      }
     }
   }
 
@@ -55,7 +58,7 @@ subprojects {
     classifier = 'sources'
     from sourceSets.main.java
   }
-  sourceJar.onlyIf { uploadToMavenCentral }
+  sourceJar.onlyIf { upload }
 
   compileJava {
     options.encoding = "UTF-8"
@@ -65,7 +68,7 @@ subprojects {
     options.encoding = "UTF-8"
     classpath = configurations.compile
   }
-  javadoc.onlyIf { uploadToMavenCentral }
+  javadoc.onlyIf { upload }
 
   task javadocJar(type: Jar) {
     description = 'Builds a javadoc jar artifact suitable for maven deployment.'
@@ -73,7 +76,7 @@ subprojects {
     from javadoc.destinationDir
   }
   javadocJar.dependsOn javadoc
-  javadocJar.onlyIf { uploadToMavenCentral }
+  javadocJar.onlyIf { upload }
 
   build.dependsOn sourceJar, javadocJar
 
@@ -131,7 +134,10 @@ subprojects {
           authentication(userName: "$repoUsername", password: "$repoPassword")
         }
 
-        beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
+        if(uploadToMavenCentral) {
+          beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
+        }
+
 
         configurePom(pom)
       }
