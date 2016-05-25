@@ -1,0 +1,32 @@
+buildscript {
+    repositories {
+        try {
+            maven { url "$repository" }
+            println 'buildscript: use custom repository: ' + "$repository"
+        } catch (Exception e) {
+            maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+        }
+        mavenCentral()
+    }
+    dependencies {
+        classpath "gradle.plugin.com.github.lkishalmi.gradle:gradle-gatling-plugin:0.3.0"
+    }
+}
+
+apply plugin: "com.github.lkishalmi.gatling"
+
+group 'org.swisspush.gateleen'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    gatlingRuntime files("src/gatling/conf")
+}
+
+task wrapper(type: Wrapper) {
+  gradleVersion = '2.3'
+  distributionUrl = "https://services.gradle.org/distributions/gradle-$gradleVersion-all.zip"
+}
