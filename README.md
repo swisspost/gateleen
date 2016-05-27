@@ -60,6 +60,7 @@ Then go again on [http://localhost:7012/playground](http://localhost:7012/playgr
 | [logging](gateleen-logging/README_logging.md)                            | Logs request with configurable filtering for later data analysis |
 | [monitoring](gateleen-monitoring/README_monitoring.md)                   | Monitor useful information like number of requests, queue sizes, etc. |
 | [packing](gateleen-packing/README_packing.md)                            | Traffic optimization gathering multiple requests in one |
+| [performancetest](gateleen-performancetest/README_performancetest.md)    | Execute load tests using Gatling.io against a running playground instance |
 | [player](gateleen-player/README_player.md)                               | Test tool to replay traffic recorded with gateleen-logging for automated tests and troubleshooting |
 | [playground](gateleen-playground/README_playground.md)                   | Server example    |
 | [qos](gateleen-qos/README_qos.md)                                        | Traffic priorization by rejecting requests to low-priority routes to keep more important features working when backends go down and load increases due to timeouts and retries |

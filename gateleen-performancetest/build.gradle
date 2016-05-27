@@ -10,8 +10,11 @@ buildscript {
     }
     dependencies {
         classpath "gradle.plugin.com.github.lkishalmi.gradle:gradle-gatling-plugin:0.3.0"
+        classpath "org.codehaus.groovy.modules.http-builder:http-builder:0.7.1"
     }
 }
+
+import groovyx.net.http.RESTClient
 
 apply plugin: "com.github.lkishalmi.gatling"
 
@@ -24,6 +27,21 @@ repositories {
 
 dependencies {
     gatlingRuntime files("src/gatling/conf")
+}
+
+task uploadStaticFiles << {
+    def targetHost = System.getProperty("targetHost", "localhost")
+    def targetPort = System.getProperty("targetPort", "7012")
+    def serverUrl = 'http://'+targetHost+':'+targetPort+'/'
+    println 'About to upload server resources to ' + serverUrl
+    def rest = new RESTClient( serverUrl )
+    FileTree tree = fileTree('src/server/resources')
+    tree.each {File file ->
+        println file.name
+        def path = file.toURI().getPath().split("src/server/resources/")[1]
+        def resp = rest.put(path: path, body: file.bytes, requestContentType: 'application/octet-stream')
+        println resp.statusLine
+    }
 }
 
 task wrapper(type: Wrapper) {
