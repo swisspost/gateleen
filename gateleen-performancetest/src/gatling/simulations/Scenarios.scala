@@ -11,4 +11,8 @@ object Scenarios {
     .exec(Tasks.readFromStorage)
     .exec(Tasks.deleteFromStorage)
     .exec(Tasks.readNotExistingResourceFromStorage)
+
+  val expandRequests = scenario("Expand requests")
+    .exec(Tasks.writeReadExpand)
+    .exec(Tasks.writeReadStorageExpand)
 }

@@ -13,10 +13,19 @@ class GateleenPerformanceTestSimulation extends Simulation {
   val httpConf = http.baseURL(baseURL).warmUp(baseURL + "/playground")
 
   before {
-    println("About to start performance tests on host " +targetHost+ " and port " + targetPort)
+    println("About to start performance tests on host " + baseURL)
   }
 
   setUp(
-    Scenarios.storageOperations.inject(rampUsers(500) over(30 seconds))
-  ).protocols(httpConf)
+    Scenarios.storageOperations.inject(rampUsers(500) over(60 seconds)),
+    Scenarios.expandRequests.inject(
+      constantUsersPerSec(10) during(10 seconds),
+      constantUsersPerSec(20) during(10 seconds),
+      constantUsersPerSec(40) during(20 seconds),
+      constantUsersPerSec(10) during(20 seconds)
+    )
+  )
+    .protocols(httpConf)
+    .assertions(global.successfulRequests.percent.is(100))
+
 }
