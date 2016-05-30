@@ -15,4 +15,10 @@ object Scenarios {
   val expandRequests = scenario("Expand requests")
     .exec(Tasks.writeReadExpand)
     .exec(Tasks.writeReadStorageExpand)
+
+  val enqueueRequests = scenario("Queueing: enqueue")
+    .exec(Tasks.enqueue)
+
+  val checkQueuesEmpty = scenario("Queueing: check queues are empty")
+    .exec(Tasks.readQueues)
 }

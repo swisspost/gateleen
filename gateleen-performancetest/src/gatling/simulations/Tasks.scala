@@ -7,6 +7,12 @@ import scala.util.Random
 
 object Tasks {
 
+  private def randomString = Random.alphanumeric.take(10).mkString
+  private def randomResource =  s"""{
+    "name": "$randomString",
+    "description": "$randomString"
+  }"""
+
   val writeToStorage = exec(session => session.set("resourceId", Random.alphanumeric.take(30).mkString))
       .exec(http("write resource to storage")
         .put("/playground/server/test/resources/res_${resourceId}")
@@ -27,6 +33,21 @@ object Tasks {
   val readNotExistingResourceFromStorage = exec(http("read not existing resource from storage")
     .get("/playground/server/test/resources/res_${resourceId}")
     .check(status is 404)
+  )
+
+  val enqueue = repeat(100) {
+    exec(session => session.set("queueName", Random.alphanumeric.take(10).mkString))
+      .exec(http("enqueue")
+        .put("/playground/server/test/queuetests/res")
+        .header("x-queue", "queue_${queueName}")
+        .body(StringBody(randomResource)).asJSON
+        .check(status is 202)
+      )
+  }
+
+  val readQueues = exec(http("read queues")
+    .get("/playground/server/queuing/queues/")
+    .check(status is 200, jsonPath("$.queues[*]").count is 0)
   )
 
   val writeReadExpand = buildExpandTasks("/playground/server/test/resources/expand")
