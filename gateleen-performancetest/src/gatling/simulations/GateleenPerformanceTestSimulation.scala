@@ -23,7 +23,9 @@ class GateleenPerformanceTestSimulation extends Simulation {
       constantUsersPerSec(20) during(10 seconds),
       constantUsersPerSec(40) during(20 seconds),
       constantUsersPerSec(10) during(20 seconds)
-    )
+    ),
+    Scenarios.enqueueRequests.inject(constantUsersPerSec(10) during(10 seconds)),
+    Scenarios.checkQueuesEmpty.inject(nothingFor(40 seconds), atOnceUsers(1))
   )
     .protocols(httpConf)
     .assertions(global.successfulRequests.percent.is(100))
