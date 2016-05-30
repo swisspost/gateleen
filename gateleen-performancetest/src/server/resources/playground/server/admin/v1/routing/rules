@@ -4,24 +4,11 @@
     "path": "/playground/server/pages/index.html",
     "storage": "main"
   },
-  "/playground/([^/]*\\\\.html)": {
-    "description": "Pages",
-    "path": "/playground/server/pages/$1",
-    "storage": "main"
-  },
-  "/playground/css/(.*)": {
-    "description": "Pages CSS",
-    "path": "/playground/server/pages/css/$1",
-    "storage": "main"
-  },
-  "/playground/js/(.*)": {
-    "description": "Pages JS",
-    "path": "/playground/server/pages/js/$1",
-    "storage": "main"
-  },
-  "/playground/img/(.*)": {
-    "description": "Pages Images",
-    "path": "/playground/server/pages/img/$1",
+  "/playground/server/test/resources/storageExpand/(.*)": {
+    "description": "Get storage resources with activated storageExpand",
+    "metricName": "expand_with_active_storageExpand",
+    "path": "/playground/server/test/resources/storageExpand/$1",
+    "storageExpand": true,
     "storage": "main"
   },
   "/playground/server/storage/empty": {

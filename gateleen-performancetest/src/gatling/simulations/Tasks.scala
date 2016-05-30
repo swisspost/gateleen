@@ -29,4 +29,49 @@ object Tasks {
     .check(status is 404)
   )
 
+  val writeReadExpand = buildExpandTasks("/playground/server/test/resources/expand")
+
+  val writeReadStorageExpand = buildExpandTasks("/playground/server/test/resources/storageExpand")
+
+  def buildExpandTasks(path: String) = {
+    exec(
+      session => session.set("randomFolder", Random.alphanumeric.take(30).mkString))
+      .exec(http("add expand resoure 1")
+        .put(path + "/${randomFolder}/res_1")
+        .body(RawFileBody("dummyContent.json")).asJSON
+        .check(status is 200)
+      )
+      .exec(http("add expand resoure 2")
+        .put(path + "/${randomFolder}/res_2")
+        .body(RawFileBody("dummyContent.json")).asJSON
+        .check(status is 200)
+      )
+      .exec(http("add expand resoure 3")
+        .put(path + "/${randomFolder}/res_3")
+        .body(RawFileBody("dummyContent.json")).asJSON
+        .check(status is 200)
+      )
+      .exec(http("add expand resoure 4")
+        .put(path + "/${randomFolder}/res_4")
+        .body(RawFileBody("dummyContent.json")).asJSON
+        .check(status is 200)
+      )
+      .exec(http("add expand resoure 5")
+        .put(path + "/${randomFolder}/res_5")
+        .body(RawFileBody("dummyContent.json")).asJSON
+        .check(status is 200)
+      )
+      .exec(http("get expand no etag")
+        .get(path + "/${randomFolder}/")
+        .queryParam("expand", "1")
+        .check(status is 200, header("Etag").saveAs("EtagValue"))
+      )
+      .pause(1)
+      .exec(http("get expand with etag")
+        .get(path + "/${randomFolder}/")
+        .queryParam("expand", "1")
+        .header("If-None-Match", "${EtagValue}")
+        .check(status is 304)
+      )
+  }
 }
