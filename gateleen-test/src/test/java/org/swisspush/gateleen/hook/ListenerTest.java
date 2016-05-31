@@ -1,16 +1,5 @@
 package org.swisspush.gateleen.hook;
 
-import static com.jayway.awaitility.Awaitility.await;
-import static com.jayway.restassured.RestAssured.delete;
-import static com.jayway.restassured.RestAssured.given;
-import static com.jayway.restassured.RestAssured.when;
-import static com.jayway.restassured.RestAssured.with;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.swisspush.gateleen.AbstractTest;
-import org.swisspush.gateleen.TestUtils;
 import com.jayway.awaitility.Awaitility;
 import com.jayway.awaitility.Duration;
 import com.jayway.restassured.RestAssured;
@@ -18,6 +7,17 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.swisspush.gateleen.AbstractTest;
+import org.swisspush.gateleen.TestUtils;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static com.jayway.awaitility.Awaitility.await;
+import static com.jayway.restassured.RestAssured.*;
+import static org.hamcrest.CoreMatchers.*;
 
 /**
  * Test class for the hook listener feature.
@@ -478,6 +478,73 @@ public class ListenerTest extends AbstractTest {
         async.complete();
     }
 
+    @Test
+    public void testHookQueueExpiryOverride(TestContext context) {
+        // Prepare Environment
+        // ----
+        RestAssured.requestSpecification.basePath(SERVER_ROOT + "/");
+        RestAssured.requestSpecification.urlEncodingEnabled(false);
+
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+        // ----
+
+
+        // Prepare Test
+        // ----
+        String sourceUrl = requestUrlBase + "/basecollection";
+        String requestUrl = sourceUrl + TestUtils.getHookListenersUrlSuffix() + "testservice" + "/" + 1;
+        String targetUrl = targetUrlBase + "/result";
+
+        String queueName = HookHandler.LISTENER_QUEUE_PREFIX + "-" + hookHandler.getUniqueListenerId(SERVER_ROOT + requestUrl);
+
+        String putRequest = sourceUrl + "/test1";
+        String putTarget = targetUrl + "/test1";
+        String body = "{\"foo\" : \"bar1\"}";
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("x-queue", queueName);
+        // ----
+
+        // register Listener
+        registerListener(requestUrl,targetUrl,null, 10, null, 5);
+
+        // lock queue
+        String lockRequestUrl = "queuing/locks/" + queueName;
+        given().put(lockRequestUrl);
+
+        // put
+        checkPUTStatusCode(putRequest,body, 200);
+
+        // check if item is in queue
+        when().get("queuing/queues/").then().assertThat().body("queues", hasItem(queueName));
+
+        // the request should not be redirected (yet)
+        when().get(putTarget).then().assertThat().statusCode(404);
+
+        // wait till request is expired
+        TestUtils.waitSomeTime(6);
+
+        // unlock & flush
+        when().delete(lockRequestUrl).then().assertThat().statusCode(200);
+        given().headers(headers).put("test/gateleen/queueexpiry/flush");
+
+        // wait some seconds
+        TestUtils.waitSomeTime(2);
+
+        // check if resource was written (should be discared)
+        when().get(putTarget).then().assertThat().statusCode(404);
+
+        // put
+        checkPUTStatusCode(putRequest,body, 200);
+
+        // get
+        checkGETBodyWithAwait(putTarget, body);
+
+        async.complete();
+    }
+
     /**
      * Checks if the DELETE request gets a response
      * with the given status code.
@@ -537,7 +604,7 @@ public class ListenerTest extends AbstractTest {
     }
 
     /**
-     * Registers a listener with a filter.
+     * Registers a listener.
      *
      * @param requestUrl
      * @param target
@@ -546,6 +613,20 @@ public class ListenerTest extends AbstractTest {
      * @param filter
      */
     private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter) {
+        registerListener(requestUrl, target, methods, expireTime, filter, null);
+    }
+
+    /**
+     * Registers a listener with a filter.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param expireTime
+     * @param filter
+     * @param queueExpireTime
+     */
+    private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime) {
         String body = "{ \"destination\":\"" + target + "\"";
 
         String m = null;
@@ -556,7 +637,8 @@ public class ListenerTest extends AbstractTest {
             m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
             m = "\"methods\": [" + m + "]";
         }
-        body += expireTime != null ? ", \"expireTime\" : " + expireTime : "";
+        body += expireTime != null ? ", \""+ HookHandler.EXPIRE_AFTER + "\" : " + expireTime : "";
+        body += queueExpireTime != null ? ", \""+ HookHandler.QUEUE_EXPIRE_AFTER + "\" : " + queueExpireTime : "";
         body += filter != null ? ", \"filter\" : \"" + filter + "\"" : "";
         body = body + "}";
 

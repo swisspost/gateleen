@@ -1,7 +1,5 @@
 package org.swisspush.gateleen.queue.expiry;
 
-import org.swisspush.gateleen.AbstractTest;
-import org.swisspush.gateleen.TestUtils;
 import com.jayway.awaitility.Duration;
 import com.jayway.restassured.RestAssured;
 import io.vertx.ext.unit.Async;
@@ -9,14 +7,18 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.AbstractTest;
+import org.swisspush.gateleen.TestUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static com.jayway.awaitility.Awaitility.await;
+import static com.jayway.awaitility.Duration.TEN_SECONDS;
 import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
+
 
 /**
  * Test class for the expiration feature of
@@ -156,6 +158,112 @@ public class ResourceQueueExpiryTest extends AbstractTest {
         when().get(passedRequestUrl).then().assertThat().statusCode(200);
 
         // ----
+
+        async.complete();
+    }
+
+    @Test
+    public void testQueueExpiryOverride_requestIsExpired_beforeRegularExpiryTime(TestContext context) {
+        Async async = context.async();
+        delete();
+
+        System.out.println("testQueueExpiry");
+
+        RestAssured.basePath = "/server/";
+
+        // lock the queue
+        String name = "gateleen-queue-expiry-override-test-one";
+        String lockRequestUrl = "queuing/locks/" + name;
+        given().put(lockRequestUrl);
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("x-queue", name);
+        headers.put("x-expire-after", "10");
+        headers.put("x-queue-expire-after", "5");
+
+        // put something to the queue
+        String discardedRequestUrl = "tests/gateleen/queueexpiry/" + name;
+        String discardedBody = "{ \"name\" : \"" + name + "\" }";
+
+        given().headers(headers).body(discardedBody).when().put(discardedRequestUrl);
+
+        // wait 2 seconds
+        await().timeout(Duration.TWO_SECONDS);
+
+        // check if item is still in queue - yes
+        when().get("queuing/queues/").then().assertThat().body("queues", hasItem(name));
+
+        // wait 5 seconds
+        TestUtils.waitSomeTime(5);
+
+        // remove the locks and flush
+        when().delete(lockRequestUrl).then().assertThat().statusCode(200);
+        given().headers(headers).put("test/gateleen/queueexpiry/flush");
+
+        // wait some seconds
+        TestUtils.waitSomeTime(2);
+
+        // check if resource was written (should be discared)
+        when().get(discardedRequestUrl).then().assertThat().statusCode(404);
+
+        async.complete();
+    }
+
+
+    @Test
+    public void testQueueExpiryOverride_requestIsNotExpired_regularResourceExpiry(TestContext context) {
+        Async async = context.async();
+        delete();
+
+        System.out.println("testQueueExpiry");
+
+        RestAssured.basePath = "/server/";
+
+        // lock the queue
+        String name = "gateleen-queue-expiry-override-test-two";
+        String lockRequestUrl = "queuing/locks/" + name;
+        given().put(lockRequestUrl);
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("x-queue", name);
+        headers.put("x-expire-after", "15");
+        headers.put("x-queue-expire-after", "8");
+
+        // put something to the queue
+        String discardedRequestUrl = "tests/gateleen/queueexpiry/" + name;
+        String discardedBody = "{ \"name\" : \"" + name + "\" }";
+
+        given().headers(headers).body(discardedBody).when().put(discardedRequestUrl);
+
+        // wait 2 seconds
+        await().timeout(Duration.TWO_SECONDS);
+
+        // check if item is still in queue - yes
+        when().get("queuing/queues/").then().assertThat().body("queues", hasItem(name));
+
+        // wait some seconds
+        TestUtils.waitSomeTime(2);
+
+        // remove the locks and flush
+        when().delete(lockRequestUrl).then().assertThat().statusCode(200);
+        given().headers(headers).put("test/gateleen/queueexpiry/flush");
+
+        // wait some seconds
+        TestUtils.waitSomeTime(2);
+
+        // check if resource was written
+        when().get(discardedRequestUrl).then().assertThat().statusCode(200);
+
+        // wait some seconds
+        TestUtils.waitSomeTime(5);
+
+        // check if resource was written
+        when().get(discardedRequestUrl).then().assertThat().statusCode(200);
+
+        // wait some time till expiry
+        await().atMost(TEN_SECONDS).until(() ->
+                get(discardedRequestUrl).getStatusCode(),
+                equalTo(404));
 
         async.complete();
     }

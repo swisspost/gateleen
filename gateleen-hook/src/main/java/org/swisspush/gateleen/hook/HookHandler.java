@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class HookHandler {
     public static final String HOOKED_HEADER = "x-hooked";
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
-    private static final String LISTENER_QUEUE_PREFIX = "listener-hook";
+    public static final String LISTENER_QUEUE_PREFIX = "listener-hook";
     private static final String LISTENER_HOOK_TARGET_PATH = "listeners/";
 
     public static final String HOOKS_ROUTE_URI_PART = "/_hooks/route";
@@ -54,6 +54,7 @@ public class HookHandler {
     public static final String EXPIRATION_TIME = "expirationTime";
     public static final String HOOK = "hook";
     public static final String EXPIRE_AFTER = "expireAfter";
+    public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String FULL_URL = "fullUrl";
 
     private Logger log = LoggerFactory.getLogger(HookHandler.class);
@@ -467,6 +468,10 @@ public class HookHandler {
                     ExpiryCheckHandler.setExpireAfter(queueHeaders, listener.getHook().getExpireAfter());
                 }
 
+                if(ExpiryCheckHandler.getQueueExpireAfter(queueHeaders) == null && listener.getHook().getQueueExpireAfter() != -1 ) {
+                    ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
+                }
+
                 // in order not to block the queue because one client returns a creepy response,
                 // we translate all status codes of the listeners to 200.
                 // Therefor we set the header x-translate-status-4xx
@@ -798,6 +803,10 @@ public class HookHandler {
             hook.setExpireAfter(DEFAULT_HOOK_LISTENERS_EXPIRE_AFTER_TIME);
         }
 
+        if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
+            hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
+        }
+
         /*
          * Despite the fact, that every hook
          * should have an expiration time,
@@ -857,7 +866,7 @@ public class HookHandler {
      * @param requestUrl requestUrl
      * @return String
      */
-    private String getUniqueListenerId(String requestUrl) {
+    protected String getUniqueListenerId(String requestUrl) {
         StringBuffer listenerId = new StringBuffer();
 
         // eg. http/colin/1 -> http+colin+1
@@ -906,6 +915,10 @@ public class HookHandler {
             hook.setExpireAfter(jsonHook.getInteger(EXPIRE_AFTER));
         } else {
             hook.setExpireAfter(DEFAULT_HOOK_LISTENERS_EXPIRE_AFTER_TIME);
+        }
+
+        if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
+            hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
         }
 
         /*
