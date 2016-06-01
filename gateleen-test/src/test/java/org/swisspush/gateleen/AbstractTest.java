@@ -82,6 +82,7 @@ public abstract class AbstractTest {
     private static HttpServer mainServer;
     protected final static Map<String, Object> props = new HashMap<>();
     protected static SchedulerResourceManager schedulerResourceManager;
+    protected static HookHandler hookHandler;
 
     /**
      * Starts redis before the test classes are instantiated.
@@ -113,7 +114,7 @@ public abstract class AbstractTest {
                 UserProfileHandler userProfileHandler = new UserProfileHandler(vertx, storage, loggingResourceManager, RunConfig.buildUserProfileConfiguration());
                 RoleProfileHandler roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
-                HookHandler hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/");
+                hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/");
                 propertyHandler = new PropertyHandler(ROOT, props);
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
                 ResetMetricsController resetMetricsController = new ResetMetricsController(vertx);

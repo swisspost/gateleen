@@ -24,6 +24,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 public final class ExpiryCheckHandler {
     public static final String SERVER_TIMESTAMP_HEADER = "X-Server-Timestamp";
     public static final String EXPIRE_AFTER_HEADER = "X-Expire-After";
+    public static final String QUEUE_EXPIRE_AFTER_HEADER = "x-queue-expire-after";
 
     private static Logger log = LoggerFactory.getLogger(ExpiryCheckHandler.class);
 
@@ -71,7 +72,7 @@ public final class ExpiryCheckHandler {
         if (serverTimestamp == null) {
             String nowAsISO = dfISO8601.print(Instant.now());
 
-            log.debug("Setting " + SERVER_TIMESTAMP_HEADER + " value to " + nowAsISO + "  since header " + EXPIRE_AFTER_HEADER + " is not defined");
+            log.debug("Setting " + SERVER_TIMESTAMP_HEADER + " value to " + nowAsISO + "  since header " + SERVER_TIMESTAMP_HEADER + " is not defined");
 
             headers.set(SERVER_TIMESTAMP_HEADER, nowAsISO);
         } else {
@@ -95,27 +96,52 @@ public final class ExpiryCheckHandler {
      * @return expire-after time in seconds or null if nothing is found
      */
     public static Integer getExpireAfter(MultiMap headers) {
-        String expireAfterHeaderValue = headers.get(EXPIRE_AFTER_HEADER);
+        return getExpireValue(headers, EXPIRE_AFTER_HEADER);
+    }
+
+    /**
+     * Extracts the value of the "x-queue-expire-after" header.
+     * If the value can't be extracted (not found, invalid, and so on),
+     * null is returned.
+     *
+     * @param headers headers
+     * @return queue-expire-after time in seconds or null if nothing is found
+     */
+    public static Integer getQueueExpireAfter(MultiMap headers) {
+        return getExpireValue(headers, QUEUE_EXPIRE_AFTER_HEADER);
+    }
+
+    /**
+     * Extracts the value of the given header field.
+     * If the value can't be extracted (not found, invalid, and so on),
+     * null is returned.
+     *
+     * @param headers headers
+     * @param field the header field
+     * @return expire-after time in seconds or null if nothing is found
+     */
+    private static Integer getExpireValue(MultiMap headers, String field) {
+        String expireHeaderValue = headers.get(field);
 
         Integer value;
 
-        // no header set for X-Expire-After
-        if (expireAfterHeaderValue == null) {
-            log.debug(EXPIRE_AFTER_HEADER + " not defined");
+        // no header set for the given field
+        if (expireHeaderValue == null) {
+            log.debug(field + " not defined");
             value = null;
         } else {
             try {
-                value = Integer.parseInt(expireAfterHeaderValue);
+                value = Integer.parseInt(expireHeaderValue);
 
                 // redis returns an error if setex is called with negativ values
                 if (value < 0) {
-                    log.debug(EXPIRE_AFTER_HEADER + " is a negative number: " + expireAfterHeaderValue);
+                    log.debug(field + " is a negative number: " + expireHeaderValue);
                     value = null;
                 } else {
-                    log.debug("Setting " + EXPIRE_AFTER_HEADER + " value to " + value + " seconds as defined in header " + EXPIRE_AFTER_HEADER);
+                    log.debug("Setting " + field + " value to " + value + " seconds as defined in header " + field);
                 }
             } catch (Exception e) {
-                log.warn(EXPIRE_AFTER_HEADER + " is not a number: " + expireAfterHeaderValue);
+                log.warn(field + " is not a number: " + expireHeaderValue);
                 value = null;
             }
         }
@@ -147,7 +173,9 @@ public final class ExpiryCheckHandler {
 
     /**
      * Checks the expiration based on the given headers.
-     * If no "X-Expire-After" or "X-Server-Timestamp" is found <code>false</code> is returned.
+     * If "X-Expire-After" or "x-queue-expire-after" and
+     * no "X-Server-Timestamp" is found <code>false</code>
+     * is returned.
      * 
      * @param headers headers
      * @return true if the request has expired, false otherwise
@@ -155,8 +183,15 @@ public final class ExpiryCheckHandler {
     public static boolean isExpired(MultiMap headers) {
         if (headers != null) {
 
+            Integer queueExpireAfter = getQueueExpireAfter(headers);
             Integer expireAfter = getExpireAfter(headers);
+
             String serverTimestamp = headers.get(SERVER_TIMESTAMP_HEADER);
+
+            // override expireAfter if x-queue-expire-after header is set
+            if ( queueExpireAfter != null ) {
+                expireAfter = queueExpireAfter;
+            }
 
             if (serverTimestamp != null && expireAfter != null) {
                 LocalDateTime timestamp = parseDateTime(serverTimestamp);
@@ -241,6 +276,21 @@ public final class ExpiryCheckHandler {
     }
 
     /**
+     * Sets an "x-queue-expire-after" header.
+     * If such a header already exist, it's overridden by the new value.
+     *
+     * @param request request
+     * @param queueExpireAfter expireAfter
+     */
+    public static void setQueueExpireAfter(HttpRequest request, int queueExpireAfter) {
+        if (request.getHeaders() == null) {
+            request.setHeaders(new CaseInsensitiveHeaders());
+        }
+
+        setFieldValue(request.getHeaders(), QUEUE_EXPIRE_AFTER_HEADER, queueExpireAfter);
+    }
+
+    /**
      * Sets an "X-Expire-After" header.
      * If such a header already exist, it's overridden by the new value.
      * 
@@ -252,7 +302,18 @@ public final class ExpiryCheckHandler {
             request.setHeaders(new CaseInsensitiveHeaders());
         }
 
-        setExpireAfter(request.getHeaders(), expireAfter);
+        setFieldValue(request.getHeaders(), EXPIRE_AFTER_HEADER, expireAfter);
+    }
+
+    /**
+     * Sets an "x-queue-expire-after" header.
+     * If such a header already exist, it's overridden by the new value.
+     *
+     * @param request request
+     * @param queueExpireAfter expireAfter
+     */
+    public static void setQueueExpireAfter(HttpServerRequest request, int queueExpireAfter) {
+        setFieldValue(request.headers(), QUEUE_EXPIRE_AFTER_HEADER, queueExpireAfter);
     }
 
     /**
@@ -263,22 +324,45 @@ public final class ExpiryCheckHandler {
      * @param expireAfter expireAfter
      */
     public static void setExpireAfter(HttpServerRequest request, int expireAfter) {
-        setExpireAfter(request.headers(), expireAfter);
+        setFieldValue(request.headers(), EXPIRE_AFTER_HEADER, expireAfter);
+    }
+
+    /**
+     * Sets an "x-queue-expire-after" header.
+     * If such a header already exist, it's overridden by the new value.
+     *
+     * @param headers headers
+     * @param queueExpireAfter queueExpireAfter
+     */
+    public static void setQueueExpireAfter(MultiMap headers, int queueExpireAfter) {
+        setFieldValue(headers, QUEUE_EXPIRE_AFTER_HEADER, queueExpireAfter);
     }
 
     /**
      * Sets an "X-Expire-After" header.
      * If such a header already exist, it's overridden by the new value.
-     * 
+     *
      * @param headers headers
      * @param expireAfter expireAfter
      */
     public static void setExpireAfter(MultiMap headers, int expireAfter) {
-        if (headers.get(EXPIRE_AFTER_HEADER) != null) {
-            headers.remove(EXPIRE_AFTER_HEADER);
+        setFieldValue(headers, EXPIRE_AFTER_HEADER, expireAfter);
+    }
+
+    /**
+     * Sets a header with the given field name and the given expire value.
+     * If such a header already exist, it's overridden by the new value.
+
+     * @param headers headers
+     * @param field the name of the header field
+     * @param expireValue expireValue
+     */
+    private static void setFieldValue( MultiMap headers, String field, int expireValue ) {
+        if (headers.get(field) != null) {
+            headers.remove(field);
         }
 
-        headers.set(EXPIRE_AFTER_HEADER, String.valueOf(expireAfter));
+        headers.set(field, String.valueOf(expireValue));
     }
 
     /**

@@ -5,7 +5,6 @@ import org.joda.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
-import org.joda.time.LocalDateTime;
 
 /**
  * Represents a hook.
@@ -19,6 +18,7 @@ public class HttpHook {
     private LocalDateTime expirationTime;
     private boolean fullUrl = false;
     private Pattern filter = null;
+    private int queueExpireAfter;
 
     /**
      * Creates a new hook.
@@ -28,6 +28,7 @@ public class HttpHook {
     public HttpHook(String destination) {
         this.destination = destination;
         methods = new ArrayList<String>();
+        queueExpireAfter = -1;
     }
 
     /**
@@ -139,5 +140,31 @@ public class HttpHook {
      */
     public void setFilter(String regex) {
         filter = Pattern.compile(regex);
+    }
+
+    /**
+     * Gets the expiry (x-queue-expire-after header)
+     * for the requests in the queue send to the
+     * listener.
+     * A -1 means that no expiry is set (the header
+     * will not be set).
+     *
+     * @return a value in seconds
+     */
+    public int getQueueExpireAfter() {
+        return queueExpireAfter;
+    }
+
+    /**
+     * Sets the expiry (x-queue-expire-after header)
+     * for the requests in the queue send to the
+     * listener.
+     * A -1 means that no expiry is set (the header
+     * will not be set!).
+     *
+     * @param queueExpireAfter - a value in seconds
+     */
+    public void setQueueExpireAfter(int queueExpireAfter) {
+        this.queueExpireAfter = queueExpireAfter;
     }
 }
