@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.hook;
 
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.jayway.awaitility.Awaitility;
 import com.jayway.awaitility.Duration;
 import com.jayway.restassured.RestAssured;
@@ -7,17 +9,23 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
 import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.*;
+
+
 
 /**
  * Test class for the hook listener feature.
@@ -26,8 +34,12 @@ import static org.hamcrest.CoreMatchers.*;
  */
 @RunWith(VertxUnitRunner.class)
 public class ListenerTest extends AbstractTest {
+    private final static int WIREMOCK_PORT = 8881;
     private String requestUrlBase;
     private String targetUrlBase;
+
+    @Rule
+    public WireMockRule wireMockRule = new WireMockRule(WIREMOCK_PORT);
 
     /**
      * Overwrite RestAssured configuration
@@ -545,6 +557,62 @@ public class ListenerTest extends AbstractTest {
         async.complete();
     }
 
+    @Test
+    public void testListenerWithStaticHeaders(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+        RestAssured.requestSpecification.urlEncodingEnabled(false);
+
+
+        // Settings
+        String scenario = "testListenerWithStaticHeaders";
+        String subresource = "lOne";
+        String listenerNo = "1";
+        String listenerName = "lOne";
+        Map<String, String> staticHeaders = new LinkedHashMap<>();
+        staticHeaders.put("x-test1", "test1");
+        // -------
+
+        String registerUrl = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
+        String target = "http://localhost:" + WIREMOCK_PORT + "/" + listenerName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        final String requestUrl = requestUrlBase + "/" + subresource + "/" + "test";
+        final String targetUrl = target + "/" + "test";
+        final String body = "{ \"name\" : \"" + subresource + "\"}";
+
+        String targetUrlPart = "/" + listenerName + "/test";
+
+        delete(requestUrl);
+        delete(targetUrl);
+
+        // register a listener
+        registerListener(registerUrl, target, methods, null, null, null, staticHeaders);
+
+        // prepare WireMock (stateful)
+        WireMock.stubFor(WireMock.put(WireMock.urlEqualTo(targetUrlPart)).inScenario(scenario)
+                .whenScenarioStateIs(STARTED)
+                .withHeader("x-test1", WireMock.equalTo("test1"))
+                .willReturn(aResponse().withStatus(200))
+                .willSetStateTo("OK"));
+        WireMock.stubFor(WireMock.get(WireMock.urlEqualTo(targetUrlPart)).inScenario(scenario)
+                .whenScenarioStateIs("OK")
+                .willReturn(aResponse().withStatus(200)));
+        WireMock.stubFor(WireMock.get(WireMock.urlEqualTo(targetUrlPart)).inScenario(scenario)
+                .whenScenarioStateIs(STARTED)
+                .willReturn(aResponse().withStatus(404)));
+        // ----
+
+        // perform the put
+        checkPUTStatusCode(requestUrl, body, 200);
+
+        // check if the scenario state is OK
+        checkGETStatusCodeWithAwait(targetUrl, 200);
+
+        async.complete();
+    }
+
     /**
      * Checks if the DELETE request gets a response
      * with the given status code.
@@ -627,6 +695,21 @@ public class ListenerTest extends AbstractTest {
      * @param queueExpireTime
      */
     private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime) {
+        registerListener(requestUrl, target, methods,expireTime,filter,queueExpireTime,null);
+    }
+
+    /**
+     * Registers a listener with a filter.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param expireTime
+     * @param filter
+     * @param queueExpireTime
+     * @param staticHeaders
+     */
+    private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders) {
         String body = "{ \"destination\":\"" + target + "\"";
 
         String m = null;
@@ -640,6 +723,22 @@ public class ListenerTest extends AbstractTest {
         body += expireTime != null ? ", \""+ HookHandler.EXPIRE_AFTER + "\" : " + expireTime : "";
         body += queueExpireTime != null ? ", \""+ HookHandler.QUEUE_EXPIRE_AFTER + "\" : " + queueExpireTime : "";
         body += filter != null ? ", \"filter\" : \"" + filter + "\"" : "";
+
+        if ( staticHeaders != null && staticHeaders.size() > 0 ) {
+            body = body + ", \"staticHeaders\" : {";
+
+            boolean notFirst = false;
+            for (Map.Entry<String, String> entry : staticHeaders.entrySet() ) {
+                body = body + ( notFirst ? ", " : "" ) + "\"" + entry.getKey() + "\" : \"" + entry.getValue() + "\"";
+
+                if ( ! notFirst ) {
+                    notFirst = true;
+                }
+            }
+
+            body = body + "}";
+        }
+
         body = body + "}";
 
         with().body(body).put(requestUrl).then().assertThat().statusCode(200);

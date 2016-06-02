@@ -4,6 +4,7 @@ import org.joda.time.LocalDateTime;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -19,6 +20,7 @@ public class HttpHook {
     private boolean fullUrl = false;
     private Pattern filter = null;
     private int queueExpireAfter;
+    private Map<String, String> staticHeaders = null;
 
     /**
      * Creates a new hook.
@@ -27,7 +29,7 @@ public class HttpHook {
      */
     public HttpHook(String destination) {
         this.destination = destination;
-        methods = new ArrayList<String>();
+        methods = new ArrayList<>();
         queueExpireAfter = -1;
     }
 
@@ -166,5 +168,25 @@ public class HttpHook {
      */
     public void setQueueExpireAfter(int queueExpireAfter) {
         this.queueExpireAfter = queueExpireAfter;
+    }
+
+    /**
+     * Adds a new map with static headers.
+     *
+     * @param staticHeaders - a map with static headers
+     */
+    public void addStaticHeaders(Map<String, String> staticHeaders) {
+        this.staticHeaders = staticHeaders;
+    }
+
+    /**
+     * Returns the map with the static headers for this
+     * hook.
+     *
+     * @return map with static headers or null if
+     * no static headers were defined
+     */
+    public Map<String, String> getStaticHeaders() {
+        return this.staticHeaders;
     }
 }
