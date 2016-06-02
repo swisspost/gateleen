@@ -160,6 +160,7 @@ public class Forwarder implements Handler<RoutingContext> {
         cReq.setTimeout(rule.getTimeout());
         // Fix unique ID header name for backends not able to handle underscore in header names.
         cReq.headers().setAll(req.headers());
+        cReq.headers().remove("connection"); // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
 
         if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
             cReq.headers().set(SELF_REQUEST_HEADER, "");
