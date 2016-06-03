@@ -1,0 +1,29 @@
+{
+  "/playground/": {
+    "description": "Home Page",
+    "path": "/playground/server/pages/index.html",
+    "storage": "main"
+  },
+  "/playground/server/test/resources/storageExpand/(.*)": {
+    "description": "Get storage resources with activated storageExpand",
+    "metricName": "expand_with_active_storageExpand",
+    "path": "/playground/server/test/resources/storageExpand/$1",
+    "storageExpand": true,
+    "storage": "main"
+  },
+  "/playground/server/storage/empty": {
+    "description": "Placeholder to make this folder appear when browsing",
+    "path": "/playground/server/storage/empty",
+    "storage": "main"
+  },
+  "/playground/server/storage(.*)": {
+    "path": "/playground$1",
+    "storage": "main"
+  },
+  "/(.*)": {
+    "metricName": "resource_storage",
+    "description": "Resource Storage",
+    "path": "/$1",
+    "storage": "main"
+  }
+}
