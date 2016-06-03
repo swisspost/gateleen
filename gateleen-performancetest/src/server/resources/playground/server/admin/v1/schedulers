@@ -1,0 +1,14 @@
+{
+  "schedulers": {
+    "main-storage-cleanup": {
+      "description": "Clean the expirable resources from main storage",
+      "cronExpression": "0 /10 * * * ?",
+      "requests": [
+        {
+          "uri": "/playground/server/_cleanup",
+          "method": "POST"
+        }
+      ]
+    }
+  }
+}
