@@ -1,14 +1,18 @@
 package org.swisspush.gateleen.hook;
 
-import org.swisspush.gateleen.AbstractTest;
-import org.swisspush.gateleen.TestUtils;
 import com.jayway.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.AbstractTest;
+import org.swisspush.gateleen.TestUtils;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.containsString;
@@ -68,6 +72,48 @@ public class RouteTest extends AbstractTest {
 
         async.complete();
     }
+
+    /**
+     * Tests if the staticHeaders are properly put as headers
+     * to a routed request.
+     *
+     * @param context
+     */
+    @Test
+    public void testRouteWithStaticHeaders(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        // Settings
+        String subresource = "routeTest";
+        // -------
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = "http://localhost:" + MAIN_PORT + ROOT;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        final String routedResource = requestUrlBase + "/" + subresource + "/debug";
+        Map<String, String> staticHeaders = new LinkedHashMap<>();
+        staticHeaders.put("x-test1", "1");
+        staticHeaders.put("x-test2", "2");
+        // -------
+
+        // register route
+        registerRoute(requestUrl, target, methods, staticHeaders);
+
+        //
+        String body = get(routedResource).getBody().asString();
+        Assert.assertTrue(body.contains("x-test1"));
+        Assert.assertTrue(body.contains("x-test2"));
+
+        // unregister route
+        unregisterRoute(requestUrl);
+
+        async.complete();
+    }
+
+
 
     /**
      * Test for create a route, and testing if requests
@@ -167,6 +213,18 @@ public class RouteTest extends AbstractTest {
      * @param methods
      */
     private void registerRoute(final String requestUrl, final String target, String[] methods) {
+        registerRoute(requestUrl, target, methods, null);
+    }
+
+    /**
+     * Registers a route.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param staticHeaders
+     */
+    private void registerRoute(final String requestUrl, final String target, String[] methods, Map<String, String> staticHeaders) {
         String body = "{ \"destination\":\"" + target + "\"";
 
         String m = null;
@@ -177,6 +235,22 @@ public class RouteTest extends AbstractTest {
             m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
             m = "\"methods\": [" + m + "]";
         }
+
+        if ( staticHeaders != null && staticHeaders.size() > 0 ) {
+            body = body + ", \"staticHeaders\" : {";
+
+            boolean notFirst = false;
+            for (Map.Entry<String, String> entry : staticHeaders.entrySet() ) {
+                body = body + ( notFirst ? ", " : "" ) + "\"" + entry.getKey() + "\" : \"" + entry.getValue() + "\"";
+
+                if ( ! notFirst ) {
+                    notFirst = true;
+                }
+            }
+
+            body = body + "}";
+        }
+
         body = body + "}";
 
         with().body(body).put(requestUrl).then().assertThat().statusCode(200);

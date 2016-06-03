@@ -117,6 +117,11 @@ public class Route {
         rule.setStorageExpand(CLIENT_DEFAULT_EXPAND_IN_STORAGE);
         rule.setLogExpiry(CLIENT_DEFAULT_LOG_EXPIRY);
 
+        if ( httpHook.getStaticHeaders() != null ) {
+            rule.addStaticHeaders(httpHook.getStaticHeaders());
+        }
+
+
         if (!httpHook.getMethods().isEmpty()) {
             rule.setMethods(httpHook.getMethods().toArray(new String[httpHook.getMethods().size()]));
         }

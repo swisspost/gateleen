@@ -1,12 +1,5 @@
 package org.swisspush.gateleen.hook;
 
-import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
-import org.swisspush.gateleen.queue.queuing.QueueClient;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -18,7 +11,15 @@ import io.vertx.core.json.JsonObject;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
+import org.swisspush.gateleen.queue.queuing.QueueClient;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,6 +56,7 @@ public class HookHandler {
     public static final String HOOK = "hook";
     public static final String EXPIRE_AFTER = "expireAfter";
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
+    public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
 
     private Logger log = LoggerFactory.getLogger(HookHandler.class);
@@ -472,6 +474,9 @@ public class HookHandler {
                     ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
                 }
 
+                // update request headers with static headers (if available)
+                updateHeadersWithStaticHeaders(queueHeaders, listener.getHook().getStaticHeaders());
+
                 // in order not to block the queue because one client returns a creepy response,
                 // we translate all status codes of the listeners to 200.
                 // Therefor we set the header x-translate-status-4xx
@@ -480,6 +485,25 @@ public class HookHandler {
                 queueClient.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, doneHandler);
             }
         });
+    }
+
+    /**
+     * Updates (and overrides) the given headers with the static headers (if they are available).
+     *
+     * @param queueHeaders the headers for the request to be enqueued
+     * @param staticHeaders the static headers for the given hook
+     */
+    private void updateHeadersWithStaticHeaders(final MultiMap queueHeaders, final Map<String, String> staticHeaders) {
+        if (staticHeaders != null) {
+            for (Map.Entry<String, String> entry : staticHeaders.entrySet()) {
+                String entryValue = entry.getValue();
+                if (entryValue != null && entryValue.length() > 0 ) {
+                    queueHeaders.set(entry.getKey(), entry.getValue());
+                } else {
+                    queueHeaders.remove(entry.getKey());
+                }
+            }
+        }
     }
 
     /**
@@ -807,6 +831,8 @@ public class HookHandler {
             hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
         }
 
+        extractAndAddStaticHeadersToHook(jsonHook, hook);
+
         /*
          * Despite the fact, that every hook
          * should have an expiration time,
@@ -857,6 +883,23 @@ public class HookHandler {
 
         // create and add a new listener (or update an already existing listener)
         listenerRepository.addListener(new Listener(listenerId, getMonitoredUrlSegment(requestUrl), target, hook));
+    }
+
+    /**
+     * Extract staticHeaders attribute from jsonHook and create a
+     * appropriate list in the hook object.
+     *
+     * @param jsonHook the json hook
+     * @param hook the hook object
+     */
+    private void extractAndAddStaticHeadersToHook(final JsonObject jsonHook, final HttpHook hook) {
+        JsonObject staticHeaders = jsonHook.getJsonObject(STATIC_HEADERS);
+        if (staticHeaders != null && staticHeaders.size() > 0) {
+            hook.addStaticHeaders(new LinkedHashMap<>());
+            for (Map.Entry<String, Object> entry : staticHeaders.getMap().entrySet()) {
+                hook.getStaticHeaders().put(entry.getKey(), entry.getValue().toString());
+            }
+        }
     }
 
     /**
@@ -920,6 +963,8 @@ public class HookHandler {
         if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
             hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
         }
+
+        extractAndAddStaticHeadersToHook(jsonHook, hook);
 
         /*
          * Despite the fact, that every hook
