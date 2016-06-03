@@ -9,30 +9,65 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath "gradle.plugin.com.github.lkishalmi.gradle:gradle-gatling-plugin:0.3.0"
         classpath "org.codehaus.groovy.modules.http-builder:http-builder:0.7.1"
     }
 }
 
 import groovyx.net.http.RESTClient
 
-apply plugin: "com.github.lkishalmi.gatling"
+apply plugin: "java"
+apply plugin: "scala"
+
+sourceCompatibility = "1.8"
+targetCompatibility = "1.8"
+[compileJava, compileTestJava]*.options*.encoding = "UTF-8"
 
 group 'org.swisspush.gateleen'
 version '1.0-SNAPSHOT'
 
 repositories {
+    try {
+        maven { url "$repository" }
+        println 'buildscript: use custom repository: ' + "$repository"
+    } catch (Exception e) {
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    }
     mavenCentral()
 }
 
 dependencies {
-    gatlingRuntime files("src/gatling/conf")
+    testCompile "io.gatling.highcharts:gatling-charts-highcharts:2.1.6"
+}
+
+task gatling(type: JavaExec) {
+    dependsOn testClasses
+    description = "load test with Gatling"
+    group = "Load Test"
+    classpath = sourceSets.test.runtimeClasspath
+
+    jvmArgs = [
+            // workaround for https://github.com/gatling/gatling/issues/2689
+            "-Dgatling.core.directory.binaries=${sourceSets.test.output.classesDir.toString()}",
+            "-Dlogback.configurationFile=${logbackGatlingConfig()}",
+            "-DtargetHost=$targetHost",
+            "-DtargetPort=$targetPort"
+    ]
+    main = "io.gatling.app.Gatling"
+    args = [
+            "--simulation", "gatling.simulations.GateleenPerformanceTestSimulation",
+            "--results-folder", "${buildDir}/gatling-results",
+            "--binaries-folder", sourceSets.test.output.classesDir.toString(), // ignored because of above bug
+            "--bodies-folder", sourceSets.test.resources.srcDirs.toList().first().toString() + "/bodies",
+            "--data-folder", sourceSets.test.resources.srcDirs.toList().first().toString() + "/data"
+    ]
+}
+
+def logbackGatlingConfig() {
+    return sourceSets.test.resources.find { it.name == 'logback.xml' };
 }
 
 task uploadStaticFiles << {
-    def targetHost = System.getProperty("targetHost", "localhost")
-    def targetPort = System.getProperty("targetPort", "7012")
-    def serverUrl = 'http://'+targetHost+':'+targetPort+'/'
+    def serverUrl = 'http://'+project.targetHost+':'+project.targetPort+'/'
     println 'About to upload server resources to ' + serverUrl
     def rest = new RESTClient( serverUrl )
     FileTree tree = fileTree('src/server/resources')
