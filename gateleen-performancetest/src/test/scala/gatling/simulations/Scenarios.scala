@@ -22,10 +22,6 @@ object Scenarios {
     .exec(Tasks.deleteFromStorage)
     .exec(Tasks.readNotExistingResourceFromStorage)
 
-  val expandRequests = scenario("Expand requests")
-    .exec(Tasks.writeReadExpand)
-    .exec(Tasks.writeReadStorageExpand)
-
   val enqueueRequests = scenario("Queueing: enqueue")
     .exec(Tasks.enqueue)
 
