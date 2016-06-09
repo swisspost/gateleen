@@ -17,15 +17,19 @@ class GateleenPerformanceTestSimulation extends Simulation {
   }
 
   setUp(
-    Scenarios.storageOperations.inject(rampUsers(500) over(60 seconds)),
-    Scenarios.expandRequests.inject(
-      constantUsersPerSec(10) during(10 seconds),
-      constantUsersPerSec(20) during(10 seconds),
-      constantUsersPerSec(40) during(20 seconds),
-      constantUsersPerSec(10) during(20 seconds)
-    ),
-    Scenarios.enqueueRequests.inject(constantUsersPerSec(10) during(10 seconds)),
-    Scenarios.checkQueuesEmpty.inject(nothingFor(40 seconds), atOnceUsers(1))
+
+    Scenarios.prepareExpandResources.inject(atOnceUsers(1)),
+    Scenarios.storageExpand.inject(nothingFor(10 seconds), rampUsers(17000) over(120 seconds))
+
+//    Scenarios.storageOperations.inject(rampUsers(500) over(60 seconds)),
+//    Scenarios.expandRequests.inject(
+//      constantUsersPerSec(10) during(10 seconds),
+//      constantUsersPerSec(20) during(10 seconds),
+//      constantUsersPerSec(40) during(20 seconds),
+//      constantUsersPerSec(10) during(20 seconds)
+//    ),
+//    Scenarios.enqueueRequests.inject(constantUsersPerSec(10) during(10 seconds)),
+//    Scenarios.checkQueuesEmpty.inject(nothingFor(40 seconds), atOnceUsers(1))
   )
     .protocols(httpConf)
     .assertions(global.successfulRequests.percent.is(100))

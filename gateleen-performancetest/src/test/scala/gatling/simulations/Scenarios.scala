@@ -6,6 +6,13 @@ import scala.concurrent.duration._
 import gatling.simulations._
 
 object Scenarios {
+
+  val prepareExpandResources = scenario("Prepare expand resources")
+    .exec(Tasks.writeExpandResourcesToStorage)
+
+  val storageExpand = scenario("StorageExpand Requests")
+    .exec(Tasks.readStorageExpand)
+
   val storageOperations = scenario("Storage operations write/read/delete")
     .exec(Tasks.writeToStorage)
     .exec(Tasks.readFromStorage)

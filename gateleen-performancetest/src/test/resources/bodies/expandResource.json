@@ -1,0 +1,37 @@
+{
+  "displayInfo": {
+    "validTo": "2030-04-30T00:00:00",
+    "data": {
+      "persons": [
+        {
+          "lastname": "Doe",
+          "firstname": "Jane"
+        },
+        {
+          "lastname": "Doe",
+          "firstname": "John"
+        }
+      ],
+      "mutationDate": "2014-03-17",
+      "orderDate": "2014-03-19T00:00:00"
+    },
+    "type": 3,
+    "dlType": "V",
+    "action": "2014-09-06T00:00:00",
+    "validFrom": "2014-09-22T00:00:00",
+    "nr": 217656,
+    "pickupPoint": {
+      "key": 102800,
+      "city": "Gatling City"
+    },
+    "dlArt": "RE"
+  },
+  "delivery": 111,
+  "deliveryPart": 33,
+  "dataId": 1,
+  "code": 223366,
+  "street": "Gatling street",
+  "partNumber": 100,
+  "city": "Gatling City",
+  "deliveryCode": 225588
+}

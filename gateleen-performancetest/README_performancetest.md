@@ -33,3 +33,10 @@ gradlew.bat gatling -PtargetHost=mytargethost -PtargetPort=1234
 ```
 ./gradlew gatling -PtargetHost=mytargethost -PtargetPort=1234
 ```
+
+## Test scenarios
+The following scenarios described below are implmented in [GateleenPerformanceTestSimulation.scala](src/test/scala/gatling/simulations/GateleenPerformanceTestSimulation.scala)
+
+### Scenario prepareExpandResources
+This scenario is used to prepare the resources for the tests testing gateleens _Expansion_ feature. A single "user" writes 120 json resources to a collection,
+which later can be requested with the expand parameter.

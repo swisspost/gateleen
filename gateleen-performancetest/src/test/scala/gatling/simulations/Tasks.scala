@@ -13,6 +13,25 @@ object Tasks {
     "description": "$randomString"
   }"""
 
+  val writeExpandResourcesToStorage = repeat(120, "index") {
+      exec(http("Write expand resource res_${index}")
+        .put("/playground/server/test/resources/expand/normal/res_${index}")
+        .body(RawFileBody("expandResource.json")).asJSON
+        .check(status is 200)
+      )
+      .exec(http("Write storage expand resource res_${index}")
+        .put("/playground/server/test/resources/expand/storage/res_${index}")
+        .body(RawFileBody("expandResource.json")).asJSON
+        .check(status is 200)
+      )
+  }
+
+  val readStorageExpand = exec(http("read with storageExpand")
+    .get("/playground/server/test/resources/expand/storage/")
+    .queryParam("expand", "1")
+    .check(status is 200)
+  )
+
   val writeToStorage = exec(session => session.set("resourceId", Random.alphanumeric.take(30).mkString))
       .exec(http("write resource to storage")
         .put("/playground/server/test/resources/res_${resourceId}")
