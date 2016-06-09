@@ -4,10 +4,10 @@
     "path": "/playground/server/pages/index.html",
     "storage": "main"
   },
-  "/playground/server/test/resources/expand/normal/(.*)": {
-    "description": "Get storage resources with normal expand",
-    "metricName": "expand_with_normal_expand",
-    "path": "/playground/server/test/resources/expand/normal/$1",
+  "/playground/server/test/resources/expand/regular/(.*)": {
+    "description": "Get storage resources with regular expand",
+    "metricName": "expand_with_regular_expand",
+    "path": "/playground/server/test/resources/expand/regular/$1",
     "storage": "main"
   },
   "/playground/server/test/resources/expand/storage/(.*)": {

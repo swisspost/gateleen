@@ -13,6 +13,9 @@ object Scenarios {
   val storageExpand = scenario("StorageExpand Requests")
     .exec(Tasks.readStorageExpand)
 
+  val regularExpand = scenario("Regular Expand Requests")
+    .exec(Tasks.readRegularExpand)
+
   val storageOperations = scenario("Storage operations write/read/delete")
     .exec(Tasks.writeToStorage)
     .exec(Tasks.readFromStorage)

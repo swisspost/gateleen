@@ -17,9 +17,9 @@ class GateleenPerformanceTestSimulation extends Simulation {
   }
 
   setUp(
-
     Scenarios.prepareExpandResources.inject(atOnceUsers(1)),
-    Scenarios.storageExpand.inject(nothingFor(10 seconds), rampUsers(17000) over(120 seconds))
+    Scenarios.regularExpand.inject(nothingFor(15 seconds), constantUsersPerSec(47) over(15 minutes)),
+    Scenarios.storageExpand.inject(nothingFor(17 minutes), constantUsersPerSec(35) over(20 minutes))
 
 //    Scenarios.storageOperations.inject(rampUsers(500) over(60 seconds)),
 //    Scenarios.expandRequests.inject(
