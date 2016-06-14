@@ -21,6 +21,18 @@ import groovyx.net.http.RESTClient
 
 apply plugin: 'com.github.johnrengelman.shadow'
 
+if (!project.hasProperty('targetHost')) {
+    ext.targetHost = 'localhost'
+} else {
+    println 'got property targetHost: ' + targetHost
+}
+
+if (!project.hasProperty('targetPort')) {
+    ext.targetPort = '7013'
+} else {
+    println 'got property targetPort: ' + targetPort
+}
+
 shadowJar {
     archiveName="playground.jar"
     manifest {
@@ -60,7 +72,9 @@ dependencies {
 }
 
 task uploadStaticFiles << {
-    def rest = new RESTClient( 'http://localhost:7012/' )
+    def serverUrl = 'http://'+project.targetHost+':'+project.targetPort+'/'
+    println 'About to upload server resources to ' + serverUrl
+    def rest = new RESTClient( serverUrl )
     FileTree tree = fileTree('src/main/resources')
     tree.each {File file ->
         println file.name
