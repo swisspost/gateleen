@@ -125,11 +125,13 @@ public class LoggingHandler {
             }
 
             if (appender != null) {
-                org.apache.log4j.Logger filterLogger = org.apache.log4j.Logger.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
-                filterLogger.removeAllAppenders();
-                filterLogger.addAppender(appender);
-                filterLogger.setAdditivity(false);
-                loggers.put(filterDestination, filterLogger);
+                if(!loggers.containsKey(filterDestination)) {
+                    org.apache.log4j.Logger filterLogger = org.apache.log4j.Logger.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
+                    filterLogger.removeAllAppenders();
+                    filterLogger.addAppender(appender);
+                    filterLogger.setAdditivity(false);
+                    loggers.put(filterDestination, filterLogger);
+                }
             }
             else {
                 loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
@@ -137,7 +139,7 @@ public class LoggingHandler {
         }
         // ... or use the default logger
         else {
-            log.debug("no destination entry found, use default logger");
+            log.warn("no destination entry with name '"+filterDestination+"' found, using default logger instead");
 
             // use default logger!
             loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
