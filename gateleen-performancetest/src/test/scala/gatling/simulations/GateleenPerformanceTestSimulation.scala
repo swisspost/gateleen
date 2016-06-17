@@ -27,7 +27,10 @@ class GateleenPerformanceTestSimulation extends Simulation {
     .protocols(httpConf)
     .assertions(
       global.successfulRequests.percent.is(100),
-      global.responseTime.max.lessThan(2000)
+      global.responseTime.percentile1.lessThan(500),    // 75%
+      global.responseTime.percentile2.lessThan(1000),   // 95%
+      global.responseTime.percentile3.lessThan(3000),   // 97%
+      global.responseTime.percentile4.lessThan(6000)    // 99%
     )
 
 }
