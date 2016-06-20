@@ -78,7 +78,7 @@ public class StorageForwarder implements Handler<RoutingContext> {
             loggingHandler.appendRequestPayload(buffer, requestHeaders);
             requestBuffer.appendBuffer(buffer);
         });
-        ctx.request().endHandler(event -> eventBus.send(address, requestBuffer, new DeliveryOptions().setSendTimeout(1000), new Handler<AsyncResult<Message<Buffer>>>() {
+        ctx.request().endHandler(event -> eventBus.send(address, requestBuffer, new DeliveryOptions().setSendTimeout(10000), new Handler<AsyncResult<Message<Buffer>>>() {
             @Override
             public void handle(AsyncResult<Message<Buffer>> result) {
                 HttpServerResponse response = ctx.response();
