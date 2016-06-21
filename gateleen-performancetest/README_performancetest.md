@@ -48,8 +48,8 @@ Making _regular_ expand requests to the collection prepared in scenario _prepare
 
 **Setup:**
 
-Taking values from real world applications, Gateleen should be able to server 42'000 requests over a duration of 15 minutes. So the setup is set to:
-> 42'000 requests during 15 minute => 47 req/s.
+Taking values from real world applications, Gateleen should be able to server 42'000 requests over a duration of 15 minutes. The tests are configured to use 80% of this load. So the setup is set to:
+> 42'000 requests during 15 minute => 47 req/s * 80% = 38 req/s
 
 ### Scenario storageExpand
 **Description:**
@@ -58,8 +58,8 @@ Making _storage_ expand requests to the collection prepared in scenario _prepare
 
 **Setup:**
 
-Taking values from real world applications, Gateleen should be able to server 42'000 requests over a duration of 20 minutes. So the setup is set to:
-> 42'000 requests during 20 minute => 35 req/s.
+Taking values from real world applications, Gateleen should be able to server 42'000 requests over a duration of 20 minutes. The tests are configured to use 80% of this load. So the setup is set to:
+> 42'000 requests during 20 minute => 35 req/s * 80% = 28 reg/s
 
 ### Scenario storageOperations
 Making _CRUD_ storage requests. The requests include PUT, GET and DELETE requests for json values.
@@ -73,3 +73,33 @@ Making queued PUT requests.
 
 Having 10 users per second over 2 minutes making each 50 requests to a queue result in the following load.
 > 1200 different queueus with 50 queue entries each => 60'000 requests total
+
+## Test scenario environment
+The above described scenarios have been tested on the following hardware:
+
+**2 cores** with the specifications listed below:
+```
+vendor_id       : GenuineIntel
+cpu family      : 6
+model           : 45
+model name      : Intel(R) Xeon(R) CPU E5-4650L 0 @ 2.60GHz
+stepping        : 2
+microcode       : 0x710
+cpu MHz         : 2599.999
+cache size      : 20480 KB
+physical id     : 1
+siblings        : 4
+core id         : 3
+cpu cores       : 4
+apicid          : 7
+initial apicid  : 7
+fpu             : yes
+fpu_exception   : yes
+cpuid level     : 13
+wp              : yes
+flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts mmx fxsr sse sse2 ss ht syscall nx rdtscp lm constant_tsc arch_perfmon pebs bts nopl xtopology tsc_reliable nonstop_tsc aperfmperf pni pclmulqdq ssse3 cx16 pcid sse4_1 sse4_2 x2apic popcnt aes xsave avx hypervisor lahf_lm ida arat epb pln pts dtherm
+bogomips        : 5199.99
+clflush size    : 64
+cache_alignment : 64
+address sizes   : 40 bits physical, 48 bits virtual
+```
