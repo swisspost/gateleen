@@ -17,11 +17,11 @@ class GateleenPerformanceTestSimulation extends Simulation {
   }
 
   setUp(
-    Scenarios.storageOperations.inject(constantUsersPerSec(28) during(60 seconds)),
+    Scenarios.storageOperations.inject(constantUsersPerSec(26) during(60 seconds)),
     Scenarios.prepareExpandResources.inject(nothingFor(60 seconds), atOnceUsers(1)),
-    Scenarios.regularExpand.inject(nothingFor(2 minutes), constantUsersPerSec(38) during(15 minutes)),
-    Scenarios.storageExpand.inject(nothingFor(17 minutes), constantUsersPerSec(28) during(20 minutes)),
-    Scenarios.enqueueRequests.inject(nothingFor(37 minutes), constantUsersPerSec(8) during(2 minutes)),
+    Scenarios.regularExpand.inject(nothingFor(2 minutes), constantUsersPerSec(35) during(15 minutes)),
+    Scenarios.storageExpand.inject(nothingFor(17 minutes), constantUsersPerSec(26) during(20 minutes)),
+    Scenarios.enqueueRequests.inject(nothingFor(37 minutes), constantUsersPerSec(7) during(2 minutes)),
     Scenarios.checkQueuesEmpty.inject(nothingFor(43 minutes), atOnceUsers(1))
   )
     .protocols(httpConf)
