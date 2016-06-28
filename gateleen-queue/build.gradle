@@ -1,9 +1,11 @@
 dependencies {
     compile project(':gateleen-core')
     compile project(':gateleen-monitoring')
+    compile project(':gateleen-routing')
     compile "org.swisspush:redisques:$redisquesVersion"
     compile "io.vertx:vertx-core:$vertxVersion"
     compile "io.vertx:vertx-redis-client:$vertxVersion"
     compile "io.vertx:vertx-web:$vertxVersion"
     compile "joda-time:joda-time:$jodaTimeVersion"
+    compile "junit:junit:$junitVersion"
 }
