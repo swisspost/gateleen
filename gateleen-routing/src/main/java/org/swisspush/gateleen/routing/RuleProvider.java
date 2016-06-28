@@ -16,6 +16,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * Provides a central access to the routing rules.
+ * Loads routing rules from storage and creates {@link Rule} instances. Also provides the ability to
+ * register for routing rules changes.
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class RuleProvider {
@@ -44,14 +47,28 @@ public class RuleProvider {
         });
     }
 
+    /**
+     * Implementations of this interface are notified when the routing rules have changed. Use {@link RuleProvider#registerObserver(RuleChangesObserver)} to
+     * register for updates
+     */
     public interface RuleChangesObserver {
         void rulesChanged(List<Rule> rules);
     }
 
+    /**
+     * Registers an observer to be notified on routing rules changes.
+     *
+     * @param observer Observer to be notified on routing rules changes
+     */
     public void registerObserver(RuleChangesObserver observer){
         observers.add(observer);
     }
 
+    /**
+     * Get the routing rules from storage (async)
+     *
+     * @return a {@link Future} containing a list of {@link Rule} objects (when successful)
+     */
     public Future<List<Rule>> getRules(){
         Future<List<Rule>> future = Future.future();
         storage.get(rulesPath, buffer -> {

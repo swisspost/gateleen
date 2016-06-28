@@ -67,8 +67,19 @@ public class RuleProviderTest {
             " }\n" +
             "}";
 
+    private final String RULES_WITH_MISSING_PROPS = "{\n"
+            + "  \"/gateleen/rule/1\": {\n"
+            + "    \"description\": \"Test Rule 1\",\n"
+            + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\"\n"
+            + "  },\n"
+            + "  \"/gateleen/rule/2\": {\n"
+            + "    \"description\": \"Test Rule 2\",\n"
+            + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\"\n"
+            + "  }\n"
+            + "}";
+
     @Before
-    public void setUp(TestContext context){
+    public void setUp(){
         vertx = Vertx.vertx();
         rulesPath = "/gateleen/server/admin/v1/routing/rules";
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_STORAGE_INITIAL));
@@ -76,10 +87,30 @@ public class RuleProviderTest {
     }
 
     @Test
+    public void testGetRulesWithWrongRulesPath(TestContext context){
+        RuleProvider ruleProvider = new RuleProvider(vertx, "/some/wrong/path", storage, properties);
+        Future<List<Rule>> rulesFuture = ruleProvider.getRules();
+        context.assertTrue(rulesFuture.failed(), "getRules() future should not have been successful");
+        context.assertNotNull(rulesFuture.cause());
+        context.assertTrue(rulesFuture.cause().getMessage().contains("Could not get URL"));
+    }
+
+    @Test
+    public void testGetRulesWithMissingPropertiesinRoutingRules(TestContext context){
+        ((MockResourceStorage)storage).putMockData(rulesPath, RULES_WITH_MISSING_PROPS);
+        RuleProvider ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
+        Future<List<Rule>> rulesFuture = ruleProvider.getRules();
+        context.assertTrue(rulesFuture.failed(), "getRules() future should not have been successful");
+        System.out.println(rulesFuture.cause().getMessage());
+        context.assertNotNull(rulesFuture.cause());
+        context.assertTrue(rulesFuture.cause().getMessage().contains("Could not resolve gateleen.test.prop.1"));
+    }
+
+    @Test
     public void testGetRulesAfterInitialization(TestContext context){
         RuleProvider ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
         Future<List<Rule>> rulesFuture = ruleProvider.getRules();
-        context.assertTrue(rulesFuture.succeeded(), "getRules() future should have been successfull");
+        context.assertTrue(rulesFuture.succeeded(), "getRules() future should have been successful");
         context.assertNotNull(rulesFuture.result(), "The list of rules should not be null");
         context.assertEquals(3, rulesFuture.result().size(), "There should be exactly 3 rules");
 
@@ -89,7 +120,7 @@ public class RuleProviderTest {
     public void testUpdateRulesOnEventBusEvent(TestContext context) throws InterruptedException {
         RuleProvider ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
         Future<List<Rule>> rulesFuture = ruleProvider.getRules();
-        context.assertTrue(rulesFuture.succeeded(), "getRules() future should have been successfull");
+        context.assertTrue(rulesFuture.succeeded(), "getRules() future should have been successful");
         context.assertNotNull(rulesFuture.result(), "The list of rules should not be null");
         context.assertEquals(3, rulesFuture.result().size(), "There should be exactly 3 rules");
 
@@ -99,7 +130,7 @@ public class RuleProviderTest {
 
         Future<List<Rule>> rulesFuture2 = ruleProvider.getRules();
 
-        context.assertTrue(rulesFuture2.succeeded(), "getRules() future should have been successfull");
+        context.assertTrue(rulesFuture2.succeeded(), "getRules() future should have been successful");
         context.assertNotNull(rulesFuture2.result(), "The list of rules should not be null");
         context.assertEquals(2, rulesFuture2.result().size(), "There should be exactly 2 rules after update");
     }
@@ -114,7 +145,7 @@ public class RuleProviderTest {
         observer.setExpectedRulesListSize(2); // after the update there will be 2 routing rules
 
         Future<List<Rule>> rulesFuture = ruleProvider.getRules();
-        context.assertTrue(rulesFuture.succeeded(), "getRules() future should have been successfull");
+        context.assertTrue(rulesFuture.succeeded(), "getRules() future should have been successful");
         context.assertNotNull(rulesFuture.result(), "The list of rules should not be null");
         context.assertEquals(3, rulesFuture.result().size(), "There should be exactly 3 rules");
 
