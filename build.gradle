@@ -41,11 +41,13 @@ subprojects {
   }
 
   ext.uploadToMavenCentral = false
-  ext.upload = false
+  ext.InstallOrUpload = false
   gradle.taskGraph.whenReady { taskGraph ->
+    if (taskGraph.hasTask(uploadArchives) || taskGraph.hasTask(install)) {
+        ext.InstallOrUpload = true
+    }
     if (taskGraph.hasTask(uploadArchives)) {
-      ext.upload = true
-      println "upload: true"
+        println "InstallOrUpload: true"
       if ("$uploadRepository".toLowerCase().contains("sonatype")  && "$snapshotRepository".toLowerCase().contains("sonatype")) {
         println "uploadToMavenCentral: true"
         ext.uploadToMavenCentral = true
@@ -58,7 +60,7 @@ subprojects {
     classifier = 'sources'
     from sourceSets.main.java
   }
-  sourceJar.onlyIf { upload }
+sourceJar.onlyIf { InstallOrUpload }
 
   compileJava {
     options.encoding = "UTF-8"
@@ -68,7 +70,7 @@ subprojects {
     options.encoding = "UTF-8"
     classpath = configurations.compile
   }
-  javadoc.onlyIf { upload }
+javadoc.onlyIf { InstallOrUpload }
 
   task javadocJar(type: Jar) {
     description = 'Builds a javadoc jar artifact suitable for maven deployment.'
@@ -76,9 +78,9 @@ subprojects {
     from javadoc.destinationDir
   }
   javadocJar.dependsOn javadoc
-  javadocJar.onlyIf { upload }
+javadocJar.onlyIf { InstallOrUpload }
 
-  build.dependsOn sourceJar, javadocJar
+  uploadArchives.dependsOn sourceJar, javadocJar
 
   artifacts {
     archives jar, sourceJar, javadocJar
