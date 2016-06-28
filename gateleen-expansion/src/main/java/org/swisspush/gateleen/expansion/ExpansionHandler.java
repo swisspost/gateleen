@@ -1,18 +1,9 @@
 package org.swisspush.gateleen.expansion;
 
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.*;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
-import org.swisspush.gateleen.routing.Rule;
-import org.swisspush.gateleen.routing.RuleFactory;
-import org.swisspush.gateleen.routing.RuleFeaturesProvider;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
@@ -21,7 +12,16 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.validation.ValidationException;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
+import org.swisspush.gateleen.core.util.ResourceCollectionException;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.routing.Rule;
+import org.swisspush.gateleen.routing.RuleFeaturesProvider;
+import org.swisspush.gateleen.routing.RuleProvider;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.EXPAND_ON_BACKEND;
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.STORAGE_EXPAND;
+import static org.swisspush.gateleen.routing.RuleProvider.RuleChangesObserver;
 
 /**
  * The {@link ExpansionHandler} allows to fetch multiple a collection of multiple resources in
@@ -68,7 +69,7 @@ import static org.swisspush.gateleen.routing.RuleFeatures.Feature.STORAGE_EXPAND
  *
  * @author https://github.com/mcweba [Marc-Andre Weber], https://github.com/ljucam [Mario Ljuca]
  */
-public class ExpansionHandler {
+public class ExpansionHandler implements RuleChangesObserver{
     private Logger log = LoggerFactory.getLogger(ExpansionHandler.class);
 
     public static final String SERIOUS_EXCEPTION = "a serious exception happend ";
@@ -94,12 +95,9 @@ public class ExpansionHandler {
     private int maxSubrequestCount;
 
     private HttpClient httpClient;
-    private ResourceStorage storage;
     private Map<String, Object> properties;
     private String serverRoot;
-    private String rulesPath;
-
-    private String routingRulesSchema;
+    private RuleProvider ruleProvider;
 
     /**
      * A list of parameters, which are always removed
@@ -126,38 +124,21 @@ public class ExpansionHandler {
      * @param rulesPath rulesPath
      */
     public ExpansionHandler(Vertx vertx, final ResourceStorage storage, HttpClient httpClient, final Map<String, Object> properties, String serverRoot, final String rulesPath) {
-        this.storage = storage;
         this.httpClient = httpClient;
         this.properties = properties;
         this.serverRoot = serverRoot;
-        this.rulesPath = rulesPath;
-
-        routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
 
         initParameterRemovalLists();
         initConfigurationValues();
 
-        loadRulesFromStorage();
-
-        // Receive update notifications
-        log.info("ExpansionHandler - register on vertx bus to receive routing rules updates");
-        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> loadRulesFromStorage());
+        this.ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
+        this.ruleProvider.registerObserver(this);
     }
 
-    private void loadRulesFromStorage(){
-        storage.get(rulesPath, buffer -> {
-            if (buffer != null) {
-                try {
-                    List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
-                    log.info("Update expandOnBackend and storageExpand information from changed routing rules");
-                    ruleFeaturesProvider = new RuleFeaturesProvider(rules);
-                } catch (ValidationException e) {
-                    log.error("Could not update expandOnBackend and storageExpand information from changed routing rules", e);
-                }
-            } else {
-                log.warn("Could not get URL '" + (rulesPath == null ? "<null>" : rulesPath) + "' (getting rules).");
-            }
-        });
+    @Override
+    public void rulesChanged(List<Rule> rules) {
+        log.info("Update expandOnBackend and storageExpand information from changed routing rules");
+        ruleFeaturesProvider = new RuleFeaturesProvider(rules);
     }
 
     /**
@@ -394,7 +375,7 @@ public class ExpansionHandler {
      * Tries to extract the recursion depth from the
      * request parameter 'expand'. If the value cannot
      * be extracted a default value is returned.
-     * 
+     *
      * @param req req
      * @return int
      */
@@ -414,7 +395,7 @@ public class ExpansionHandler {
 
     /**
      * Handles the request as if it is a recursive expansion.
-     * 
+     *
      * @param request request
      */
     public void handleExpansionRecursion(final HttpServerRequest request) {
@@ -424,7 +405,7 @@ public class ExpansionHandler {
 
     /**
      * Handles the request as if it is a request for a zip stream.
-     * 
+     *
      * @param request request
      */
     public void handleZipRecursion(final HttpServerRequest request) {
@@ -435,7 +416,7 @@ public class ExpansionHandler {
     /**
      * Removes the zip parametet, it's only needed by the check
      * method <code>isZipRequest(...)</code>.
-     * 
+     *
      * @param request request
      */
     private void removeZipParameter(final HttpServerRequest request) {
@@ -465,7 +446,7 @@ public class ExpansionHandler {
         });
 
         JsonObject requestPayload = new JsonObject();
-            requestPayload.put("subResources", new JsonArray(subResourceNames));
+        requestPayload.put("subResources", new JsonArray(subResourceNames));
         Buffer payload = Buffer.buffer(requestPayload.encodePrettily());
 
         cReq.setTimeout(TIMEOUT);
@@ -481,7 +462,7 @@ public class ExpansionHandler {
 
     /**
      * Performs a recursive, asynchronous GET operation on the given uri.
-     * 
+     *
      * @param targetUri - uri for creating a new request
      * @param req - the original request
      * @param recursionLevel - the actual depth of the recursion
@@ -575,7 +556,7 @@ public class ExpansionHandler {
 
     /**
      * Handles the response data for creating a simple resource with content.
-     * 
+     *
      * @param targetUri - uri for creating a new request
      * @param handler - the parent handler
      * @param data - the data from the response of the request
@@ -593,7 +574,7 @@ public class ExpansionHandler {
 
     /**
      * Removes all parameters from the targetUri.
-     * 
+     *
      * @param targetUri targetUri
      * @return String
      */
@@ -608,7 +589,7 @@ public class ExpansionHandler {
 
     /**
      * Handles the response data for creating a collection resource.
-     * 
+     *
      * @param targetUri - uri for creating a new request
      * @param req - the original request
      * @param recursionLevel - the actual depth of the recursion
@@ -685,7 +666,7 @@ public class ExpansionHandler {
      * Returns true if the given name or path belongs
      * to a collection.
      * In this case ends with a slash.
-     * 
+     *
      * @param target target
      * @return boolean
      */
@@ -696,7 +677,7 @@ public class ExpansionHandler {
     /**
      * Extracts the eTag from the given headers. <br />
      * If none eTag is found, an empty string is returned.
-     * 
+     *
      * @param headers headers
      * @return String
      */
