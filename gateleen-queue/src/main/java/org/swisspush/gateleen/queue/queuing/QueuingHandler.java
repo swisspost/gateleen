@@ -24,7 +24,7 @@ public class QueuingHandler implements Handler<Buffer> {
     public static final String QUEUE_HEADER = "x-queue";
     public static final String DUPLICATE_CHECK_HEADER = "x-duplicate-check";
 
-    private QueueClient queueClient;
+    private RequestQueue requestQueue;
 
     public static boolean isQueued(HttpServerRequest request) {
         String queue = request.headers().get(QUEUE_HEADER);
@@ -36,12 +36,14 @@ public class QueuingHandler implements Handler<Buffer> {
     private RedisClient redisClient;
 
     public QueuingHandler(Vertx vertx, RedisClient redisClient, HttpServerRequest request, MonitoringHandler monitoringHandler) {
-        super();
+        this(vertx, redisClient, request, new QueueClient(vertx, monitoringHandler));
+    }
+
+    public QueuingHandler(Vertx vertx, RedisClient redisClient, HttpServerRequest request, RequestQueue requestQueue) {
         this.request = request;
         this.vertx = vertx;
         this.redisClient = redisClient;
-
-        queueClient = new QueueClient(vertx, monitoringHandler);
+        this.requestQueue = requestQueue;
     }
 
     @Override
@@ -59,12 +61,12 @@ public class QueuingHandler implements Handler<Buffer> {
                     request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
                     request.response().end();
                 } else {
-                    queueClient.enqueue(request, headers, buffer, queue);
+                    requestQueue.enqueue(request, headers, buffer, queue);
                 }
             });
 
         } else {
-            queueClient.enqueue(request, headers, buffer, queue);
+            requestQueue.enqueue(request, headers, buffer, queue);
         }
     }
 

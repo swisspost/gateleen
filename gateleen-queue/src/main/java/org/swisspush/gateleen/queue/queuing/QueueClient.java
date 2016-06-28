@@ -21,7 +21,7 @@ import static org.swisspush.redisques.util.RedisquesAPI.*;
  *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class QueueClient {
+public class QueueClient implements RequestQueue {
     private MonitoringHandler monitoringHandler;
     private Vertx vertx;
 
@@ -43,6 +43,7 @@ public class QueueClient {
      * @param buffer buffer
      * @param queue queue
      */
+    @Override
     public void enqueue(final HttpServerRequest request, Buffer buffer, final String queue) {
         enqueue(request, request.headers(), buffer, queue);
     }
@@ -55,6 +56,7 @@ public class QueueClient {
      * @param buffer buffer
      * @param queue queue
      */
+    @Override
     public void enqueue(final HttpServerRequest request, MultiMap headers, Buffer buffer, final String queue) {
         HttpRequest queuedRequest = new HttpRequest(request.method(), request.uri(), headers, buffer.getBytes());
         enqueue(request, queuedRequest, queue);
@@ -66,6 +68,7 @@ public class QueueClient {
      * @param request - selfmade request
      * @param queue queue
      */
+    @Override
     public void enqueue(HttpRequest request, final String queue) {
         enqueue(null, request, queue);
     }
@@ -77,6 +80,7 @@ public class QueueClient {
      * @param queue queue
      * @param doneHandler a handler which is called as soon as the request is written into the queue.
      */
+    @Override
     public void enqueue(HttpRequest request, final String queue, final Handler<Void> doneHandler) {
         enqueue(null, request, queue, doneHandler);
     }

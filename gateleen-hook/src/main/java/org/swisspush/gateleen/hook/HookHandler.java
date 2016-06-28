@@ -18,6 +18,7 @@ import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
+import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -70,7 +71,7 @@ public class HookHandler {
 
     private ListenerRepository listenerRepository;
     private RouteRepository routeRepository;
-    private QueueClient queueClient;
+    private RequestQueue requestQueue;
 
     /**
      * Creates a new HookHandler.
@@ -84,6 +85,10 @@ public class HookHandler {
      * @param hookRootUri hookRootUri
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri) {
+        this(vertx,selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, new QueueClient(vertx, monitoringHandler));
+    }
+
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
         log.debug("Creating HookHandler ...");
         this.vertx = vertx;
         this.selfClient = selfClient;
@@ -92,8 +97,7 @@ public class HookHandler {
         this.monitoringHandler = monitoringHandler;
         this.userProfilePath = userProfilePath;
         this.hookRootUri = hookRootUri;
-
-        queueClient = new QueueClient(vertx, monitoringHandler);
+        this. requestQueue = requestQueue;
 
         listenerRepository = new LocalListenerRepository();
         routeRepository = new LocalRouteRepository();
@@ -482,7 +486,7 @@ public class HookHandler {
                 // Therefor we set the header x-translate-status-4xx
                 queueHeaders.add("x-translate-status-4xx", "200");
 
-                queueClient.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, doneHandler);
+                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, doneHandler);
             }
         });
     }
