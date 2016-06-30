@@ -8,4 +8,5 @@ dependencies {
     compile "io.vertx:vertx-web:$vertxVersion"
     compile "joda-time:joda-time:$jodaTimeVersion"
     compile "junit:junit:$junitVersion"
+    compile "org.mockito:mockito-core:$mockitoVersion"
 }
