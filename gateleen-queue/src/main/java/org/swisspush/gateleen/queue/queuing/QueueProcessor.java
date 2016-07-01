@@ -62,7 +62,7 @@ public class QueueProcessor {
                 } else {
                     queueCircuitBreaker.handleQueuedRequest(queueName, queuedRequest).setHandler(event -> {
                         if(event.failed()){
-                            String msg = "Error in QueueCircuitBreaker occured for queue " + queueName + ". Reply with status ERROR. Message is: " + event.cause().getMessage();
+                            String msg = "Error in QueueCircuitBreaker occurred for queue " + queueName + ". Reply with status ERROR. Message is: " + event.cause().getMessage();
                             logger.error(msg);
                             message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, msg));
                             return;
