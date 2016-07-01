@@ -4,5 +4,15 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public enum QueueResponseType {
-    SUCCESS, FAILURE
+    SUCCESS(":success"), FAILURE(":failure");
+
+    private String keySuffix;
+
+    QueueResponseType(String keySuffix){
+        this.keySuffix = keySuffix;
+    }
+
+    public String getKeySuffix() {
+        return keySuffix;
+    }
 }
