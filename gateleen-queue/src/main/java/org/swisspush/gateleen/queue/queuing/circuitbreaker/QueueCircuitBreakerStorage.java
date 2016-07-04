@@ -11,5 +11,5 @@ public interface QueueCircuitBreakerStorage {
 
     Future<QueueCircuitState> getQueueCircuitState(String endpoint);
 
-    Future<String> updateStatistics(String endpoint, String uniqueRequestID, long timestamp, long maxSampleCount, QueueResponseType queueResponseType);
+    Future<String> updateStatistics(String endpoint, String uniqueRequestID, long timestamp, long minSampleCount, long maxSampleCount, QueueResponseType queueResponseType);
 }

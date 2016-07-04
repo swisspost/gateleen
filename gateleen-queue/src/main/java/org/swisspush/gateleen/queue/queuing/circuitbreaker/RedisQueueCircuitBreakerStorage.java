@@ -23,8 +23,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     private Logger log = LoggerFactory.getLogger(RedisQueueCircuitBreakerStorage.class);
 
     public static final String STORAGE_PREFIX = "gateleen.queue-circuit-breaker:";
-    public static final String STORAGE_STATS_SUFFIX = ":stats";
-    public static final String FIELD_STATUS = "status";
+    public static final String STORAGE_INFOS_SUFFIX = ":infos";
+    public static final String FIELD_STATE = "state";
 
     private LuaScriptState updateCircuitBreakerLuaScriptState;
 
@@ -47,15 +47,15 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public Future<QueueCircuitState> getQueueCircuitState(String endpoint) {
         Future<QueueCircuitState> future = Future.future();
         String endpointHash = getHash(endpoint);
-        redisClient.hget(key(endpointHash + STORAGE_STATS_SUFFIX), FIELD_STATUS, event -> {
+        redisClient.hget(key(endpointHash + STORAGE_INFOS_SUFFIX), FIELD_STATE, event -> {
             if(event.failed()){
                 future.fail(event.cause());
             } else {
-                String stateAsSTring = event.result();
-                if(StringUtils.isEmpty(stateAsSTring)){
+                String stateAsString = event.result();
+                if(StringUtils.isEmpty(stateAsString)){
                     log.info("No status information found for endpoint " + endpoint + ". Using default value " + QueueCircuitState.CLOSED);
                 }
-                future.complete(QueueCircuitState.fromString(stateAsSTring, QueueCircuitState.CLOSED));
+                future.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
             }
         });
         return future;
@@ -63,12 +63,13 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
 
     @Override
     public Future<String> updateStatistics(String endpoint, String uniqueRequestID, long timestamp,
-                                           long maxSampleCount, QueueResponseType queueResponseType) {
+                                           long minSampleCount, long maxSampleCount, QueueResponseType queueResponseType) {
         Future<String> future = Future.future();
         List<String> keys = Collections.singletonList(statsKey(endpoint, queueResponseType));
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
                 String.valueOf(timestamp),
+                String.valueOf(minSampleCount),
                 String.valueOf(maxSampleCount)
         );
         UpdateQueueCircuitBreakerStatsRedisCommand cmd = new UpdateQueueCircuitBreakerStatsRedisCommand(updateCircuitBreakerLuaScriptState,
@@ -82,13 +83,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     private String statsKey(String endpoint, QueueResponseType queueResponseType){
-        String key = STORAGE_PREFIX + getHash(endpoint);
-        if(queueResponseType == QueueResponseType.SUCCESS){
-            key += ":success";
-        } else {
-            key += ":failure";
-        }
-        return key;
+        return STORAGE_PREFIX + getHash(endpoint) + queueResponseType.getKeySuffix();
     }
 
     private String getHash(String input){ return HashCodeGenerator.createHashCode(input); }
