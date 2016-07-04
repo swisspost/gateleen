@@ -209,6 +209,40 @@ public final class ExpiryCheckHandler {
     }
 
     /**
+     * Checks the expiration based on the given headers and a timstamp in milliseconds.
+     *
+     * @param headers headers
+     * @return true if the request has expired, false otherwise
+     */
+    public static boolean isExpired(MultiMap headers, Long timestamp) {
+        if (headers != null && timestamp != null) {
+
+            Integer queueExpireAfter = getQueueExpireAfter(headers);
+            Integer expireAfter = getExpireAfter(headers);
+
+            // override expireAfter if x-queue-expire-after header is set
+            if ( queueExpireAfter != null ) {
+                expireAfter = queueExpireAfter;
+            }
+
+            if (expireAfter != null) {
+                long expiredSince = System.currentTimeMillis() - ( timestamp + expireAfter * 1000 );
+
+                if(expiredSince > 0) {
+                    log.debug(" > isExpired - Request expired since {} milliseconds.", expiredSince);
+                    return true;
+                } else {
+                    log.debug(" > isExpired - Request not expired (would expire in {} milliseconds).", -expiredSince);
+                    return false;
+                }
+
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Returns the actual datetime.
      * 
      * @return LocalDateTime
