@@ -31,8 +31,9 @@ public class QueueProcessor {
         vertx.eventBus().localConsumer(Address.queueProcessorAddress(), new Handler<Message<JsonObject>>() {
             public void handle(final Message<JsonObject> message) {
                 HttpRequest queuedRequestTry = null;
+                JsonObject jsonRequest = new JsonObject(message.body().getString("payload"));
                 try {
-                    queuedRequestTry = new HttpRequest(new JsonObject(message.body().getString("payload")));
+                    queuedRequestTry = new HttpRequest(jsonRequest);
                 } catch (Exception exception) {
                     LoggerFactory.getLogger(QueueProcessor.class).error("QUEUE_ERROR: Could not build request: " + message.body().toString() + " error is " + exception.getMessage());
                     message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
@@ -49,8 +50,7 @@ public class QueueProcessor {
                     public void handle(AsyncResult<Message<JsonObject>> reply) {
                         if (NO_SUCH_LOCK.equals(reply.result().body().getString(STATUS))) {
                             logger.debug("performing request " + queuedRequest.getMethod() + " " + queuedRequest.getUri());
-
-                            if (ExpiryCheckHandler.isExpired(queuedRequest)) {
+                            if (ExpiryCheckHandler.isExpired(queuedRequest.getHeaders(), jsonRequest.getLong(QueueClient.QUEUE_TIMESTAMP))) {
                                 logger.debug("request expired to " + queuedRequest.getUri());
                                 message.reply(new JsonObject().put(STATUS, OK));
                                 return;
