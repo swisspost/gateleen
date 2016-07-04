@@ -914,7 +914,7 @@ public class HookHandler {
      * @return String
      */
     protected String getUniqueListenerId(String requestUrl) {
-        StringBuffer listenerId = new StringBuffer();
+        StringBuilder listenerId = new StringBuilder();
 
         // eg. http/colin/1 -> http+colin+1
         listenerId.append(convertToStoragePattern(getListenerUrlSegment(requestUrl)));
@@ -1039,10 +1039,10 @@ public class HookHandler {
      * @return url segment
      */
     private String getListenerUrlSegment(String requestUrl) {
-        String segment = requestUrl.substring(requestUrl.indexOf(HOOKS_LISTENERS_URI_PART));
-
-        // remove hook - part
-        segment = segment.replace(HOOKS_LISTENERS_URI_PART, "");
+        // find the /_hooks/listeners/ identifier ...
+        int pos = requestUrl.indexOf(HOOKS_LISTENERS_URI_PART);
+        // ... and use substring after it as segment
+        String segment = requestUrl.substring(pos + HOOKS_LISTENERS_URI_PART.length());
 
         return segment;
     }

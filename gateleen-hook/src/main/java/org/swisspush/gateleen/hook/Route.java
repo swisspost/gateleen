@@ -35,8 +35,8 @@ public class Route {
     private static final boolean CLIENT_DEFAULT_EXPAND_IN_STORAGE = false;
     private static final int CLIENT_DEFAULT_LOG_EXPIRY = 4 * 3600;
 
-    private Pattern urlParsePattern = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>[0-9]+))?(?<path>/.*)$");
-    private Logger log = LoggerFactory.getLogger(Route.class);
+    private static Pattern URL_PARSE_PATTERN = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>[0-9]+))?(?<path>/.*)$");
+    private static Logger LOG = LoggerFactory.getLogger(Route.class);
 
     private Vertx vertx;
     private LoggingResourceManager loggingResourceManager;
@@ -93,7 +93,7 @@ public class Route {
         rule = new Rule();
         rule.setUrlPattern(urlPattern);
 
-        Matcher urlMatcher = urlParsePattern.matcher(httpHook.getDestination());
+        Matcher urlMatcher = URL_PARSE_PATTERN.matcher(httpHook.getDestination());
 
         if (!urlMatcher.matches()) {
             throw new IllegalArgumentException("Invalid url for " + httpHook.getDestination());
@@ -175,7 +175,7 @@ public class Route {
     public void cleanup() {
         vertx.setTimer(GRACE_PERIOD, new Handler<Long>() {
             public void handle(Long event) {
-                log.debug("Cleaning up one client for route of " + urlPattern);
+                LOG.debug("Cleaning up one client for route of " + urlPattern);
                 client.close();
             }
         });
