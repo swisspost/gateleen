@@ -130,7 +130,7 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
                                                             String uniqueRequestID, long timestamp, int errorThresholdPercentage,
                                                             long entriesMaxAgeMS, long minSampleCount, long maxSampleCount) {
 
-        String script = readScript(QueueCircuitBreakerLuaScripts.UPDATE_STATS.getFilename());
+        String script = readScript(QueueCircuitBreakerLuaScripts.OPEN_CIRCUIT.getFilename());
         List<String> keys = Arrays.asList(
                 circuitInfoKey,
                 circuitSuccessKey,
