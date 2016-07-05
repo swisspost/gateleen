@@ -18,7 +18,9 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueResponseType;
 
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueResponseType.*;
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
@@ -29,6 +31,7 @@ public class QueueProcessor {
     private Vertx vertx;
     private HttpClient httpClient;
     private MonitoringHandler monitoringHandler;
+    private QueueCircuitBreaker queueCircuitBreaker;
 
     public QueueProcessor(final Vertx vertx, final HttpClient httpClient, final MonitoringHandler monitoringHandler) {
         this(vertx, httpClient, monitoringHandler, null);
@@ -38,6 +41,7 @@ public class QueueProcessor {
         this.vertx = vertx;
         this.httpClient = httpClient;
         this.monitoringHandler = monitoringHandler;
+        this.queueCircuitBreaker = queueCircuitBreaker;
 
         vertx.eventBus().localConsumer(Address.queueProcessorAddress(), new Handler<Message<JsonObject>>() {
             public void handle(final Message<JsonObject> message) {
@@ -57,8 +61,8 @@ public class QueueProcessor {
 
                 String queueName = message.body().getString("queue");
 
-                if(queueCircuitBreaker == null || !queueCircuitBreaker.isActive()){
-                    executeQueuedRequest(message, logger, queuedRequest);
+                if(!isCircuitCheckEnabled()){
+                    executeQueuedRequest(message, logger, queuedRequest, queueName);
                 } else {
                     queueCircuitBreaker.handleQueuedRequest(queueName, queuedRequest).setHandler(event -> {
                         if(event.failed()){
@@ -71,7 +75,7 @@ public class QueueProcessor {
                         if(QueueCircuitState.OPEN == event.result()) {
                             message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, "Circuit for queue " + queueName + " is " + event.result() + ". Queues using this endpoint are not allowed to be executed right now"));
                         } else {
-                            executeQueuedRequest(message, logger, queuedRequest);
+                            executeQueuedRequest(message, logger, queuedRequest, queueName);
                         }
                     });
                 }
@@ -79,7 +83,27 @@ public class QueueProcessor {
         });
     }
 
-    private void executeQueuedRequest(Message<JsonObject> message, Logger logger, HttpRequest queuedRequest){
+    private boolean isCircuitCheckEnabled(){
+        return queueCircuitBreaker != null && queueCircuitBreaker.isCircuitCheckEnabled();
+    }
+
+    private boolean isStatisticsUpdateEnabled(){
+        return queueCircuitBreaker != null && queueCircuitBreaker.isStatisticsUpdateEnabled();
+    }
+
+    private void updateCircuitBreakerStatistics(HttpRequest queuedRequest, String queueName, QueueResponseType queueResponseType){
+        if(isStatisticsUpdateEnabled()){
+            queueCircuitBreaker.updateStatistics(queueName, queuedRequest, queueResponseType).setHandler(event -> {
+                if(event.failed()){
+                    String message = "failed to update statistics for queue '" + queueName + "' to uri " + queuedRequest.getUri() +
+                            ". Message is: " + event.cause().getMessage();
+                    RequestLoggerFactory.getLogger(QueueProcessor.class, queuedRequest.getHeaders()).warn(message);
+                }
+            });
+        }
+    }
+
+    private void executeQueuedRequest(Message<JsonObject> message, Logger logger, HttpRequest queuedRequest, String queueName){
         vertx.eventBus().send(Address.redisquesAddress(), buildGetLockOperation(message.body().getString("queue")), new Handler<AsyncResult<Message<JsonObject>>>(){
             @Override
             public void handle(AsyncResult<Message<JsonObject>> reply) {
@@ -103,16 +127,19 @@ public class QueueProcessor {
                                 logger.warn("Ignoring request conflict to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
                             }
                             message.reply(new JsonObject().put(STATUS, OK));
+                            updateCircuitBreakerStatistics(queuedRequest, queueName, SUCCESS);
                             monitoringHandler.updateDequeue();
                         } else {
                             logger.error("QUEUE_ERROR: Failed request to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
                             message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, response.statusCode() + " " + response.statusMessage()));
+                            updateCircuitBreakerStatistics(queuedRequest, queueName, FAILURE);
                         }
                         response.bodyHandler(event -> logger.debug("Discarding backend body"));
                         response.endHandler(event -> logger.debug("Backend response end"));
                         response.exceptionHandler(exception -> {
                             logger.warn("QUEUE_ERROR: Exception on response from " + queuedRequest.getUri() + ": " + exception.getMessage());
                             message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
+                            updateCircuitBreakerStatistics(queuedRequest, queueName, FAILURE);
                         });
                     });
 
@@ -123,6 +150,7 @@ public class QueueProcessor {
                     request.exceptionHandler(exception -> {
                         logger.warn("QUEUE_ERROR: Failed request to " + queuedRequest.getUri() + ": " + exception.getMessage());
                         message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
+                        updateCircuitBreakerStatistics(queuedRequest, queueName, FAILURE);
                     });
                     request.setTimeout(120000); // avoids blocking other requests
                     if (queuedRequest.getPayload() != null) {

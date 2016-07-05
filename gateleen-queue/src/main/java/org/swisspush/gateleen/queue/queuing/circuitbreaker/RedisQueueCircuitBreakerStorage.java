@@ -85,10 +85,6 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         return future;
     }
 
-    private String key(String key){
-        return STORAGE_PREFIX + key;
-    }
-
     private String infosKey(String endpointHash){
         return STORAGE_PREFIX + endpointHash + STORAGE_INFOS_SUFFIX;
     }

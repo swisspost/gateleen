@@ -23,6 +23,7 @@ import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueResponseType;
 
 import static org.mockito.Mockito.*;
 
@@ -48,7 +49,7 @@ public class QueueProcessorTest {
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
         httpClient = Mockito.mock(HttpClient.class);
 
-        Mockito.when(httpClient.request(any(HttpMethod.class), any(String.class), Matchers.<Handler<HttpClientResponse>>any())).thenReturn(Mockito.mock(HttpClientRequest.class));
+        Mockito.when(httpClient.request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any())).thenReturn(Mockito.mock(HttpClientRequest.class));
 
         vertx.eventBus().consumer(Address.redisquesAddress(), event -> {
             event.reply(new JsonObject().put("status", "No such lock"));
@@ -60,7 +61,7 @@ public class QueueProcessorTest {
      *
      * <ul>
      *     <li>{@link HttpClient#request(HttpMethod, String, Handler)} is never called</li>
-     *     <li>{@link QueueCircuitBreaker#isActive()} is called exactly once to check whether QueueCircuitBreaker is active</li>
+     *     <li>{@link QueueCircuitBreaker#isCircuitCheckEnabled()} is called exactly once to check whether QueueCircuitBreaker is active</li>
      *     <li>{@link QueueCircuitBreaker#handleQueuedRequest(String, HttpRequest)} is called exactly once</li>
      * </ul>
      * @param context the test context
@@ -68,7 +69,7 @@ public class QueueProcessorTest {
     @Test
     public void testOpenCircuit(TestContext context){
         Async async = context.async();
-        QueueCircuitBreaker circuitBreaker = Mockito.spy(new ConfigurableQueueCircuitBreaker(QueueCircuitState.OPEN, true));
+        QueueCircuitBreaker circuitBreaker = Mockito.spy(new ConfigurableQueueCircuitBreaker(QueueCircuitState.OPEN, true, true));
         new QueueProcessor(vertx, httpClient, monitoringHandler, circuitBreaker);
 
         vertx.eventBus().send(Address.queueProcessorAddress(), buildQueueEventBusMessage("my_queue"), event -> {
@@ -78,9 +79,9 @@ public class QueueProcessorTest {
             context.assertTrue(result.getString("message").contains("Circuit for queue my_queue is OPEN"));
 
             // open circuits should not result in actual http requests going out
-            verify(httpClient, never()).request(any(HttpMethod.class), any(String.class), Matchers.<Handler<HttpClientResponse>>any());
-            verify(circuitBreaker, times(1)).isActive();
-            verify(circuitBreaker, times(1)).handleQueuedRequest(any(String.class), any(HttpRequest.class));
+            verify(httpClient, never()).request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any());
+            verify(circuitBreaker, times(1)).isCircuitCheckEnabled();
+            verify(circuitBreaker, times(1)).handleQueuedRequest(anyString(), any(HttpRequest.class));
 
             async.complete();
         });
@@ -91,7 +92,7 @@ public class QueueProcessorTest {
      * <p>This tests verifies the following conditions:</p>
      *
      * <ul>
-     *     <li>{@link QueueCircuitBreaker#isActive()} is called exactly once to check whether QueueCircuitBreaker is active</li>
+     *     <li>{@link QueueCircuitBreaker#isCircuitCheckEnabled()} is called exactly once to check whether QueueCircuitBreaker is active</li>
      *     <li>{@link QueueCircuitBreaker#handleQueuedRequest(String, HttpRequest)} is never called</li>
      *     <li>{@link HttpClient#request(HttpMethod, String, Handler)} is called exactly once</li>
      * </ul>
@@ -100,13 +101,13 @@ public class QueueProcessorTest {
     @Test
     public void testInactiveQueueCircuitBreaker(TestContext context){
         Async async = context.async();
-        QueueCircuitBreaker circuitBreaker = Mockito.spy(new ConfigurableQueueCircuitBreaker(QueueCircuitState.OPEN, false));
+        QueueCircuitBreaker circuitBreaker = Mockito.spy(new ConfigurableQueueCircuitBreaker(QueueCircuitState.OPEN, false, true));
         new QueueProcessor(vertx, httpClient, monitoringHandler, circuitBreaker);
 
         vertx.eventBus().send(Address.queueProcessorAddress(), buildQueueEventBusMessage("my_queue"), new DeliveryOptions().setSendTimeout(1000), event -> {
-            verify(circuitBreaker, times(1)).isActive();
-            verify(circuitBreaker, never()).handleQueuedRequest(any(String.class), any(HttpRequest.class));
-            verify(httpClient, times(1)).request(any(HttpMethod.class), any(String.class), Matchers.<Handler<HttpClientResponse>>any());
+            verify(circuitBreaker, times(1)).isCircuitCheckEnabled();
+            verify(circuitBreaker, never()).handleQueuedRequest(anyString(), any(HttpRequest.class));
+            verify(httpClient, times(1)).request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any());
             async.complete();
         });
     }
@@ -121,22 +122,35 @@ public class QueueProcessorTest {
     class ConfigurableQueueCircuitBreaker implements QueueCircuitBreaker{
 
         private QueueCircuitState state;
-        private boolean active;
+        private boolean circuitCheckEnabled;
+        private boolean statisticsUpdateEnabled;
 
-        public ConfigurableQueueCircuitBreaker(QueueCircuitState state, boolean active){
+        public ConfigurableQueueCircuitBreaker(QueueCircuitState state, boolean circuitCheckEnabled, boolean statisticsUpdateEnabled){
             this.state = state;
-            this.active = active;
+            this.circuitCheckEnabled = circuitCheckEnabled;
+            this.statisticsUpdateEnabled = statisticsUpdateEnabled;
         }
 
         @Override
-        public void setActive(boolean active) { this.active = active; }
+        public void enableCircuitCheck(boolean circuitCheckEnabled) { this.circuitCheckEnabled = circuitCheckEnabled; }
 
         @Override
-        public boolean isActive() { return active; }
+        public boolean isCircuitCheckEnabled() { return circuitCheckEnabled; }
+
+        @Override
+        public void enableStatisticsUpdate(boolean statisticsUpdateEnabled) { this.statisticsUpdateEnabled = statisticsUpdateEnabled; }
+
+        @Override
+        public boolean isStatisticsUpdateEnabled() { return statisticsUpdateEnabled; }
 
         @Override
         public Future<QueueCircuitState> handleQueuedRequest(String queueName, HttpRequest queuedRequest) {
             return Future.succeededFuture(state);
+        }
+
+        @Override
+        public Future<String> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType) {
+            return null;
         }
     }
 }

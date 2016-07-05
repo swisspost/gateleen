@@ -20,7 +20,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.*;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueResponseType.*;
 
 /**
  * Tests for the {@link QueueCircuitBreakerImpl} class
@@ -58,7 +59,7 @@ public class QueueCircuitBreakerImplTest {
         Async async = context.async();
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
-        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(any(String.class)))
+        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(anyString()))
                 .thenReturn(new PatternAndEndpointHash(Pattern.compile("/someEndpoint"), "someEndpointHash"));
 
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(any(PatternAndEndpointHash.class)))
@@ -84,9 +85,43 @@ public class QueueCircuitBreakerImplTest {
         Async async = context.async();
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
-        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(any(String.class))).thenReturn(null);
+        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(anyString())).thenReturn(null);
 
         queueCircuitBreaker.handleQueuedRequest("someQueue", req).setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertNotNull(event.cause());
+            context.assertTrue(event.cause().getMessage().contains("no rule to endpoint mapping found for queue"));
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testUpdateStatistics(TestContext context){
+        Async async = context.async();
+        HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
+
+        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(anyString()))
+                .thenReturn(new PatternAndEndpointHash(Pattern.compile("/someEndpoint"), "someEndpointHash"));
+
+        Mockito.when(queueCircuitBreakerStorage.updateStatistics(any(PatternAndEndpointHash.class),
+                anyString(), anyLong(), anyInt(), anyLong(), anyLong(), anyLong(), any(QueueResponseType.class)))
+                .thenReturn(Future.succeededFuture("OK"));
+
+        queueCircuitBreaker.updateStatistics("someQueue", req, SUCCESS).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals("OK", event.result());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testUpdateStatisticsNoEndpointMapping(TestContext context){
+        Async async = context.async();
+        HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
+
+        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(anyString())).thenReturn(null);
+
+        queueCircuitBreaker.updateStatistics("someQueueName", req, SUCCESS).setHandler(event -> {
             context.assertTrue(event.failed());
             context.assertNotNull(event.cause());
             context.assertTrue(event.cause().getMessage().contains("no rule to endpoint mapping found for queue"));

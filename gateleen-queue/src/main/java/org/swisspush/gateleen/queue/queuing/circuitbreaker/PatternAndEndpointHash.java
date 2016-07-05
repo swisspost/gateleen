@@ -21,4 +21,9 @@ public class PatternAndEndpointHash {
     public String getEndpointHash() {
         return endpointHash;
     }
+
+    @Override
+    public String toString() {
+        return "url pattern: " + pattern.pattern() + " endpoint hash: " + endpointHash;
+    }
 }

@@ -5,9 +5,7 @@ import io.vertx.core.logging.LoggerFactory;
 import org.swisspush.gateleen.core.util.HashCodeGenerator;
 import org.swisspush.gateleen.routing.Rule;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -17,14 +15,17 @@ public class QueueCircuitBreakerRulePatternToEndpointMapping {
 
     private Logger log = LoggerFactory.getLogger(QueueCircuitBreakerRulePatternToEndpointMapping.class);
 
-    private Map<Pattern, PatternAndEndpointHash> rulePatternToEndpointMapping = new HashMap<>();
+    private List<PatternAndEndpointHash> rulePatternToEndpointMapping = new ArrayList<>();
 
     void updateRulePatternToEndpointMapping(List<Rule> rules){
+        log.debug("clearing rule pattern to endpoint mapping values");
         rulePatternToEndpointMapping.clear();
+        log.debug("new rule pattern to endpoint mapping values are:");
         for (Rule rule : rules) {
             PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRule(rule);
+            log.debug(patternAndEndpointHash);
             if(patternAndEndpointHash != null){
-                rulePatternToEndpointMapping.put(patternAndEndpointHash.getPattern(), patternAndEndpointHash);
+                rulePatternToEndpointMapping.add(patternAndEndpointHash);
             } else {
                 log.error("rule pattern and endpointHash could not be retrieved from rule " + rule.getUrlPattern());
             }
@@ -32,9 +33,9 @@ public class QueueCircuitBreakerRulePatternToEndpointMapping {
     }
 
     public PatternAndEndpointHash getEndpointFromRequestUri(String requestUri){
-        for (Pattern pattern : rulePatternToEndpointMapping.keySet()) {
-            if(pattern.matcher(requestUri).matches()){
-                return rulePatternToEndpointMapping.get(pattern);
+        for (PatternAndEndpointHash mapping : rulePatternToEndpointMapping) {
+            if(mapping.getPattern().matcher(requestUri).matches()){
+                return mapping;
             }
         }
         return null;
