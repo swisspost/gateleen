@@ -15,6 +15,8 @@ import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.util.HashCodeGenerator;
 import redis.clients.jedis.Jedis;
 
+import java.util.regex.Pattern;
+
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.FIELD_STATE;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.STORAGE_PREFIX;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.STORAGE_INFOS_SUFFIX;
@@ -45,11 +47,12 @@ public class RedisQueueCircuitBreakerStorageTest {
     @Test
     public void testGetQueueCircuitState(TestContext context){
         Async async = context.async();
-        String endpoint = "someEndpoint";
-        storage.getQueueCircuitState(endpoint).setHandler(event -> {
+        Pattern pattern = Pattern.compile("/someEndpoint");
+        PatternAndEndpointHash patternAndEndpointHash = new PatternAndEndpointHash(pattern, "someEndpointHash");
+        storage.getQueueCircuitState(patternAndEndpointHash).setHandler(event -> {
             context.assertEquals(QueueCircuitState.CLOSED, event.result());
-            writeQueueCircuitStateToDatabase(endpoint, QueueCircuitState.HALF_OPEN);
-            storage.getQueueCircuitState(endpoint).setHandler(event1 -> {
+            writeQueueCircuitStateToDatabase("someEndpointHash", QueueCircuitState.HALF_OPEN);
+            storage.getQueueCircuitState(patternAndEndpointHash).setHandler(event1 -> {
                 context.assertEquals(QueueCircuitState.HALF_OPEN, event1.result());
                 async.complete();
             });
@@ -59,32 +62,36 @@ public class RedisQueueCircuitBreakerStorageTest {
     @Test
     public void testUpdateStatistics(TestContext context){
         Async async = context.async();
-        String endpoint = "anotherEndpoint";
-        context.assertFalse(jedis.exists(key(endpoint, QueueResponseType.SUCCESS)));
-        context.assertFalse(jedis.exists(key(endpoint, QueueResponseType.FAILURE)));
+        String endpointHash = "anotherEndpointHash";
+
+        Pattern pattern = Pattern.compile("/anotherEndpoint");
+        PatternAndEndpointHash patternAndEndpointHash = new PatternAndEndpointHash(pattern, endpointHash);
+
+        context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.SUCCESS)));
+        context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
 
         int errorThreshold = 50;
         long entriesMaxAgeMS = 10;
         long minSampleCount = 1;
         long maxSampleCount = 3;
 
-        storage.updateStatistics(endpoint, "req_1", 1, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event -> {
+        storage.updateStatistics(patternAndEndpointHash, "req_1", 1, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event -> {
             context.assertTrue(event.succeeded());
-            context.assertTrue(jedis.exists(key(endpoint, QueueResponseType.SUCCESS)));
-            context.assertFalse(jedis.exists(key(endpoint, QueueResponseType.FAILURE)));
-            context.assertEquals(1L, jedis.zcard(key(endpoint, QueueResponseType.SUCCESS)));
+            context.assertTrue(jedis.exists(key(endpointHash, QueueResponseType.SUCCESS)));
+            context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
+            context.assertEquals(1L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
             context.assertEquals("OK", event.result());
-            storage.updateStatistics(endpoint, "req_2", 2, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event1 -> {
-                context.assertFalse(jedis.exists(key(endpoint, QueueResponseType.FAILURE)));
-                context.assertEquals(2L, jedis.zcard(key(endpoint, QueueResponseType.SUCCESS)));
+            storage.updateStatistics(patternAndEndpointHash, "req_2", 2, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event1 -> {
+                context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
+                context.assertEquals(2L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
                 context.assertEquals("OK", event1.result());
-                storage.updateStatistics(endpoint, "req_3", 3, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event2 -> {
-                    context.assertFalse(jedis.exists(key(endpoint, QueueResponseType.FAILURE)));
-                    context.assertEquals(3L, jedis.zcard(key(endpoint, QueueResponseType.SUCCESS)));
+                storage.updateStatistics(patternAndEndpointHash, "req_3", 3, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event2 -> {
+                    context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
+                    context.assertEquals(3L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
                     context.assertEquals("OK", event2.result());
-                    storage.updateStatistics(endpoint, "req_4", 4, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event3 -> {
-                        context.assertFalse(jedis.exists(key(endpoint, QueueResponseType.FAILURE)));
-                        context.assertEquals(3L, jedis.zcard(key(endpoint, QueueResponseType.SUCCESS)));
+                    storage.updateStatistics(patternAndEndpointHash, "req_4", 4, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event3 -> {
+                        context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
+                        context.assertEquals(3L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
                         context.assertEquals("OK", event3.result());
                         async.complete();
                     });
@@ -96,33 +103,37 @@ public class RedisQueueCircuitBreakerStorageTest {
     @Test
     public void testOpenCircuit(TestContext context){
         Async async = context.async();
-        String endpoint = "anotherEndpoint";
-        context.assertFalse(jedis.exists(key(endpoint, QueueResponseType.SUCCESS)));
-        context.assertFalse(jedis.exists(key(endpoint, QueueResponseType.FAILURE)));
+        String endpointHash = "anotherEndpointHash";
+
+        Pattern pattern = Pattern.compile("/anotherEndpoint");
+        PatternAndEndpointHash patternAndEndpointHash = new PatternAndEndpointHash(pattern, endpointHash);
+
+        context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.SUCCESS)));
+        context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
 
         int errorThreshold = 70;
         long entriesMaxAgeMS = 10;
         long minSampleCount = 3;
         long maxSampleCount = 5;
 
-        Future<String> f1 = storage.updateStatistics(endpoint, "req_1", 1, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS);
-        Future<String> f2 = storage.updateStatistics(endpoint, "req_2", 2, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE);
-        Future<String> f3 = storage.updateStatistics(endpoint, "req_3", 3, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE);
+        Future<String> f1 = storage.updateStatistics(patternAndEndpointHash, "req_1", 1, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS);
+        Future<String> f2 = storage.updateStatistics(patternAndEndpointHash, "req_2", 2, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE);
+        Future<String> f3 = storage.updateStatistics(patternAndEndpointHash, "req_3", 3, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE);
 
         CompositeFuture.all(f1, f2, f3).setHandler(event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(1L, jedis.zcard(key(endpoint, QueueResponseType.SUCCESS)));
-            context.assertEquals(2L, jedis.zcard(key(endpoint, QueueResponseType.FAILURE)));
+            context.assertEquals(1L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
+            context.assertEquals(2L, jedis.zcard(key(endpointHash, QueueResponseType.FAILURE)));
 
-            storage.getQueueCircuitState(endpoint).setHandler(event1 -> {
+            storage.getQueueCircuitState(patternAndEndpointHash).setHandler(event1 -> {
                 context.assertEquals(QueueCircuitState.CLOSED, event1.result());
-                assertStateAndErroPercentage(context, endpoint, "closed", 66);
-                storage.updateStatistics(endpoint, "req_4", 4, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE).setHandler(event2 -> {
-                    storage.getQueueCircuitState(endpoint).setHandler(event3 -> {
-                        assertStateAndErroPercentage(context, endpoint, "open", 75);
+                assertStateAndErroPercentage(context, endpointHash, "closed", 66);
+                storage.updateStatistics(patternAndEndpointHash, "req_4", 4, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE).setHandler(event2 -> {
+                    storage.getQueueCircuitState(patternAndEndpointHash).setHandler(event3 -> {
+                        assertStateAndErroPercentage(context, endpointHash, "open", 75);
                         context.assertEquals(QueueCircuitState.OPEN, event3.result());
-                        context.assertEquals(1L, jedis.zcard(key(endpoint, QueueResponseType.SUCCESS)));
-                        context.assertEquals(3L, jedis.zcard(key(endpoint, QueueResponseType.FAILURE)));
+                        context.assertEquals(1L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
+                        context.assertEquals(3L, jedis.zcard(key(endpointHash, QueueResponseType.FAILURE)));
                         async.complete();
                     });
                 });
@@ -130,16 +141,16 @@ public class RedisQueueCircuitBreakerStorageTest {
         });
     }
 
-    private String key(String endpoint, QueueResponseType queueResponseType){
-        return STORAGE_PREFIX + HashCodeGenerator.createHashCode(endpoint) + queueResponseType.getKeySuffix();
+    private String key(String endpointHash, QueueResponseType queueResponseType){
+        return STORAGE_PREFIX + endpointHash + queueResponseType.getKeySuffix();
     }
 
-    private void writeQueueCircuitStateToDatabase(String endpoint, QueueCircuitState state){
-        jedis.hset(STORAGE_PREFIX + HashCodeGenerator.createHashCode(endpoint) + STORAGE_INFOS_SUFFIX, FIELD_STATE, state.name());
+    private void writeQueueCircuitStateToDatabase(String endpointHash, QueueCircuitState state){
+        jedis.hset(STORAGE_PREFIX + endpointHash + STORAGE_INFOS_SUFFIX, FIELD_STATE, state.name());
     }
 
-    private void assertStateAndErroPercentage(TestContext context, String endpoint, String state, int percentage){
-        String endpointKey = STORAGE_PREFIX + HashCodeGenerator.createHashCode(endpoint) + STORAGE_INFOS_SUFFIX;
+    private void assertStateAndErroPercentage(TestContext context, String endpointHash, String state, int percentage){
+        String endpointKey = STORAGE_PREFIX + endpointHash + STORAGE_INFOS_SUFFIX;
         context.assertEquals(state, jedis.hget(endpointKey, "state"));
         String percentageAsString = jedis.hget(endpointKey, "currFailurePercentage");
         context.assertEquals(percentage, Integer.valueOf(percentageAsString));

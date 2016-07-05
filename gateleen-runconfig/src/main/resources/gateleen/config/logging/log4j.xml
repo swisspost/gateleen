@@ -80,10 +80,10 @@
         <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.reststorage">
-        <level value="INFO" />
+        <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.redisques">
-        <level value="INFO" />
+        <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.gateleen.logging.Log4jConfiguratorMBean">
         <level value="FATAL" />

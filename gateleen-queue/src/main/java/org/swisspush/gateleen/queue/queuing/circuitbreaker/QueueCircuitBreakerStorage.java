@@ -9,7 +9,7 @@ public interface QueueCircuitBreakerStorage {
 
     Future<Void> resetAllEndpoints();
 
-    Future<QueueCircuitState> getQueueCircuitState(String endpoint);
+    Future<QueueCircuitState> getQueueCircuitState(PatternAndEndpointHash patternAndEndpointHash);
 
-    Future<String> updateStatistics(String endpoint, String uniqueRequestID, long timestamp, int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount, long maxSampleCount, QueueResponseType queueResponseType);
+    Future<String> updateStatistics(PatternAndEndpointHash patternAndEndpointHash, String uniqueRequestID, long timestamp, int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount, long maxSampleCount, QueueResponseType queueResponseType);
 }

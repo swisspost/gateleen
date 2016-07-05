@@ -41,16 +41,15 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
-    public Future<QueueCircuitState> getQueueCircuitState(String endpoint) {
+    public Future<QueueCircuitState> getQueueCircuitState(PatternAndEndpointHash patternAndEndpointHash) {
         Future<QueueCircuitState> future = Future.future();
-        String endpointHash = getHash(endpoint);
-        redisClient.hget(infosKey(endpointHash), FIELD_STATE, event -> {
+        redisClient.hget(infosKey(patternAndEndpointHash.getEndpointHash()), FIELD_STATE, event -> {
             if(event.failed()){
                 future.fail(event.cause());
             } else {
                 String stateAsString = event.result();
                 if(StringUtils.isEmpty(stateAsString)){
-                    log.info("No status information found for endpoint " + endpoint + ". Using default value " + QueueCircuitState.CLOSED);
+                    log.info("No status information found for endpoint " + patternAndEndpointHash.getPattern().pattern() + ". Using default value " + QueueCircuitState.CLOSED);
                 }
                 future.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
             }
@@ -59,11 +58,11 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
-    public Future<String> updateStatistics(String endpoint, String uniqueRequestID, long timestamp,
+    public Future<String> updateStatistics(PatternAndEndpointHash patternAndEndpointHash, String uniqueRequestID, long timestamp,
                                            int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount,
                                            long maxSampleCount, QueueResponseType queueResponseType) {
         Future<String> future = Future.future();
-        String endpointHash = getHash(endpoint);
+        String endpointHash = patternAndEndpointHash.getEndpointHash();
         List<String> keys = Arrays.asList(
                 infosKey(endpointHash),
                 statsKey(endpointHash, QueueResponseType.SUCCESS),
@@ -97,6 +96,4 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     private String statsKey(String endpointHash, QueueResponseType queueResponseType){
         return STORAGE_PREFIX + endpointHash + queueResponseType.getKeySuffix();
     }
-
-    private String getHash(String input){ return HashCodeGenerator.createHashCode(input); }
 }

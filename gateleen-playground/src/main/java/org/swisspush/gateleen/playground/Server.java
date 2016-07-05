@@ -25,6 +25,8 @@ import org.swisspush.gateleen.monitoring.ResetMetricsController;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
@@ -149,7 +151,8 @@ public class Server extends AbstractVerticle {
                     router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
                             (Handler<Void>) aVoid -> hookHandler.init());
 
-                    new QueueProcessor(vertx, selfClient, monitoringHandler);
+                    QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, redisClient, RULES_ROOT, storage, props);
+                    new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                     final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
 
                     LogController logController = new LogController();
