@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-class QueueCircuitBreakerRulePatternToEndpointMapping {
+public class QueueCircuitBreakerRulePatternToEndpointMapping {
 
     private Logger log = LoggerFactory.getLogger(QueueCircuitBreakerRulePatternToEndpointMapping.class);
 
@@ -21,10 +21,8 @@ class QueueCircuitBreakerRulePatternToEndpointMapping {
 
     void updateRulePatternToEndpointMapping(List<Rule> rules){
         rulePatternToEndpointMapping.clear();
-        System.out.println("***** updateRulePatternToEndpointMapping *****");
         for (Rule rule : rules) {
             PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRule(rule);
-            System.out.println("pattern: " + patternAndEndpointHash.getPattern().pattern() + ", hash: " + patternAndEndpointHash.getEndpointHash());
             if(patternAndEndpointHash != null){
                 rulePatternToEndpointMapping.put(patternAndEndpointHash.getPattern(), patternAndEndpointHash);
             } else {

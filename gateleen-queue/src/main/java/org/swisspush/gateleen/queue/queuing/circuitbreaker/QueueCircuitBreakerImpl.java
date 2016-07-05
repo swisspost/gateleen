@@ -1,18 +1,14 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.redis.RedisClient;
 import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.routing.RuleProvider.RuleChangesObserver;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -26,12 +22,11 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private QueueCircuitBreakerStorage queueCircuitBreakerStorage;
     private QueueCircuitBreakerRulePatternToEndpointMapping ruleToEndpointMapping;
 
-    public QueueCircuitBreakerImpl(Vertx vertx, RedisClient redisClient, String rulesPath, ResourceStorage storage, Map<String, Object> properties) {
-        this.ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
+    public QueueCircuitBreakerImpl(QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToEndpointMapping ruleToEndpointMapping) {
+        this.queueCircuitBreakerStorage = queueCircuitBreakerStorage;
+        this.ruleProvider = ruleProvider;
         this.ruleProvider.registerObserver(this);
-
-        this.queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
-        this.ruleToEndpointMapping = new QueueCircuitBreakerRulePatternToEndpointMapping();
+        this.ruleToEndpointMapping = ruleToEndpointMapping;
     }
 
     @Override
@@ -54,13 +49,17 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     public Future<QueueCircuitState> handleQueuedRequest(String queueName, HttpRequest queuedRequest){
         Future<QueueCircuitState> future = Future.future();
         PatternAndEndpointHash patternAndEndpointHash = this.ruleToEndpointMapping.getEndpointFromRequestUri(queuedRequest.getUri());
-        this.queueCircuitBreakerStorage.getQueueCircuitState(patternAndEndpointHash).setHandler(event -> {
-            if(event.failed()){
-                future.fail(event.cause());
-            } else {
-                future.complete(event.result());
-            }
-        });
+        if(patternAndEndpointHash != null){
+            this.queueCircuitBreakerStorage.getQueueCircuitState(patternAndEndpointHash).setHandler(event -> {
+                if(event.failed()){
+                    future.fail(event.cause());
+                } else {
+                    future.complete(event.result());
+                }
+            });
+        } else {
+            future.fail("no rule to endpoint mapping found for queue '" + queueName + "' and uri " + queuedRequest.getUri());
+        }
         return future;
     }
 }

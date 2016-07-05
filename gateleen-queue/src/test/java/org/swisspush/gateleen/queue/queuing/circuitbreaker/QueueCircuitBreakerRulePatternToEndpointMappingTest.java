@@ -84,7 +84,7 @@ public class QueueCircuitBreakerRulePatternToEndpointMappingTest {
         context.assertNotNull(endpoint_2a);
         context.assertEquals(endpoint_2, endpoint_2a);
 
-        String enpoint_3 = mapping.getEndpointFromRequestUri("/playground/unknown/uri").getEndpointHash();
+        PatternAndEndpointHash enpoint_3 = mapping.getEndpointFromRequestUri("/playground/unknown/uri");
         context.assertNull(enpoint_3);
     }
 
