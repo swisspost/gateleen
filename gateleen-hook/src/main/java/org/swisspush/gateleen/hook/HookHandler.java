@@ -656,6 +656,17 @@ public class HookHandler {
         log.debug("handleListenerRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
+            JsonObject hook = new JsonObject(hookData.toString());
+            String destination = hook.getString("destination");
+            String hookOnUri = getMonitoredUrlSegment(request.uri());
+            if (destination.startsWith(hookOnUri)) {
+                request.response().setStatusCode(400);
+                final String msg = "Destination-URI should not be within subtree of your hooked resource. This would lead to an infinite loop.";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
+
             // eg. /server/hooks/v1/registrations/listeners/http+serviceName+hookId
             final String listenerStorageUri = hookRootUri + HOOK_LISTENER_STORAGE_PATH + getUniqueListenerId(request.uri());
 
@@ -683,7 +694,7 @@ public class HookHandler {
             JsonObject storageObject = new JsonObject();
             storageObject.put(REQUESTURL, request.uri());
             storageObject.put(EXPIRATION_TIME, ExpiryCheckHandler.printDateTime(expirationTime));
-            storageObject.put(HOOK, new JsonObject(hookData.toString()));
+            storageObject.put(HOOK, hook);
 
             storage.put(listenerStorageUri, request.headers(), Buffer.buffer(storageObject.toString()), status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
