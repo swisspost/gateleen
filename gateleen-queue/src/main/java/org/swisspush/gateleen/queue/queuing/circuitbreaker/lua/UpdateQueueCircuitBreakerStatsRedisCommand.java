@@ -5,6 +5,7 @@ import io.vertx.core.logging.Logger;
 import io.vertx.redis.RedisClient;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.UpdateStatisticsResult;
 
 import java.util.List;
 
@@ -16,12 +17,12 @@ public class UpdateQueueCircuitBreakerStatsRedisCommand implements RedisCommand 
     private LuaScriptState luaScriptState;
     private List<String> keys;
     private List<String> arguments;
-    private Future<String> future;
+    private Future<UpdateStatisticsResult> future;
     private RedisClient redisClient;
     private Logger log;
 
     public UpdateQueueCircuitBreakerStatsRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
-                                                      RedisClient redisClient, Logger log, final Future<String> future) {
+                                                      RedisClient redisClient, Logger log, final Future<UpdateStatisticsResult> future) {
         this.luaScriptState = luaScriptState;
         this.keys = keys;
         this.arguments = arguments;
@@ -38,7 +39,7 @@ public class UpdateQueueCircuitBreakerStatsRedisCommand implements RedisCommand 
                 if (log.isTraceEnabled()) {
                     log.trace("UpdateQueueCircuitBreakerStats lua script got result: " + value);
                 }
-                future.complete(value);
+                future.complete(UpdateStatisticsResult.fromString(value, UpdateStatisticsResult.ERROR));
             } else {
                 String message = event.cause().getMessage();
                 if(message != null && message.startsWith("NOSCRIPT")) {

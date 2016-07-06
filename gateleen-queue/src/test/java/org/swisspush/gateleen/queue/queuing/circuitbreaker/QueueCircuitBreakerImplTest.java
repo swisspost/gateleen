@@ -51,7 +51,7 @@ public class QueueCircuitBreakerImplTest {
 
         ruleToEndpointMapping = Mockito.mock(QueueCircuitBreakerRulePatternToEndpointMapping.class);
 
-        queueCircuitBreaker = new QueueCircuitBreakerImpl(queueCircuitBreakerStorage, ruleProvider, ruleToEndpointMapping);
+        queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage, ruleProvider, ruleToEndpointMapping);
     }
 
     @Test
@@ -105,11 +105,10 @@ public class QueueCircuitBreakerImplTest {
 
         Mockito.when(queueCircuitBreakerStorage.updateStatistics(any(PatternAndEndpointHash.class),
                 anyString(), anyLong(), anyInt(), anyLong(), anyLong(), anyLong(), any(QueueResponseType.class)))
-                .thenReturn(Future.succeededFuture("OK"));
+                .thenReturn(Future.succeededFuture(UpdateStatisticsResult.OK));
 
         queueCircuitBreaker.updateStatistics("someQueue", req, SUCCESS).setHandler(event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals("OK", event.result());
             async.complete();
         });
     }

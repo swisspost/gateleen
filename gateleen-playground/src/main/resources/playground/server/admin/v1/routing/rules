@@ -1,4 +1,9 @@
 {
+  "/playground/cb/(.*)": {
+    "description": "CircuitBreaker Test",
+    "path": "/playground/server/tests/exp/$1",
+    "storage": "main"
+  },
   "/playground/": {
     "description": "Home Page",
     "path": "/playground/server/pages/index.html",

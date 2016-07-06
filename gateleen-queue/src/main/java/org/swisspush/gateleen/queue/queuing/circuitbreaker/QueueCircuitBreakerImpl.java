@@ -1,14 +1,24 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.routing.RuleProvider.RuleChangesObserver;
 
 import java.util.List;
+
+import static org.swisspush.redisques.util.RedisquesAPI.OK;
+import static org.swisspush.redisques.util.RedisquesAPI.STATUS;
+import static org.swisspush.redisques.util.RedisquesAPI.buildPutLockOperation;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -17,6 +27,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     private Logger log = LoggerFactory.getLogger(QueueCircuitBreakerImpl.class);
 
+    private Vertx vertx;
     private boolean circuitCheckEnabled = true;
     private boolean statisticsUpdateEnabled = true;
     private RuleProvider ruleProvider;
@@ -28,7 +39,11 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private long minSampleCount;
     private long maxSampleCount;
 
-    public QueueCircuitBreakerImpl(QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToEndpointMapping ruleToEndpointMapping) {
+    private String redisquesAddress;
+
+    public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToEndpointMapping ruleToEndpointMapping) {
+        this.vertx = vertx;
+        this.redisquesAddress = Address.redisquesAddress();
         this.queueCircuitBreakerStorage = queueCircuitBreakerStorage;
         this.ruleProvider = ruleProvider;
         this.ruleProvider.registerObserver(this);
@@ -36,7 +51,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
         this.errorThresholdPercentage = 50;
         this.entriesMaxAgeMS = 1000 * 60 * 60; //1h
-        this.minSampleCount = 5;
+        this.minSampleCount = 3;
         this.maxSampleCount = 10;
     }
 
@@ -79,8 +94,8 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
-    public Future<String> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType) {
-        Future<String> future = Future.future();
+    public Future<Void> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType) {
+        Future<Void> future = Future.future();
         String requestId = getRequestUniqueId(queuedRequest);
         long currentTS = System.currentTimeMillis();
 
@@ -99,13 +114,29 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                 if (event.failed()) {
                     future.fail(event.cause());
                 } else {
-                    future.complete(event.result());
+                    lockQueueIfNeeded(queueName, event.result());
+                    future.complete();
                 }
             });
         } else {
             failWithNoRuleToEndpointMappingMessage(future, queueName, queuedRequest);
         }
         return future;
+    }
+
+    private void lockQueueIfNeeded(String queueName, UpdateStatisticsResult result){
+        if(UpdateStatisticsResult.OPENED == result){
+            vertx.eventBus().send(redisquesAddress, buildPutLockOperation(queueName, "queue_circuit_breaker"), new Handler<AsyncResult<Message<JsonObject>>>() {
+                @Override
+                public void handle(AsyncResult<Message<JsonObject>> reply) {
+                    if (OK.equals(reply.result().body().getString(STATUS))) {
+                        log.info("locked queue '" + queueName + "' because the circuit has been opened");
+                    } else {
+                        log.warn("failed to lock queue '" + queueName + "'. Queue should have been locked, because the circuit has been opened");
+                    }
+                }
+            });
+        }
     }
 
     private void failWithNoRuleToEndpointMappingMessage(Future future, String queueName, HttpRequest request){

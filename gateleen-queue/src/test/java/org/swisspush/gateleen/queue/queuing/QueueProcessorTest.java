@@ -149,7 +149,7 @@ public class QueueProcessorTest {
         }
 
         @Override
-        public Future<String> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType) {
+        public Future<Void> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType) {
             return null;
         }
     }

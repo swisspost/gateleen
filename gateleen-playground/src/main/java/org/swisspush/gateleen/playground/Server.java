@@ -156,7 +156,7 @@ public class Server extends AbstractVerticle {
 
                     RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                     QueueCircuitBreakerRulePatternToEndpointMapping rulePatternToEndpointMapping = new QueueCircuitBreakerRulePatternToEndpointMapping();
-                    QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(new RedisQueueCircuitBreakerStorage(redisClient),
+                    QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, new RedisQueueCircuitBreakerStorage(redisClient),
                             ruleProvider, rulePatternToEndpointMapping);
 
                     new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);

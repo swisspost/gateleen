@@ -25,6 +25,8 @@ redis.log(redis.LOG_NOTICE, "INPUT minSampleCount: "..minSampleCount)
 redis.log(redis.LOG_NOTICE, "INPUT maxSetSize: "..maxSetSize)
 redis.log(redis.LOG_NOTICE, "********************")
 
+local return_value = "OK"
+
 -- add request to circuit to update
 redis.call('zadd',circuitKeyToUpdate,requestTS,requestID)
 
@@ -82,10 +84,11 @@ local failPercentage = updateFailurePercentage()
 -- update state
 if getCircuitState() == "closed" and sampleCountThresholdReached() and failPercentage >= errorThresholdPercentage then
     setCircuitState("open")
+    return_value = "OPENED"
 end
 
 -- cleanup set when too much entries
 preserveSetSize(circuitSuccessKey)
 preserveSetSize(circuitFailureKey)
 
-return "OK"
+return return_value

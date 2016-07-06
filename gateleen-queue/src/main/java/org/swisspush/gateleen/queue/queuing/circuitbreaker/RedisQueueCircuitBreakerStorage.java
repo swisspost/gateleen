@@ -58,10 +58,10 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
-    public Future<String> updateStatistics(PatternAndEndpointHash patternAndEndpointHash, String uniqueRequestID, long timestamp,
+    public Future<UpdateStatisticsResult> updateStatistics(PatternAndEndpointHash patternAndEndpointHash, String uniqueRequestID, long timestamp,
                                            int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount,
                                            long maxSampleCount, QueueResponseType queueResponseType) {
-        Future<String> future = Future.future();
+        Future<UpdateStatisticsResult> future = Future.future();
         String endpointHash = patternAndEndpointHash.getEndpointHash();
         List<String> keys = Arrays.asList(
                 infosKey(endpointHash),

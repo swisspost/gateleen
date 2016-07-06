@@ -10,7 +10,7 @@ public interface QueueCircuitBreaker {
 
     Future<QueueCircuitState> handleQueuedRequest(String queueName, HttpRequest queuedRequest);
 
-    Future<String> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType);
+    Future<Void> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType);
 
     void enableCircuitCheck(boolean circuitCheckEnabled);
 

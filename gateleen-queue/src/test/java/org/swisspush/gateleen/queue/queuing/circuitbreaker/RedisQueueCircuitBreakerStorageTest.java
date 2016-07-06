@@ -80,19 +80,19 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertTrue(jedis.exists(key(endpointHash, QueueResponseType.SUCCESS)));
             context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
             context.assertEquals(1L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
-            context.assertEquals("OK", event.result());
+            context.assertEquals(UpdateStatisticsResult.OK, event.result());
             storage.updateStatistics(patternAndEndpointHash, "req_2", 2, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event1 -> {
                 context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
                 context.assertEquals(2L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
-                context.assertEquals("OK", event1.result());
+                context.assertEquals(UpdateStatisticsResult.OK, event1.result());
                 storage.updateStatistics(patternAndEndpointHash, "req_3", 3, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event2 -> {
                     context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
                     context.assertEquals(3L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
-                    context.assertEquals("OK", event2.result());
+                    context.assertEquals(UpdateStatisticsResult.OK, event2.result());
                     storage.updateStatistics(patternAndEndpointHash, "req_4", 4, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS).setHandler(event3 -> {
                         context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
                         context.assertEquals(3L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
-                        context.assertEquals("OK", event3.result());
+                        context.assertEquals(UpdateStatisticsResult.OK, event3.result());
                         async.complete();
                     });
                 });
@@ -116,9 +116,9 @@ public class RedisQueueCircuitBreakerStorageTest {
         long minSampleCount = 3;
         long maxSampleCount = 5;
 
-        Future<String> f1 = storage.updateStatistics(patternAndEndpointHash, "req_1", 1, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS);
-        Future<String> f2 = storage.updateStatistics(patternAndEndpointHash, "req_2", 2, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE);
-        Future<String> f3 = storage.updateStatistics(patternAndEndpointHash, "req_3", 3, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE);
+        Future<UpdateStatisticsResult> f1 = storage.updateStatistics(patternAndEndpointHash, "req_1", 1, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.SUCCESS);
+        Future<UpdateStatisticsResult> f2 = storage.updateStatistics(patternAndEndpointHash, "req_2", 2, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE);
+        Future<UpdateStatisticsResult> f3 = storage.updateStatistics(patternAndEndpointHash, "req_3", 3, errorThreshold, entriesMaxAgeMS, minSampleCount, maxSampleCount, QueueResponseType.FAILURE);
 
         CompositeFuture.all(f1, f2, f3).setHandler(event -> {
             context.assertTrue(event.succeeded());
