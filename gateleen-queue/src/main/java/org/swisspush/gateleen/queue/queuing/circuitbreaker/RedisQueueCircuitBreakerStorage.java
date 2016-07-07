@@ -72,6 +72,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
 
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
+                patternAndEndpointHash.getPattern().pattern(),
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
                 String.valueOf(entriesMaxAgeMS),

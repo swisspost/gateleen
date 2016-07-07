@@ -152,7 +152,7 @@ public class RedisQueueCircuitBreakerStorageTest {
     private void assertStateAndErroPercentage(TestContext context, String endpointHash, String state, int percentage){
         String endpointKey = STORAGE_PREFIX + endpointHash + STORAGE_INFOS_SUFFIX;
         context.assertEquals(state, jedis.hget(endpointKey, "state"));
-        String percentageAsString = jedis.hget(endpointKey, "currFailurePercentage");
+        String percentageAsString = jedis.hget(endpointKey, "failRatio");
         context.assertEquals(percentage, Integer.valueOf(percentageAsString));
     }
 }

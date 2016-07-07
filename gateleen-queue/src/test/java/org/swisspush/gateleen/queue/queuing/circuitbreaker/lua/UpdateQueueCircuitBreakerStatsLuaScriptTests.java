@@ -29,9 +29,9 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
         String update_fail = "q:failure";
 
         // adding 3 failing requests
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_1", 0, 50, 10, 4, 10);
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_2", 1, 50, 10, 4, 10);
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_3", 2, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_1", "url_pattern", 0, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_2", "url_pattern", 1, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_3", "url_pattern", 2, 50, 10, 4, 10);
 
         // asserts
         assertThat(jedis.exists(circuitInfoKey), is(true));
@@ -40,7 +40,7 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
         assertStateAndErroPercentage("closed", 100); // state should still be 'closed' because the minSampleThreshold (4) is not yet reached
 
         // add 1 successful request => now the minSampleThreshold is reached
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_4", 3, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_4", "url_pattern", 3, 50, 10, 4, 10);
 
         assertThat(jedis.exists(circuitInfoKey), is(true));
         assertThat(jedis.exists(circuitSuccessKey), is(true));
@@ -48,23 +48,25 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
         assertStateAndErroPercentage("open", 75);
 
         // add 2 more successful requests => failurePercentage should drop
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_5", 4, 50, 10, 4, 10);
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_6", 5, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_5", "url_pattern", 4, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_6", "url_pattern", 5, 50, 10, 4, 10);
         assertStateAndErroPercentage("open", 50);
 
         // add 1 more successful request => failurePercentage should drop and state should switch to 'half_open'
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_7", 6, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 6, 50, 10, 4, 10);
         assertStateAndErroPercentage("open", 42);
 
         // add 1 more failing request => failurePercentage should raise again but state should remain 'half_open'
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_8", 7, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_8", "url_pattern", 7, 50, 10, 4, 10);
         assertStateAndErroPercentage("open", 50);
 
         // add 3 more failing request => failurePercentage should raise again but state should remain 'half_open'
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_9", 8, 50, 10, 4, 10);
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_10", 9, 50, 10, 4, 10);
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_11", 10, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_9", "url_pattern", 8, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_10", "url_pattern", 9, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_11", "url_pattern", 10, 50, 10, 4, 10);
         assertStateAndErroPercentage("open", 63);
+
+        assertPattern("url_pattern");
     }
 
 
@@ -74,7 +76,7 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
 
         assertSizeSizeNotExceedingLimit(circuitSuccessKey, maxSetSize);
         for (int i = 1; i <= 20; i++) {
-            evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, "q:success", "req_"+i, i, 50, 10, 4, maxSetSize);
+            evalScriptUpdateQueueCircuitBreakerStats("q:success", "req_"+i, "url_pattern", i, 50, 10, 4, maxSetSize);
         }
         assertSizeSizeNotExceedingLimit(circuitSuccessKey, maxSetSize);
 
@@ -87,47 +89,54 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
         for(int i = 11; i <= 20; i++){
             assertThat(remainingSetEntries.contains("req_"+i), is(true));
         }
+
+        assertPattern("url_pattern");
     }
 
     @Test
     public void testOnlyRespectEntriesWithinAgeRange(){
         String update_success = "q:success";
         String update_fail = "q:failure";
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_1", 1, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_1", "url_pattern", 1, 50, 3, 1, 100);
         assertStateAndErroPercentage("closed", 0);
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_2", 2, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_2", "url_pattern", 2, 50, 3, 1, 100);
         assertStateAndErroPercentage("closed", 0);
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_3", 3, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_3", "url_pattern", 3, 50, 3, 1, 100);
         assertStateAndErroPercentage("closed", 33);
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_4", 4, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_4", "url_pattern", 4, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 50);
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_5", 5, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_5", "url_pattern", 5, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 75); // req_1 is out of range by now
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_fail, "req_6", 6, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_6", "url_pattern", 6, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 100); // req_2 is out of range by now
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_7", 7, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 7, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 75); // req_3 is out of range by now
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_8", 8, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_8", "url_pattern", 8, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 50); // req_4 is out of range by now
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_9", 9, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_9", "url_pattern", 9, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 25); // req_5 is out of range by now
-        evalScriptUpdateQueueCircuitBreakerStats(circuitInfoKey, circuitSuccessKey, circuitFailureKey, update_success, "req_10", 10, 50, 3, 1, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_10", "url_pattern", 10, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 0); // req_6 is out of range by now
+
+        assertPattern("url_pattern");
     }
 
     private void assertStateAndErroPercentage(String state, int percentage){
         assertThat(jedis.hget(circuitInfoKey, "state"), equalTo(state));
-        String percentageAsString = jedis.hget(circuitInfoKey, "currFailurePercentage");
+        String percentageAsString = jedis.hget(circuitInfoKey, "failRatio");
         assertThat(Integer.valueOf(percentageAsString), equalTo(percentage));
+    }
+
+    private void assertPattern(String pattern){
+        assertThat(jedis.hget(circuitInfoKey, "pattern"), equalTo(pattern));
     }
 
     private void assertSizeSizeNotExceedingLimit(String setKey, long maxSetSize){
         assertThat(jedis.zcard(setKey) <= maxSetSize, is(true));
     }
 
-    private Object evalScriptUpdateQueueCircuitBreakerStats(String circuitInfoKey, String circuitSuccessKey,
-                                                            String circuitFailureKey, String circuitKeyToUpdate,
-                                                            String uniqueRequestID, long timestamp, int errorThresholdPercentage,
+    private Object evalScriptUpdateQueueCircuitBreakerStats(String circuitKeyToUpdate, String uniqueRequestID,
+                                                            String pattern, long timestamp, int errorThresholdPercentage,
                                                             long entriesMaxAgeMS, long minSampleCount, long maxSampleCount) {
 
         String script = readScript(QueueCircuitBreakerLuaScripts.OPEN_CIRCUIT.getFilename());
@@ -140,6 +149,7 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
 
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
+                pattern,
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
                 String.valueOf(entriesMaxAgeMS),
