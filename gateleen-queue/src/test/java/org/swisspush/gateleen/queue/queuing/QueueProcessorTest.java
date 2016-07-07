@@ -152,5 +152,10 @@ public class QueueProcessorTest {
         public Future<Void> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType) {
             return null;
         }
+
+        @Override
+        public Future<Void> lockQueue(String queueName) {
+            return null;
+        }
     }
 }

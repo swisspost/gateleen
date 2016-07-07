@@ -85,6 +85,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                     future.fail(event.cause());
                 } else {
                     future.complete(event.result());
+                    if(QueueCircuitState.OPEN == event.result()){
+                        lockQueueSync(queueName);
+                    }
                 }
             });
         } else {
@@ -114,7 +117,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                 if (event.failed()) {
                     future.fail(event.cause());
                 } else {
-                    lockQueueIfNeeded(queueName, event.result());
+                    if(UpdateStatisticsResult.OPENED == event.result()) {
+                        lockQueueSync(queueName);
+                    }
                     future.complete();
                 }
             });
@@ -124,19 +129,33 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         return future;
     }
 
-    private void lockQueueIfNeeded(String queueName, UpdateStatisticsResult result){
-        if(UpdateStatisticsResult.OPENED == result){
-            vertx.eventBus().send(redisquesAddress, buildPutLockOperation(queueName, "queue_circuit_breaker"), new Handler<AsyncResult<Message<JsonObject>>>() {
-                @Override
-                public void handle(AsyncResult<Message<JsonObject>> reply) {
-                    if (OK.equals(reply.result().body().getString(STATUS))) {
-                        log.info("locked queue '" + queueName + "' because the circuit has been opened");
-                    } else {
-                        log.warn("failed to lock queue '" + queueName + "'. Queue should have been locked, because the circuit has been opened");
-                    }
+    @Override
+    public Future<Void> lockQueue(String queueName) {
+        Future<Void> future = Future.future();
+        vertx.eventBus().send(redisquesAddress, buildPutLockOperation(queueName, "queue_circuit_breaker"), new Handler<AsyncResult<Message<JsonObject>>>() {
+            @Override
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
+                if(reply.failed()){
+                    future.fail(reply.cause());
+                    return;
                 }
-            });
-        }
+                if (OK.equals(reply.result().body().getString(STATUS))) {
+                    log.info("locked queue '" + queueName + "' because the circuit has been opened");
+                    future.complete();
+                } else {
+                    future.fail("failed to lock queue '" + queueName + "'. Queue should have been locked, because the circuit has been opened");
+                }
+            }
+        });
+        return future;
+    }
+
+    private void lockQueueSync(String queueName){
+        lockQueue(queueName).setHandler(event -> {
+            if(event.failed()){
+                log.warn(event.cause().getMessage());
+            }
+        });
     }
 
     private void failWithNoRuleToEndpointMappingMessage(Future future, String queueName, HttpRequest request){

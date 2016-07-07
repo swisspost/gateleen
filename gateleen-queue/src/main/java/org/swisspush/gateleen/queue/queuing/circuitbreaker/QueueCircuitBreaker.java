@@ -19,4 +19,6 @@ public interface QueueCircuitBreaker {
     void enableStatisticsUpdate(boolean statisticsUpdateEnabled);
 
     boolean isStatisticsUpdateEnabled();
+
+    Future<Void> lockQueue(String queueName);
 }
