@@ -656,6 +656,17 @@ public class HookHandler {
         log.debug("handleListenerRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
+            JsonObject hook = new JsonObject(hookData.toString());
+            String destination = hook.getString("destination");
+            String hookOnUri = getMonitoredUrlSegment(request.uri());
+            if (destination.startsWith(hookOnUri)) {
+                request.response().setStatusCode(400);
+                final String msg = "Destination-URI should not be within subtree of your hooked resource. This would lead to an infinite loop.";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
+
             // eg. /server/hooks/v1/registrations/listeners/http+serviceName+hookId
             final String listenerStorageUri = hookRootUri + HOOK_LISTENER_STORAGE_PATH + getUniqueListenerId(request.uri());
 
@@ -683,7 +694,7 @@ public class HookHandler {
             JsonObject storageObject = new JsonObject();
             storageObject.put(REQUESTURL, request.uri());
             storageObject.put(EXPIRATION_TIME, ExpiryCheckHandler.printDateTime(expirationTime));
-            storageObject.put(HOOK, new JsonObject(hookData.toString()));
+            storageObject.put(HOOK, hook);
 
             storage.put(listenerStorageUri, request.headers(), Buffer.buffer(storageObject.toString()), status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
@@ -914,7 +925,7 @@ public class HookHandler {
      * @return String
      */
     protected String getUniqueListenerId(String requestUrl) {
-        StringBuffer listenerId = new StringBuffer();
+        StringBuilder listenerId = new StringBuilder();
 
         // eg. http/colin/1 -> http+colin+1
         listenerId.append(convertToStoragePattern(getListenerUrlSegment(requestUrl)));
@@ -1039,10 +1050,10 @@ public class HookHandler {
      * @return url segment
      */
     private String getListenerUrlSegment(String requestUrl) {
-        String segment = requestUrl.substring(requestUrl.indexOf(HOOKS_LISTENERS_URI_PART));
-
-        // remove hook - part
-        segment = segment.replace(HOOKS_LISTENERS_URI_PART, "");
+        // find the /_hooks/listeners/ identifier ...
+        int pos = requestUrl.indexOf(HOOKS_LISTENERS_URI_PART);
+        // ... and use substring after it as segment
+        String segment = requestUrl.substring(pos + HOOKS_LISTENERS_URI_PART.length());
 
         return segment;
     }

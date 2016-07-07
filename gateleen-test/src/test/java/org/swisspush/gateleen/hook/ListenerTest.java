@@ -9,6 +9,8 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import jdk.Exported;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -612,6 +614,26 @@ public class ListenerTest extends AbstractTest {
 
         async.complete();
     }
+
+    @Test
+    public void testDetectLoopbacksInListener(TestContext context) {
+        // Settings
+        String subresource = "illegalLoopbackListener";
+        String listenerNo = "1";
+        String listenerName = "loopbackListener";
+        // -------
+
+        String registerUrl = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
+        String target = SERVER_ROOT + requestUrlBase + "/" + subresource + "/anySubResource";
+        String[] methods = null;
+
+        // register a listener - expect not accepted by Gateleen (expect http 400)
+        String body = "{ \"destination\":\"" + target + "\"}";
+        with().body(body).put(registerUrl).then().assertThat().statusCode(400);
+
+        context.async().complete();
+    }
+
 
     /**
      * Checks if the DELETE request gets a response

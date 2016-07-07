@@ -4,7 +4,7 @@
 
 	<groupId>org.swisspush.gateleen</groupId>
 	<artifactId>gateleen</artifactId>
-	<version>1.0.15-SNAPSHOT</version>
+	<version>1.0.16-SNAPSHOT</version>
 
 	<modules>
 		<module>gateleen-core</module>
@@ -229,7 +229,7 @@
 		<spring.core.version>4.1.6.RELEASE</spring.core.version>
 		<quartz.version>2.2.1</quartz.version>
 		<rest.assured.version>2.4.1</rest.assured.version>
-		<rest-storage.version>2.1.5</rest-storage.version>
+		<rest-storage.version>2.1.6</rest-storage.version>
 		<awaitility.version>1.5.0</awaitility.version>
 		<redisques.version>2.2.2</redisques.version>
 		<mod-metrics.version>2.1.0</mod-metrics.version>
