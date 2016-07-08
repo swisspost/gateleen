@@ -226,7 +226,7 @@ public final class ExpiryCheckHandler {
             }
 
             if (expireAfter != null) {
-                long expiredSince = System.currentTimeMillis() - ( timestamp + expireAfter * 1000 );
+                long expiredSince = System.currentTimeMillis() - ( timestamp + expireAfter * 1000L );
 
                 if(expiredSince > 0) {
                     log.debug(" > isExpired - Request expired since {} milliseconds.", expiredSince);
