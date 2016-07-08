@@ -1,13 +1,13 @@
 local stateField = "state"
 local failRatioField = "failRatio"
-local patternField = "pattern"
+local endpointField = "endpoint"
 local circuitInfoKey = KEYS[1]
 local circuitSuccessKey = KEYS[2]
 local circuitFailureKey = KEYS[3]
 local circuitKeyToUpdate = KEYS[4]
 
 local requestID = ARGV[1]
-local pattern = ARGV[2]
+local endpoint = ARGV[2]
 local requestTS = tonumber(ARGV[3])
 local errorThresholdPercentage = tonumber(ARGV[4])
 local entriesMaxAgeMS = tonumber(ARGV[5])
@@ -19,7 +19,7 @@ redis.log(redis.LOG_NOTICE, "INPUT circuitInfoKey: "..circuitInfoKey)
 redis.log(redis.LOG_NOTICE, "INPUT circuitSuccessKey: "..circuitSuccessKey)
 redis.log(redis.LOG_NOTICE, "INPUT circuitFailureKey: "..circuitFailureKey)
 redis.log(redis.LOG_NOTICE, "INPUT circuitKeyToUpdate: "..circuitKeyToUpdate)
-redis.log(redis.LOG_NOTICE, "INPUT pattern: "..pattern)
+redis.log(redis.LOG_NOTICE, "INPUT endpoint: ".. endpoint)
 redis.log(redis.LOG_NOTICE, "INPUT requestID: "..requestID)
 redis.log(redis.LOG_NOTICE, "INPUT requestTS: "..requestTS)
 redis.log(redis.LOG_NOTICE, "INPUT errorThresholdPercentage: "..errorThresholdPercentage)
@@ -32,8 +32,8 @@ local return_value = "OK"
 
 -- add request to circuit to update
 redis.call('zadd',circuitKeyToUpdate,requestTS,requestID)
--- write pattern to infos
-redis.call('hsetnx',circuitInfoKey,patternField,pattern)
+-- write endpoint pattern to infos
+redis.call('hsetnx',circuitInfoKey,endpointField, endpoint)
 
 local function setCircuitState(state)
     redis.call('hset',circuitInfoKey,stateField,state)

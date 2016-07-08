@@ -102,12 +102,14 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         String requestId = getRequestUniqueId(queuedRequest);
         long currentTS = System.currentTimeMillis();
 
+        // TODO BEGIN REMOVE
         QueueResponseType type;
         if(queueName.contains("fail")){
             type = QueueResponseType.FAILURE;
         } else {
-            type = QueueResponseType.SUCCESS;
+            type = queueResponseType;
         }
+        // TODO END REMOVE
 
         PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRequest(queuedRequest);
         if(patternAndEndpointHash != null) {

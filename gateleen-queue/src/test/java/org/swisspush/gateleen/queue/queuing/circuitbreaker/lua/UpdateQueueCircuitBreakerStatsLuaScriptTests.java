@@ -66,7 +66,7 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_11", "url_pattern", 10, 50, 10, 4, 10);
         assertStateAndErroPercentage("open", 63);
 
-        assertPattern("url_pattern");
+        assertEndpoint("url_pattern");
     }
 
 
@@ -90,7 +90,7 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
             assertThat(remainingSetEntries.contains("req_"+i), is(true));
         }
 
-        assertPattern("url_pattern");
+        assertEndpoint("url_pattern");
     }
 
     @Test
@@ -118,7 +118,7 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_10", "url_pattern", 10, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 0); // req_6 is out of range by now
 
-        assertPattern("url_pattern");
+        assertEndpoint("url_pattern");
     }
 
     private void assertStateAndErroPercentage(String state, int percentage){
@@ -127,8 +127,8 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
         assertThat(Integer.valueOf(percentageAsString), equalTo(percentage));
     }
 
-    private void assertPattern(String pattern){
-        assertThat(jedis.hget(circuitInfoKey, "pattern"), equalTo(pattern));
+    private void assertEndpoint(String endpoint){
+        assertThat(jedis.hget(circuitInfoKey, "endpoint"), equalTo(endpoint));
     }
 
     private void assertSizeSizeNotExceedingLimit(String setKey, long maxSetSize){
@@ -136,7 +136,7 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
     }
 
     private Object evalScriptUpdateQueueCircuitBreakerStats(String circuitKeyToUpdate, String uniqueRequestID,
-                                                            String pattern, long timestamp, int errorThresholdPercentage,
+                                                            String endpoint, long timestamp, int errorThresholdPercentage,
                                                             long entriesMaxAgeMS, long minSampleCount, long maxSampleCount) {
 
         String script = readScript(QueueCircuitBreakerLuaScripts.OPEN_CIRCUIT.getFilename());
@@ -149,7 +149,7 @@ public class UpdateQueueCircuitBreakerStatsLuaScriptTests extends AbstractLuaScr
 
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
-                pattern,
+                endpoint,
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
                 String.valueOf(entriesMaxAgeMS),
