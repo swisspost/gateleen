@@ -17,9 +17,7 @@ import redis.clients.jedis.Jedis;
 
 import java.util.regex.Pattern;
 
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.FIELD_STATE;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.STORAGE_PREFIX;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.STORAGE_INFOS_SUFFIX;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.*;
 
 /**
  * Tests for the {@link RedisQueueCircuitBreakerStorage} class
@@ -47,8 +45,7 @@ public class RedisQueueCircuitBreakerStorageTest {
     @Test
     public void testGetQueueCircuitState(TestContext context){
         Async async = context.async();
-        Pattern pattern = Pattern.compile("/someEndpoint");
-        PatternAndEndpointHash patternAndEndpointHash = new PatternAndEndpointHash(pattern, "someEndpointHash");
+        PatternAndEndpointHash patternAndEndpointHash = buildPatternAndEndpointHash("/someEndpoint", "someEndpointHash");
         storage.getQueueCircuitState(patternAndEndpointHash).setHandler(event -> {
             context.assertEquals(QueueCircuitState.CLOSED, event.result());
             writeQueueCircuitStateToDatabase("someEndpointHash", QueueCircuitState.HALF_OPEN);
@@ -64,8 +61,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         Async async = context.async();
         String endpointHash = "anotherEndpointHash";
 
-        Pattern pattern = Pattern.compile("/anotherEndpoint");
-        PatternAndEndpointHash patternAndEndpointHash = new PatternAndEndpointHash(pattern, endpointHash);
+        PatternAndEndpointHash patternAndEndpointHash = buildPatternAndEndpointHash("/anotherEndpoint", endpointHash);
 
         context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.SUCCESS)));
         context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
@@ -105,8 +101,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         Async async = context.async();
         String endpointHash = "anotherEndpointHash";
 
-        Pattern pattern = Pattern.compile("/anotherEndpoint");
-        PatternAndEndpointHash patternAndEndpointHash = new PatternAndEndpointHash(pattern, endpointHash);
+        PatternAndEndpointHash patternAndEndpointHash = buildPatternAndEndpointHash("/anotherEndpoint", endpointHash);
 
         context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.SUCCESS)));
         context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
@@ -141,8 +136,32 @@ public class RedisQueueCircuitBreakerStorageTest {
         });
     }
 
+    @Test
+    public void testLockQueue(TestContext context){
+        Async async = context.async();
+        String endpointHash = "anotherEndpointHash";
+
+        context.assertFalse(jedis.exists(queuesKey(endpointHash)));
+
+        PatternAndEndpointHash patternAndEndpointHash = buildPatternAndEndpointHash("/anotherEndpoint", endpointHash);
+        storage.lockQueue("someQueue", patternAndEndpointHash).setHandler(event -> {
+            context.assertTrue(jedis.exists(queuesKey(endpointHash)));
+            context.assertEquals(1L, jedis.zcard(queuesKey(endpointHash)));
+            context.assertEquals("someQueue", jedis.zrange(queuesKey(endpointHash), 0, 0).iterator().next());
+            async.complete();
+        });
+    }
+
+    private PatternAndEndpointHash buildPatternAndEndpointHash(String pattern, String endpointHash){
+        return new PatternAndEndpointHash(Pattern.compile(pattern), endpointHash);
+    }
+
     private String key(String endpointHash, QueueResponseType queueResponseType){
         return STORAGE_PREFIX + endpointHash + queueResponseType.getKeySuffix();
+    }
+
+    private String queuesKey(String endpointHash){
+        return STORAGE_PREFIX + endpointHash + STORAGE_QUEUES_SUFFIX;
     }
 
     private void writeQueueCircuitStateToDatabase(String endpointHash, QueueCircuitState state){

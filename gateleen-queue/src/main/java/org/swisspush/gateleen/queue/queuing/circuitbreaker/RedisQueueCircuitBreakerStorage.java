@@ -5,13 +5,11 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.redis.RedisClient;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
-import org.swisspush.gateleen.core.util.HashCodeGenerator;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.QueueCircuitBreakerLuaScripts;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.UpdateQueueCircuitBreakerStatsRedisCommand;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -24,6 +22,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
 
     public static final String STORAGE_PREFIX = "gateleen.queue-circuit-breaker:";
     public static final String STORAGE_INFOS_SUFFIX = ":infos";
+    public static final String STORAGE_QUEUES_SUFFIX = ":queues";
     public static final String FIELD_STATE = "state";
 
     private LuaScriptState openCircuitLuaScriptState;
@@ -43,7 +42,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     @Override
     public Future<QueueCircuitState> getQueueCircuitState(PatternAndEndpointHash patternAndEndpointHash) {
         Future<QueueCircuitState> future = Future.future();
-        redisClient.hget(infosKey(patternAndEndpointHash.getEndpointHash()), FIELD_STATE, event -> {
+        redisClient.hget(buildInfosKey(patternAndEndpointHash.getEndpointHash()), FIELD_STATE, event -> {
             if(event.failed()){
                 future.fail(event.cause());
             } else {
@@ -64,10 +63,10 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         Future<UpdateStatisticsResult> future = Future.future();
         String endpointHash = patternAndEndpointHash.getEndpointHash();
         List<String> keys = Arrays.asList(
-                infosKey(endpointHash),
-                statsKey(endpointHash, QueueResponseType.SUCCESS),
-                statsKey(endpointHash, QueueResponseType.FAILURE),
-                statsKey(endpointHash, queueResponseType)
+                buildInfosKey(endpointHash),
+                buildStatsKey(endpointHash, QueueResponseType.SUCCESS),
+                buildStatsKey(endpointHash, QueueResponseType.FAILURE),
+                buildStatsKey(endpointHash, queueResponseType)
         );
 
         List<String> arguments = Arrays.asList(
@@ -86,11 +85,31 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         return future;
     }
 
-    private String infosKey(String endpointHash){
+    @Override
+    public Future<Void> lockQueue(String queueName, PatternAndEndpointHash patternAndEndpointHash) {
+        Future<Void> future = Future.future();
+        redisClient.zadd(buildQueuesKey(patternAndEndpointHash.getEndpointHash()), System.currentTimeMillis(), queueName, event -> {
+            if(event.failed()){
+                future.fail(event.cause().getMessage());
+                return;
+            }
+            future.complete();
+        });
+        return future;
+    }
+
+    /*
+     * Helper methods
+     */
+    private String buildInfosKey(String endpointHash){
         return STORAGE_PREFIX + endpointHash + STORAGE_INFOS_SUFFIX;
     }
 
-    private String statsKey(String endpointHash, QueueResponseType queueResponseType){
+    private String buildQueuesKey(String endpointHash){
+        return STORAGE_PREFIX + endpointHash + STORAGE_QUEUES_SUFFIX;
+    }
+
+    private String buildStatsKey(String endpointHash, QueueResponseType queueResponseType){
         return STORAGE_PREFIX + endpointHash + queueResponseType.getKeySuffix();
     }
 }

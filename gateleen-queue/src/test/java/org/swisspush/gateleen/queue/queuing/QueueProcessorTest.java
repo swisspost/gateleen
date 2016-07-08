@@ -154,7 +154,7 @@ public class QueueProcessorTest {
         }
 
         @Override
-        public Future<Void> lockQueue(String queueName) {
+        public Future<Void> lockQueue(String queueName, HttpRequest queuedRequest) {
             return null;
         }
     }

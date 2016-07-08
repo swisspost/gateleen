@@ -20,5 +20,5 @@ public interface QueueCircuitBreaker {
 
     boolean isStatisticsUpdateEnabled();
 
-    Future<Void> lockQueue(String queueName);
+    Future<Void> lockQueue(String queueName, HttpRequest queuedRequest);
 }

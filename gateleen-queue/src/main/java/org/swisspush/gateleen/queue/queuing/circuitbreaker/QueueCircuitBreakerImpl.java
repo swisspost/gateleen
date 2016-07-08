@@ -86,7 +86,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                 } else {
                     future.complete(event.result());
                     if(QueueCircuitState.OPEN == event.result()){
-                        lockQueueSync(queueName);
+                        lockQueueSync(queueName, queuedRequest);
                     }
                 }
             });
@@ -120,7 +120,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                     future.fail(event.cause());
                 } else {
                     if(UpdateStatisticsResult.OPENED == event.result()) {
-                        lockQueueSync(queueName);
+                        lockQueueSync(queueName, queuedRequest);
                     }
                     future.complete();
                 }
@@ -132,28 +132,40 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
-    public Future<Void> lockQueue(String queueName) {
+    public Future<Void> lockQueue(String queueName, HttpRequest queuedRequest) {
         Future<Void> future = Future.future();
-        vertx.eventBus().send(redisquesAddress, buildPutLockOperation(queueName, "queue_circuit_breaker"), new Handler<AsyncResult<Message<JsonObject>>>() {
-            @Override
-            public void handle(AsyncResult<Message<JsonObject>> reply) {
-                if(reply.failed()){
-                    future.fail(reply.cause());
+
+        PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRequest(queuedRequest);
+        if(patternAndEndpointHash != null){
+            queueCircuitBreakerStorage.lockQueue(queueName, patternAndEndpointHash).setHandler(event -> {
+                if(event.failed()){
+                    future.fail(event.cause());
                     return;
                 }
-                if (OK.equals(reply.result().body().getString(STATUS))) {
-                    log.info("locked queue '" + queueName + "' because the circuit has been opened");
-                    future.complete();
-                } else {
-                    future.fail("failed to lock queue '" + queueName + "'. Queue should have been locked, because the circuit has been opened");
-                }
-            }
-        });
+                vertx.eventBus().send(redisquesAddress, buildPutLockOperation(queueName, "queue_circuit_breaker"), new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        if(reply.failed()){
+                            future.fail(reply.cause());
+                            return;
+                        }
+                        if (OK.equals(reply.result().body().getString(STATUS))) {
+                            log.info("locked queue '" + queueName + "' because the circuit has been opened");
+                            future.complete();
+                        } else {
+                            future.fail("failed to lock queue '" + queueName + "'. Queue should have been locked, because the circuit has been opened");
+                        }
+                    }
+                });
+            });
+        } else {
+            failWithNoRuleToEndpointMappingMessage(future, queueName, queuedRequest);
+        }
         return future;
     }
 
-    private void lockQueueSync(String queueName){
-        lockQueue(queueName).setHandler(event -> {
+    private void lockQueueSync(String queueName, HttpRequest queuedRequest){
+        lockQueue(queueName, queuedRequest).setHandler(event -> {
             if(event.failed()){
                 log.warn(event.cause().getMessage());
             }
