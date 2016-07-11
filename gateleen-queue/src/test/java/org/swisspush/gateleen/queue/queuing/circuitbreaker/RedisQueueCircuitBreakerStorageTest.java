@@ -12,9 +12,9 @@ import io.vertx.redis.RedisOptions;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.swisspush.gateleen.core.util.HashCodeGenerator;
 import redis.clients.jedis.Jedis;
 
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.*;
@@ -152,6 +152,73 @@ public class RedisQueueCircuitBreakerStorageTest {
         });
     }
 
+    @Test
+    public void testCloseCircuit(TestContext context){
+        Async async = context.async();
+        String endpointHash = "anotherEndpointHash";
+
+        context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.SUCCESS)));
+        context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
+        context.assertFalse(jedis.exists(queuesKey(endpointHash)));
+
+        context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertFalse(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
+
+        //prepare some test data
+        writeQueueCircuitStateToDatabase(endpointHash, QueueCircuitState.HALF_OPEN);
+        writeQueueCircuitFailPercentageToDatabase(endpointHash, 50);
+
+        jedis.zadd(key(endpointHash, QueueResponseType.SUCCESS), 1, "req-1");
+        jedis.zadd(key(endpointHash, QueueResponseType.SUCCESS), 2, "req-2");
+        jedis.zadd(key(endpointHash, QueueResponseType.SUCCESS), 3, "req-3");
+        jedis.zadd(key(endpointHash, QueueResponseType.FAILURE), 4, "req-4");
+        jedis.zadd(key(endpointHash, QueueResponseType.FAILURE), 5, "req-5");
+        jedis.zadd(key(endpointHash, QueueResponseType.FAILURE), 6, "req-6");
+
+        jedis.zadd(queuesKey(endpointHash), 1, "queue_1");
+        jedis.zadd(queuesKey(endpointHash), 2, "queue_2");
+        jedis.zadd(queuesKey(endpointHash), 3, "queue_3");
+
+        jedis.zadd(STORAGE_HALFOPEN_CIRCUITS, 1, "a");
+        jedis.zadd(STORAGE_HALFOPEN_CIRCUITS, 2, endpointHash);
+        jedis.zadd(STORAGE_HALFOPEN_CIRCUITS, 3, "b");
+        jedis.zadd(STORAGE_HALFOPEN_CIRCUITS, 4, "c");
+
+        context.assertEquals(3L, jedis.zcard(key(endpointHash, QueueResponseType.SUCCESS)));
+        context.assertEquals(3L, jedis.zcard(key(endpointHash, QueueResponseType.FAILURE)));
+        context.assertEquals(3L, jedis.zcard(queuesKey(endpointHash)));
+        context.assertEquals(4L, jedis.zcard(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertEquals(0L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
+
+        PatternAndEndpointHash patternAndEndpointHash = buildPatternAndEndpointHash("/anotherEndpoint", endpointHash);
+        storage.closeCircuit(patternAndEndpointHash).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+
+            context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.SUCCESS)));
+            context.assertFalse(jedis.exists(key(endpointHash, QueueResponseType.FAILURE)));
+            context.assertFalse(jedis.exists(queuesKey(endpointHash)));
+
+            context.assertTrue(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
+            context.assertTrue(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
+
+            context.assertEquals(3L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
+            context.assertEquals("queue_1", jedis.rpop(STORAGE_QUEUES_TO_UNLOCK));
+            context.assertEquals("queue_2", jedis.rpop(STORAGE_QUEUES_TO_UNLOCK));
+            context.assertEquals("queue_3", jedis.rpop(STORAGE_QUEUES_TO_UNLOCK));
+
+            assertStateAndErroPercentage(context, endpointHash, "closed", 0);
+
+            context.assertEquals(3L, jedis.zcard(STORAGE_HALFOPEN_CIRCUITS));
+            Set<String> halfOpenCircuits = jedis.zrangeByScore(STORAGE_HALFOPEN_CIRCUITS, Long.MIN_VALUE, Long.MAX_VALUE);
+            context.assertTrue(halfOpenCircuits.contains("a"));
+            context.assertTrue(halfOpenCircuits.contains("b"));
+            context.assertTrue(halfOpenCircuits.contains("c"));
+            context.assertFalse(halfOpenCircuits.contains(endpointHash));
+
+            async.complete();
+        });
+    }
+
     private PatternAndEndpointHash buildPatternAndEndpointHash(String pattern, String endpointHash){
         return new PatternAndEndpointHash(Pattern.compile(pattern), endpointHash);
     }
@@ -166,6 +233,10 @@ public class RedisQueueCircuitBreakerStorageTest {
 
     private void writeQueueCircuitStateToDatabase(String endpointHash, QueueCircuitState state){
         jedis.hset(STORAGE_PREFIX + endpointHash + STORAGE_INFOS_SUFFIX, FIELD_STATE, state.name());
+    }
+
+    private void writeQueueCircuitFailPercentageToDatabase(String endpointHash, int failPercentage){
+        jedis.hset(STORAGE_PREFIX + endpointHash + STORAGE_INFOS_SUFFIX, FIELD_FAILRATIO, String.valueOf(failPercentage));
     }
 
     private void assertStateAndErroPercentage(TestContext context, String endpointHash, String state, int percentage){

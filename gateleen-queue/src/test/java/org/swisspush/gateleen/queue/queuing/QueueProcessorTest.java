@@ -157,5 +157,10 @@ public class QueueProcessorTest {
         public Future<Void> lockQueue(String queueName, HttpRequest queuedRequest) {
             return null;
         }
+
+        @Override
+        public Future<Void> closeCircuit(String queueName, HttpRequest queuedRequest) {
+            return null;
+        }
     }
 }

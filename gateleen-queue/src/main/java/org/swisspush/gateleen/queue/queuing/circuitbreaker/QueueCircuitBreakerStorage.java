@@ -14,4 +14,6 @@ public interface QueueCircuitBreakerStorage {
     Future<UpdateStatisticsResult> updateStatistics(PatternAndEndpointHash patternAndEndpointHash, String uniqueRequestID, long timestamp, int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount, long maxSampleCount, QueueResponseType queueResponseType);
 
     Future<Void> lockQueue(String queueName, PatternAndEndpointHash patternAndEndpointHash);
+
+    Future<Void> closeCircuit(PatternAndEndpointHash patternAndEndpointHash);
 }

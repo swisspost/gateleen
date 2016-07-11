@@ -7,7 +7,8 @@ import org.swisspush.gateleen.core.lua.LuaScript;
  */
 public enum QueueCircuitBreakerLuaScripts implements LuaScript{
 
-    OPEN_CIRCUIT("circuitbreaker_open.lua");
+    UPDATE_CIRCUIT("circuitbreaker_update.lua"),
+    CLOSE_CIRCUIT("circuitbreaker_close.lua");
 
     private String file;
 

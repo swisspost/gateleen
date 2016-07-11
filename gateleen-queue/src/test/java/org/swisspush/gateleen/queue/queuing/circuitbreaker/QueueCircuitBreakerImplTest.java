@@ -71,6 +71,9 @@ public class QueueCircuitBreakerImplTest {
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(any(PatternAndEndpointHash.class)))
                 .thenReturn(Future.succeededFuture(QueueCircuitState.CLOSED));
 
+        Mockito.when(queueCircuitBreakerStorage.lockQueue(anyString(), any(PatternAndEndpointHash.class)))
+                .thenReturn(Future.succeededFuture());
+
         queueCircuitBreaker.handleQueuedRequest("someQueue", req).setHandler(event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(QueueCircuitState.CLOSED, event.result());
@@ -96,6 +99,9 @@ public class QueueCircuitBreakerImplTest {
 
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(any(PatternAndEndpointHash.class)))
                 .thenReturn(Future.succeededFuture(QueueCircuitState.OPEN));
+
+        Mockito.when(queueCircuitBreakerStorage.lockQueue(anyString(), any(PatternAndEndpointHash.class)))
+                .thenReturn(Future.succeededFuture());
 
         queueCircuitBreaker.handleQueuedRequest("someQueue", req).setHandler(event -> {
             context.assertTrue(event.succeeded());
@@ -194,6 +200,9 @@ public class QueueCircuitBreakerImplTest {
         Mockito.when(queueCircuitBreakerStorage.updateStatistics(any(PatternAndEndpointHash.class),
                 anyString(), anyLong(), anyInt(), anyLong(), anyLong(), anyLong(), any(QueueResponseType.class)))
                 .thenReturn(Future.succeededFuture(UpdateStatisticsResult.OPENED));
+
+        Mockito.when(queueCircuitBreakerStorage.lockQueue(anyString(), any(PatternAndEndpointHash.class)))
+                .thenReturn(Future.succeededFuture());
 
         queueCircuitBreaker.updateStatistics("someQueue", req, SUCCESS).setHandler(event -> {
             context.assertTrue(event.succeeded());

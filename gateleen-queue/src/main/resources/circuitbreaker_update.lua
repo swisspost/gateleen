@@ -14,20 +14,6 @@ local entriesMaxAgeMS = tonumber(ARGV[5])
 local minSampleCount = tonumber(ARGV[6])
 local maxSetSize = tonumber(ARGV[7])
 
-redis.log(redis.LOG_NOTICE, "********************")
-redis.log(redis.LOG_NOTICE, "INPUT circuitInfoKey: "..circuitInfoKey)
-redis.log(redis.LOG_NOTICE, "INPUT circuitSuccessKey: "..circuitSuccessKey)
-redis.log(redis.LOG_NOTICE, "INPUT circuitFailureKey: "..circuitFailureKey)
-redis.log(redis.LOG_NOTICE, "INPUT circuitKeyToUpdate: "..circuitKeyToUpdate)
-redis.log(redis.LOG_NOTICE, "INPUT endpoint: ".. endpoint)
-redis.log(redis.LOG_NOTICE, "INPUT requestID: "..requestID)
-redis.log(redis.LOG_NOTICE, "INPUT requestTS: "..requestTS)
-redis.log(redis.LOG_NOTICE, "INPUT errorThresholdPercentage: "..errorThresholdPercentage)
-redis.log(redis.LOG_NOTICE, "INPUT entriesMaxAgeMS: "..entriesMaxAgeMS)
-redis.log(redis.LOG_NOTICE, "INPUT minSampleCount: "..minSampleCount)
-redis.log(redis.LOG_NOTICE, "INPUT maxSetSize: "..maxSetSize)
-redis.log(redis.LOG_NOTICE, "********************")
-
 local return_value = "OK"
 
 -- add request to circuit to update

@@ -132,6 +132,11 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
+    public Future<Void> closeCircuit(String queueName, HttpRequest queuedRequest) {
+        return null;
+    }
+
+    @Override
     public Future<Void> lockQueue(String queueName, HttpRequest queuedRequest) {
         Future<Void> future = Future.future();
 
