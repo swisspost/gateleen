@@ -263,7 +263,7 @@ public class ExpansionHandler {
     public boolean isZipRequest(HttpServerRequest request) {
         boolean ok = false;
         if (HttpMethod.GET == request.method() && request.params().contains(ZIP_PARAM)) {
-            ok = Boolean.valueOf(request.params().get(ZIP_PARAM));
+            ok = ! request.params().get(ZIP_PARAM).equalsIgnoreCase("false");
         }
 
         return ok && !isBackendExpand(request.uri());
@@ -428,8 +428,22 @@ public class ExpansionHandler {
      * @param request request
      */
     public void handleZipRecursion(final HttpServerRequest request) {
+        // default
+        RecursiveHandlerFactory.RecursiveHandlerTypes zipType = RecursiveHandlerFactory.RecursiveHandlerTypes.ZIP;
+
+        try {
+            // override (eg. store)
+            zipType = RecursiveHandlerFactory.RecursiveHandlerTypes.valueOf(request.params().get(ZIP_PARAM).toUpperCase());
+        }
+        catch( Exception handled ) {
+        }
+
+        if ( log.isTraceEnabled() ) {
+            log.trace("currently using zip mode: " + zipType);
+        }
+
         removeZipParameter(request);
-        handleExpansionRequest(request, RecursiveHandlerFactory.RecursiveHandlerTypes.ZIP);
+        handleExpansionRequest(request, zipType);
     }
 
     /**

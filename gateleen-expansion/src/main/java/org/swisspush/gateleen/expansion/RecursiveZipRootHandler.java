@@ -1,11 +1,11 @@
 package org.swisspush.gateleen.expansion;
 
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServerRequest;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
 import org.swisspush.gateleen.core.util.ResourceCollectionException;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpServerRequest;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,6 +28,7 @@ public class RecursiveZipRootHandler extends RecursiveRootHandlerBase {
 
     private final Buffer data;
     private final Set<String> finalOriginalParams;
+    private final RecursiveHandlerFactory.RecursiveHandlerTypes zipType;
 
     /**
      * Creates an instance of the root handler for the
@@ -37,12 +38,14 @@ public class RecursiveZipRootHandler extends RecursiveRootHandlerBase {
      * @param serverRoot serverRoot
      * @param data data
      * @param finalOriginalParams finalOriginalParams
+     * @param zipType zipType
      */
-    public RecursiveZipRootHandler(final HttpServerRequest req, String serverRoot, Buffer data, Set<String> finalOriginalParams) {
+    public RecursiveZipRootHandler(final HttpServerRequest req, String serverRoot, Buffer data, Set<String> finalOriginalParams, RecursiveHandlerFactory.RecursiveHandlerTypes zipType) {
         this.req = req;
         this.serverRoot = serverRoot;
         this.data = data;
         this.finalOriginalParams = finalOriginalParams;
+        this.zipType = zipType;
     }
 
     @SuppressWarnings("unchecked")
@@ -67,7 +70,16 @@ public class RecursiveZipRootHandler extends RecursiveRootHandlerBase {
 
             // zip the collection
             try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                    ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream);) {
+                    ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
+
+                // set level for store
+                if (zipType.equals(RecursiveHandlerFactory.RecursiveHandlerTypes.STORE)) {
+                    if ( log.isTraceEnabled() ) {
+                        log.trace("setting zip level to store");
+                    }
+
+                    zipOutputStream.setLevel(ZipOutputStream.STORED);
+                }
 
                 Iterable<ResourceNode> zipableNodes = (Iterable<ResourceNode>) node.getObject();
 
