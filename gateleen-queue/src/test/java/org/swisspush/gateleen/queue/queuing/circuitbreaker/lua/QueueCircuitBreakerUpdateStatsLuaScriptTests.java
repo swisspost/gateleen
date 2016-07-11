@@ -19,12 +19,14 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
     private final String circuitInfoKey = "q:infos";
     private final String circuitSuccessKey = "q:success";
     private final String circuitFailureKey = "q:failure";
+    private final String openCircuitsKey = "open_circuits";
 
     @Test
     public void testCalculateErrorPercentage(){
         assertThat(jedis.exists(circuitInfoKey), is(false));
         assertThat(jedis.exists(circuitSuccessKey), is(false));
         assertThat(jedis.exists(circuitFailureKey), is(false));
+        assertThat(jedis.exists(openCircuitsKey), is(false));
 
         String update_success = "q:success";
         String update_fail = "q:failure";
@@ -46,26 +48,32 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertThat(jedis.exists(circuitInfoKey), is(true));
         assertThat(jedis.exists(circuitSuccessKey), is(true));
         assertThat(jedis.exists(circuitFailureKey), is(true));
+        assertThat(jedis.exists(openCircuitsKey), is(true));
         assertStateAndErroPercentage("open", 75);
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         // add 2 more successful requests => failurePercentage should drop
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_5", "url_pattern", 4, 50, 10, 4, 10);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_6", "url_pattern", 5, 50, 10, 4, 10);
         assertStateAndErroPercentage("open", 50);
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         // add 1 more successful request => failurePercentage should drop and state should switch to 'half_open'
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 6, 50, 10, 4, 10);
         assertStateAndErroPercentage("open", 42);
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         // add 1 more failing request => failurePercentage should raise again but state should remain 'half_open'
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_8", "url_pattern", 7, 50, 10, 4, 10);
         assertStateAndErroPercentage("open", 50);
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         // add 3 more failing request => failurePercentage should raise again but state should remain 'half_open'
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_9", "url_pattern", 8, 50, 10, 4, 10);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_10", "url_pattern", 9, 50, 10, 4, 10);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_11", "url_pattern", 10, 50, 10, 4, 10);
         assertStateAndErroPercentage("open", 63);
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         assertEndpoint("url_pattern");
     }
@@ -106,18 +114,25 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertStateAndErroPercentage("closed", 33);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_4", "url_pattern", 4, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 50);
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_5", "url_pattern", 5, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 75); // req_1 is out of range by now
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_6", "url_pattern", 6, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 100); // req_2 is out of range by now
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 7, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 75); // req_3 is out of range by now
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_8", "url_pattern", 8, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 50); // req_4 is out of range by now
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_9", "url_pattern", 9, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 25); // req_5 is out of range by now
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_10", "url_pattern", 10, 50, 3, 1, 100);
         assertStateAndErroPercentage("open", 0); // req_6 is out of range by now
+        assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         assertEndpoint("url_pattern");
     }
@@ -126,6 +141,12 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertThat(jedis.hget(circuitInfoKey, "state"), equalTo(state));
         String percentageAsString = jedis.hget(circuitInfoKey, "failRatio");
         assertThat(Integer.valueOf(percentageAsString), equalTo(percentage));
+    }
+
+    private void assertHashInOpenCircuitsSet(String hash, long amountOfOpenCircuits){
+        Set<String> openCircuits = jedis.zrangeByScore(openCircuitsKey, Long.MIN_VALUE, Long.MAX_VALUE);
+        assertThat(openCircuits.contains(hash), is(true));
+        assertThat(jedis.zcard(openCircuitsKey), equalTo(amountOfOpenCircuits));
     }
 
     private void assertEndpoint(String endpoint){
@@ -145,12 +166,14 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
                 circuitInfoKey,
                 circuitSuccessKey,
                 circuitFailureKey,
-                circuitKeyToUpdate
+                circuitKeyToUpdate,
+                openCircuitsKey
         );
 
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
                 endpoint,
+                endpoint+"Hash",
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
                 String.valueOf(entriesMaxAgeMS),

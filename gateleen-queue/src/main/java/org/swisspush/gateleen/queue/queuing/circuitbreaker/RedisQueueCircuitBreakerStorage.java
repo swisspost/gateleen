@@ -77,12 +77,14 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 buildInfosKey(endpointHash),
                 buildStatsKey(endpointHash, QueueResponseType.SUCCESS),
                 buildStatsKey(endpointHash, QueueResponseType.FAILURE),
-                buildStatsKey(endpointHash, queueResponseType)
+                buildStatsKey(endpointHash, queueResponseType),
+                STORAGE_OPEN_CIRCUITS
         );
 
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
                 patternAndEndpointHash.getPattern().pattern(),
+                patternAndEndpointHash.getEndpointHash(),
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
                 String.valueOf(entriesMaxAgeMS),

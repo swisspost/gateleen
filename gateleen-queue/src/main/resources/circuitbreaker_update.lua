@@ -5,14 +5,16 @@ local circuitInfoKey = KEYS[1]
 local circuitSuccessKey = KEYS[2]
 local circuitFailureKey = KEYS[3]
 local circuitKeyToUpdate = KEYS[4]
+local openCircuitsKey = KEYS[5]
 
 local requestID = ARGV[1]
 local endpoint = ARGV[2]
-local requestTS = tonumber(ARGV[3])
-local errorThresholdPercentage = tonumber(ARGV[4])
-local entriesMaxAgeMS = tonumber(ARGV[5])
-local minSampleCount = tonumber(ARGV[6])
-local maxSetSize = tonumber(ARGV[7])
+local endpointHash = ARGV[3]
+local requestTS = tonumber(ARGV[4])
+local errorThresholdPercentage = tonumber(ARGV[5])
+local entriesMaxAgeMS = tonumber(ARGV[6])
+local minSampleCount = tonumber(ARGV[7])
+local maxSetSize = tonumber(ARGV[8])
 
 local return_value = "OK"
 
@@ -72,10 +74,15 @@ end
 
 local failPercentage = updateFailurePercentage()
 
+local function openCircuit()
+    setCircuitState("open")
+    redis.call('zadd',openCircuitsKey,requestTS,endpointHash)
+    return_value = "OPENED"
+end
+
 -- update state
 if getCircuitState() == "closed" and sampleCountThresholdReached() and failPercentage >= errorThresholdPercentage then
-    setCircuitState("open")
-    return_value = "OPENED"
+    openCircuit()
 end
 
 -- cleanup set when too much entries
