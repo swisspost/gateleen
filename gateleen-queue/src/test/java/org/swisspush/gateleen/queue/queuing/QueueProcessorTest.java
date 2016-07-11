@@ -159,7 +159,7 @@ public class QueueProcessorTest {
         }
 
         @Override
-        public Future<Void> closeCircuit(String queueName, HttpRequest queuedRequest) {
+        public Future<Void> closeCircuit(HttpRequest queuedRequest) {
             return null;
         }
     }

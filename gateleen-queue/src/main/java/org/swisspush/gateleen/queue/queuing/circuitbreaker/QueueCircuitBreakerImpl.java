@@ -132,8 +132,21 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
-    public Future<Void> closeCircuit(String queueName, HttpRequest queuedRequest) {
-        return null;
+    public Future<Void> closeCircuit(HttpRequest queuedRequest) {
+        Future<Void> future = Future.future();
+        PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRequest(queuedRequest);
+        if(patternAndEndpointHash != null){
+            queueCircuitBreakerStorage.closeCircuit(patternAndEndpointHash).setHandler(event -> {
+                if(event.failed()){
+                    future.fail(event.cause());
+                    return;
+                }
+                future.complete();
+            });
+        } else {
+            failWithNoRuleToEndpointMappingMessage(future, null, queuedRequest);
+        }
+        return future;
     }
 
     @Override
@@ -178,7 +191,11 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     private void failWithNoRuleToEndpointMappingMessage(Future future, String queueName, HttpRequest request){
-        future.fail("no rule to endpoint mapping found for queue '" + queueName + "' and uri " + request.getUri());
+        if(queueName == null){
+            future.fail("no rule to endpoint mapping found for uri " + request.getUri());
+        } else {
+            future.fail("no rule to endpoint mapping found for queue '" + queueName + "' and uri " + request.getUri());
+        }
     }
 
     private PatternAndEndpointHash getPatternAndEndpointHashFromRequest(HttpRequest request){

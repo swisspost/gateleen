@@ -104,9 +104,9 @@ public class QueueProcessor {
         }
     }
 
-    private void closeCircuit(String queueName, HttpRequest queuedRequest, QueueCircuitState state){
+    private void closeCircuit(HttpRequest queuedRequest, QueueCircuitState state){
         if(queueCircuitBreaker != null && QueueCircuitState.HALF_OPEN == state){
-            queueCircuitBreaker.closeCircuit(queueName, queuedRequest).setHandler(event -> {
+            queueCircuitBreaker.closeCircuit(queuedRequest).setHandler(event -> {
                 if(event.failed()){
                     String message = "failed to close circuit " + queuedRequest.getUri() +
                             ". Message is: " + event.cause().getMessage();
@@ -143,7 +143,7 @@ public class QueueProcessor {
                             }
                             message.reply(new JsonObject().put(STATUS, OK));
                             updateCircuitBreakerStatistics(queueName, queuedRequest, SUCCESS, state);
-                            closeCircuit(queueName, queuedRequest, state);
+                            closeCircuit(queuedRequest, state);
                             monitoringHandler.updateDequeue();
                         } else {
                             logger.error("QUEUE_ERROR: Failed request to " + queuedRequest.getUri() + ": "

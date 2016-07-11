@@ -286,4 +286,41 @@ public class QueueCircuitBreakerImplTest {
             async.complete();
         });
     }
+
+    @Test
+    public void testCloseCircuit(TestContext context){
+        Async async = context.async();
+        HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
+
+        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(anyString()))
+                .thenReturn(new PatternAndEndpointHash(Pattern.compile("/someEndpoint"), "someEndpointHash"));
+
+        Mockito.when(queueCircuitBreakerStorage.closeCircuit(any(PatternAndEndpointHash.class)))
+                .thenReturn(Future.succeededFuture());
+
+        queueCircuitBreaker.closeCircuit(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            verify(queueCircuitBreakerStorage, times(1)).closeCircuit(any(PatternAndEndpointHash.class));
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testCloseCircuitFailingStorage(TestContext context){
+        Async async = context.async();
+        HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
+
+        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(anyString()))
+                .thenReturn(new PatternAndEndpointHash(Pattern.compile("/someEndpoint"), "someEndpointHash"));
+
+        Mockito.when(queueCircuitBreakerStorage.closeCircuit(any(PatternAndEndpointHash.class)))
+                .thenReturn(Future.failedFuture("unable to close circuit"));
+
+        queueCircuitBreaker.closeCircuit(req).setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause().getMessage().contains("unable to close circuit"));
+            verify(queueCircuitBreakerStorage, times(1)).closeCircuit(any(PatternAndEndpointHash.class));
+            async.complete();
+        });
+    }
 }
