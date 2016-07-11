@@ -8,6 +8,7 @@ import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.CloseCircuitRedisCommand;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.QueueCircuitBreakerLuaScripts;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.ReOpenCircuitRedisCommand;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.UpdateStatsRedisCommand;
 
 import java.util.Arrays;
@@ -26,18 +27,21 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public static final String STORAGE_INFOS_SUFFIX = ":infos";
     public static final String STORAGE_QUEUES_SUFFIX = ":queues";
     public static final String STORAGE_HALFOPEN_CIRCUITS = STORAGE_PREFIX + "half-open-circuits";
+    public static final String STORAGE_OPEN_CIRCUITS = STORAGE_PREFIX + "open-circuits";
     public static final String STORAGE_QUEUES_TO_UNLOCK = STORAGE_PREFIX + "queues-to-unlock";
     public static final String FIELD_STATE = "state";
     public static final String FIELD_FAILRATIO = "failRatio";
 
     private LuaScriptState openCircuitLuaScriptState;
     private LuaScriptState closeCircuitLuaScriptState;
+    private LuaScriptState reOpenCircuitLuaScriptState;
 
     public RedisQueueCircuitBreakerStorage(RedisClient redisClient) {
         this.redisClient = redisClient;
 
         openCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT, redisClient, false);
         closeCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.CLOSE_CIRCUIT, redisClient, false);
+        reOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.REOPEN_CIRCUIT, redisClient, false);
     }
 
     @Override
@@ -119,7 +123,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 STORAGE_QUEUES_TO_UNLOCK
         );
 
-        List<String> arguments = Collections.singletonList(patternAndEndpointHash.getEndpointHash());
+        List<String> arguments = Collections.singletonList(endpointHash);
 
         CloseCircuitRedisCommand cmd = new CloseCircuitRedisCommand(closeCircuitLuaScriptState,
                 keys, arguments, redisClient, log, future);
@@ -127,9 +131,29 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         return future;
     }
 
+    @Override
+    public Future<Void> reOpenCircuit(PatternAndEndpointHash patternAndEndpointHash) {
+        Future<Void> future = Future.future();
+        String endpointHash = patternAndEndpointHash.getEndpointHash();
+
+        List<String> keys = Arrays.asList(
+                buildInfosKey(endpointHash),
+                STORAGE_HALFOPEN_CIRCUITS,
+                STORAGE_OPEN_CIRCUITS
+        );
+
+        List<String> arguments = Arrays.asList(endpointHash, String.valueOf(System.currentTimeMillis()));
+
+        ReOpenCircuitRedisCommand cmd = new ReOpenCircuitRedisCommand(reOpenCircuitLuaScriptState,
+                keys, arguments, redisClient, log, future);
+        cmd.exec(0);
+
+        return future;
+    }
+
     /*
-         * Helper methods
-         */
+     * Helper methods
+     */
     private String buildInfosKey(String endpointHash){
         return STORAGE_PREFIX + endpointHash + STORAGE_INFOS_SUFFIX;
     }

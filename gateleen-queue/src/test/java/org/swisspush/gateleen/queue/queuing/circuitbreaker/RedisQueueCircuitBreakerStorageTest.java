@@ -164,7 +164,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
 
-        //prepare some test data
+        // prepare some test data
         writeQueueCircuitStateToDatabase(endpointHash, QueueCircuitState.HALF_OPEN);
         writeQueueCircuitFailPercentageToDatabase(endpointHash, 50);
 
@@ -214,6 +214,61 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertTrue(halfOpenCircuits.contains("b"));
             context.assertTrue(halfOpenCircuits.contains("c"));
             context.assertFalse(halfOpenCircuits.contains(endpointHash));
+
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testReOpenCircuit(TestContext context){
+        Async async = context.async();
+        String endpointHash = "anotherEndpointHash";
+
+        context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertFalse(jedis.exists(STORAGE_OPEN_CIRCUITS));
+
+        // prepare some test data
+        writeQueueCircuitStateToDatabase(endpointHash, QueueCircuitState.HALF_OPEN);
+        writeQueueCircuitFailPercentageToDatabase(endpointHash, 50);
+
+        jedis.zadd(STORAGE_HALFOPEN_CIRCUITS, 1, "a");
+        jedis.zadd(STORAGE_HALFOPEN_CIRCUITS, 2, endpointHash);
+        jedis.zadd(STORAGE_HALFOPEN_CIRCUITS, 3, "b");
+        jedis.zadd(STORAGE_HALFOPEN_CIRCUITS, 4, "c");
+
+        jedis.zadd(STORAGE_OPEN_CIRCUITS, 1, "d");
+        jedis.zadd(STORAGE_OPEN_CIRCUITS, 2, "e");
+        jedis.zadd(STORAGE_OPEN_CIRCUITS, 3, "f");
+        jedis.zadd(STORAGE_OPEN_CIRCUITS, 4, "g");
+        jedis.zadd(STORAGE_OPEN_CIRCUITS, 5, "h");
+
+        context.assertEquals(4L, jedis.zcard(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertEquals(5L, jedis.zcard(STORAGE_OPEN_CIRCUITS));
+
+        PatternAndEndpointHash patternAndEndpointHash = buildPatternAndEndpointHash("/anotherEndpoint", endpointHash);
+        storage.reOpenCircuit(patternAndEndpointHash).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+
+            context.assertTrue(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
+            context.assertTrue(jedis.exists(STORAGE_OPEN_CIRCUITS));
+
+            assertStateAndErroPercentage(context, endpointHash, "open", 50);
+
+            context.assertEquals(3L, jedis.zcard(STORAGE_HALFOPEN_CIRCUITS));
+            Set<String> halfOpenCircuits = jedis.zrangeByScore(STORAGE_HALFOPEN_CIRCUITS, Long.MIN_VALUE, Long.MAX_VALUE);
+            context.assertTrue(halfOpenCircuits.contains("a"));
+            context.assertTrue(halfOpenCircuits.contains("b"));
+            context.assertTrue(halfOpenCircuits.contains("c"));
+            context.assertFalse(halfOpenCircuits.contains(endpointHash));
+
+            context.assertEquals(6L, jedis.zcard(STORAGE_OPEN_CIRCUITS));
+            Set<String> openCircuits = jedis.zrangeByScore(STORAGE_OPEN_CIRCUITS, Long.MIN_VALUE, Long.MAX_VALUE);
+            context.assertTrue(openCircuits.contains("d"));
+            context.assertTrue(openCircuits.contains("e"));
+            context.assertTrue(openCircuits.contains("f"));
+            context.assertTrue(openCircuits.contains("g"));
+            context.assertTrue(openCircuits.contains("h"));
+            context.assertTrue(openCircuits.contains(endpointHash));
 
             async.complete();
         });

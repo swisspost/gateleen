@@ -323,4 +323,41 @@ public class QueueCircuitBreakerImplTest {
             async.complete();
         });
     }
+
+    @Test
+    public void testReOpenCircuit(TestContext context){
+        Async async = context.async();
+        HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
+
+        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(anyString()))
+                .thenReturn(new PatternAndEndpointHash(Pattern.compile("/someEndpoint"), "someEndpointHash"));
+
+        Mockito.when(queueCircuitBreakerStorage.reOpenCircuit(any(PatternAndEndpointHash.class)))
+                .thenReturn(Future.succeededFuture());
+
+        queueCircuitBreaker.reOpenCircuit(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            verify(queueCircuitBreakerStorage, times(1)).reOpenCircuit(any(PatternAndEndpointHash.class));
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testReOpenCircuitFailingStorage(TestContext context){
+        Async async = context.async();
+        HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
+
+        Mockito.when(ruleToEndpointMapping.getEndpointFromRequestUri(anyString()))
+                .thenReturn(new PatternAndEndpointHash(Pattern.compile("/someEndpoint"), "someEndpointHash"));
+
+        Mockito.when(queueCircuitBreakerStorage.reOpenCircuit(any(PatternAndEndpointHash.class)))
+                .thenReturn(Future.failedFuture("unable to re-open circuit"));
+
+        queueCircuitBreaker.reOpenCircuit(req).setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause().getMessage().contains("unable to re-open circuit"));
+            verify(queueCircuitBreakerStorage, times(1)).reOpenCircuit(any(PatternAndEndpointHash.class));
+            async.complete();
+        });
+    }
 }

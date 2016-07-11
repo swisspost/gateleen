@@ -162,5 +162,10 @@ public class QueueProcessorTest {
         public Future<Void> closeCircuit(HttpRequest queuedRequest) {
             return null;
         }
+
+        @Override
+        public Future<Void> reOpenCircuit(HttpRequest queuedRequest) {
+            return null;
+        }
     }
 }

@@ -16,4 +16,6 @@ public interface QueueCircuitBreakerStorage {
     Future<Void> lockQueue(String queueName, PatternAndEndpointHash patternAndEndpointHash);
 
     Future<Void> closeCircuit(PatternAndEndpointHash patternAndEndpointHash);
+
+    Future<Void> reOpenCircuit(PatternAndEndpointHash patternAndEndpointHash);
 }

@@ -150,6 +150,24 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
+    public Future<Void> reOpenCircuit(HttpRequest queuedRequest) {
+        Future<Void> future = Future.future();
+        PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRequest(queuedRequest);
+        if(patternAndEndpointHash != null){
+            queueCircuitBreakerStorage.reOpenCircuit(patternAndEndpointHash).setHandler(event -> {
+                if(event.failed()){
+                    future.fail(event.cause());
+                    return;
+                }
+                future.complete();
+            });
+        } else {
+            failWithNoRuleToEndpointMappingMessage(future, null, queuedRequest);
+        }
+        return future;
+    }
+
+    @Override
     public Future<Void> lockQueue(String queueName, HttpRequest queuedRequest) {
         Future<Void> future = Future.future();
 

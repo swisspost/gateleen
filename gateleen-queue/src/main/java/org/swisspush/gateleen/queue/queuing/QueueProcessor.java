@@ -92,6 +92,17 @@ public class QueueProcessor {
         return queueCircuitBreaker != null && queueCircuitBreaker.isStatisticsUpdateEnabled();
     }
 
+    private void performCircuitBreakerActions(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType, QueueCircuitState state){
+        updateCircuitBreakerStatistics(queueName, queuedRequest, queueResponseType, state);
+        if(QueueCircuitState.HALF_OPEN == state) {
+            if (SUCCESS == queueResponseType) {
+                closeCircuit(queuedRequest);
+            } else if (FAILURE == queueResponseType) {
+                reOpenCircuit(queuedRequest);
+            }
+        }
+    }
+
     private void updateCircuitBreakerStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType, QueueCircuitState state){
         if(isStatisticsUpdateEnabled() && QueueCircuitState.CLOSED == state){
             queueCircuitBreaker.updateStatistics(queueName, queuedRequest, queueResponseType).setHandler(event -> {
@@ -104,11 +115,23 @@ public class QueueProcessor {
         }
     }
 
-    private void closeCircuit(HttpRequest queuedRequest, QueueCircuitState state){
-        if(queueCircuitBreaker != null && QueueCircuitState.HALF_OPEN == state){
+    private void closeCircuit(HttpRequest queuedRequest){
+        if(queueCircuitBreaker != null){
             queueCircuitBreaker.closeCircuit(queuedRequest).setHandler(event -> {
                 if(event.failed()){
                     String message = "failed to close circuit " + queuedRequest.getUri() +
+                            ". Message is: " + event.cause().getMessage();
+                    RequestLoggerFactory.getLogger(QueueProcessor.class, queuedRequest.getHeaders()).error(message);
+                }
+            });
+        }
+    }
+
+    private void reOpenCircuit(HttpRequest queuedRequest){
+        if(queueCircuitBreaker != null){
+            queueCircuitBreaker.reOpenCircuit(queuedRequest).setHandler(event -> {
+                if(event.failed()){
+                    String message = "failed to re-open circuit " + queuedRequest.getUri() +
                             ". Message is: " + event.cause().getMessage();
                     RequestLoggerFactory.getLogger(QueueProcessor.class, queuedRequest.getHeaders()).error(message);
                 }
@@ -142,15 +165,14 @@ public class QueueProcessor {
                                         + response.statusCode() + " " + response.statusMessage());
                             }
                             message.reply(new JsonObject().put(STATUS, OK));
-                            updateCircuitBreakerStatistics(queueName, queuedRequest, SUCCESS, state);
-                            closeCircuit(queuedRequest, state);
+                            performCircuitBreakerActions(queueName, queuedRequest, SUCCESS, state);
                             monitoringHandler.updateDequeue();
                         } else {
                             logger.error("QUEUE_ERROR: Failed request to " + queuedRequest.getUri() + ": "
                                     + response.statusCode() + " " + response.statusMessage());
                             message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, response.statusCode()
                                     + " " + response.statusMessage()));
-                            updateCircuitBreakerStatistics(queueName, queuedRequest, FAILURE, state);
+                            performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
                         }
                         response.bodyHandler(event -> logger.debug("Discarding backend body"));
                         response.endHandler(event -> logger.debug("Backend response end"));
@@ -158,7 +180,7 @@ public class QueueProcessor {
                             logger.warn("QUEUE_ERROR: Exception on response from " + queuedRequest.getUri() + ": "
                                     + exception.getMessage());
                             message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
-                            updateCircuitBreakerStatistics(queueName, queuedRequest, FAILURE, state);
+                            performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
                         });
                     });
 
@@ -170,7 +192,7 @@ public class QueueProcessor {
                         logger.warn("QUEUE_ERROR: Failed request to " + queuedRequest.getUri() + ": "
                                 + exception.getMessage());
                         message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
-                        updateCircuitBreakerStatistics(queueName, queuedRequest, FAILURE, state);
+                        performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
                     });
                     request.setTimeout(120000); // avoids blocking other requests
                     if (queuedRequest.getPayload() != null) {
