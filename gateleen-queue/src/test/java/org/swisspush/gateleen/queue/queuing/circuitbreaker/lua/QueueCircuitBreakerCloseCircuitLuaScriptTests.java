@@ -21,6 +21,7 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
     private final String circuitFailureKey = "q:failure";
     private final String circuitQueuesKey = "q:queues";
     private final String halfOpenCircuitsKey = "half_open_circuits";
+    private final String openCircuitsKey = "open_circuits";
     private final String queuesToUnlockKey = "queues_to_unlock";
 
     @Test
@@ -47,7 +48,7 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
         jedis.zadd(circuitQueuesKey, 3, "queue_3");
 
         jedis.zadd(halfOpenCircuitsKey, 1, "a");
-        jedis.zadd(halfOpenCircuitsKey, 2, "someEndpointHash");
+        jedis.zadd(halfOpenCircuitsKey, 2, "someCircuitHash");
         jedis.zadd(halfOpenCircuitsKey, 3, "b");
         jedis.zadd(halfOpenCircuitsKey, 4, "c");
 
@@ -57,7 +58,7 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
         assertThat(jedis.zcard(halfOpenCircuitsKey), equalTo(4L));
         assertThat(jedis.zcard(queuesToUnlockKey), equalTo(0L));
 
-        evalScriptCloseCircuit("someEndpointHash");
+        evalScriptCloseCircuit("someCircuitHash");
 
         // assertions
         assertThat(jedis.exists(circuitInfoKey), is(true));
@@ -80,10 +81,10 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
         assertThat(halfOpenCircuits.contains("a"), is(true));
         assertThat(halfOpenCircuits.contains("b"), is(true));
         assertThat(halfOpenCircuits.contains("c"), is(true));
-        assertThat(halfOpenCircuits.contains("someEndpointHash"), is(false));
+        assertThat(halfOpenCircuits.contains("someCircuitHash"), is(false));
     }
 
-    private Object evalScriptCloseCircuit(String endpointHash){
+    private Object evalScriptCloseCircuit(String circuitHash){
         String script = readScript(QueueCircuitBreakerLuaScripts.CLOSE_CIRCUIT.getFilename());
         List<String> keys = Arrays.asList(
                 circuitInfoKey,
@@ -91,10 +92,11 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
                 circuitFailureKey,
                 circuitQueuesKey,
                 halfOpenCircuitsKey,
+                openCircuitsKey,
                 queuesToUnlockKey
         );
 
-        List<String> arguments = Collections.singletonList(endpointHash);
+        List<String> arguments = Collections.singletonList(circuitHash);
         return jedis.eval(script, keys, arguments);
     }
 }

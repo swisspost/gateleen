@@ -19,12 +19,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tests for the {@link QueueCircuitBreakerRulePatternToEndpointMapping} class
+ * Tests for the {@link QueueCircuitBreakerRulePatternToCircuitMapping} class
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 @RunWith(VertxUnitRunner.class)
-public class QueueCircuitBreakerRulePatternToEndpointMappingTest {
+public class QueueCircuitBreakerRulePatternToCircuitMappingTest {
 
     @org.junit.Rule
     public Timeout rule = Timeout.seconds(5);
@@ -32,7 +32,7 @@ public class QueueCircuitBreakerRulePatternToEndpointMappingTest {
     private Vertx vertx;
     private RuleProvider ruleProvider;
     private List<Rule> rules;
-    private QueueCircuitBreakerRulePatternToEndpointMapping mapping;
+    private QueueCircuitBreakerRulePatternToCircuitMapping mapping;
 
     private final String RULES_STORAGE_INITIAL = "{\n" +
             " \"/playground/css/(.*)\": {\n" +
@@ -60,7 +60,7 @@ public class QueueCircuitBreakerRulePatternToEndpointMappingTest {
         ResourceStorage storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_STORAGE_INITIAL));
         Map<String, Object> properties = new HashMap<>();
         ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
-        mapping = new QueueCircuitBreakerRulePatternToEndpointMapping();
+        mapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
         ruleProvider.getRules().setHandler(event -> {
             rules = event.result();
             async.complete();
@@ -68,45 +68,45 @@ public class QueueCircuitBreakerRulePatternToEndpointMappingTest {
     }
 
     @Test
-    public void testGetEndpointFromRequestUri(TestContext context){
+    public void testGetCircuitFromRequestUri(TestContext context){
         context.assertNotNull(rules);
         context.assertEquals(3, rules.size());
 
-        mapping.updateRulePatternToEndpointMapping(rules);
+        mapping.updateRulePatternToCircuitMapping(rules);
 
-        String endpoint_1 = mapping.getEndpointFromRequestUri("/playground/img/test.jpg").getEndpointHash();
-        context.assertNotNull(endpoint_1);
-        String endpoint_2 = mapping.getEndpointFromRequestUri("/playground/js/code.js").getEndpointHash();
-        context.assertNotNull(endpoint_2);
-        context.assertNotEquals(endpoint_1, endpoint_2);
+        String circuit_1 = mapping.getCircuitFromRequestUri("/playground/img/test.jpg").getCircuitHash();
+        context.assertNotNull(circuit_1);
+        String circuit_2 = mapping.getCircuitFromRequestUri("/playground/js/code.js").getCircuitHash();
+        context.assertNotNull(circuit_2);
+        context.assertNotEquals(circuit_1, circuit_2);
 
-        String endpoint_2a = mapping.getEndpointFromRequestUri("/playground/js/another.js").getEndpointHash();
-        context.assertNotNull(endpoint_2a);
-        context.assertEquals(endpoint_2, endpoint_2a);
+        String circuit_2a = mapping.getCircuitFromRequestUri("/playground/js/another.js").getCircuitHash();
+        context.assertNotNull(circuit_2a);
+        context.assertEquals(circuit_2, circuit_2a);
 
-        PatternAndEndpointHash enpoint_3 = mapping.getEndpointFromRequestUri("/playground/unknown/uri");
-        context.assertNull(enpoint_3);
+        PatternAndCircuitHash circuit_3 = mapping.getCircuitFromRequestUri("/playground/unknown/uri");
+        context.assertNull(circuit_3);
     }
 
     @Test
-    public void testEndpointsRemainAfterRulesUpdate(TestContext context){
+    public void testCircuitsRemainAfterRulesUpdate(TestContext context){
         context.assertNotNull(rules);
         context.assertEquals(3, rules.size());
 
-        mapping.updateRulePatternToEndpointMapping(rules);
+        mapping.updateRulePatternToCircuitMapping(rules);
 
-        String endpoint_1_before = mapping.getEndpointFromRequestUri("/playground/img/test.jpg").getEndpointHash();
-        context.assertNotNull(endpoint_1_before);
-        String endpoint_2_before = mapping.getEndpointFromRequestUri("/playground/js/code.js").getEndpointHash();
-        context.assertNotNull(endpoint_2_before);
-        context.assertNotEquals(endpoint_1_before, endpoint_2_before);
+        String circuit_1_before = mapping.getCircuitFromRequestUri("/playground/img/test.jpg").getCircuitHash();
+        context.assertNotNull(circuit_1_before);
+        String circuit_2_before = mapping.getCircuitFromRequestUri("/playground/js/code.js").getCircuitHash();
+        context.assertNotNull(circuit_2_before);
+        context.assertNotEquals(circuit_1_before, circuit_2_before);
 
-        mapping.updateRulePatternToEndpointMapping(rules);
+        mapping.updateRulePatternToCircuitMapping(rules);
 
-        String endpoint_1_after = mapping.getEndpointFromRequestUri("/playground/img/test.jpg").getEndpointHash();
-        context.assertNotNull(endpoint_1_after);
-        String endpoint_2_after = mapping.getEndpointFromRequestUri("/playground/js/code.js").getEndpointHash();
-        context.assertNotNull(endpoint_2_after);
-        context.assertNotEquals(endpoint_1_after, endpoint_2_after);
+        String circuit_1_after = mapping.getCircuitFromRequestUri("/playground/img/test.jpg").getCircuitHash();
+        context.assertNotNull(circuit_1_after);
+        String circuit_2_after = mapping.getCircuitFromRequestUri("/playground/js/code.js").getCircuitHash();
+        context.assertNotNull(circuit_2_after);
+        context.assertNotEquals(circuit_1_after, circuit_2_after);
     }
 }

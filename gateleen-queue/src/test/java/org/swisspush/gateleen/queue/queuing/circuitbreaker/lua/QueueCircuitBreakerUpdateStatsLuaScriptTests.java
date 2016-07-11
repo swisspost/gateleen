@@ -3,7 +3,6 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -75,7 +74,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertStateAndErroPercentage("open", 63);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
 
-        assertEndpoint("url_pattern");
+        assertCircuit("url_pattern");
     }
 
 
@@ -99,7 +98,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
             assertThat(remainingSetEntries.contains("req_"+i), is(true));
         }
 
-        assertEndpoint("url_pattern");
+        assertCircuit("url_pattern");
     }
 
     @Test
@@ -134,7 +133,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertStateAndErroPercentage("open", 0); // req_6 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
 
-        assertEndpoint("url_pattern");
+        assertCircuit("url_pattern");
     }
 
     private void assertStateAndErroPercentage(String state, int percentage){
@@ -149,8 +148,8 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertThat(jedis.zcard(openCircuitsKey), equalTo(amountOfOpenCircuits));
     }
 
-    private void assertEndpoint(String endpoint){
-        assertThat(jedis.hget(circuitInfoKey, "endpoint"), equalTo(endpoint));
+    private void assertCircuit(String circuit){
+        assertThat(jedis.hget(circuitInfoKey, "circuit"), equalTo(circuit));
     }
 
     private void assertSizeSizeNotExceedingLimit(String setKey, long maxSetSize){
@@ -158,7 +157,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
     }
 
     private Object evalScriptUpdateQueueCircuitBreakerStats(String circuitKeyToUpdate, String uniqueRequestID,
-                                                            String endpoint, long timestamp, int errorThresholdPercentage,
+                                                            String circuit, long timestamp, int errorThresholdPercentage,
                                                             long entriesMaxAgeMS, long minSampleCount, long maxSampleCount) {
 
         String script = readScript(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT.getFilename());
@@ -172,8 +171,8 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
 
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
-                endpoint,
-                endpoint+"Hash",
+                circuit,
+                circuit+"Hash",
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
                 String.valueOf(entriesMaxAgeMS),

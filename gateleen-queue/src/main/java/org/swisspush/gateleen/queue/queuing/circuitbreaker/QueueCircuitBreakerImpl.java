@@ -32,7 +32,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private boolean statisticsUpdateEnabled = true;
     private RuleProvider ruleProvider;
     private QueueCircuitBreakerStorage queueCircuitBreakerStorage;
-    private QueueCircuitBreakerRulePatternToEndpointMapping ruleToEndpointMapping;
+    private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
 
     private int errorThresholdPercentage;
     private long entriesMaxAgeMS;
@@ -41,13 +41,13 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     private String redisquesAddress;
 
-    public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToEndpointMapping ruleToEndpointMapping) {
+    public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping) {
         this.vertx = vertx;
         this.redisquesAddress = Address.redisquesAddress();
         this.queueCircuitBreakerStorage = queueCircuitBreakerStorage;
         this.ruleProvider = ruleProvider;
         this.ruleProvider.registerObserver(this);
-        this.ruleToEndpointMapping = ruleToEndpointMapping;
+        this.ruleToCircuitMapping = ruleToCircuitMapping;
 
         this.errorThresholdPercentage = 50;
         this.entriesMaxAgeMS = 1000 * 60 * 60; //1h
@@ -57,8 +57,8 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     @Override
     public void rulesChanged(List<Rule> rules) {
-        log.info("rules have changed, renew rule to endpoint mapping");
-        this.ruleToEndpointMapping.updateRulePatternToEndpointMapping(rules);
+        log.info("rules have changed, renew rule to circuit mapping");
+        this.ruleToCircuitMapping.updateRulePatternToCircuitMapping(rules);
     }
 
     @Override
@@ -78,9 +78,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     @Override
     public Future<QueueCircuitState> handleQueuedRequest(String queueName, HttpRequest queuedRequest){
         Future<QueueCircuitState> future = Future.future();
-        PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRequest(queuedRequest);
-        if(patternAndEndpointHash != null){
-            this.queueCircuitBreakerStorage.getQueueCircuitState(patternAndEndpointHash).setHandler(event -> {
+        PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
+        if(patternAndCircuitHash != null){
+            this.queueCircuitBreakerStorage.getQueueCircuitState(patternAndCircuitHash).setHandler(event -> {
                 if(event.failed()){
                     future.fail(event.cause());
                 } else {
@@ -91,7 +91,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                 }
             });
         } else {
-            failWithNoRuleToEndpointMappingMessage(future, queueName, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(future, queueName, queuedRequest);
         }
         return future;
     }
@@ -111,9 +111,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         }
         // TODO END REMOVE
 
-        PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRequest(queuedRequest);
-        if(patternAndEndpointHash != null) {
-            this.queueCircuitBreakerStorage.updateStatistics(patternAndEndpointHash, requestId, currentTS,
+        PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
+        if(patternAndCircuitHash != null) {
+            this.queueCircuitBreakerStorage.updateStatistics(patternAndCircuitHash, requestId, currentTS,
                     errorThresholdPercentage, entriesMaxAgeMS, minSampleCount,
                     maxSampleCount, type).setHandler(event -> {
                 if (event.failed()) {
@@ -126,7 +126,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                 }
             });
         } else {
-            failWithNoRuleToEndpointMappingMessage(future, queueName, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(future, queueName, queuedRequest);
         }
         return future;
     }
@@ -134,9 +134,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     @Override
     public Future<Void> closeCircuit(HttpRequest queuedRequest) {
         Future<Void> future = Future.future();
-        PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRequest(queuedRequest);
-        if(patternAndEndpointHash != null){
-            queueCircuitBreakerStorage.closeCircuit(patternAndEndpointHash).setHandler(event -> {
+        PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
+        if(patternAndCircuitHash != null){
+            queueCircuitBreakerStorage.closeCircuit(patternAndCircuitHash).setHandler(event -> {
                 if(event.failed()){
                     future.fail(event.cause());
                     return;
@@ -144,7 +144,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                 future.complete();
             });
         } else {
-            failWithNoRuleToEndpointMappingMessage(future, null, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(future, null, queuedRequest);
         }
         return future;
     }
@@ -152,9 +152,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     @Override
     public Future<Void> reOpenCircuit(HttpRequest queuedRequest) {
         Future<Void> future = Future.future();
-        PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRequest(queuedRequest);
-        if(patternAndEndpointHash != null){
-            queueCircuitBreakerStorage.reOpenCircuit(patternAndEndpointHash).setHandler(event -> {
+        PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
+        if(patternAndCircuitHash != null){
+            queueCircuitBreakerStorage.reOpenCircuit(patternAndCircuitHash).setHandler(event -> {
                 if(event.failed()){
                     future.fail(event.cause());
                     return;
@@ -162,7 +162,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                 future.complete();
             });
         } else {
-            failWithNoRuleToEndpointMappingMessage(future, null, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(future, null, queuedRequest);
         }
         return future;
     }
@@ -171,9 +171,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     public Future<Void> lockQueue(String queueName, HttpRequest queuedRequest) {
         Future<Void> future = Future.future();
 
-        PatternAndEndpointHash patternAndEndpointHash = getPatternAndEndpointHashFromRequest(queuedRequest);
-        if(patternAndEndpointHash != null){
-            queueCircuitBreakerStorage.lockQueue(queueName, patternAndEndpointHash).setHandler(event -> {
+        PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
+        if(patternAndCircuitHash != null){
+            queueCircuitBreakerStorage.lockQueue(queueName, patternAndCircuitHash).setHandler(event -> {
                 if(event.failed()){
                     future.fail(event.cause());
                     return;
@@ -195,7 +195,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                 });
             });
         } else {
-            failWithNoRuleToEndpointMappingMessage(future, queueName, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(future, queueName, queuedRequest);
         }
         return future;
     }
@@ -208,16 +208,16 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         });
     }
 
-    private void failWithNoRuleToEndpointMappingMessage(Future future, String queueName, HttpRequest request){
+    private void failWithNoRuleToCircuitMappingMessage(Future future, String queueName, HttpRequest request){
         if(queueName == null){
-            future.fail("no rule to endpoint mapping found for uri " + request.getUri());
+            future.fail("no rule to circuit mapping found for uri " + request.getUri());
         } else {
-            future.fail("no rule to endpoint mapping found for queue '" + queueName + "' and uri " + request.getUri());
+            future.fail("no rule to circuit mapping found for queue '" + queueName + "' and uri " + request.getUri());
         }
     }
 
-    private PatternAndEndpointHash getPatternAndEndpointHashFromRequest(HttpRequest request){
-        return this.ruleToEndpointMapping.getEndpointFromRequestUri(request.getUri());
+    private PatternAndCircuitHash getPatternAndCircuitHashFromRequest(HttpRequest request){
+        return this.ruleToCircuitMapping.getCircuitFromRequestUri(request.getUri());
     }
 
     private String getRequestUniqueId(HttpRequest request){

@@ -1,6 +1,6 @@
 local stateField = "state"
 local failRatioField = "failRatio"
-local endpointField = "endpoint"
+local circuitField = "circuit"
 local circuitInfoKey = KEYS[1]
 local circuitSuccessKey = KEYS[2]
 local circuitFailureKey = KEYS[3]
@@ -8,8 +8,8 @@ local circuitKeyToUpdate = KEYS[4]
 local openCircuitsKey = KEYS[5]
 
 local requestID = ARGV[1]
-local endpoint = ARGV[2]
-local endpointHash = ARGV[3]
+local circuit = ARGV[2]
+local circuitHash = ARGV[3]
 local requestTS = tonumber(ARGV[4])
 local errorThresholdPercentage = tonumber(ARGV[5])
 local entriesMaxAgeMS = tonumber(ARGV[6])
@@ -20,8 +20,8 @@ local return_value = "OK"
 
 -- add request to circuit to update
 redis.call('zadd',circuitKeyToUpdate,requestTS,requestID)
--- write endpoint pattern to infos
-redis.call('hsetnx',circuitInfoKey,endpointField, endpoint)
+-- write circuit pattern to infos
+redis.call('hsetnx',circuitInfoKey, circuitField, circuit)
 
 local function setCircuitState(state)
     redis.call('hset',circuitInfoKey,stateField,state)
@@ -76,7 +76,7 @@ local failPercentage = updateFailurePercentage()
 
 local function openCircuit()
     setCircuitState("open")
-    redis.call('zadd',openCircuitsKey,requestTS,endpointHash)
+    redis.call('zadd',openCircuitsKey,requestTS,circuitHash)
     return_value = "OPENED"
 end
 

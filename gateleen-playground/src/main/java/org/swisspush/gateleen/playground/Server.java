@@ -27,7 +27,7 @@ import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerImpl;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerRulePatternToEndpointMapping;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerRulePatternToCircuitMapping;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.RuleProvider;
@@ -155,9 +155,9 @@ public class Server extends AbstractVerticle {
                             (Handler<Void>) aVoid -> hookHandler.init());
 
                     RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
-                    QueueCircuitBreakerRulePatternToEndpointMapping rulePatternToEndpointMapping = new QueueCircuitBreakerRulePatternToEndpointMapping();
+                    QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
                     QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, new RedisQueueCircuitBreakerStorage(redisClient),
-                            ruleProvider, rulePatternToEndpointMapping);
+                            ruleProvider, rulePatternToCircuitMapping);
 
                     new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                     final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);

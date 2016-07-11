@@ -6,9 +6,10 @@ local circuitSuccessKey = KEYS[2]
 local circuitFailureKey = KEYS[3]
 local circuitQueuesKey = KEYS[4]
 local halfOpenCircuitsKey = KEYS[5]
-local queuesToUnlockKey = KEYS[6]
+local openCircuitsKey = KEYS[6]
+local queuesToUnlockKey = KEYS[7]
 
-local endpointHash = ARGV[1]
+local circuitHash = ARGV[1]
 
 -- move queues to 'queues_to_unlock'-queue
 local queues = redis.call('zrangebyscore',circuitQueuesKey,'-inf','+inf')
@@ -25,7 +26,8 @@ redis.call('hset',circuitInfoKey,failRatioField,0)
 redis.call('del',circuitSuccessKey)
 redis.call('del',circuitFailureKey)
 
--- remove circuit from half-open-circuits set
-redis.call('zrem',halfOpenCircuitsKey,endpointHash)
+-- remove circuit from half-open-circuits and open-circuits set
+redis.call('zrem',halfOpenCircuitsKey, circuitHash)
+redis.call('zrem',openCircuitsKey, circuitHash)
 
 return "OK"

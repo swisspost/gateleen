@@ -7,15 +7,15 @@ import io.vertx.core.Future;
  */
 public interface QueueCircuitBreakerStorage {
 
-    Future<Void> resetAllEndpoints();
+    Future<QueueCircuitState> getQueueCircuitState(PatternAndCircuitHash patternAndCircuitHash);
 
-    Future<QueueCircuitState> getQueueCircuitState(PatternAndEndpointHash patternAndEndpointHash);
+    Future<UpdateStatisticsResult> updateStatistics(PatternAndCircuitHash patternAndCircuitHash, String uniqueRequestID, long timestamp, int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount, long maxSampleCount, QueueResponseType queueResponseType);
 
-    Future<UpdateStatisticsResult> updateStatistics(PatternAndEndpointHash patternAndEndpointHash, String uniqueRequestID, long timestamp, int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount, long maxSampleCount, QueueResponseType queueResponseType);
+    Future<Void> lockQueue(String queueName, PatternAndCircuitHash patternAndCircuitHash);
 
-    Future<Void> lockQueue(String queueName, PatternAndEndpointHash patternAndEndpointHash);
+    Future<Void> closeCircuit(PatternAndCircuitHash patternAndCircuitHash);
 
-    Future<Void> closeCircuit(PatternAndEndpointHash patternAndEndpointHash);
+    Future<Void> closeAllCircuits();
 
-    Future<Void> reOpenCircuit(PatternAndEndpointHash patternAndEndpointHash);
+    Future<Void> reOpenCircuit(PatternAndCircuitHash patternAndCircuitHash);
 }

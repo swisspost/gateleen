@@ -1,9 +1,12 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
+import com.google.common.util.concurrent.Futures;
+import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.redis.RedisClient;
+import io.vertx.redis.op.RangeLimitOptions;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.CloseCircuitRedisCommand;
@@ -11,6 +14,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.QueueCircuitBreak
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.ReOpenCircuitRedisCommand;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.UpdateStatsRedisCommand;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -45,21 +49,15 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
-    public Future<Void> resetAllEndpoints() {
-        Future<Void> future = Future.future();
-        return future;
-    }
-
-    @Override
-    public Future<QueueCircuitState> getQueueCircuitState(PatternAndEndpointHash patternAndEndpointHash) {
+    public Future<QueueCircuitState> getQueueCircuitState(PatternAndCircuitHash patternAndCircuitHash) {
         Future<QueueCircuitState> future = Future.future();
-        redisClient.hget(buildInfosKey(patternAndEndpointHash.getEndpointHash()), FIELD_STATE, event -> {
+        redisClient.hget(buildInfosKey(patternAndCircuitHash.getCircuitHash()), FIELD_STATE, event -> {
             if(event.failed()){
                 future.fail(event.cause());
             } else {
                 String stateAsString = event.result();
                 if(StringUtils.isEmpty(stateAsString)){
-                    log.info("No status information found for endpoint " + patternAndEndpointHash.getPattern().pattern() + ". Using default value " + QueueCircuitState.CLOSED);
+                    log.info("No status information found for circuit " + patternAndCircuitHash.getPattern().pattern() + ". Using default value " + QueueCircuitState.CLOSED);
                 }
                 future.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
             }
@@ -68,23 +66,23 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
-    public Future<UpdateStatisticsResult> updateStatistics(PatternAndEndpointHash patternAndEndpointHash, String uniqueRequestID, long timestamp,
-                                           int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount,
-                                           long maxSampleCount, QueueResponseType queueResponseType) {
+    public Future<UpdateStatisticsResult> updateStatistics(PatternAndCircuitHash patternAndCircuitHash, String uniqueRequestID, long timestamp,
+                                                           int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount,
+                                                           long maxSampleCount, QueueResponseType queueResponseType) {
         Future<UpdateStatisticsResult> future = Future.future();
-        String endpointHash = patternAndEndpointHash.getEndpointHash();
+        String circuitHash = patternAndCircuitHash.getCircuitHash();
         List<String> keys = Arrays.asList(
-                buildInfosKey(endpointHash),
-                buildStatsKey(endpointHash, QueueResponseType.SUCCESS),
-                buildStatsKey(endpointHash, QueueResponseType.FAILURE),
-                buildStatsKey(endpointHash, queueResponseType),
+                buildInfosKey(circuitHash),
+                buildStatsKey(circuitHash, QueueResponseType.SUCCESS),
+                buildStatsKey(circuitHash, QueueResponseType.FAILURE),
+                buildStatsKey(circuitHash, queueResponseType),
                 STORAGE_OPEN_CIRCUITS
         );
 
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
-                patternAndEndpointHash.getPattern().pattern(),
-                patternAndEndpointHash.getEndpointHash(),
+                patternAndCircuitHash.getPattern().pattern(),
+                patternAndCircuitHash.getCircuitHash(),
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
                 String.valueOf(entriesMaxAgeMS),
@@ -99,9 +97,9 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
-    public Future<Void> lockQueue(String queueName, PatternAndEndpointHash patternAndEndpointHash) {
+    public Future<Void> lockQueue(String queueName, PatternAndCircuitHash patternAndCircuitHash) {
         Future<Void> future = Future.future();
-        redisClient.zadd(buildQueuesKey(patternAndEndpointHash.getEndpointHash()), System.currentTimeMillis(), queueName, event -> {
+        redisClient.zadd(buildQueuesKey(patternAndCircuitHash.getCircuitHash()), System.currentTimeMillis(), queueName, event -> {
             if(event.failed()){
                 future.fail(event.cause().getMessage());
                 return;
@@ -112,20 +110,24 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
-    public Future<Void> closeCircuit(PatternAndEndpointHash patternAndEndpointHash) {
+    public Future<Void> closeCircuit(PatternAndCircuitHash patternAndCircuitHash) {
+        return closeCircuit(patternAndCircuitHash.getCircuitHash());
+    }
+
+    private Future<Void> closeCircuit(String circuitHash){
         Future<Void> future = Future.future();
-        String endpointHash = patternAndEndpointHash.getEndpointHash();
 
         List<String> keys = Arrays.asList(
-                buildInfosKey(endpointHash),
-                buildStatsKey(endpointHash, QueueResponseType.SUCCESS),
-                buildStatsKey(endpointHash, QueueResponseType.FAILURE),
-                buildQueuesKey(endpointHash),
+                buildInfosKey(circuitHash),
+                buildStatsKey(circuitHash, QueueResponseType.SUCCESS),
+                buildStatsKey(circuitHash, QueueResponseType.FAILURE),
+                buildQueuesKey(circuitHash),
                 STORAGE_HALFOPEN_CIRCUITS,
+                STORAGE_OPEN_CIRCUITS,
                 STORAGE_QUEUES_TO_UNLOCK
         );
 
-        List<String> arguments = Collections.singletonList(endpointHash);
+        List<String> arguments = Collections.singletonList(circuitHash);
 
         CloseCircuitRedisCommand cmd = new CloseCircuitRedisCommand(closeCircuitLuaScriptState,
                 keys, arguments, redisClient, log, future);
@@ -134,17 +136,58 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
-    public Future<Void> reOpenCircuit(PatternAndEndpointHash patternAndEndpointHash) {
+    public Future<Void> closeAllCircuits() {
         Future<Void> future = Future.future();
-        String endpointHash = patternAndEndpointHash.getEndpointHash();
+
+        Future<Void> closeOpenCircuitsFuture = closeCircuitsByKey(STORAGE_OPEN_CIRCUITS);
+        Future<Void> closeHalfOpenCircuitsFuture = closeCircuitsByKey(STORAGE_HALFOPEN_CIRCUITS);
+
+        CompositeFuture.all(closeOpenCircuitsFuture, closeHalfOpenCircuitsFuture).setHandler(event -> {
+            if(event.succeeded()){
+                future.complete();
+            } else {
+                future.fail(event.cause().getMessage());
+            }
+        });
+
+        return future;
+    }
+
+    private Future<Void> closeCircuitsByKey(String key) {
+        Future<Void> future = Future.future();
+        redisClient.zrangebyscore(key, "-inf", "+inf", RangeLimitOptions.NONE, event -> {
+            if(event.succeeded()){
+                List<Future> futures = new ArrayList<>();
+                List<Object> openCircuits = event.result().getList();
+                for (Object circuit : openCircuits) {
+                    futures.add(closeCircuit((String)circuit));
+                }
+                CompositeFuture.all(futures).setHandler(event1 -> {
+                    if(event1.succeeded()){
+                        future.complete();
+                    } else {
+                        future.fail(event1.cause().getMessage());
+                    }
+                });
+            } else {
+                future.fail(event.cause().getMessage());
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public Future<Void> reOpenCircuit(PatternAndCircuitHash patternAndCircuitHash) {
+        Future<Void> future = Future.future();
+        String circuitHash = patternAndCircuitHash.getCircuitHash();
 
         List<String> keys = Arrays.asList(
-                buildInfosKey(endpointHash),
+                buildInfosKey(circuitHash),
                 STORAGE_HALFOPEN_CIRCUITS,
                 STORAGE_OPEN_CIRCUITS
         );
 
-        List<String> arguments = Arrays.asList(endpointHash, String.valueOf(System.currentTimeMillis()));
+        List<String> arguments = Arrays.asList(circuitHash, String.valueOf(System.currentTimeMillis()));
 
         ReOpenCircuitRedisCommand cmd = new ReOpenCircuitRedisCommand(reOpenCircuitLuaScriptState,
                 keys, arguments, redisClient, log, future);
@@ -156,15 +199,15 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     /*
      * Helper methods
      */
-    private String buildInfosKey(String endpointHash){
-        return STORAGE_PREFIX + endpointHash + STORAGE_INFOS_SUFFIX;
+    private String buildInfosKey(String circuitHash){
+        return STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX;
     }
 
-    private String buildQueuesKey(String endpointHash){
-        return STORAGE_PREFIX + endpointHash + STORAGE_QUEUES_SUFFIX;
+    private String buildQueuesKey(String circuitHash){
+        return STORAGE_PREFIX + circuitHash + STORAGE_QUEUES_SUFFIX;
     }
 
-    private String buildStatsKey(String endpointHash, QueueResponseType queueResponseType){
-        return STORAGE_PREFIX + endpointHash + queueResponseType.getKeySuffix();
+    private String buildStatsKey(String circuitHash, QueueResponseType queueResponseType){
+        return STORAGE_PREFIX + circuitHash + queueResponseType.getKeySuffix();
     }
 }
