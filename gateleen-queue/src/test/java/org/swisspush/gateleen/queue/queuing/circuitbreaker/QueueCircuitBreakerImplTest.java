@@ -288,6 +288,72 @@ public class QueueCircuitBreakerImplTest {
     }
 
     @Test
+    public void testUnlockNextQueue(TestContext context){
+        Async async = context.async(2);
+
+        Mockito.when(queueCircuitBreakerStorage.popQueueToUnlock())
+                .thenReturn(Future.succeededFuture("queue_1"));
+
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
+            async.countDown();
+            context.assertEquals("deleteLock", event.body().getString("operation"));
+            event.reply(new JsonObject().put("status", "ok"));
+        });
+
+        queueCircuitBreaker.unlockNextQueue().setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals("queue_1", event.result());
+            verify(queueCircuitBreakerStorage, times(1)).popQueueToUnlock();
+            async.countDown();
+        });
+
+        async.awaitSuccess();
+    }
+
+    @Test
+    public void testUnlockNextQueueFailingRedisques(TestContext context){
+        Async async = context.async(2);
+
+        Mockito.when(queueCircuitBreakerStorage.popQueueToUnlock())
+                .thenReturn(Future.succeededFuture("queue_1"));
+
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
+            async.countDown();
+            context.assertEquals("deleteLock", event.body().getString("operation"));
+            event.reply(new JsonObject().put("status", "error"));
+        });
+
+        queueCircuitBreaker.unlockNextQueue().setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause().getMessage().contains("unable to unlock queue 'queue_1'"));
+            verify(queueCircuitBreakerStorage, times(1)).popQueueToUnlock();
+            async.countDown();
+        });
+
+        async.awaitSuccess();
+    }
+
+    @Test
+    public void testUnlockNextQueueFailingStorage(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.popQueueToUnlock())
+                .thenReturn(Future.failedFuture("unable to pop queueToUnlock from list"));
+
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
+            context.fail("Redisques should not have been called when the storage failed");
+        });
+
+        queueCircuitBreaker.unlockNextQueue().setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause().getMessage().contains("unable to pop queueToUnlock from list"));
+            verify(queueCircuitBreakerStorage, times(1)).popQueueToUnlock();
+            async.complete();
+        });
+
+    }
+
+    @Test
     public void testCloseCircuit(TestContext context){
         Async async = context.async();
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);

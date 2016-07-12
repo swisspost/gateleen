@@ -14,7 +14,7 @@ local circuitHash = ARGV[1]
 -- move queues to 'queues_to_unlock'-queue
 local queues = redis.call('zrangebyscore',circuitQueuesKey,'-inf','+inf')
 for k, v in ipairs(queues) do
-    redis.call('lpush',queuesToUnlockKey,v)
+    redis.call('rpush',queuesToUnlockKey,v)
 end
 redis.call('del',circuitQueuesKey)
 

@@ -72,9 +72,9 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
         assertThat(jedis.exists(queuesToUnlockKey), is(true));
 
         assertThat(jedis.llen(queuesToUnlockKey), equalTo(3L));
-        assertThat(jedis.rpop(queuesToUnlockKey), equalTo("queue_1"));
-        assertThat(jedis.rpop(queuesToUnlockKey), equalTo("queue_2"));
-        assertThat(jedis.rpop(queuesToUnlockKey), equalTo("queue_3"));
+        assertThat(jedis.lpop(queuesToUnlockKey), equalTo("queue_1"));
+        assertThat(jedis.lpop(queuesToUnlockKey), equalTo("queue_2"));
+        assertThat(jedis.lpop(queuesToUnlockKey), equalTo("queue_3"));
 
         assertThat(jedis.hget(circuitInfoKey, FIELD_STATE).toLowerCase(), equalTo(QueueCircuitState.CLOSED.name().toLowerCase()));
         assertThat(jedis.hget(circuitInfoKey, FIELD_FAILRATIO), equalTo("0"));

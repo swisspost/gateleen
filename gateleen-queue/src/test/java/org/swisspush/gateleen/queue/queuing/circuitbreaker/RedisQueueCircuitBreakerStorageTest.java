@@ -162,6 +162,37 @@ public class RedisQueueCircuitBreakerStorageTest {
     }
 
     @Test
+    public void testPopQueueToUnlock(TestContext context){
+        Async async = context.async();
+        context.assertFalse(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
+        storage.popQueueToUnlock().setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertNull(event.result());
+            addToQueuesToUnlock("q3");
+            addToQueuesToUnlock("q1");
+            addToQueuesToUnlock("q2");
+            assertQueuesToUnlockItems(context, Arrays.asList("q1", "q2", "q3"));
+            storage.popQueueToUnlock().setHandler(event1 -> {
+                context.assertTrue(event1.succeeded());
+                context.assertEquals("q3", event1.result());
+                storage.popQueueToUnlock().setHandler(event2 -> {
+                    context.assertTrue(event2.succeeded());
+                    context.assertEquals("q1", event2.result());
+                    storage.popQueueToUnlock().setHandler(event3 -> {
+                        context.assertTrue(event3.succeeded());
+                        context.assertEquals("q2", event3.result());
+                        storage.popQueueToUnlock().setHandler(event4 -> {
+                            context.assertTrue(event4.succeeded());
+                            context.assertNull(event4.result());
+                            async.complete();
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    @Test
     public void testCloseCircuit(TestContext context){
         Async async = context.async();
         String circuitHash = "anotherCircuitHash";
@@ -215,9 +246,9 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertTrue(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
 
             context.assertEquals(3L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
-            context.assertEquals("queue_1", jedis.rpop(STORAGE_QUEUES_TO_UNLOCK));
-            context.assertEquals("queue_2", jedis.rpop(STORAGE_QUEUES_TO_UNLOCK));
-            context.assertEquals("queue_3", jedis.rpop(STORAGE_QUEUES_TO_UNLOCK));
+            context.assertEquals("queue_1", jedis.lpop(STORAGE_QUEUES_TO_UNLOCK));
+            context.assertEquals("queue_2", jedis.lpop(STORAGE_QUEUES_TO_UNLOCK));
+            context.assertEquals("queue_3", jedis.lpop(STORAGE_QUEUES_TO_UNLOCK));
 
             assertStateAndErroPercentage(context, circuitHash, CLOSED, 0);
 
@@ -469,5 +500,9 @@ public class RedisQueueCircuitBreakerStorageTest {
         for (String item : items) {
             context.assertTrue(queuesToUnlock.contains(item), "queuesToUnlock does not contain item " + item);
         }
+    }
+
+    private void addToQueuesToUnlock(String queueToUnlock){
+        jedis.rpush(STORAGE_QUEUES_TO_UNLOCK, queueToUnlock);
     }
 }

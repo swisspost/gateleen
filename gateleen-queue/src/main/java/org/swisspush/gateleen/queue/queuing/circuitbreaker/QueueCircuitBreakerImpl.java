@@ -16,9 +16,7 @@ import org.swisspush.gateleen.routing.RuleProvider.RuleChangesObserver;
 
 import java.util.List;
 
-import static org.swisspush.redisques.util.RedisquesAPI.OK;
-import static org.swisspush.redisques.util.RedisquesAPI.STATUS;
-import static org.swisspush.redisques.util.RedisquesAPI.buildPutLockOperation;
+import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -203,6 +201,48 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
             failWithNoRuleToCircuitMappingMessage(future, queueName, queuedRequest);
         }
         return future;
+    }
+
+    @Override
+    public Future<String> unlockNextQueue() {
+        Future<String> future = Future.future();
+        queueCircuitBreakerStorage.popQueueToUnlock().setHandler(event -> {
+            if(event.failed()){
+                future.fail(event.cause().getMessage());
+                return;
+            }
+            String queueToUnlock = event.result();
+            if(queueToUnlock != null){
+                vertx.eventBus().send(redisquesAddress, buildDeleteLockOperation(queueToUnlock), new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        if(reply.failed()){
+                            logQueueUnlockError(queueToUnlock);
+                            future.fail(reply.cause().getMessage());
+                            return;
+                        }
+                        if(OK.equals(reply.result().body().getString(STATUS))) {
+                            future.complete(queueToUnlock);
+                        } else {
+                            logQueueUnlockError(queueToUnlock);
+                            future.fail("unable to unlock queue '" + queueToUnlock + "'. Got reply from redisques: " + reply.result().body().toString());
+                        }
+                    }
+                });
+            } else {
+                future.complete(null);
+            }
+        });
+        return future;
+    }
+
+    private void logQueueUnlockError(String queueToUnlock){
+        log.error("Error during unlock of queue '" + queueToUnlock + "'. This queue has been removed from database but not from redisques. This queue must be unlocked manually!");
+    }
+
+    @Override
+    public Future<Void> setOpenCircuitsToHalfOpen() {
+        return queueCircuitBreakerStorage.setOpenCircuitsToHalfOpen();
     }
 
     private void lockQueueSync(String queueName, HttpRequest queuedRequest){

@@ -107,6 +107,19 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
+    public Future<String> popQueueToUnlock() {
+        Future<String> future = Future.future();
+        redisClient.lpop(STORAGE_QUEUES_TO_UNLOCK, event -> {
+            if(event.failed()){
+                future.fail(event.cause().getMessage());
+                return;
+            }
+            future.complete(event.result());
+        });
+        return future;
+    }
+
+    @Override
     public Future<Void> closeCircuit(PatternAndCircuitHash patternAndCircuitHash) {
         return closeCircuit(patternAndCircuitHash.getCircuitHash());
     }
