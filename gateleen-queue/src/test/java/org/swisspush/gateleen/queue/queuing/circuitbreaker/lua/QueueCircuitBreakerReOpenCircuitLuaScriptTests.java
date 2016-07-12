@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 
 import org.junit.Test;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -10,6 +11,7 @@ import java.util.Set;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.FIELD_STATE;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -27,7 +29,7 @@ public class QueueCircuitBreakerReOpenCircuitLuaScriptTests extends AbstractLuaS
         assertThat(jedis.exists(openCircuitsKey), is(false));
 
         // prepare some test data
-        jedis.hset(circuitInfoKey,"state","half_open");
+        jedis.hset(circuitInfoKey,FIELD_STATE, QueueCircuitState.HALF_OPEN.name().toLowerCase());
 
         jedis.sadd(halfOpenCircuitsKey, "a");
         jedis.sadd(halfOpenCircuitsKey, "someCircuitHash");
@@ -40,7 +42,7 @@ public class QueueCircuitBreakerReOpenCircuitLuaScriptTests extends AbstractLuaS
         jedis.sadd(openCircuitsKey, "g");
         jedis.sadd(openCircuitsKey, "h");
 
-        assertThat(jedis.hget(circuitInfoKey, "state"), equalTo("half_open"));
+        assertThat(jedis.hget(circuitInfoKey, FIELD_STATE).toLowerCase(), equalTo(QueueCircuitState.HALF_OPEN.name().toLowerCase()));
         assertThat(jedis.scard(halfOpenCircuitsKey), equalTo(4L));
         assertThat(jedis.scard(openCircuitsKey), equalTo(5L));
 
@@ -51,7 +53,7 @@ public class QueueCircuitBreakerReOpenCircuitLuaScriptTests extends AbstractLuaS
         assertThat(jedis.exists(halfOpenCircuitsKey), is(true));
         assertThat(jedis.exists(openCircuitsKey), is(true));
 
-        assertThat(jedis.hget(circuitInfoKey, "state"), equalTo("open"));
+        assertThat(jedis.hget(circuitInfoKey, FIELD_STATE).toLowerCase(), equalTo(QueueCircuitState.OPEN.name().toLowerCase()));
 
         assertThat(jedis.scard(halfOpenCircuitsKey), equalTo(3L));
         Set<String> halfOpenCircuits = jedis.smembers(halfOpenCircuitsKey);

@@ -18,4 +18,6 @@ public interface QueueCircuitBreakerStorage {
     Future<Void> closeAllCircuits();
 
     Future<Void> reOpenCircuit(PatternAndCircuitHash patternAndCircuitHash);
+
+    Future<Void> setOpenCircuitsToHalfOpen();
 }

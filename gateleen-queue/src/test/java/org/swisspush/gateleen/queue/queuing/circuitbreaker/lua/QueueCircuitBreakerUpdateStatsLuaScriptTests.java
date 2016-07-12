@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 
 import org.junit.Test;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState;
 
 import java.util.Arrays;
 import java.util.List;
@@ -9,6 +10,10 @@ import java.util.Set;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState.CLOSED;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState.OPEN;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.FIELD_FAILRATIO;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.FIELD_STATE;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -39,7 +44,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertThat(jedis.exists(circuitInfoKey), is(true));
         assertThat(jedis.exists(circuitSuccessKey), is(false));
         assertThat(jedis.exists(circuitFailureKey), is(true));
-        assertStateAndErroPercentage("closed", 100); // state should still be 'closed' because the minSampleThreshold (4) is not yet reached
+        assertStateAndErroPercentage(CLOSED, 100); // state should still be 'closed' because the minSampleThreshold (4) is not yet reached
 
         // add 1 successful request => now the minSampleThreshold is reached
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_4", "url_pattern", 3, 50, 10, 4, 10);
@@ -48,30 +53,30 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertThat(jedis.exists(circuitSuccessKey), is(true));
         assertThat(jedis.exists(circuitFailureKey), is(true));
         assertThat(jedis.exists(openCircuitsKey), is(true));
-        assertStateAndErroPercentage("open", 75);
+        assertStateAndErroPercentage(OPEN, 75);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         // add 2 more successful requests => failurePercentage should drop
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_5", "url_pattern", 4, 50, 10, 4, 10);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_6", "url_pattern", 5, 50, 10, 4, 10);
-        assertStateAndErroPercentage("open", 50);
+        assertStateAndErroPercentage(OPEN, 50);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         // add 1 more successful request => failurePercentage should drop and state should switch to 'half_open'
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 6, 50, 10, 4, 10);
-        assertStateAndErroPercentage("open", 42);
+        assertStateAndErroPercentage(OPEN, 42);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         // add 1 more failing request => failurePercentage should raise again but state should remain 'half_open'
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_8", "url_pattern", 7, 50, 10, 4, 10);
-        assertStateAndErroPercentage("open", 50);
+        assertStateAndErroPercentage(OPEN, 50);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         // add 3 more failing request => failurePercentage should raise again but state should remain 'half_open'
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_9", "url_pattern", 8, 50, 10, 4, 10);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_10", "url_pattern", 9, 50, 10, 4, 10);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_11", "url_pattern", 10, 50, 10, 4, 10);
-        assertStateAndErroPercentage("open", 63);
+        assertStateAndErroPercentage(OPEN, 63);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         assertCircuit("url_pattern");
@@ -106,39 +111,39 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         String update_success = "q:success";
         String update_fail = "q:failure";
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_1", "url_pattern", 1, 50, 3, 1, 100);
-        assertStateAndErroPercentage("closed", 0);
+        assertStateAndErroPercentage(CLOSED, 0);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_2", "url_pattern", 2, 50, 3, 1, 100);
-        assertStateAndErroPercentage("closed", 0);
+        assertStateAndErroPercentage(CLOSED, 0);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_3", "url_pattern", 3, 50, 3, 1, 100);
-        assertStateAndErroPercentage("closed", 33);
+        assertStateAndErroPercentage(CLOSED, 33);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_4", "url_pattern", 4, 50, 3, 1, 100);
-        assertStateAndErroPercentage("open", 50);
+        assertStateAndErroPercentage(OPEN, 50);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_5", "url_pattern", 5, 50, 3, 1, 100);
-        assertStateAndErroPercentage("open", 75); // req_1 is out of range by now
+        assertStateAndErroPercentage(OPEN, 75); // req_1 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_6", "url_pattern", 6, 50, 3, 1, 100);
-        assertStateAndErroPercentage("open", 100); // req_2 is out of range by now
+        assertStateAndErroPercentage(OPEN, 100); // req_2 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 7, 50, 3, 1, 100);
-        assertStateAndErroPercentage("open", 75); // req_3 is out of range by now
+        assertStateAndErroPercentage(OPEN, 75); // req_3 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_8", "url_pattern", 8, 50, 3, 1, 100);
-        assertStateAndErroPercentage("open", 50); // req_4 is out of range by now
+        assertStateAndErroPercentage(OPEN, 50); // req_4 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_9", "url_pattern", 9, 50, 3, 1, 100);
-        assertStateAndErroPercentage("open", 25); // req_5 is out of range by now
+        assertStateAndErroPercentage(OPEN, 25); // req_5 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_10", "url_pattern", 10, 50, 3, 1, 100);
-        assertStateAndErroPercentage("open", 0); // req_6 is out of range by now
+        assertStateAndErroPercentage(OPEN, 0); // req_6 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
 
         assertCircuit("url_pattern");
     }
 
-    private void assertStateAndErroPercentage(String state, int percentage){
-        assertThat(jedis.hget(circuitInfoKey, "state"), equalTo(state));
-        String percentageAsString = jedis.hget(circuitInfoKey, "failRatio");
+    private void assertStateAndErroPercentage(QueueCircuitState state, int percentage){
+        assertThat(jedis.hget(circuitInfoKey, FIELD_STATE).toLowerCase(), equalTo(state.name().toLowerCase()));
+        String percentageAsString = jedis.hget(circuitInfoKey, FIELD_FAILRATIO);
         assertThat(Integer.valueOf(percentageAsString), equalTo(percentage));
     }
 

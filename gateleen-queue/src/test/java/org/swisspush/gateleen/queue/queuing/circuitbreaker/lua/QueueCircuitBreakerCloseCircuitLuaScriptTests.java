@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 
 import org.junit.Test;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -10,6 +11,8 @@ import java.util.Set;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.FIELD_FAILRATIO;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.FIELD_STATE;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -34,8 +37,8 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
         assertThat(jedis.exists(queuesToUnlockKey), is(false));
 
         // prepare some test data
-        jedis.hset(circuitInfoKey,"state","half_open");
-        jedis.hset(circuitInfoKey,"failRatio","50");
+        jedis.hset(circuitInfoKey, FIELD_STATE, QueueCircuitState.HALF_OPEN.name().toLowerCase());
+        jedis.hset(circuitInfoKey, FIELD_FAILRATIO, "50");
         jedis.zadd(circuitSuccessKey, 1, "req-1");
         jedis.zadd(circuitSuccessKey, 2, "req-2");
         jedis.zadd(circuitSuccessKey, 3, "req-3");
@@ -73,8 +76,8 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
         assertThat(jedis.rpop(queuesToUnlockKey), equalTo("queue_2"));
         assertThat(jedis.rpop(queuesToUnlockKey), equalTo("queue_3"));
 
-        assertThat(jedis.hget(circuitInfoKey, "state"), equalTo("closed"));
-        assertThat(jedis.hget(circuitInfoKey, "failRatio"), equalTo("0"));
+        assertThat(jedis.hget(circuitInfoKey, FIELD_STATE).toLowerCase(), equalTo(QueueCircuitState.CLOSED.name().toLowerCase()));
+        assertThat(jedis.hget(circuitInfoKey, FIELD_FAILRATIO), equalTo("0"));
 
         assertThat(jedis.scard(halfOpenCircuitsKey), equalTo(3L));
         Set<String> halfOpenCircuits = jedis.smembers(halfOpenCircuitsKey);

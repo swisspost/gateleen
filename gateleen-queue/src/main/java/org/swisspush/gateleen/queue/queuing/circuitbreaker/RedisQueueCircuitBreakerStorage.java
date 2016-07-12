@@ -1,18 +1,13 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
-import com.google.common.util.concurrent.Futures;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.redis.RedisClient;
-import io.vertx.redis.op.RangeLimitOptions;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.util.StringUtils;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.CloseCircuitRedisCommand;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.QueueCircuitBreakerLuaScripts;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.ReOpenCircuitRedisCommand;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.UpdateStatsRedisCommand;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +34,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     private LuaScriptState openCircuitLuaScriptState;
     private LuaScriptState closeCircuitLuaScriptState;
     private LuaScriptState reOpenCircuitLuaScriptState;
+    private LuaScriptState halfOpenCircuitLuaScriptState;
 
     public RedisQueueCircuitBreakerStorage(RedisClient redisClient) {
         this.redisClient = redisClient;
@@ -46,6 +42,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         openCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT, redisClient, false);
         closeCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.CLOSE_CIRCUIT, redisClient, false);
         reOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.REOPEN_CIRCUIT, redisClient, false);
+        halfOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.HALFOPEN_CIRCUITS, redisClient, false);
     }
 
     @Override
@@ -196,9 +193,20 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         return future;
     }
 
+    @Override
+    public Future<Void> setOpenCircuitsToHalfOpen() {
+        Future<Void> future = Future.future();
+        List<String> keys = Arrays.asList(STORAGE_HALFOPEN_CIRCUITS, STORAGE_OPEN_CIRCUITS);
+        List<String> arguments = Arrays.asList(STORAGE_PREFIX, STORAGE_INFOS_SUFFIX);
+        HalfOpenCircuitRedisCommand cmd = new HalfOpenCircuitRedisCommand(halfOpenCircuitLuaScriptState,
+                keys, arguments, redisClient, log, future);
+        cmd.exec(0);
+        return future;
+    }
+
     /*
-     * Helper methods
-     */
+         * Helper methods
+         */
     private String buildInfosKey(String circuitHash){
         return STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX;
     }
