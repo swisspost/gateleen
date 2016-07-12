@@ -26,4 +26,23 @@ public class PatternAndCircuitHash {
     public String toString() {
         return "url pattern: " + pattern.pattern() + " circuit hash: " + circuitHash;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        PatternAndCircuitHash that = (PatternAndCircuitHash) o;
+
+        if (!pattern.pattern().equals(that.pattern.pattern())) return false;
+        return circuitHash.equals(that.circuitHash);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = pattern.hashCode();
+        result = 31 * result + circuitHash.hashCode();
+        return result;
+    }
 }

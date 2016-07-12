@@ -17,7 +17,19 @@ public class QueueCircuitBreakerRulePatternToCircuitMapping {
 
     private List<PatternAndCircuitHash> rulePatternToCircuitMapping = new ArrayList<>();
 
-    void updateRulePatternToCircuitMapping(List<Rule> rules){
+    /**
+     * Updates the mapping with the provided routing rules. Returns a list of {@link PatternAndCircuitHash} objects which have
+     * been removed with the provided list of rules.
+     * <pre>Example
+     * current mapping: [{pattern1,hash1}, {pattern2,hash2}, {pattern3,hash3}]
+     * new routing rules: [{pattern1}, {pattern3}, {pattern4}]
+     * return value: [{pattern2,hash2}]
+     * </pre>
+     * @param rules the list of routing rules to update the mapping with
+     * @return a list of removed {@link PatternAndCircuitHash} objects
+     */
+    List<PatternAndCircuitHash> updateRulePatternToCircuitMapping(List<Rule> rules){
+        List<PatternAndCircuitHash> originalPatternAndCircuitHashes = new ArrayList<>(rulePatternToCircuitMapping);
         log.debug("clearing rule pattern to circuit mapping values");
         rulePatternToCircuitMapping.clear();
         log.debug("new rule pattern to circuit mapping values are:");
@@ -30,6 +42,13 @@ public class QueueCircuitBreakerRulePatternToCircuitMapping {
                 log.error("rule pattern and circuitHash could not be retrieved from rule " + rule.getUrlPattern());
             }
         }
+        return getRemovedPatternAndCircuitHashes(originalPatternAndCircuitHashes, rulePatternToCircuitMapping);
+    }
+
+    private List<PatternAndCircuitHash> getRemovedPatternAndCircuitHashes(List<PatternAndCircuitHash> currentPatternAndCircuitHashes,
+                                                                          List<PatternAndCircuitHash> newPatternAndCircuitHashes){
+        currentPatternAndCircuitHashes.removeAll(newPatternAndCircuitHashes);
+        return currentPatternAndCircuitHashes;
     }
 
     public PatternAndCircuitHash getCircuitFromRequestUri(String requestUri){

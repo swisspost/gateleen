@@ -121,10 +121,15 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
 
     @Override
     public Future<Void> closeCircuit(PatternAndCircuitHash patternAndCircuitHash) {
-        return closeCircuit(patternAndCircuitHash.getCircuitHash());
+        return closeCircuit(patternAndCircuitHash.getCircuitHash(), false);
     }
 
-    private Future<Void> closeCircuit(String circuitHash){
+    @Override
+    public Future<Void> closeAndRemoveCircuit(PatternAndCircuitHash patternAndCircuitHash) {
+        return closeCircuit(patternAndCircuitHash.getCircuitHash(), true);
+    }
+
+    private Future<Void> closeCircuit(String circuitHash, boolean circuitRemoved){
         Future<Void> future = Future.future();
 
         List<String> keys = Arrays.asList(
@@ -137,7 +142,10 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 STORAGE_QUEUES_TO_UNLOCK
         );
 
-        List<String> arguments = Collections.singletonList(circuitHash);
+        List<String> arguments = Arrays.asList(
+                circuitHash,
+                String.valueOf(circuitRemoved)
+        );
 
         CloseCircuitRedisCommand cmd = new CloseCircuitRedisCommand(closeCircuitLuaScriptState,
                 keys, arguments, redisClient, log, future);
@@ -170,7 +178,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 List<Future> futures = new ArrayList<>();
                 List<Object> openCircuits = event.result().getList();
                 for (Object circuit : openCircuits) {
-                    futures.add(closeCircuit((String)circuit));
+                    futures.add(closeCircuit((String)circuit, false));
                 }
                 CompositeFuture.all(futures).setHandler(event1 -> {
                     if(event1.succeeded()){

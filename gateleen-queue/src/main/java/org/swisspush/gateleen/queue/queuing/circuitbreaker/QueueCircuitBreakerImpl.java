@@ -56,7 +56,11 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     @Override
     public void rulesChanged(List<Rule> rules) {
         log.info("rules have changed, renew rule to circuit mapping");
-        this.ruleToCircuitMapping.updateRulePatternToCircuitMapping(rules);
+        List<PatternAndCircuitHash> removedEntries = this.ruleToCircuitMapping.updateRulePatternToCircuitMapping(rules);
+        log.info(removedEntries.size() + " mappings have been removed with the update");
+        for (PatternAndCircuitHash removedEntry : removedEntries) {
+            closeAndRemoveCircuit(removedEntry);
+        }
     }
 
     @Override
@@ -145,6 +149,15 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
             failWithNoRuleToCircuitMappingMessage(future, null, queuedRequest);
         }
         return future;
+    }
+
+    private void closeAndRemoveCircuit(PatternAndCircuitHash patternAndCircuitHash) {
+        log.info("circuit " + patternAndCircuitHash.getPattern().pattern() + " has been removed. Closing corresponding circuit");
+        queueCircuitBreakerStorage.closeAndRemoveCircuit(patternAndCircuitHash).setHandler(event -> {
+            if(event.failed()){
+                log.error("failed to close circuit " + patternAndCircuitHash.getPattern().pattern());
+            }
+        });
     }
 
     @Override

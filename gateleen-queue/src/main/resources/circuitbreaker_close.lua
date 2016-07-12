@@ -10,6 +10,7 @@ local openCircuitsKey = KEYS[6]
 local queuesToUnlockKey = KEYS[7]
 
 local circuitHash = ARGV[1]
+local removeCircuit = ARGV[2]
 
 -- move queues to 'queues_to_unlock'-queue
 local queues = redis.call('zrangebyscore',circuitQueuesKey,'-inf','+inf')
@@ -19,8 +20,12 @@ end
 redis.call('del',circuitQueuesKey)
 
 -- reset circuit infos
-redis.call('hset',circuitInfoKey,stateField,"closed")
-redis.call('hset',circuitInfoKey,failRatioField,0)
+if removeCircuit == "true" then
+    redis.call('del',circuitInfoKey)
+else
+    redis.call('hset',circuitInfoKey,stateField,"closed")
+    redis.call('hset',circuitInfoKey,failRatioField,0)
+end
 
 -- clear success/failure sets
 redis.call('del',circuitSuccessKey)
