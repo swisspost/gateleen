@@ -143,9 +143,9 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
     }
 
     private void assertHashInOpenCircuitsSet(String hash, long amountOfOpenCircuits){
-        Set<String> openCircuits = jedis.zrangeByScore(openCircuitsKey, Long.MIN_VALUE, Long.MAX_VALUE);
+        Set<String> openCircuits = jedis.smembers(openCircuitsKey);
         assertThat(openCircuits.contains(hash), is(true));
-        assertThat(jedis.zcard(openCircuitsKey), equalTo(amountOfOpenCircuits));
+        assertThat(jedis.scard(openCircuitsKey), equalTo(amountOfOpenCircuits));
     }
 
     private void assertCircuit(String circuit){

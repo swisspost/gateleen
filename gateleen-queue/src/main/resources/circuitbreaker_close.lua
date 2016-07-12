@@ -27,7 +27,7 @@ redis.call('del',circuitSuccessKey)
 redis.call('del',circuitFailureKey)
 
 -- remove circuit from half-open-circuits and open-circuits set
-redis.call('zrem',halfOpenCircuitsKey, circuitHash)
-redis.call('zrem',openCircuitsKey, circuitHash)
+redis.call('srem',halfOpenCircuitsKey, circuitHash)
+redis.call('srem',openCircuitsKey, circuitHash)
 
 return "OK"

@@ -47,16 +47,16 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
         jedis.zadd(circuitQueuesKey, 2, "queue_2");
         jedis.zadd(circuitQueuesKey, 3, "queue_3");
 
-        jedis.zadd(halfOpenCircuitsKey, 1, "a");
-        jedis.zadd(halfOpenCircuitsKey, 2, "someCircuitHash");
-        jedis.zadd(halfOpenCircuitsKey, 3, "b");
-        jedis.zadd(halfOpenCircuitsKey, 4, "c");
+        jedis.sadd(halfOpenCircuitsKey, "a");
+        jedis.sadd(halfOpenCircuitsKey, "someCircuitHash");
+        jedis.sadd(halfOpenCircuitsKey, "b");
+        jedis.sadd(halfOpenCircuitsKey, "c");
 
         assertThat(jedis.zcard(circuitSuccessKey), equalTo(3L));
         assertThat(jedis.zcard(circuitFailureKey), equalTo(3L));
         assertThat(jedis.zcard(circuitQueuesKey), equalTo(3L));
-        assertThat(jedis.zcard(halfOpenCircuitsKey), equalTo(4L));
-        assertThat(jedis.zcard(queuesToUnlockKey), equalTo(0L));
+        assertThat(jedis.scard(halfOpenCircuitsKey), equalTo(4L));
+        assertThat(jedis.llen(queuesToUnlockKey), equalTo(0L));
 
         evalScriptCloseCircuit("someCircuitHash");
 
@@ -76,8 +76,8 @@ public class QueueCircuitBreakerCloseCircuitLuaScriptTests extends AbstractLuaSc
         assertThat(jedis.hget(circuitInfoKey, "state"), equalTo("closed"));
         assertThat(jedis.hget(circuitInfoKey, "failRatio"), equalTo("0"));
 
-        assertThat(jedis.zcard(halfOpenCircuitsKey), equalTo(3L));
-        Set<String> halfOpenCircuits = jedis.zrangeByScore(halfOpenCircuitsKey, Long.MIN_VALUE, Long.MAX_VALUE);
+        assertThat(jedis.scard(halfOpenCircuitsKey), equalTo(3L));
+        Set<String> halfOpenCircuits = jedis.smembers(halfOpenCircuitsKey);
         assertThat(halfOpenCircuits.contains("a"), is(true));
         assertThat(halfOpenCircuits.contains("b"), is(true));
         assertThat(halfOpenCircuits.contains("c"), is(true));

@@ -155,7 +155,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
 
     private Future<Void> closeCircuitsByKey(String key) {
         Future<Void> future = Future.future();
-        redisClient.zrangebyscore(key, "-inf", "+inf", RangeLimitOptions.NONE, event -> {
+        redisClient.smembers(key, event -> {
             if(event.succeeded()){
                 List<Future> futures = new ArrayList<>();
                 List<Object> openCircuits = event.result().getList();
@@ -187,7 +187,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 STORAGE_OPEN_CIRCUITS
         );
 
-        List<String> arguments = Arrays.asList(circuitHash, String.valueOf(System.currentTimeMillis()));
+        List<String> arguments = Collections.singletonList(circuitHash);
 
         ReOpenCircuitRedisCommand cmd = new ReOpenCircuitRedisCommand(reOpenCircuitLuaScriptState,
                 keys, arguments, redisClient, log, future);

@@ -29,22 +29,22 @@ public class QueueCircuitBreakerReOpenCircuitLuaScriptTests extends AbstractLuaS
         // prepare some test data
         jedis.hset(circuitInfoKey,"state","half_open");
 
-        jedis.zadd(halfOpenCircuitsKey, 1, "a");
-        jedis.zadd(halfOpenCircuitsKey, 2, "someCircuitHash");
-        jedis.zadd(halfOpenCircuitsKey, 3, "b");
-        jedis.zadd(halfOpenCircuitsKey, 4, "c");
+        jedis.sadd(halfOpenCircuitsKey, "a");
+        jedis.sadd(halfOpenCircuitsKey, "someCircuitHash");
+        jedis.sadd(halfOpenCircuitsKey, "b");
+        jedis.sadd(halfOpenCircuitsKey, "c");
 
-        jedis.zadd(openCircuitsKey, 1, "d");
-        jedis.zadd(openCircuitsKey, 2, "e");
-        jedis.zadd(openCircuitsKey, 3, "f");
-        jedis.zadd(openCircuitsKey, 4, "g");
-        jedis.zadd(openCircuitsKey, 5, "h");
+        jedis.sadd(openCircuitsKey, "d");
+        jedis.sadd(openCircuitsKey, "e");
+        jedis.sadd(openCircuitsKey, "f");
+        jedis.sadd(openCircuitsKey, "g");
+        jedis.sadd(openCircuitsKey, "h");
 
         assertThat(jedis.hget(circuitInfoKey, "state"), equalTo("half_open"));
-        assertThat(jedis.zcard(halfOpenCircuitsKey), equalTo(4L));
-        assertThat(jedis.zcard(openCircuitsKey), equalTo(5L));
+        assertThat(jedis.scard(halfOpenCircuitsKey), equalTo(4L));
+        assertThat(jedis.scard(openCircuitsKey), equalTo(5L));
 
-        evalScriptReOpenCircuit("someCircuitHash", 1);
+        evalScriptReOpenCircuit("someCircuitHash");
 
         // assertions
         assertThat(jedis.exists(circuitInfoKey), is(true));
@@ -53,15 +53,15 @@ public class QueueCircuitBreakerReOpenCircuitLuaScriptTests extends AbstractLuaS
 
         assertThat(jedis.hget(circuitInfoKey, "state"), equalTo("open"));
 
-        assertThat(jedis.zcard(halfOpenCircuitsKey), equalTo(3L));
-        Set<String> halfOpenCircuits = jedis.zrangeByScore(halfOpenCircuitsKey, Long.MIN_VALUE, Long.MAX_VALUE);
+        assertThat(jedis.scard(halfOpenCircuitsKey), equalTo(3L));
+        Set<String> halfOpenCircuits = jedis.smembers(halfOpenCircuitsKey);
         assertThat(halfOpenCircuits.contains("a"), is(true));
         assertThat(halfOpenCircuits.contains("b"), is(true));
         assertThat(halfOpenCircuits.contains("c"), is(true));
         assertThat(halfOpenCircuits.contains("someCircuitHash"), is(false));
 
-        assertThat(jedis.zcard(openCircuitsKey), equalTo(6L));
-        Set<String> openCircuits = jedis.zrangeByScore(openCircuitsKey, Long.MIN_VALUE, Long.MAX_VALUE);
+        assertThat(jedis.scard(openCircuitsKey), equalTo(6L));
+        Set<String> openCircuits = jedis.smembers(openCircuitsKey);
         assertThat(openCircuits.contains("d"), is(true));
         assertThat(openCircuits.contains("e"), is(true));
         assertThat(openCircuits.contains("f"), is(true));
@@ -70,7 +70,7 @@ public class QueueCircuitBreakerReOpenCircuitLuaScriptTests extends AbstractLuaS
         assertThat(openCircuits.contains("someCircuitHash"), is(true));
     }
 
-    private Object evalScriptReOpenCircuit(String circuitHash, long timestamp){
+    private Object evalScriptReOpenCircuit(String circuitHash){
         String script = readScript(QueueCircuitBreakerLuaScripts.REOPEN_CIRCUIT.getFilename());
         List<String> keys = Arrays.asList(
                 circuitInfoKey,
@@ -79,8 +79,7 @@ public class QueueCircuitBreakerReOpenCircuitLuaScriptTests extends AbstractLuaS
         );
 
         List<String> arguments = Arrays.asList(
-                circuitHash,
-                String.valueOf(timestamp)
+                circuitHash
         );
 
         return jedis.eval(script, keys, arguments);

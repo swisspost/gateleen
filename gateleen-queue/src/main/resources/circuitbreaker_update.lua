@@ -76,7 +76,7 @@ local failPercentage = updateFailurePercentage()
 
 local function openCircuit()
     setCircuitState("open")
-    redis.call('zadd',openCircuitsKey,requestTS,circuitHash)
+    redis.call('sadd',openCircuitsKey,circuitHash)
     return_value = "OPENED"
 end
 
