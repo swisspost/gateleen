@@ -30,6 +30,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
+import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -121,6 +122,7 @@ public abstract class AbstractTest {
                 resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);
+                ZipExtractHandler zipExtractHandler = new ZipExtractHandler(selfClient);
                 // ------
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler);
@@ -146,6 +148,7 @@ public abstract class AbstractTest {
                                 .loggingResourceManager(loggingResourceManager)
                                 .schedulerResourceManager(schedulerResourceManager)
                                 .propertyHandler(propertyHandler)
+                                .zipExtractHandler(zipExtractHandler)
                                 .build(vertx, redisClient, AbstractTest.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
