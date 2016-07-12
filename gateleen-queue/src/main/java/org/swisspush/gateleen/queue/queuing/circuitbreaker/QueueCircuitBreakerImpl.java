@@ -150,6 +150,11 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
+    public Future<Void> closeAllCircuits() {
+        return queueCircuitBreakerStorage.closeAllCircuits();
+    }
+
+    @Override
     public Future<Void> reOpenCircuit(HttpRequest queuedRequest) {
         Future<Void> future = Future.future();
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);

@@ -325,6 +325,35 @@ public class QueueCircuitBreakerImplTest {
     }
 
     @Test
+    public void testCloseAllCircuits(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.closeAllCircuits())
+                .thenReturn(Future.succeededFuture());
+
+        queueCircuitBreaker.closeAllCircuits().setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            verify(queueCircuitBreakerStorage, times(1)).closeAllCircuits();
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testCloseAllCircuitsFailingStorage(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.closeAllCircuits())
+                .thenReturn(Future.failedFuture("unable to close all circuits"));
+
+        queueCircuitBreaker.closeAllCircuits().setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause().getMessage().contains("unable to close all circuits"));
+            verify(queueCircuitBreakerStorage, times(1)).closeAllCircuits();
+            async.complete();
+        });
+    }
+
+    @Test
     public void testReOpenCircuit(TestContext context){
         Async async = context.async();
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
