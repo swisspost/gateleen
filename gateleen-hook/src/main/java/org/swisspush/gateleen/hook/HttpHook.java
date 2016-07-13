@@ -21,6 +21,7 @@ public class HttpHook {
     private Pattern filter = null;
     private int queueExpireAfter;
     private Map<String, String> staticHeaders = null;
+    private HookTriggerType hookTriggerType;
 
     /**
      * Creates a new hook.
@@ -31,6 +32,7 @@ public class HttpHook {
         this.destination = destination;
         methods = new ArrayList<>();
         queueExpireAfter = -1;
+        hookTriggerType = HookTriggerType.BEFORE;
     }
 
     /**
@@ -188,5 +190,24 @@ public class HttpHook {
      */
     public Map<String, String> getStaticHeaders() {
         return this.staticHeaders;
+    }
+
+    /**
+     * Retuns the trigger type of the hook.
+     *
+     * @return the trigger type of the hook
+     */
+    public HookTriggerType getHookTriggerType() {
+        return hookTriggerType;
+    }
+
+    /**
+     * Sets the trigger type of the hook.
+     * If nothing is set, the default value is 'before'.
+     *
+     * @param hookTriggerType the trigger type of the hook
+     */
+    public void setHookTriggerType(HookTriggerType hookTriggerType) {
+        this.hookTriggerType = hookTriggerType;
     }
 }

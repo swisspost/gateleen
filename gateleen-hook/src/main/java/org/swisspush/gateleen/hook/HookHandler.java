@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * The HookHandler is responsible for un- and registering hooks (listener, as well as routes). He also
@@ -59,6 +60,7 @@ public class HookHandler {
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
+    public static final String HOOK_TRIGGER_TYPE = "type";
 
     private Logger log = LoggerFactory.getLogger(HookHandler.class);
     private Vertx vertx;
@@ -391,54 +393,30 @@ public class HookHandler {
     private void installBodyHandler(final HttpServerRequest request, final List<Listener> listeners) {
         // Read the original request and queue a new one for every listener
         request.bodyHandler(buffer -> {
-            // this handler is called by the queueclient
-            // for each committed listener
-            Handler<Void> doneHandler = new Handler<Void>() {
-                private AtomicInteger currentCount = new AtomicInteger(0);
-                private boolean sent = false;
+            // Create separate lists with filtered listeners
+            List<Listener> beforeListener = getFilteredListeners(listeners, HookTriggerType.BEFORE);
+            List<Listener> afterListener = getFilteredListeners(listeners, HookTriggerType.AFTER);
 
-                @Override
-                public void handle(Void event) {
+            // Create handlers for before/after - cases
+            Handler<Void> afterHandler = installAfterHandler(request, buffer, afterListener);
+            Handler<Void> beforeHandler = installBeforeHandler(request, buffer, beforeListener, afterHandler);
 
-                    // If the last queued request is performed
-                    // the original request will be triggered.
-                    // Because this handler is called async. we
-                    // have to secure, that it is only executed
-                    // once.
-                    if (currentCount.incrementAndGet() == listeners.size() && !sent) {
-                        sent = true;
+            // call the listeners (before)
+            callListener(request, buffer, beforeListener, beforeHandler);
+        });
+    }
 
-                        /*
-                         * we should find exactly one or none route (first match rtl)
-                         * routes will only be found for requests coming from
-                         * enqueueing through the listener and only for external
-                         * requests.
-                         */
-                        Route route = routeRepository.getRoute(request.uri());
-
-                        if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
-                            log.debug("Forward request (consumed) " + request.uri());
-                            route.forward(request, buffer);
-                        } else {
-                            // mark the original request as hooked
-                            request.headers().add(HOOKED_HEADER, "true");
-
-                            /*
-                             * self requests are only made for original
-                             * requests which were consumed during the
-                             * enqueueing process, therefore it is
-                             * imperative to use isRequestAlreadyHooked(HttpServerRequest request)
-                             * before calling the handle method of
-                             * this class!
-                             */
-                            createSelfRequest(request, buffer);
-                        }
-                    }
-                }
-            };
-
-            for (Listener listener : listeners) {
-                log.debug("Enqueue request matching " + request.method() + " " + listener.getMonitoredUrl() + " with listener " + listener.getListener());
+    /**
+     * Calls the passed listeners and passes the given handler to the enqueued listener requests.
+     *
+     * @param request original request
+     * @param buffer buffer
+     * @param filteredListeners all listeners which should be called
+     * @param handler the handler, which should handle the requests
+     */
+    private void callListener(final HttpServerRequest request, final Buffer buffer, final List<Listener> filteredListeners, final Handler<Void> handler) {
+        for (Listener listener : filteredListeners) {
+            log.debug("Enqueue request matching " + request.method() + " " + listener.getMonitoredUrl() + " with listener " + listener.getListener());
 
                 /*
                  * url suffix (path) after monitored url
@@ -446,49 +424,135 @@ public class HookHandler {
                  * => request.uri() = http://a/b/c/d/e.x
                  * => url suffix = /d/e.x
                  */
-                String path = request.uri();
-                if (!listener.getHook().isFullUrl()) {
-                    path = request.uri().replace(listener.getMonitoredUrl(), "");
-                }
-
-                String targetUri;
-
-                // internal
-                if (listener.getHook().getDestination().startsWith("/")) {
-                    targetUri = listener.getListener() + path;
-                    log.debug(" > internal target: " + targetUri);
-                }
-                // external
-                else {
-                    targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
-                    log.debug(" > external target: " + targetUri);
-                }
-
-                String queue = LISTENER_QUEUE_PREFIX + "-" + listener.getListenerId();
-
-                // Create a new multimap, copied from the original request,
-                // so that the original request is not overridden with the new values.
-                MultiMap queueHeaders = new CaseInsensitiveHeaders();
-                queueHeaders.addAll(request.headers());
-                if (ExpiryCheckHandler.getExpireAfter(queueHeaders) == null) {
-                    ExpiryCheckHandler.setExpireAfter(queueHeaders, listener.getHook().getExpireAfter());
-                }
-
-                if(ExpiryCheckHandler.getQueueExpireAfter(queueHeaders) == null && listener.getHook().getQueueExpireAfter() != -1 ) {
-                    ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
-                }
-
-                // update request headers with static headers (if available)
-                updateHeadersWithStaticHeaders(queueHeaders, listener.getHook().getStaticHeaders());
-
-                // in order not to block the queue because one client returns a creepy response,
-                // we translate all status codes of the listeners to 200.
-                // Therefor we set the header x-translate-status-4xx
-                queueHeaders.add("x-translate-status-4xx", "200");
-
-                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, doneHandler);
+            String path = request.uri();
+            if (!listener.getHook().isFullUrl()) {
+                path = request.uri().replace(listener.getMonitoredUrl(), "");
             }
-        });
+
+            String targetUri;
+
+            // internal
+            if (listener.getHook().getDestination().startsWith("/")) {
+                targetUri = listener.getListener() + path;
+                log.debug(" > internal target: " + targetUri);
+            }
+            // external
+            else {
+                targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
+                log.debug(" > external target: " + targetUri);
+            }
+
+            String queue = LISTENER_QUEUE_PREFIX + "-" + listener.getListenerId();
+
+            // Create a new multimap, copied from the original request,
+            // so that the original request is not overridden with the new values.
+            MultiMap queueHeaders = new CaseInsensitiveHeaders();
+            queueHeaders.addAll(request.headers());
+            if (ExpiryCheckHandler.getExpireAfter(queueHeaders) == null) {
+                ExpiryCheckHandler.setExpireAfter(queueHeaders, listener.getHook().getExpireAfter());
+            }
+
+            if(ExpiryCheckHandler.getQueueExpireAfter(queueHeaders) == null && listener.getHook().getQueueExpireAfter() != -1 ) {
+                ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
+            }
+
+            // update request headers with static headers (if available)
+            updateHeadersWithStaticHeaders(queueHeaders, listener.getHook().getStaticHeaders());
+
+            // in order not to block the queue because one client returns a creepy response,
+            // we translate all status codes of the listeners to 200.
+            // Therefor we set the header x-translate-status-4xx
+            queueHeaders.add("x-translate-status-4xx", "200");
+
+            requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
+        }
+    }
+
+    /**
+     * This handler is called after the self request (original request) is performed
+     * successfully.
+     * The handler calls all listener (after), so this requests happen AFTER the original
+     * request is performed.
+     *
+     * @param request original request
+     * @param buffer buffer
+     * @param afterListener list of listeners which should be called after the original request
+     * @return the after handler
+     */
+    private Handler<Void> installAfterHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> afterListener) {
+        Handler<Void> afterHandler = event -> callListener(request, buffer, afterListener, null);
+        return afterHandler;
+    }
+
+    /**
+     * This handler is called by the queueclient
+     * for each listener (before).
+     * The request  happens BEFORE the original request is
+     * performed.
+
+     * @param request original request
+     * @param buffer buffer
+     * @param beforeListener list of listeners which should be called before the original request
+     * @param afterHandler the handler for listeners which have to be called after the original request
+     * @return the before handler
+     */
+    private Handler<Void> installBeforeHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> beforeListener, final Handler<Void> afterHandler) {
+        Handler<Void> beforeHandler = new Handler<Void>() {
+            private AtomicInteger currentCount = new AtomicInteger(0);
+            private boolean sent = false;
+
+            @Override
+            public void handle(Void event) {
+                // If the last queued request is performed
+                // the original request will be triggered.
+                // Because this handler is called async. we
+                // have to secure, that it is only executed
+                // once.
+                if (currentCount.incrementAndGet() == beforeListener.size() && !sent) {
+                    sent = true;
+
+                    /*
+                     * we should find exactly one or none route (first match rtl)
+                     * routes will only be found for requests coming from
+                     * enqueueing through the listener and only for external
+                     * requests.
+                     */
+                    Route route = routeRepository.getRoute(request.uri());
+
+                    if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
+                        log.debug("Forward request (consumed) " + request.uri());
+                        route.forward(request, buffer);
+                    } else {
+                        // mark the original request as hooked
+                        request.headers().add(HOOKED_HEADER, "true");
+
+                        /*
+                         * self requests are only made for original
+                         * requests which were consumed during the
+                         * enqueueing process, therefore it is
+                         * imperative to use isRequestAlreadyHooked(HttpServerRequest request)
+                         * before calling the handle method of
+                         * this class!
+                         */
+                        createSelfRequest(request, buffer, afterHandler);
+                    }
+                }
+            }
+        };
+
+        return beforeHandler;
+    }
+
+    /**
+     * Returns a list with listeners which fires before / after the original request.
+     *
+     * @param listeners all listeners
+     * @return filtered listeners
+     */
+    private List<Listener> getFilteredListeners(final List<Listener> listeners, final HookTriggerType hookTriggerType) {
+        return listeners.stream()
+                .filter(listener -> listener.getHook().getHookTriggerType().equals(hookTriggerType))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -709,31 +773,34 @@ public class HookHandler {
 
     /**
      * Creates a self Request from the original Request.
+     * If the requests succeeds (and only then) the after handler is called.
      * 
      * @param request - consumed request
      * @param requestBody - copy of request body
      */
-    private void createSelfRequest(final HttpServerRequest request, Buffer requestBody) {
+    private void createSelfRequest(final HttpServerRequest request, final Buffer requestBody, final Handler<Void> afterHandler) {
         log.debug("Create self request for " + request.uri());
 
-        HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), new Handler<HttpClientResponse>() {
-            public void handle(final HttpClientResponse response) {
+        HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
+            /*
+             * it shouldn't matter if the request is
+             * already consumed to write a response.
+             */
 
-                /*
-                 * it shouldn't matter if the request is
-                 * already consumed to write a response.
-                 */
+            request.response().setStatusCode(response.statusCode());
+            request.response().setStatusMessage(response.statusMessage());
+            request.response().setChunked(true);
 
-                request.response().setStatusCode(response.statusCode());
-                request.response().setStatusMessage(response.statusMessage());
-                request.response().setChunked(true);
+            request.response().headers().addAll(response.headers());
+            request.response().headers().remove("Content-Length");
 
-                request.response().headers().addAll(response.headers());
-                request.response().headers().remove("Content-Length");
+            response.handler(data -> request.response().write(data));
 
-                response.handler(data -> request.response().write(data));
+            response.endHandler(v -> request.response().end());
 
-                response.endHandler(v -> request.response().end());
+            // if everything is fine, we call the after handler
+            if ( response.statusCode() == StatusCode.OK.getStatusCode() ) {
+                afterHandler.handle(null);
             }
         });
 
@@ -844,6 +911,16 @@ public class HookHandler {
 
         if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
             hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
+        }
+
+        if (jsonHook.getString(HOOK_TRIGGER_TYPE) != null) {
+            try {
+                hook.setHookTriggerType(HookTriggerType.valueOf(jsonHook.getString(HOOK_TRIGGER_TYPE).toUpperCase()));
+            }
+            catch(IllegalArgumentException e) {
+                log.warn("Listener " + listenerId + " for target " + target + " has an invalid trigger type " + jsonHook.getString(HOOK_TRIGGER_TYPE) + " and will not be registred!", e);
+                return;
+            }
         }
 
         extractAndAddStaticHeadersToHook(jsonHook, hook);
