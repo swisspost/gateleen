@@ -31,7 +31,6 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
     private QueueCircuitBreakerConfigurationResourceManager configResourceManager;
 
-    private int errorThresholdPercentage;
     private long entriesMaxAgeMS;
     private long minSampleCount;
     private long maxSampleCount;
@@ -47,7 +46,6 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         this.ruleToCircuitMapping = ruleToCircuitMapping;
         this.configResourceManager = configResourceManager;
 
-        this.errorThresholdPercentage = 50;
         this.entriesMaxAgeMS = 1000 * 60 * 60; //1h
         this.minSampleCount = 3;
         this.maxSampleCount = 10;
@@ -111,6 +109,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
         if(patternAndCircuitHash != null) {
+            int errorThresholdPercentage = configResourceManager.getConfigurationResource().getErrorThresholdPercentage();
             this.queueCircuitBreakerStorage.updateStatistics(patternAndCircuitHash, requestId, currentTS,
                     errorThresholdPercentage, entriesMaxAgeMS, minSampleCount,
                     maxSampleCount, type).setHandler(event -> {

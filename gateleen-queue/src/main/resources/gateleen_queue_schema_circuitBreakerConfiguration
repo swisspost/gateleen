@@ -8,8 +8,18 @@
  	    "statisticsUpdateEnabled": {
  		    "description": "Should circuit statistics be updated for queued requests",
  			"type": "boolean"
- 	    }
+ 	    },
+        "errorThresholdPercentage": {
+            "description": "The percentage threshold of failing requests to open a circuit",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+        }
  	},
  	"additionalProperties": false,
- 	"required": ["circuitCheckEnabled", "statisticsUpdateEnabled"]
+ 	"required": [
+ 	    "circuitCheckEnabled",
+ 	    "statisticsUpdateEnabled",
+ 	    "errorThresholdPercentage"
+    ]
  }

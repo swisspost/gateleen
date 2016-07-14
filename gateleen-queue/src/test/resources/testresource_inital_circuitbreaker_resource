@@ -1,4 +1,5 @@
 {
   "circuitCheckEnabled": false,
-  "statisticsUpdateEnabled": false
+  "statisticsUpdateEnabled": false,
+  "errorThresholdPercentage": 90
 }

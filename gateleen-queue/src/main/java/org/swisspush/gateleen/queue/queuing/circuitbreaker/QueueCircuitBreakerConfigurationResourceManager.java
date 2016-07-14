@@ -115,6 +115,7 @@ public class QueueCircuitBreakerConfigurationResourceManager {
 
             getConfigurationResource().setCircuitCheckEnabled(configRes.getBoolean("circuitCheckEnabled"));
             getConfigurationResource().setStatisticsUpdateEnabled(configRes.getBoolean("statisticsUpdateEnabled"));
+            getConfigurationResource().setErrorThresholdPercentage(configRes.getInteger("errorThresholdPercentage"));
 
         } catch (Exception ex) {
             getConfigurationResource().reset();
