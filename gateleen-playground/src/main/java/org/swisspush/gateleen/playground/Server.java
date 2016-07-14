@@ -25,10 +25,7 @@ import org.swisspush.gateleen.monitoring.ResetMetricsController;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerImpl;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerRulePatternToCircuitMapping;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.*;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
@@ -71,6 +68,7 @@ public class Server extends AbstractVerticle {
     private LoggingResourceManager loggingResourceManager;
     private ValidationResourceManager validationResourceManager;
     private SchedulerResourceManager schedulerResourceManager;
+    private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
     private MonitoringHandler monitoringHandler;
 
     private EventBusHandler eventBusHandler;
@@ -156,8 +154,11 @@ public class Server extends AbstractVerticle {
 
                     RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                     QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
+
+                    queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
+
                     QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, new RedisQueueCircuitBreakerStorage(redisClient),
-                            ruleProvider, rulePatternToCircuitMapping);
+                            ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager);
 
                     new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                     final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
@@ -182,6 +183,7 @@ public class Server extends AbstractVerticle {
                             .roleProfileHandler(roleProfileHandler)
                             .userProfileHandler(userProfileHandler)
                             .loggingResourceManager(loggingResourceManager)
+                            .queueCircuitBreakerConfigurationResourceManager(queueCircuitBreakerConfigurationResourceManager)
                             .schedulerResourceManager(schedulerResourceManager)
                             .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
                     Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();

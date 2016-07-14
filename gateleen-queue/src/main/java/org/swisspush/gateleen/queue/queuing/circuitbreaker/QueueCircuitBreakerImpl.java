@@ -26,11 +26,10 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private Logger log = LoggerFactory.getLogger(QueueCircuitBreakerImpl.class);
 
     private Vertx vertx;
-    private boolean circuitCheckEnabled = true;
-    private boolean statisticsUpdateEnabled = true;
     private RuleProvider ruleProvider;
     private QueueCircuitBreakerStorage queueCircuitBreakerStorage;
     private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
+    private QueueCircuitBreakerConfigurationResourceManager configResourceManager;
 
     private int errorThresholdPercentage;
     private long entriesMaxAgeMS;
@@ -39,13 +38,14 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     private String redisquesAddress;
 
-    public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping) {
+    public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager) {
         this.vertx = vertx;
         this.redisquesAddress = Address.redisquesAddress();
         this.queueCircuitBreakerStorage = queueCircuitBreakerStorage;
         this.ruleProvider = ruleProvider;
         this.ruleProvider.registerObserver(this);
         this.ruleToCircuitMapping = ruleToCircuitMapping;
+        this.configResourceManager = configResourceManager;
 
         this.errorThresholdPercentage = 50;
         this.entriesMaxAgeMS = 1000 * 60 * 60; //1h
@@ -64,18 +64,14 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
-    public void enableCircuitCheck(boolean circuitCheckEnabled) {
-        this.circuitCheckEnabled = circuitCheckEnabled;
+    public boolean isCircuitCheckEnabled() {
+        return configResourceManager.getConfigurationResource().isCircuitCheckEnabled();
     }
 
     @Override
-    public boolean isCircuitCheckEnabled() { return circuitCheckEnabled; }
-
-    @Override
-    public void enableStatisticsUpdate(boolean statisticsUpdateEnabled) { this.statisticsUpdateEnabled = statisticsUpdateEnabled; }
-
-    @Override
-    public boolean isStatisticsUpdateEnabled() { return statisticsUpdateEnabled; }
+    public boolean isStatisticsUpdateEnabled() {
+        return configResourceManager.getConfigurationResource().isStatisticsUpdateEnabled();
+    }
 
     @Override
     public Future<QueueCircuitState> handleQueuedRequest(String queueName, HttpRequest queuedRequest){

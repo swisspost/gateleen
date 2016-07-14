@@ -44,6 +44,7 @@ public class QueueCircuitBreakerImplTest {
     private Map<String, Object> props = new HashMap<>();
     private QueueCircuitBreakerImpl queueCircuitBreaker;
     private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
+    private QueueCircuitBreakerConfigurationResourceManager configResourceManager;
 
     @org.junit.Rule
     public Timeout rule = Timeout.seconds(5);
@@ -54,10 +55,17 @@ public class QueueCircuitBreakerImplTest {
         storage = Mockito.mock(ResourceStorage.class);
         queueCircuitBreakerStorage = Mockito.mock(QueueCircuitBreakerStorage.class);
         ruleProvider = new RuleProvider(vertx, "/path/to/routing/rules", storage, props);
-
         ruleToCircuitMapping = Mockito.mock(QueueCircuitBreakerRulePatternToCircuitMapping.class);
+        configResourceManager = Mockito.spy(new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, "/path/to/circuitbreaker/config"));
+        queueCircuitBreaker = Mockito.spy(new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage, ruleProvider, ruleToCircuitMapping, configResourceManager));
+    }
 
-        queueCircuitBreaker = Mockito.spy(new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage, ruleProvider, ruleToCircuitMapping));
+    @Test
+    public void testCircuitBreakerCallsConfigurationResourceManager(){
+        queueCircuitBreaker.isCircuitCheckEnabled();
+        queueCircuitBreaker.isStatisticsUpdateEnabled();
+
+        verify(configResourceManager, times(2)).getConfigurationResource();
     }
 
     @Test

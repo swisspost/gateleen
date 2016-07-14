@@ -1,0 +1,15 @@
+{
+ 	"$schema": "http://json-schema.org/draft-04/schema#",
+ 	"properties": {
+ 	    "circuitCheckEnabled": {
+ 		    "description": "Should circuit state be checked for queued requests",
+ 			"type": "boolean"
+ 	    },
+ 	    "statisticsUpdateEnabled": {
+ 		    "description": "Should circuit statistics be updated for queued requests",
+ 			"type": "boolean"
+ 	    }
+ 	},
+ 	"additionalProperties": false,
+ 	"required": ["circuitCheckEnabled", "statisticsUpdateEnabled"]
+ }

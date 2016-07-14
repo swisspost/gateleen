@@ -132,13 +132,7 @@ public class QueueProcessorTest {
         }
 
         @Override
-        public void enableCircuitCheck(boolean circuitCheckEnabled) { this.circuitCheckEnabled = circuitCheckEnabled; }
-
-        @Override
         public boolean isCircuitCheckEnabled() { return circuitCheckEnabled; }
-
-        @Override
-        public void enableStatisticsUpdate(boolean statisticsUpdateEnabled) { this.statisticsUpdateEnabled = statisticsUpdateEnabled; }
 
         @Override
         public boolean isStatisticsUpdateEnabled() { return statisticsUpdateEnabled; }

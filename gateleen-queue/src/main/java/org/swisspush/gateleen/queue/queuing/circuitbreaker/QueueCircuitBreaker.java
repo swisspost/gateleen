@@ -12,11 +12,7 @@ public interface QueueCircuitBreaker {
 
     Future<Void> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType);
 
-    void enableCircuitCheck(boolean circuitCheckEnabled);
-
     boolean isCircuitCheckEnabled();
-
-    void enableStatisticsUpdate(boolean statisticsUpdateEnabled);
 
     boolean isStatisticsUpdateEnabled();
 
