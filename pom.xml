@@ -225,7 +225,7 @@
 		<rest.assured.version>2.4.1</rest.assured.version>
 		<rest-storage.version>2.1.6</rest-storage.version>
 		<awaitility.version>1.5.0</awaitility.version>
-		<redisques.version>2.2.2</redisques.version>
+		<redisques.version>2.2.3</redisques.version>
 		<mod-metrics.version>2.1.0</mod-metrics.version>
 		<metrics-core.version>3.0.2</metrics-core.version>
 		<jedis.version>2.4.1</jedis.version>
