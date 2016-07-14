@@ -1,5 +1,17 @@
 {
-  "/playground/cb/(.*)": {
+  "/playground/cb/1/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/cb/2/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/cb/3/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/cb/4/(.*)": {
     "description": "CircuitBreaker Test",
     "url": "http://localhost:1234/playground/server/tests/exp/$1"
   },
