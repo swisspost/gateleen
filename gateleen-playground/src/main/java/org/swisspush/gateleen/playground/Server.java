@@ -159,8 +159,7 @@ public class Server extends AbstractVerticle {
                     QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, new RedisQueueCircuitBreakerStorage(redisClient),
                             ruleProvider, rulePatternToCircuitMapping);
 
-//                    new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
-                    new QueueProcessor(vertx, selfClient, monitoringHandler);
+                    new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                     final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
 
                     LogController logController = new LogController();

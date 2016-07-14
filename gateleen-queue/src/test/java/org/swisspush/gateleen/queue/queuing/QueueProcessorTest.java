@@ -70,7 +70,7 @@ public class QueueProcessorTest {
     public void testOpenCircuit(TestContext context){
         Async async = context.async();
         QueueCircuitBreaker circuitBreaker = Mockito.spy(new ConfigurableQueueCircuitBreaker(QueueCircuitState.OPEN, true, true));
-//        new QueueProcessor(vertx, httpClient, monitoringHandler, circuitBreaker);
+        new QueueProcessor(vertx, httpClient, monitoringHandler, circuitBreaker);
 
         vertx.eventBus().send(Address.queueProcessorAddress(), buildQueueEventBusMessage("my_queue"), event -> {
             context.assertTrue(event.succeeded());
@@ -102,7 +102,7 @@ public class QueueProcessorTest {
     public void testInactiveQueueCircuitBreaker(TestContext context){
         Async async = context.async();
         QueueCircuitBreaker circuitBreaker = Mockito.spy(new ConfigurableQueueCircuitBreaker(QueueCircuitState.OPEN, false, true));
-//        new QueueProcessor(vertx, httpClient, monitoringHandler, circuitBreaker);
+        new QueueProcessor(vertx, httpClient, monitoringHandler, circuitBreaker);
 
         vertx.eventBus().send(Address.queueProcessorAddress(), buildQueueEventBusMessage("my_queue"), new DeliveryOptions().setSendTimeout(1000), event -> {
             verify(circuitBreaker, times(1)).isCircuitCheckEnabled();
