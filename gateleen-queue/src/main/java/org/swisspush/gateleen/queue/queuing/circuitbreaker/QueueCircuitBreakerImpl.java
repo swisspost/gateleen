@@ -283,6 +283,10 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         if (unique == null) {
             unique = request.getHeaders().get("x-rp-unique-id");
         }
+        if(unique == null){
+            log.warn("request to " + request.getUri() + " has no unique-id header. Using request uri instead");
+            unique = request.getUri();
+        }
         return unique;
     }
 }
