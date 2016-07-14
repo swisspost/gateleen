@@ -1,5 +1,8 @@
 {
   "circuitCheckEnabled": true,
   "statisticsUpdateEnabled": true,
-  "errorThresholdPercentage": 99
+  "errorThresholdPercentage": 99,
+  "entriesMaxAgeMS": 43200000,
+  "minQueueSampleCount": 200,
+  "maxQueueSampleCount": 2500
 }

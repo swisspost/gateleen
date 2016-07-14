@@ -31,10 +31,6 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
     private QueueCircuitBreakerConfigurationResourceManager configResourceManager;
 
-    private long entriesMaxAgeMS;
-    private long minSampleCount;
-    private long maxSampleCount;
-
     private String redisquesAddress;
 
     public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager) {
@@ -45,10 +41,6 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         this.ruleProvider.registerObserver(this);
         this.ruleToCircuitMapping = ruleToCircuitMapping;
         this.configResourceManager = configResourceManager;
-
-        this.entriesMaxAgeMS = 1000 * 60 * 60; //1h
-        this.minSampleCount = 3;
-        this.maxSampleCount = 10;
     }
 
     @Override
@@ -98,21 +90,16 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         String requestId = getRequestUniqueId(queuedRequest);
         long currentTS = System.currentTimeMillis();
 
-        // TODO BEGIN REMOVE
-        QueueResponseType type;
-        if(queueName.contains("fail")){
-            type = QueueResponseType.FAILURE;
-        } else {
-            type = queueResponseType;
-        }
-        // TODO END REMOVE
-
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
         if(patternAndCircuitHash != null) {
-            int errorThresholdPercentage = configResourceManager.getConfigurationResource().getErrorThresholdPercentage();
+            int errorThresholdPercentage = getConfig().getErrorThresholdPercentage();
+            int entriesMaxAgeMS = getConfig().getEntriesMaxAgeMS();
+            int minQueueSampleCount = getConfig().getMinQueueSampleCount();
+            int maxQueueSampleCount = getConfig().getMaxQueueSampleCount();
+
             this.queueCircuitBreakerStorage.updateStatistics(patternAndCircuitHash, requestId, currentTS,
-                    errorThresholdPercentage, entriesMaxAgeMS, minSampleCount,
-                    maxSampleCount, type).setHandler(event -> {
+                    errorThresholdPercentage, entriesMaxAgeMS, minQueueSampleCount, maxQueueSampleCount,
+                    queueResponseType).setHandler(event -> {
                 if (event.failed()) {
                     future.fail(event.cause());
                 } else {
@@ -283,5 +270,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
             unique = request.getUri();
         }
         return unique;
+    }
+
+    private QueueCircuitBreakerConfigurationResource getConfig(){
+        return configResourceManager.getConfigurationResource();
     }
 }

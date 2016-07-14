@@ -116,6 +116,9 @@ public class QueueCircuitBreakerConfigurationResourceManager {
             getConfigurationResource().setCircuitCheckEnabled(configRes.getBoolean("circuitCheckEnabled"));
             getConfigurationResource().setStatisticsUpdateEnabled(configRes.getBoolean("statisticsUpdateEnabled"));
             getConfigurationResource().setErrorThresholdPercentage(configRes.getInteger("errorThresholdPercentage"));
+            getConfigurationResource().setEntriesMaxAgeMS(configRes.getInteger("entriesMaxAgeMS"));
+            getConfigurationResource().setMinQueueSampleCount(configRes.getInteger("minQueueSampleCount"));
+            getConfigurationResource().setMaxQueueSampleCount(configRes.getInteger("maxQueueSampleCount"));
 
         } catch (Exception ex) {
             getConfigurationResource().reset();

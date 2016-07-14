@@ -9,7 +9,7 @@ public interface QueueCircuitBreakerStorage {
 
     Future<QueueCircuitState> getQueueCircuitState(PatternAndCircuitHash patternAndCircuitHash);
 
-    Future<UpdateStatisticsResult> updateStatistics(PatternAndCircuitHash patternAndCircuitHash, String uniqueRequestID, long timestamp, int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount, long maxSampleCount, QueueResponseType queueResponseType);
+    Future<UpdateStatisticsResult> updateStatistics(PatternAndCircuitHash patternAndCircuitHash, String uniqueRequestID, long timestamp, int errorThresholdPercentage, long entriesMaxAgeMS, long minQueueSampleCount, long maxQueueSampleCount, QueueResponseType queueResponseType);
 
     Future<Void> lockQueue(String queueName, PatternAndCircuitHash patternAndCircuitHash);
 

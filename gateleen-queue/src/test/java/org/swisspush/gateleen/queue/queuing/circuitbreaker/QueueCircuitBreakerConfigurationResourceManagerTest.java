@@ -128,12 +128,18 @@ public class QueueCircuitBreakerConfigurationResourceManagerTest {
         context.assertFalse(config.isCircuitCheckEnabled());
         context.assertFalse(config.isStatisticsUpdateEnabled());
         context.assertEquals(90, config.getErrorThresholdPercentage());
+        context.assertEquals(86400000, config.getEntriesMaxAgeMS());
+        context.assertEquals(100, config.getMinQueueSampleCount());
+        context.assertEquals(5000, config.getMaxQueueSampleCount());
 
         context.assertTrue(manager.handleConfigurationResource(new UpdateConfigResourceWithValidDataRequest()));
 
         context.assertTrue(config.isCircuitCheckEnabled());
         context.assertTrue(config.isStatisticsUpdateEnabled());
         context.assertEquals(99, config.getErrorThresholdPercentage());
+        context.assertEquals(43200000, config.getEntriesMaxAgeMS());
+        context.assertEquals(200, config.getMinQueueSampleCount());
+        context.assertEquals(2500, config.getMaxQueueSampleCount());
     }
 
     class ConfigResourcePUTRequest extends DummyHttpServerRequest {

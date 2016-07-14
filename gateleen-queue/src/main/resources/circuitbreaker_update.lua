@@ -13,8 +13,8 @@ local circuitHash = ARGV[3]
 local requestTS = tonumber(ARGV[4])
 local errorThresholdPercentage = tonumber(ARGV[5])
 local entriesMaxAgeMS = tonumber(ARGV[6])
-local minSampleCount = tonumber(ARGV[7])
-local maxSetSize = tonumber(ARGV[8])
+local minQueueSampleCount = tonumber(ARGV[7])
+local maxQueueSampleCount = tonumber(ARGV[8])
 
 local return_value = "OK"
 
@@ -55,13 +55,13 @@ end
 local function sampleCountThresholdReached()
     local totalSamples = redis.call('zcard',circuitSuccessKey) + redis.call('zcard',circuitFailureKey)
     redis.log(redis.LOG_NOTICE, "total sample count is "..totalSamples)
-    return totalSamples >= minSampleCount
+    return totalSamples >= minQueueSampleCount
 end
 
 local function preserveSetSize(setToCleanup)
     local cardinality = redis.call('zcard',setToCleanup)
-    if cardinality > maxSetSize then
-        local entriesToRemove = cardinality - maxSetSize
+    if cardinality > maxQueueSampleCount then
+        local entriesToRemove = cardinality - maxQueueSampleCount
         redis.call('zremrangebyrank',setToCleanup,0, entriesToRemove-1)
     end
 end

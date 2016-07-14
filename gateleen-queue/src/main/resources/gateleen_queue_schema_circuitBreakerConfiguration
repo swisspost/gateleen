@@ -14,12 +14,30 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 100
-        }
+        },
+        "entriesMaxAgeMS": {
+            "description": "The maximum age (in milliseconds) a success/failure entry is kept",
+            "type": "integer",
+            "minimum": 0
+        },
+        "minQueueSampleCount": {
+            "description": "The minimum count of unique queue samples to record before a circuit will eventually be opened",
+            "type": "integer",
+            "minimum": 0
+         },
+        "maxQueueSampleCount": {
+            "description": "The maximum count of unique queue samples to record",
+            "type": "integer",
+            "minimum": 0
+         }
  	},
  	"additionalProperties": false,
  	"required": [
  	    "circuitCheckEnabled",
  	    "statisticsUpdateEnabled",
- 	    "errorThresholdPercentage"
+ 	    "errorThresholdPercentage",
+ 	    "entriesMaxAgeMS",
+ 	    "minQueueSampleCount",
+ 	    "maxQueueSampleCount"
     ]
  }

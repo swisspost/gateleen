@@ -64,8 +64,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
 
     @Override
     public Future<UpdateStatisticsResult> updateStatistics(PatternAndCircuitHash patternAndCircuitHash, String uniqueRequestID, long timestamp,
-                                                           int errorThresholdPercentage, long entriesMaxAgeMS, long minSampleCount,
-                                                           long maxSampleCount, QueueResponseType queueResponseType) {
+                                                           int errorThresholdPercentage, long entriesMaxAgeMS, long minQueueSampleCount,
+                                                           long maxQueueSampleCount, QueueResponseType queueResponseType) {
         Future<UpdateStatisticsResult> future = Future.future();
         String circuitHash = patternAndCircuitHash.getCircuitHash();
         List<String> keys = Arrays.asList(
@@ -83,8 +83,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
                 String.valueOf(entriesMaxAgeMS),
-                String.valueOf(minSampleCount),
-                String.valueOf(maxSampleCount)
+                String.valueOf(minQueueSampleCount),
+                String.valueOf(maxQueueSampleCount)
         );
 
         UpdateStatsRedisCommand cmd = new UpdateStatsRedisCommand(openCircuitLuaScriptState,

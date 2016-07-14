@@ -163,7 +163,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
 
     private Object evalScriptUpdateQueueCircuitBreakerStats(String circuitKeyToUpdate, String uniqueRequestID,
                                                             String circuit, long timestamp, int errorThresholdPercentage,
-                                                            long entriesMaxAgeMS, long minSampleCount, long maxSampleCount) {
+                                                            long entriesMaxAgeMS, long minQueueSampleCount, long maxQueueSampleCount) {
 
         String script = readScript(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT.getFilename());
         List<String> keys = Arrays.asList(
@@ -181,8 +181,8 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
                 String.valueOf(entriesMaxAgeMS),
-                String.valueOf(minSampleCount),
-                String.valueOf(maxSampleCount)
+                String.valueOf(minQueueSampleCount),
+                String.valueOf(maxQueueSampleCount)
         );
         return jedis.eval(script, keys, arguments);
     }
