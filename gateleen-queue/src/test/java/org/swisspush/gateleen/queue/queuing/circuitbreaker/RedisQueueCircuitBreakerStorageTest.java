@@ -502,6 +502,85 @@ public class RedisQueueCircuitBreakerStorageTest {
 
     }
 
+    @Test
+    public void testUnlockSampleQueues(TestContext context){
+        Async async = context.async();
+
+        String c1 = "circuit_1";
+        String c2 = "circuit_2";
+        String c3 = "circuit_3";
+
+        context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
+
+        context.assertFalse(jedis.exists(queuesKey(c1)));
+        context.assertFalse(jedis.exists(queuesKey(c2)));
+        context.assertFalse(jedis.exists(queuesKey(c3)));
+
+        // prepare some test data
+        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, c1);
+        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, c2);
+        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, c3);
+
+        jedis.zadd(queuesKey(c1), 1, "c1_1");
+        jedis.zadd(queuesKey(c1), 2, "c1_2");
+        jedis.zadd(queuesKey(c1), 3, "c1_3");
+
+        jedis.zadd(queuesKey(c2), 1, "c2_1");
+        jedis.zadd(queuesKey(c2), 2, "c2_2");
+
+        jedis.zadd(queuesKey(c3), 1, "c3_1");
+        jedis.zadd(queuesKey(c3), 2, "c3_2");
+        jedis.zadd(queuesKey(c3), 3, "c3_3");
+        jedis.zadd(queuesKey(c3), 4, "c3_4");
+
+        context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertEquals(3L, jedis.zcard(queuesKey(c1)));
+        context.assertEquals(2L, jedis.zcard(queuesKey(c2)));
+        context.assertEquals(4L, jedis.zcard(queuesKey(c3)));
+
+        // first lua script execution
+        storage.unlockSampleQueues().setHandler(event -> {
+            context.assertTrue(event.succeeded());
+
+            context.assertTrue(event.result().contains("c1_1"));
+            context.assertTrue(event.result().contains("c2_1"));
+            context.assertTrue(event.result().contains("c3_1"));
+
+            context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+            context.assertEquals(3L, jedis.zcard(queuesKey(c1)));
+            context.assertEquals(2L, jedis.zcard(queuesKey(c2)));
+            context.assertEquals(4L, jedis.zcard(queuesKey(c3)));
+
+            // second lua script execution
+            storage.unlockSampleQueues().setHandler(event1 -> {
+
+                context.assertTrue(event1.result().contains("c1_2"));
+                context.assertTrue(event1.result().contains("c2_2"));
+                context.assertTrue(event1.result().contains("c3_2"));
+
+                context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+                context.assertEquals(3L, jedis.zcard(queuesKey(c1)));
+                context.assertEquals(2L, jedis.zcard(queuesKey(c2)));
+                context.assertEquals(4L, jedis.zcard(queuesKey(c3)));
+
+                // third lua script execution
+                storage.unlockSampleQueues().setHandler(event2 -> {
+
+                    context.assertTrue(event2.result().contains("c1_3"));
+                    context.assertTrue(event2.result().contains("c2_1"));
+                    context.assertTrue(event2.result().contains("c3_3"));
+
+                    context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+                    context.assertEquals(3L, jedis.zcard(queuesKey(c1)));
+                    context.assertEquals(2L, jedis.zcard(queuesKey(c2)));
+                    context.assertEquals(4L, jedis.zcard(queuesKey(c3)));
+
+                    async.complete();
+                });
+            });
+        });
+    }
+
     private void buildCircuitEntry(String circuitHash, QueueCircuitState state){
         buildCircuitEntry(circuitHash, state, new ArrayList<>());
     }

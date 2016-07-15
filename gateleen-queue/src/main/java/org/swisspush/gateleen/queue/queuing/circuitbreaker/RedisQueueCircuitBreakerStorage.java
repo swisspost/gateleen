@@ -35,6 +35,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     private LuaScriptState closeCircuitLuaScriptState;
     private LuaScriptState reOpenCircuitLuaScriptState;
     private LuaScriptState halfOpenCircuitLuaScriptState;
+    private LuaScriptState unlockSampleQueuesLuaScriptState;
 
     public RedisQueueCircuitBreakerStorage(RedisClient redisClient) {
         this.redisClient = redisClient;
@@ -43,6 +44,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         closeCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.CLOSE_CIRCUIT, redisClient, false);
         reOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.REOPEN_CIRCUIT, redisClient, false);
         halfOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.HALFOPEN_CIRCUITS, redisClient, false);
+        unlockSampleQueuesLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UNLOCK_SAMPLES, redisClient, false);
     }
 
     @Override
@@ -225,9 +227,27 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         return future;
     }
 
+    @Override
+    public Future<List<String>> unlockSampleQueues() {
+        Future<List<String>> future = Future.future();
+
+        List<String> keys = Collections.singletonList(STORAGE_HALFOPEN_CIRCUITS);
+
+        List<String> arguments = Arrays.asList(
+                STORAGE_PREFIX,
+                STORAGE_QUEUES_SUFFIX,
+                String.valueOf(System.currentTimeMillis()));
+
+        UnlockSampleQueuesRedisCommand cmd = new UnlockSampleQueuesRedisCommand(unlockSampleQueuesLuaScriptState,
+                keys, arguments, redisClient, log, future);
+        cmd.exec(0);
+
+        return future;
+    }
+
     /*
-         * Helper methods
-         */
+     * Helper methods
+     */
     private String buildInfosKey(String circuitHash){
         return STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX;
     }

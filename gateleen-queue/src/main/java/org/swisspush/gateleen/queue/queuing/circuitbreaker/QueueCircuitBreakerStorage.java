@@ -2,6 +2,8 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
 import io.vertx.core.Future;
 
+import java.util.List;
+
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
@@ -24,4 +26,6 @@ public interface QueueCircuitBreakerStorage {
     Future<Void> reOpenCircuit(PatternAndCircuitHash patternAndCircuitHash);
 
     Future<Void> setOpenCircuitsToHalfOpen();
+
+    Future<List<String>> unlockSampleQueues();
 }
