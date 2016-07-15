@@ -9,6 +9,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleProvider;
@@ -21,7 +22,7 @@ import static org.swisspush.redisques.util.RedisquesAPI.*;
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChangesObserver {
+public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChangesObserver, Refreshable {
 
     private Logger log = LoggerFactory.getLogger(QueueCircuitBreakerImpl.class);
 
@@ -33,6 +34,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     private String redisquesAddress;
 
+    private long openToHalfOpenTimerId = -1;
+    private long unlockQueuesTimerId = -1;
+
     public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager) {
         this.vertx = vertx;
         this.redisquesAddress = Address.redisquesAddress();
@@ -41,6 +45,33 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         this.ruleProvider.registerObserver(this);
         this.ruleToCircuitMapping = ruleToCircuitMapping;
         this.configResourceManager = configResourceManager;
+
+        this.configResourceManager.addRefreshable(this);
+
+        registerPeriodicTasks();
+    }
+
+    private void registerPeriodicTasks(){
+        registerOpenToHalfOpenTask();
+        registerUnlockQueuesTask();
+    }
+
+    private void registerOpenToHalfOpenTask(){
+        boolean openToHalfOpenTaskEnabled = getConfig().isOpenToHalfOpenTaskEnabled();
+        vertx.cancelTimer(openToHalfOpenTimerId);
+        if(openToHalfOpenTaskEnabled){
+            openToHalfOpenTimerId = vertx.setPeriodic(getConfig().getOpenToHalfOpenTaskInterval(),
+                    event -> setOpenCircuitsToHalfOpen());
+        }
+    }
+
+    private void registerUnlockQueuesTask(){
+        boolean unlockQueuesTaskEnabled = getConfig().isUnlockQueuesTaskEnabled();
+        vertx.cancelTimer(unlockQueuesTimerId);
+        if(unlockQueuesTaskEnabled){
+            unlockQueuesTimerId = vertx.setPeriodic(getConfig().getUnlockQueuesTaskInterval(),
+                    event -> unlockNextQueue());
+        }
     }
 
     @Override
@@ -51,6 +82,12 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         for (PatternAndCircuitHash removedEntry : removedEntries) {
             closeAndRemoveCircuit(removedEntry);
         }
+    }
+
+    @Override
+    public void refresh() {
+        log.info("Circuit breaker configuration values have changed. Check periodic tasks");
+        registerPeriodicTasks();
     }
 
     @Override
@@ -217,6 +254,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                             return;
                         }
                         if(OK.equals(reply.result().body().getString(STATUS))) {
+                            log.info("successfully unlocked queue '" + queueToUnlock + "'");
                             future.complete(queueToUnlock);
                         } else {
                             logQueueUnlockError(queueToUnlock);

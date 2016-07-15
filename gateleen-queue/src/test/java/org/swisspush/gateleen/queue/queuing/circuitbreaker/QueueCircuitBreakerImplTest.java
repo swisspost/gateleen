@@ -61,14 +61,6 @@ public class QueueCircuitBreakerImplTest {
     }
 
     @Test
-    public void testCircuitBreakerCallsConfigurationResourceManager(){
-        queueCircuitBreaker.isCircuitCheckEnabled();
-        queueCircuitBreaker.isStatisticsUpdateEnabled();
-
-        verify(configResourceManager, times(2)).getConfigurationResource();
-    }
-
-    @Test
     public void testHandleQueuedRequest(TestContext context){
         Async async = context.async();
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);

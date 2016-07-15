@@ -150,6 +150,14 @@ public class QueueCircuitBreakerConfigurationResourceManager {
             getConfigurationResource().setMinQueueSampleCount(configRes.getInteger("minQueueSampleCount"));
             getConfigurationResource().setMaxQueueSampleCount(configRes.getInteger("maxQueueSampleCount"));
 
+            JsonObject openToHalfOpen = configRes.getJsonObject("openToHalfOpen");
+            getConfigurationResource().setOpenToHalfOpenTaskEnabled(openToHalfOpen.getBoolean("enabled"));
+            getConfigurationResource().setOpenToHalfOpenTaskInterval(openToHalfOpen.getInteger("interval"));
+
+            JsonObject unlockQueues = configRes.getJsonObject("unlockQueues");
+            getConfigurationResource().setUnlockQueuesTaskEnabled(unlockQueues.getBoolean("enabled"));
+            getConfigurationResource().setUnlockQueuesTaskInterval(unlockQueues.getInteger("interval"));
+
         } catch (Exception ex) {
             getConfigurationResource().reset();
             throw new ValidationException(ex);

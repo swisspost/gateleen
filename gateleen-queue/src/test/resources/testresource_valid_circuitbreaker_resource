@@ -4,5 +4,13 @@
   "errorThresholdPercentage": 99,
   "entriesMaxAgeMS": 43200000,
   "minQueueSampleCount": 200,
-  "maxQueueSampleCount": 2500
+  "maxQueueSampleCount": 2500,
+  "openToHalfOpen": {
+    "enabled": true,
+    "interval": 10000
+  },
+  "unlockQueues": {
+    "enabled": true,
+    "interval": 10000
+  }
 }

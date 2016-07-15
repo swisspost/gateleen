@@ -10,7 +10,8 @@ public enum QueueCircuitBreakerLuaScripts implements LuaScript{
     UPDATE_CIRCUIT("circuitbreaker_update.lua"),
     CLOSE_CIRCUIT("circuitbreaker_close.lua"),
     REOPEN_CIRCUIT("circuitbreaker_reopen.lua"),
-    HALFOPEN_CIRCUITS("circuitbreaker_halfopen.lua");
+    HALFOPEN_CIRCUITS("circuitbreaker_halfopen.lua"),
+    UNLOCK_SAMPLES("circuitbreaker_unlock_samples.lua");
 
     private String file;
 

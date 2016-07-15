@@ -168,6 +168,10 @@ public class QueueCircuitBreakerConfigurationResourceManagerTest {
         context.assertEquals(86400000, config.getEntriesMaxAgeMS());
         context.assertEquals(100, config.getMinQueueSampleCount());
         context.assertEquals(5000, config.getMaxQueueSampleCount());
+        context.assertFalse(config.isOpenToHalfOpenTaskEnabled());
+        context.assertEquals(30000, config.getOpenToHalfOpenTaskInterval());
+        context.assertFalse(config.isUnlockQueuesTaskEnabled());
+        context.assertEquals(20000, config.getUnlockQueuesTaskInterval());
 
         context.assertTrue(manager.handleConfigurationResource(new UpdateConfigResourceWithValidDataRequest()));
 
@@ -177,6 +181,10 @@ public class QueueCircuitBreakerConfigurationResourceManagerTest {
         context.assertEquals(43200000, config.getEntriesMaxAgeMS());
         context.assertEquals(200, config.getMinQueueSampleCount());
         context.assertEquals(2500, config.getMaxQueueSampleCount());
+        context.assertTrue(config.isOpenToHalfOpenTaskEnabled());
+        context.assertEquals(10000, config.getOpenToHalfOpenTaskInterval());
+        context.assertTrue(config.isUnlockQueuesTaskEnabled());
+        context.assertEquals(10000, config.getUnlockQueuesTaskInterval());
     }
 
     class ConfigResourceDELETERequest extends DummyHttpServerRequest {

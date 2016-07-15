@@ -11,11 +11,17 @@ public class QueueCircuitBreakerConfigurationResource {
     private int entriesMaxAgeMS;
     private int minQueueSampleCount;
     private int maxQueueSampleCount;
+    private boolean openToHalfOpenTaskEnabled;
+    private int openToHalfOpenTaskInterval;
+    private boolean unlockQueuesTaskEnabled;
+    private int unlockQueuesTaskInterval;
 
     public static final int DEFAULT_ERROR_THRESHOLD = 90;
     public static final int DEFAULT_ENTRY_MAX_AGE = 86400000; // 24h
     public static final int DEFAULT_MIN_SAMPLE_COUNT = 100;
     public static final int DEFAULT_MAX_SAMPLE_COUNT = 5000;
+    public static final int DEFAULT_TO_HALFOPEN_INTERVAL = 30000; // 30s
+    public static final int DEFAULT_UNLOCK_QUEUES_INTERVAL = 20000; // 20s
 
     public QueueCircuitBreakerConfigurationResource(){
         reset();
@@ -31,6 +37,12 @@ public class QueueCircuitBreakerConfigurationResource {
         entriesMaxAgeMS = DEFAULT_ENTRY_MAX_AGE;
         minQueueSampleCount = DEFAULT_MIN_SAMPLE_COUNT;
         maxQueueSampleCount = DEFAULT_MAX_SAMPLE_COUNT;
+
+        openToHalfOpenTaskEnabled = false;
+        openToHalfOpenTaskInterval = DEFAULT_TO_HALFOPEN_INTERVAL;
+
+        unlockQueuesTaskEnabled = false;
+        unlockQueuesTaskInterval = DEFAULT_UNLOCK_QUEUES_INTERVAL;
     }
 
     public boolean isCircuitCheckEnabled() {
@@ -67,6 +79,32 @@ public class QueueCircuitBreakerConfigurationResource {
 
     public void setMaxQueueSampleCount(int maxQueueSampleCount) { this.maxQueueSampleCount = maxQueueSampleCount; }
 
+    public boolean isOpenToHalfOpenTaskEnabled() { return openToHalfOpenTaskEnabled; }
+
+    public void setOpenToHalfOpenTaskEnabled(boolean openToHalfOpenTaskEnabled) {
+        this.openToHalfOpenTaskEnabled = openToHalfOpenTaskEnabled;
+    }
+
+    public int getOpenToHalfOpenTaskInterval() { return openToHalfOpenTaskInterval; }
+
+    public void setOpenToHalfOpenTaskInterval(int openToHalfOpenTaskInterval) {
+        this.openToHalfOpenTaskInterval = openToHalfOpenTaskInterval;
+    }
+
+    public int getUnlockQueuesTaskInterval() { return unlockQueuesTaskInterval; }
+
+    public void setUnlockQueuesTaskInterval(int unlockQueuesTaskInterval) {
+        this.unlockQueuesTaskInterval = unlockQueuesTaskInterval;
+    }
+
+    public boolean isUnlockQueuesTaskEnabled() {
+        return unlockQueuesTaskEnabled;
+    }
+
+    public void setUnlockQueuesTaskEnabled(boolean unlockQueuesTaskEnabled) {
+        this.unlockQueuesTaskEnabled = unlockQueuesTaskEnabled;
+    }
+
     @Override
     public String toString() {
         return "{circuitCheckEnabled=" + circuitCheckEnabled +
@@ -75,6 +113,10 @@ public class QueueCircuitBreakerConfigurationResource {
                ", entriesMaxAgeMS=" + entriesMaxAgeMS +
                ", minQueueSampleCount=" + minQueueSampleCount +
                ", maxQueueSampleCount=" + maxQueueSampleCount +
+               ", openToHalfOpenTaskEnabled=" + openToHalfOpenTaskEnabled +
+               ", openToHalfOpenTaskInterval=" + openToHalfOpenTaskInterval +
+               ", unlockQueuesTaskEnabled=" + unlockQueuesTaskEnabled +
+               ", unlockQueuesTaskInterval=" + unlockQueuesTaskInterval +
                "}";
     }
 }
