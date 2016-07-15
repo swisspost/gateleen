@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableMap;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -14,9 +13,9 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
+import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
@@ -41,9 +40,47 @@ public class QueueCircuitBreakerConfigurationResourceManagerTest {
 
     @Before
     public void setUp(){
-        vertx = Mockito.mock(Vertx.class);
-        Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
+        vertx = Vertx.vertx();
         storage = new MockResourceStorage(ImmutableMap.of(CONFIGURATION_URI, INITIAL_CONFIG_RESOURCE));
+    }
+
+    @Test
+    public void testRefreshablesShouldBeCalledOnConfigurationDelete(TestContext context){
+        Async async = context.async(1);
+        QueueCircuitBreakerConfigurationResourceManager manager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, CONFIGURATION_URI);
+        MyRefreshable refreshable = new MyRefreshable(async);
+        manager.addRefreshable(refreshable);
+        context.assertFalse(refreshable.isRefreshed());
+        manager.handleConfigurationResource(new ConfigResourceDELETERequest());
+        context.assertTrue(refreshable.isRefreshed());
+        async.awaitSuccess();
+    }
+
+    @Test
+    public void testRefreshablesShouldBeCalledOnConfigurationUpdateWithValidResource(TestContext context){
+        Async async = context.async(1);
+        QueueCircuitBreakerConfigurationResourceManager manager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, CONFIGURATION_URI);
+        MyRefreshable refreshable = new MyRefreshable(async);
+        manager.addRefreshable(refreshable);
+        context.assertFalse(refreshable.isRefreshed());
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        class UpdateConfigResourceWithValidDataRequest extends ConfigResourcePUTRequest {
+            @Override
+            public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+                bodyHandler.handle(Buffer.buffer(VALID_CONFIG_RESOURCE));
+                return this;
+            }
+
+            @Override
+            public HttpServerResponse response() {
+                return response;
+            }
+        }
+
+        manager.handleConfigurationResource(new UpdateConfigResourceWithValidDataRequest());
+        async.awaitSuccess();
+        context.assertTrue(refreshable.isRefreshed());
     }
 
     @Test
@@ -142,12 +179,41 @@ public class QueueCircuitBreakerConfigurationResourceManagerTest {
         context.assertEquals(2500, config.getMaxQueueSampleCount());
     }
 
+    class ConfigResourceDELETERequest extends DummyHttpServerRequest {
+        @Override public HttpMethod method() {
+            return HttpMethod.DELETE;
+        }
+        @Override public String uri() {
+            return CONFIGURATION_URI;
+        }
+    }
+
     class ConfigResourcePUTRequest extends DummyHttpServerRequest {
         @Override public HttpMethod method() {
             return HttpMethod.PUT;
         }
         @Override public String uri() {
             return CONFIGURATION_URI;
+        }
+    }
+
+    class MyRefreshable implements Refreshable {
+        private boolean refreshed = false;
+
+        private Async async;
+
+        public MyRefreshable(Async async){
+            this.async = async;
+        }
+
+        @Override
+        public void refresh() {
+            refreshed = true;
+            async.countDown();
+        }
+
+        public boolean isRefreshed() {
+            return refreshed;
         }
     }
 }

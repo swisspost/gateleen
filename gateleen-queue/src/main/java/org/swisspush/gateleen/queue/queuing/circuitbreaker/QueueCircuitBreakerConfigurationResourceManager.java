@@ -9,12 +9,16 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -29,6 +33,8 @@ public class QueueCircuitBreakerConfigurationResourceManager {
 
     private QueueCircuitBreakerConfigurationResource configurationResource;
 
+    private final List<Refreshable> refreshables;
+
     private final String configResourceSchema;
 
     public QueueCircuitBreakerConfigurationResourceManager(Vertx vertx, ResourceStorage storage, String circuitBreakerConfigUri) {
@@ -37,6 +43,8 @@ public class QueueCircuitBreakerConfigurationResourceManager {
         this.circuitBreakerConfigUri = circuitBreakerConfigUri;
 
         configResourceSchema = ResourcesUtils.loadResource("gateleen_queue_schema_circuitBreakerConfiguration", true);
+
+        refreshables = new ArrayList<>();
 
         updateConfigurationResource();
 
@@ -51,6 +59,26 @@ public class QueueCircuitBreakerConfigurationResourceManager {
         return configurationResource;
     }
 
+    /**
+     * Adds a new Refreshable. <br >
+     * All refreshables will be refreshed, if the
+     * QueueCircuitBreakerConfigurationResource changes.
+     *
+     * @param refreshable - an instance of Refreshable
+     */
+    public void addRefreshable(Refreshable refreshable) {
+        refreshables.add(refreshable);
+    }
+
+    /**
+     * Refreshes all refreshables.
+     */
+    private void notifyRefreshables() {
+        for (Refreshable refreshable : refreshables) {
+            refreshable.refresh();
+        }
+    }
+
     private void updateConfigurationResource() {
         storage.get(circuitBreakerConfigUri, buffer -> {
             if (buffer != null) {
@@ -63,6 +91,7 @@ public class QueueCircuitBreakerConfigurationResourceManager {
             } else {
                 log.warn("Could not get URL '" + (circuitBreakerConfigUri == null ? "<null>" : circuitBreakerConfigUri) + "'.");
             }
+            notifyRefreshables();
         });
     }
 
@@ -98,6 +127,7 @@ public class QueueCircuitBreakerConfigurationResourceManager {
         if (request.uri().equals(circuitBreakerConfigUri) && HttpMethod.DELETE == request.method()) {
             getConfigurationResource().reset();
             log.info("reset circuit breaker configuration resource");
+            notifyRefreshables();
         }
 
         return false;
