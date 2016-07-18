@@ -217,8 +217,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
-    public Future<Void> setOpenCircuitsToHalfOpen() {
-        Future<Void> future = Future.future();
+    public Future<Long> setOpenCircuitsToHalfOpen() {
+        Future<Long> future = Future.future();
         List<String> keys = Arrays.asList(STORAGE_HALFOPEN_CIRCUITS, STORAGE_OPEN_CIRCUITS);
         List<String> arguments = Arrays.asList(STORAGE_PREFIX, STORAGE_INFOS_SUFFIX);
         HalfOpenCircuitRedisCommand cmd = new HalfOpenCircuitRedisCommand(halfOpenCircuitLuaScriptState,

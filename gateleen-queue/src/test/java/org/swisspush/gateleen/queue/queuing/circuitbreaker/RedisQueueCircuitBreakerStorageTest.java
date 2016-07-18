@@ -481,6 +481,7 @@ public class RedisQueueCircuitBreakerStorageTest {
 
         storage.setOpenCircuitsToHalfOpen().setHandler(event -> {
             context.assertTrue(event.succeeded());
+            context.assertEquals(3L, event.result());
 
             context.assertEquals(5L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
             context.assertEquals(0L, jedis.scard(STORAGE_OPEN_CIRCUITS));

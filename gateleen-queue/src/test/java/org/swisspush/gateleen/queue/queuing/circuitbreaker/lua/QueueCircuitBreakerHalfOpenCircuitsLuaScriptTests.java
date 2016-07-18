@@ -56,7 +56,8 @@ public class QueueCircuitBreakerHalfOpenCircuitsLuaScriptTests extends AbstractL
         assertThat(jedis.scard(halfOpenCircuitsKey), equalTo(2L));
         assertThat(jedis.scard(openCircuitsKey), equalTo(4L));
 
-        evalScriptHalfOpenCircuits();
+        Long count = (Long) evalScriptHalfOpenCircuits();
+        assertThat(count, equalTo(4L));
 
         // assertions
         assertState(c1, HALF_OPEN);

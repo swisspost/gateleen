@@ -28,7 +28,7 @@ public interface QueueCircuitBreaker {
 
     Future<Void> reOpenCircuit(HttpRequest queuedRequest);
 
-    Future<Void> setOpenCircuitsToHalfOpen();
+    Future<Long> setOpenCircuitsToHalfOpen();
 
     Future<Long> unlockSampleQueues();
 }

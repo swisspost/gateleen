@@ -16,12 +16,12 @@ public class HalfOpenCircuitRedisCommand implements RedisCommand {
     private LuaScriptState luaScriptState;
     private List<String> keys;
     private List<String> arguments;
-    private Future<Void> future;
+    private Future<Long> future;
     private RedisClient redisClient;
     private Logger log;
 
     public HalfOpenCircuitRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
-                                       RedisClient redisClient, Logger log, final Future<Void> future) {
+                                       RedisClient redisClient, Logger log, final Future<Long> future) {
         this.luaScriptState = luaScriptState;
         this.keys = keys;
         this.arguments = arguments;
@@ -34,7 +34,7 @@ public class HalfOpenCircuitRedisCommand implements RedisCommand {
     public void exec(int executionCounter) {
         redisClient.evalsha(luaScriptState.getSha(), keys, arguments, event -> {
             if(event.succeeded()){
-                future.complete();
+                future.complete(event.result().getLong(0));
             } else {
                 String message = event.cause().getMessage();
                 if(message != null && message.startsWith("NOSCRIPT")) {

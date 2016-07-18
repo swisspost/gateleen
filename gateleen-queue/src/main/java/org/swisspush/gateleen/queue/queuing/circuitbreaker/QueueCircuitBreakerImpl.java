@@ -60,7 +60,17 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         vertx.cancelTimer(openToHalfOpenTimerId);
         if(openToHalfOpenTaskEnabled){
             openToHalfOpenTimerId = vertx.setPeriodic(getConfig().getOpenToHalfOpenTaskInterval(),
-                    event -> setOpenCircuitsToHalfOpen());
+                    event -> setOpenCircuitsToHalfOpen().setHandler(event1 -> {
+                        if(event1.succeeded()){
+                            if(event1.result() > 0){
+                                log.info("Successfully changed " + event1.result() + " circuits from state open to state half-open");
+                            } else {
+                                log.info("No open circuits to change state to half-open");
+                            }
+                        } else {
+                            log.error(event1.cause().getMessage());
+                        }
+                    }));
         }
     }
 
@@ -289,7 +299,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
-    public Future<Void> setOpenCircuitsToHalfOpen() {
+    public Future<Long> setOpenCircuitsToHalfOpen() {
         return queueCircuitBreakerStorage.setOpenCircuitsToHalfOpen();
     }
 

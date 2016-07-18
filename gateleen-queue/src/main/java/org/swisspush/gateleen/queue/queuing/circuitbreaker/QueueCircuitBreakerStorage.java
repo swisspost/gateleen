@@ -25,7 +25,7 @@ public interface QueueCircuitBreakerStorage {
 
     Future<Void> reOpenCircuit(PatternAndCircuitHash patternAndCircuitHash);
 
-    Future<Void> setOpenCircuitsToHalfOpen();
+    Future<Long> setOpenCircuitsToHalfOpen();
 
     Future<List<String>> unlockSampleQueues();
 }
