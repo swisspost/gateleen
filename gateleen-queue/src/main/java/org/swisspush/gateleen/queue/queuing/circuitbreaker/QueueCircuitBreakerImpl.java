@@ -192,6 +192,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         Future<Void> future = Future.future();
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
         if(patternAndCircuitHash != null){
+            log.info("About to close circuit " + patternAndCircuitHash.getPattern().pattern());
             queueCircuitBreakerStorage.closeCircuit(patternAndCircuitHash).setHandler(event -> {
                 if(event.failed()){
                     future.fail(event.cause());
@@ -216,6 +217,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     @Override
     public Future<Void> closeAllCircuits() {
+        log.info("About to close all circuits");
         return queueCircuitBreakerStorage.closeAllCircuits();
     }
 
@@ -224,6 +226,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         Future<Void> future = Future.future();
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
         if(patternAndCircuitHash != null){
+            log.info("About to reopen circuit " + patternAndCircuitHash.getPattern().pattern());
             queueCircuitBreakerStorage.reOpenCircuit(patternAndCircuitHash).setHandler(event -> {
                 if(event.failed()){
                     future.fail(event.cause());
@@ -272,6 +275,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     @Override
     public Future<String> unlockNextQueue() {
+        log.info("About to unlock the next queue");
         Future<String> future = Future.future();
         queueCircuitBreakerStorage.popQueueToUnlock().setHandler(event -> {
             if(event.failed()){
@@ -305,6 +309,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     @Override
     public Future<Long> unlockSampleQueues() {
+        log.info("About to unlock a sample queue for each circuit");
         Future<Long> future = Future.future();
         queueCircuitBreakerStorage.unlockSampleQueues().setHandler(event -> {
             if(event.failed()){
@@ -339,6 +344,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     @Override
     public Future<String> unlockQueue(String queueName){
+        log.info("About to unlock queue '" + queueName + "'");
         Future<String> future = Future.future();
         vertx.eventBus().send(redisquesAddress, buildDeleteLockOperation(queueName), new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
@@ -349,7 +355,6 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                     return;
                 }
                 if(OK.equals(reply.result().body().getString(STATUS))) {
-                    log.info("successfully unlocked queue '" + queueName + "'");
                     future.complete(queueName);
                 } else {
                     logQueueUnlockError(queueName);
