@@ -1,9 +1,6 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
@@ -15,7 +12,9 @@ import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.routing.RuleProvider.RuleChangesObserver;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
@@ -27,7 +26,6 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private Logger log = LoggerFactory.getLogger(QueueCircuitBreakerImpl.class);
 
     private Vertx vertx;
-    private RuleProvider ruleProvider;
     private QueueCircuitBreakerStorage queueCircuitBreakerStorage;
     private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
     private QueueCircuitBreakerConfigurationResourceManager configResourceManager;
@@ -41,8 +39,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         this.vertx = vertx;
         this.redisquesAddress = Address.redisquesAddress();
         this.queueCircuitBreakerStorage = queueCircuitBreakerStorage;
-        this.ruleProvider = ruleProvider;
-        this.ruleProvider.registerObserver(this);
+        ruleProvider.registerObserver(this);
         this.ruleToCircuitMapping = ruleToCircuitMapping;
         this.configResourceManager = configResourceManager;
 
@@ -79,9 +76,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         log.info("rules have changed, renew rule to circuit mapping");
         List<PatternAndCircuitHash> removedEntries = this.ruleToCircuitMapping.updateRulePatternToCircuitMapping(rules);
         log.info(removedEntries.size() + " mappings have been removed with the update");
-        for (PatternAndCircuitHash removedEntry : removedEntries) {
-            closeAndRemoveCircuit(removedEntry);
-        }
+        removedEntries.forEach(this::closeAndRemoveCircuit);
     }
 
     @Override
@@ -245,22 +240,12 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
             }
             String queueToUnlock = event.result();
             if(queueToUnlock != null){
-                vertx.eventBus().send(redisquesAddress, buildDeleteLockOperation(queueToUnlock), new Handler<AsyncResult<Message<JsonObject>>>() {
-                    @Override
-                    public void handle(AsyncResult<Message<JsonObject>> reply) {
-                        if(reply.failed()){
-                            logQueueUnlockError(queueToUnlock);
-                            future.fail(reply.cause().getMessage());
-                            return;
-                        }
-                        if(OK.equals(reply.result().body().getString(STATUS))) {
-                            log.info("successfully unlocked queue '" + queueToUnlock + "'");
-                            future.complete(queueToUnlock);
-                        } else {
-                            logQueueUnlockError(queueToUnlock);
-                            future.fail("unable to unlock queue '" + queueToUnlock + "'. Got reply from redisques: " + reply.result().body().toString());
-                        }
+                unlockQueue(queueToUnlock).setHandler(event1 -> {
+                    if(event1.failed()){
+                        future.fail(event1.cause().getMessage());
+                        return;
                     }
+                    future.complete(event1.result());
                 });
             } else {
                 future.complete(null);
@@ -276,6 +261,63 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     @Override
     public Future<Void> setOpenCircuitsToHalfOpen() {
         return queueCircuitBreakerStorage.setOpenCircuitsToHalfOpen();
+    }
+
+    @Override
+    public Future<Void> unlockSampleQueues() {
+        Future<Void> future = Future.future();
+        queueCircuitBreakerStorage.unlockSampleQueues().setHandler(event -> {
+            if(event.failed()){
+                future.fail(event.cause().getMessage());
+                return;
+            }
+            List<String> queuesToUnlock = event.result();
+            if(queuesToUnlock == null || queuesToUnlock.isEmpty()){
+                future.complete();
+                return;
+            }
+            final AtomicInteger futureCounter = new AtomicInteger(queuesToUnlock.size());
+            List<String> failedFutures = new ArrayList<>();
+            for (String queueToUnlock : queuesToUnlock) {
+                unlockQueue(queueToUnlock).setHandler(event1 -> {
+                    futureCounter.decrementAndGet();
+                    if(event1.failed()){
+                        failedFutures.add(event1.cause().getMessage());
+                    }
+                    if(futureCounter.get() == 0){
+                        if(failedFutures.size() > 0){
+                            future.fail("The following queues could not be unlocked: " + failedFutures);
+                        } else {
+                            future.complete();
+                        }
+                    }
+                });
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public Future<String> unlockQueue(String queueName){
+        Future<String> future = Future.future();
+        vertx.eventBus().send(redisquesAddress, buildDeleteLockOperation(queueName), new Handler<AsyncResult<Message<JsonObject>>>() {
+            @Override
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
+                if(reply.failed()){
+                    logQueueUnlockError(queueName);
+                    future.fail(queueName);
+                    return;
+                }
+                if(OK.equals(reply.result().body().getString(STATUS))) {
+                    log.info("successfully unlocked queue '" + queueName + "'");
+                    future.complete(queueName);
+                } else {
+                    logQueueUnlockError(queueName);
+                    future.fail(queueName);
+                }
+            }
+        });
+        return future;
     }
 
     private void lockQueueSync(String queueName, HttpRequest queuedRequest){

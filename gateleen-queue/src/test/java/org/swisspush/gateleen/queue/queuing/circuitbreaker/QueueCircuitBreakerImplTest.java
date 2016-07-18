@@ -19,6 +19,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.routing.RuleProvider;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -325,7 +326,7 @@ public class QueueCircuitBreakerImplTest {
 
         queueCircuitBreaker.unlockNextQueue().setHandler(event -> {
             context.assertTrue(event.failed());
-            context.assertTrue(event.cause().getMessage().contains("unable to unlock queue 'queue_1'"));
+            context.assertTrue(event.cause().getMessage().equalsIgnoreCase("queue_1"));
             verify(queueCircuitBreakerStorage, times(1)).popQueueToUnlock();
             async.countDown();
         });
@@ -348,6 +349,72 @@ public class QueueCircuitBreakerImplTest {
             context.assertTrue(event.failed());
             context.assertTrue(event.cause().getMessage().contains("unable to pop queueToUnlock from list"));
             verify(queueCircuitBreakerStorage, times(1)).popQueueToUnlock();
+            async.complete();
+        });
+
+    }
+
+    @Test
+    public void testUnlockSampleQueues(TestContext context){
+        Async async = context.async(4);
+
+        Mockito.when(queueCircuitBreakerStorage.unlockSampleQueues())
+                .thenReturn(Future.succeededFuture(Arrays.asList("q1", "q2", "q3")));
+
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
+            async.countDown();
+            context.assertEquals("deleteLock", event.body().getString("operation"));
+            event.reply(new JsonObject().put("status", "ok"));
+        });
+
+        queueCircuitBreaker.unlockSampleQueues().setHandler(event -> {
+            async.countDown();
+            context.assertTrue(event.succeeded());
+        });
+
+        async.awaitSuccess();
+    }
+
+    @Test
+    public void testUnlockSampleQueuesFailingUnlock(TestContext context){
+        Async async = context.async(4);
+
+        Mockito.when(queueCircuitBreakerStorage.unlockSampleQueues())
+                .thenReturn(Future.succeededFuture(Arrays.asList("q1", "q2", "q3")));
+
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
+            async.countDown();
+            context.assertEquals("deleteLock", event.body().getString("operation"));
+            if(event.body().getJsonObject("payload").getString("queuename").equalsIgnoreCase("q2")){
+                event.reply(new JsonObject().put("status", "error"));
+            } else {
+                event.reply(new JsonObject().put("status", "ok"));
+            }
+        });
+
+        queueCircuitBreaker.unlockSampleQueues().setHandler(event -> {
+            async.countDown();
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause().getMessage().contains("The following queues could not be unlocked: [q2]"));
+        });
+
+        async.awaitSuccess();
+    }
+
+    @Test
+    public void testUnlockSampleQueuesFailingStorage(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.unlockSampleQueues())
+                .thenReturn(Future.failedFuture("unable to lock queues"));
+
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
+            context.fail("Redisques should not have been called when the storage failed");
+        });
+
+        queueCircuitBreaker.unlockSampleQueues().setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause().getMessage().contains("unable to lock queues"));
             async.complete();
         });
 

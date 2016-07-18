@@ -151,6 +151,9 @@ public class QueueProcessorTest {
         public Future<Void> lockQueue(String queueName, HttpRequest queuedRequest) { return null; }
 
         @Override
+        public Future<String> unlockQueue(String queueName) { return null; }
+
+        @Override
         public Future<String> unlockNextQueue() { return null; }
 
         @Override
@@ -170,5 +173,8 @@ public class QueueProcessorTest {
 
         @Override
         public Future<Void> setOpenCircuitsToHalfOpen() { return null; }
+
+        @Override
+        public Future<Void> unlockSampleQueues() { return null; }
     }
 }

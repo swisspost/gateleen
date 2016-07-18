@@ -5,7 +5,6 @@ import io.vertx.core.logging.Logger;
 import io.vertx.redis.RedisClient;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.UpdateStatisticsResult;
 
 import java.util.List;
 

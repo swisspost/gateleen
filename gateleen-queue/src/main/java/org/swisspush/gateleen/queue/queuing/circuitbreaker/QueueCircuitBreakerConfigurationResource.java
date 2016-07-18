@@ -16,12 +16,12 @@ public class QueueCircuitBreakerConfigurationResource {
     private boolean unlockQueuesTaskEnabled;
     private int unlockQueuesTaskInterval;
 
-    public static final int DEFAULT_ERROR_THRESHOLD = 90;
-    public static final int DEFAULT_ENTRY_MAX_AGE = 86400000; // 24h
-    public static final int DEFAULT_MIN_SAMPLE_COUNT = 100;
-    public static final int DEFAULT_MAX_SAMPLE_COUNT = 5000;
-    public static final int DEFAULT_TO_HALFOPEN_INTERVAL = 30000; // 30s
-    public static final int DEFAULT_UNLOCK_QUEUES_INTERVAL = 20000; // 20s
+    private static final int DEFAULT_ERROR_THRESHOLD = 90;
+    private static final int DEFAULT_ENTRY_MAX_AGE = 86400000; // 24h
+    private static final int DEFAULT_MIN_SAMPLE_COUNT = 100;
+    private static final int DEFAULT_MAX_SAMPLE_COUNT = 5000;
+    private static final int DEFAULT_TO_HALFOPEN_INTERVAL = 30000; // 30s
+    private static final int DEFAULT_UNLOCK_QUEUES_INTERVAL = 20000; // 20s
 
     public QueueCircuitBreakerConfigurationResource(){
         reset();

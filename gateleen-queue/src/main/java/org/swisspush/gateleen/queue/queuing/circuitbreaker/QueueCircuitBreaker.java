@@ -18,6 +18,8 @@ public interface QueueCircuitBreaker {
 
     Future<Void> lockQueue(String queueName, HttpRequest queuedRequest);
 
+    Future<String> unlockQueue(String queueName);
+
     Future<String> unlockNextQueue();
 
     Future<Void> closeCircuit(HttpRequest queuedRequest);
@@ -27,4 +29,6 @@ public interface QueueCircuitBreaker {
     Future<Void> reOpenCircuit(HttpRequest queuedRequest);
 
     Future<Void> setOpenCircuitsToHalfOpen();
+
+    Future<Void> unlockSampleQueues();
 }

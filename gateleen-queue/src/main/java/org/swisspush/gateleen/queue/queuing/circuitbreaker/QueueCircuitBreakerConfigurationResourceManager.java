@@ -74,9 +74,7 @@ public class QueueCircuitBreakerConfigurationResourceManager {
      * Refreshes all refreshables.
      */
     private void notifyRefreshables() {
-        for (Refreshable refreshable : refreshables) {
-            refreshable.refresh();
-        }
+        refreshables.forEach(Refreshable::refresh);
     }
 
     private void updateConfigurationResource() {
