@@ -370,6 +370,7 @@ public class QueueCircuitBreakerImplTest {
         queueCircuitBreaker.unlockSampleQueues().setHandler(event -> {
             async.countDown();
             context.assertTrue(event.succeeded());
+            context.assertEquals(3L, event.result());
         });
 
         async.awaitSuccess();

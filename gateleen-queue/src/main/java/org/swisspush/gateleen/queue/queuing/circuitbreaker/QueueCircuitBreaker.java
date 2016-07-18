@@ -30,5 +30,5 @@ public interface QueueCircuitBreaker {
 
     Future<Void> setOpenCircuitsToHalfOpen();
 
-    Future<Void> unlockSampleQueues();
+    Future<Long> unlockSampleQueues();
 }

@@ -104,7 +104,7 @@ public class QueueProcessor {
     }
 
     private void updateCircuitBreakerStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType, QueueCircuitState state) {
-        if (isStatisticsUpdateEnabled() && QueueCircuitState.CLOSED == state) {
+        if (isStatisticsUpdateEnabled() && QueueCircuitState.OPEN != state) {
             queueCircuitBreaker.updateStatistics(queueName, queuedRequest, queueResponseType).setHandler(event -> {
                 if (event.failed()) {
                     String message = "failed to update statistics for queue '" + queueName + "' to uri " + queuedRequest.getUri() +

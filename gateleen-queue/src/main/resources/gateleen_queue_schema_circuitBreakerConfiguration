@@ -31,12 +31,16 @@
             "minimum": 0
          },
         "openToHalfOpen": {
-            "description": "Configures the open to half-open state change task",
-            "$ref": "#/definitions/OpenToHalfOpen"
+            "description": "Task to set circuits from state open to state half-open",
+            "$ref": "#/definitions/PeriodicTask"
         },
         "unlockQueues": {
-            "description": "Configures the unlock queues task",
-            "$ref": "#/definitions/UnlockQueues"
+            "description": "Task to unlock locked queues",
+            "$ref": "#/definitions/PeriodicTask"
+        },
+        "unlockSampleQueues": {
+            "description": "Task to unlock a sample queue for each circuit",
+            "$ref": "#/definitions/PeriodicTask"
         }
  	},
  	"additionalProperties": false,
@@ -48,36 +52,20 @@
  	    "minQueueSampleCount",
  	    "maxQueueSampleCount",
  	    "openToHalfOpen",
- 	    "unlockQueues"
+ 	    "unlockQueues",
+ 	    "unlockSampleQueues"
     ],
 	"definitions": {
-	    "OpenToHalfOpen": {
-	      "description": "A configuration to define the periodic interval to set circuits to state half-open",
+	    "PeriodicTask": {
+	      "description": "A configuration to define a periodic interval for a certain task",
 	      "properties": {
 	        "enabled": {
-	          "description": "Should the open to half-open task be executed with the interval configured or not",
+	          "description": "Should the task be executed with the interval configured or not",
 	          "type": "boolean"
 	        },
 
 	        "interval": {
-	          "description": "The interval (in milliseconds) to execute the open to half-open task (when enabled)",
-	          "type": "integer",
-	          "minimum": 1
-	        }
-	      },
-	      "additionalProperties": false,
-	      "required": ["enabled", "interval"]
-	    },
-	    "UnlockQueues": {
-	      "description": "A configuration to define the periodic interval to unlock locked queues",
-	      "properties": {
-	        "enabled": {
-	          "description": "Should the unlock queues task be executed with the interval configured or not",
-	          "type": "boolean"
-	        },
-
-	        "interval": {
-	          "description": "The interval (in milliseconds) to execute the unlock queues task (when enabled)",
+	          "description": "The interval (in milliseconds) to execute the task (when enabled)",
 	          "type": "integer",
 	          "minimum": 1
 	        }

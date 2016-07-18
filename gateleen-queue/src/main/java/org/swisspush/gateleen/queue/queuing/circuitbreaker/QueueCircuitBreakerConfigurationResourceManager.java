@@ -156,6 +156,10 @@ public class QueueCircuitBreakerConfigurationResourceManager {
             getConfigurationResource().setUnlockQueuesTaskEnabled(unlockQueues.getBoolean("enabled"));
             getConfigurationResource().setUnlockQueuesTaskInterval(unlockQueues.getInteger("interval"));
 
+            JsonObject unlockSampleQueues = configRes.getJsonObject("unlockSampleQueues");
+            getConfigurationResource().setUnlockSampleQueuesTaskEnabled(unlockSampleQueues.getBoolean("enabled"));
+            getConfigurationResource().setUnlockSampleQueuesTaskInterval(unlockSampleQueues.getInteger("interval"));
+
         } catch (Exception ex) {
             getConfigurationResource().reset();
             throw new ValidationException(ex);

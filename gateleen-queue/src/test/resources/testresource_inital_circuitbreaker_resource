@@ -12,5 +12,9 @@
   "unlockQueues": {
     "enabled": false,
     "interval": 20000
+  },
+  "unlockSampleQueues": {
+    "enabled": false,
+    "interval": 20000
   }
 }

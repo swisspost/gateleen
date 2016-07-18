@@ -34,6 +34,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     private long openToHalfOpenTimerId = -1;
     private long unlockQueuesTimerId = -1;
+    private long unlockSampleQueuesTimerId = -1;
 
     public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager) {
         this.vertx = vertx;
@@ -51,6 +52,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private void registerPeriodicTasks(){
         registerOpenToHalfOpenTask();
         registerUnlockQueuesTask();
+        registerUnlockSampleQueuesTask();
     }
 
     private void registerOpenToHalfOpenTask(){
@@ -67,7 +69,35 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         vertx.cancelTimer(unlockQueuesTimerId);
         if(unlockQueuesTaskEnabled){
             unlockQueuesTimerId = vertx.setPeriodic(getConfig().getUnlockQueuesTaskInterval(),
-                    event -> unlockNextQueue());
+                    event -> unlockNextQueue().setHandler(event1 -> {
+                        if(event1.succeeded()){
+                            if(event1.result() == null){
+                                log.info("No locked queues to unlock");
+                            } else {
+                                log.info("Successfully unlocked queue '" + event1.result() + "'");
+                            }
+                        } else {
+                            log.error("Unable to unlock queue '" + event1.cause().getMessage() + "'");
+                        }
+                    }));
+        }
+    }
+
+    private void registerUnlockSampleQueuesTask(){
+        boolean unlockSampleQueuesTaskEnabled = getConfig().isUnlockSampleQueuesTaskEnabled();
+        vertx.cancelTimer(unlockSampleQueuesTimerId);
+        if(unlockSampleQueuesTaskEnabled){
+            unlockSampleQueuesTimerId = vertx.setPeriodic(getConfig().getUnlockSampleQueuesTaskInterval(), event -> unlockSampleQueues().setHandler(event1 -> {
+                if(event1.succeeded()){
+                    if(event1.result() == 0L){
+                        log.info("No sample queues to unlock");
+                    } else {
+                        log.info("Successfully unlocked "+event1.result()+" sample queues");
+                    }
+                } else {
+                    log.error(event1.cause().getMessage());
+                }
+            }));
         }
     }
 
@@ -264,8 +294,8 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
-    public Future<Void> unlockSampleQueues() {
-        Future<Void> future = Future.future();
+    public Future<Long> unlockSampleQueues() {
+        Future<Long> future = Future.future();
         queueCircuitBreakerStorage.unlockSampleQueues().setHandler(event -> {
             if(event.failed()){
                 future.fail(event.cause().getMessage());
@@ -273,7 +303,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
             }
             List<String> queuesToUnlock = event.result();
             if(queuesToUnlock == null || queuesToUnlock.isEmpty()){
-                future.complete();
+                future.complete(0L);
                 return;
             }
             final AtomicInteger futureCounter = new AtomicInteger(queuesToUnlock.size());
@@ -288,7 +318,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                         if(failedFutures.size() > 0){
                             future.fail("The following queues could not be unlocked: " + failedFutures);
                         } else {
-                            future.complete();
+                            future.complete((long) queuesToUnlock.size());
                         }
                     }
                 });

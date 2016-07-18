@@ -175,6 +175,6 @@ public class QueueProcessorTest {
         public Future<Void> setOpenCircuitsToHalfOpen() { return null; }
 
         @Override
-        public Future<Void> unlockSampleQueues() { return null; }
+        public Future<Long> unlockSampleQueues() { return null; }
     }
 }

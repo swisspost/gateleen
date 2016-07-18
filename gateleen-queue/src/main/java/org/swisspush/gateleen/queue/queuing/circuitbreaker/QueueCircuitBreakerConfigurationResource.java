@@ -15,6 +15,8 @@ public class QueueCircuitBreakerConfigurationResource {
     private int openToHalfOpenTaskInterval;
     private boolean unlockQueuesTaskEnabled;
     private int unlockQueuesTaskInterval;
+    private boolean unlockSampleQueuesTaskEnabled;
+    private int unlockSampleQueuesTaskInterval;
 
     private static final int DEFAULT_ERROR_THRESHOLD = 90;
     private static final int DEFAULT_ENTRY_MAX_AGE = 86400000; // 24h
@@ -22,6 +24,7 @@ public class QueueCircuitBreakerConfigurationResource {
     private static final int DEFAULT_MAX_SAMPLE_COUNT = 5000;
     private static final int DEFAULT_TO_HALFOPEN_INTERVAL = 30000; // 30s
     private static final int DEFAULT_UNLOCK_QUEUES_INTERVAL = 20000; // 20s
+    private static final int DEFAULT_UNLOCK_SAMPLE_QUEUES_INTERVAL = 20000; // 20s
 
     public QueueCircuitBreakerConfigurationResource(){
         reset();
@@ -43,6 +46,9 @@ public class QueueCircuitBreakerConfigurationResource {
 
         unlockQueuesTaskEnabled = false;
         unlockQueuesTaskInterval = DEFAULT_UNLOCK_QUEUES_INTERVAL;
+
+        unlockSampleQueuesTaskEnabled = false;
+        unlockSampleQueuesTaskInterval = DEFAULT_UNLOCK_SAMPLE_QUEUES_INTERVAL;
     }
 
     public boolean isCircuitCheckEnabled() {
@@ -105,6 +111,18 @@ public class QueueCircuitBreakerConfigurationResource {
         this.unlockQueuesTaskEnabled = unlockQueuesTaskEnabled;
     }
 
+    public boolean isUnlockSampleQueuesTaskEnabled() { return unlockSampleQueuesTaskEnabled; }
+
+    public void setUnlockSampleQueuesTaskEnabled(boolean unlockSampleQueuesTaskEnabled) {
+        this.unlockSampleQueuesTaskEnabled = unlockSampleQueuesTaskEnabled;
+    }
+
+    public int getUnlockSampleQueuesTaskInterval() { return unlockSampleQueuesTaskInterval; }
+
+    public void setUnlockSampleQueuesTaskInterval(int unlockSampleQueuesTaskInterval) {
+        this.unlockSampleQueuesTaskInterval = unlockSampleQueuesTaskInterval;
+    }
+
     @Override
     public String toString() {
         return "{circuitCheckEnabled=" + circuitCheckEnabled +
@@ -117,6 +135,8 @@ public class QueueCircuitBreakerConfigurationResource {
                ", openToHalfOpenTaskInterval=" + openToHalfOpenTaskInterval +
                ", unlockQueuesTaskEnabled=" + unlockQueuesTaskEnabled +
                ", unlockQueuesTaskInterval=" + unlockQueuesTaskInterval +
+               ", unlockSampleQueuesTaskEnabled=" + unlockSampleQueuesTaskEnabled +
+               ", unlockSampleQueuesTaskInterval=" + unlockSampleQueuesTaskInterval +
                "}";
     }
 }
