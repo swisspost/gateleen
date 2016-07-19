@@ -44,20 +44,37 @@ public class ExpandZipTest extends AbstractTest {
         given().param("expand", 1).when().get("tree/").then().assertThat().contentType(containsString("application/json"));
         given().param("expand", 1).param("zip", "false").when().get("tree/").then().assertThat().contentType(containsString("application/json"));
         given().param("expand", 1).param("zip", "true").when().get("tree/").then().assertThat().contentType(containsString("application/octet-stream"));
+        given().param("expand", 1).param("zip", "store").when().get("tree/").then().assertThat().contentType(containsString("application/octet-stream"));
 
         async.complete();
     }
 
     /**
-     * Tests whether the zip feature works
+     * Tests whether the zip (uncompressed) feature works
      * properly.
      */
     @Test
-    public void testZip(TestContext context) {
+    public void testUncompressedZip(TestContext context) {
         Async async = context.async();
         init();
+        testZip(context, "store");
+        async.complete();
+    }
 
-        Response response = given().param("expand", 100).param("zip", "true").when().get("tree/");
+    /**
+     * Tests whether the zip (compressed) feature works
+     * properly.
+     */
+    @Test
+    public void testCompressedZip(TestContext context) {
+        Async async = context.async();
+        init();
+        testZip(context, "true");
+        async.complete();
+    }
+
+    public void testZip(TestContext context, String type) {
+        Response response = given().param("expand", 100).param("zip", type).when().get("tree/");
         response.then().assertThat().statusCode(200);
         byte[] bArray = response.getBody().asByteArray();
 
@@ -100,8 +117,6 @@ public class ExpandZipTest extends AbstractTest {
         } catch (Exception e) {
             context.fail("Exception: " + e.getMessage());
         }
-
-        async.complete();
     }
 
     /**
