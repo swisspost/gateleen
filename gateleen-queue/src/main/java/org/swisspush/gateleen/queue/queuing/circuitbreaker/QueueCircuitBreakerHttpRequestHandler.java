@@ -3,6 +3,7 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
@@ -13,6 +14,7 @@ import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
 
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerAPI.*;
 
@@ -71,12 +73,17 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
                     new Handler<AsyncResult<Message<JsonObject>>>() {
                 @Override
                 public void handle(AsyncResult<Message<JsonObject>> reply) {
-                    JsonObject replyBody = reply.result().body();
-                    if (OK.equals(replyBody.getString(STATUS))) {
-                        jsonResponse(ctx.response(), replyBody.getJsonObject(VALUE));
+                    if(reply.succeeded()){
+                        JsonObject replyBody = reply.result().body();
+                        if (OK.equals(replyBody.getString(STATUS))) {
+                            jsonResponse(ctx.response(), replyBody.getJsonObject(VALUE));
+                        } else {
+                            ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
+                            ctx.response().end(reply.result().body().getString(MESSAGE));
+                        }
                     } else {
-                        ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
-                        ctx.response().end(reply.result().body().getString(MESSAGE));
+                        ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                        ctx.response().end(reply.cause().getMessage());
                     }
                 }
             });
@@ -85,8 +92,33 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
         // change single circuit status
         router.put(prefix + circuitIdParam + statusSuffix).handler(ctx ->{
             String circuitId = extractCircuitId(ctx);
-            System.out.println("*** status ***");
-            ctx.response().end();
+            ctx.request().bodyHandler(event -> {
+                QueueCircuitState state = extractStatusFromBody(event);
+                if(state == null){
+                    respondWith(StatusCode.BAD_REQUEST, "Body must contain a correct 'status' value", ctx.request());
+                } else if (QueueCircuitState.CLOSED != state){
+                    respondWith(StatusCode.FORBIDDEN, "Status can be changed to 'CLOSED' only", ctx.request());
+                } else {
+                    eventBus.send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseCircuitOperation(circuitId),
+                            new Handler<AsyncResult<Message<JsonObject>>>() {
+                                @Override
+                                public void handle(AsyncResult<Message<JsonObject>> reply) {
+                                    if(reply.succeeded()){
+                                        JsonObject replyBody = reply.result().body();
+                                        if (OK.equals(replyBody.getString(STATUS))) {
+                                            ctx.response().end();
+                                        } else {
+                                            ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                                            ctx.response().end(reply.result().body().getString(MESSAGE));
+                                        }
+                                    } else {
+                                        ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                                        ctx.response().end(reply.cause().getMessage());
+                                    }
+                                }
+                            });
+                }
+            });
         });
 
         // get single circuit
@@ -96,27 +128,49 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
                     new Handler<AsyncResult<Message<JsonObject>>>() {
                         @Override
                         public void handle(AsyncResult<Message<JsonObject>> reply) {
-                            JsonObject replyBody = reply.result().body();
-                            if (OK.equals(replyBody.getString(STATUS))) {
-                                jsonResponse(ctx.response(), replyBody.getJsonObject(VALUE));
+                            if(reply.succeeded()){
+                                JsonObject replyBody = reply.result().body();
+                                if (OK.equals(replyBody.getString(STATUS))) {
+                                    jsonResponse(ctx.response(), replyBody.getJsonObject(VALUE));
+                                } else {
+                                    ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
+                                    ctx.response().end(reply.result().body().getString(MESSAGE));
+                                }
                             } else {
-                                ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
-                                ctx.response().end(reply.result().body().getString(MESSAGE));
+                                ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                                ctx.response().end(reply.cause().getMessage());
                             }
                         }
                     });
         });
 
-        router.routeWithRegex(".*").handler(ctx -> respondWithNotAllowed(ctx.request()));
+        router.routeWithRegex(".*").handler(ctx -> respondWith(StatusCode.METHOD_NOT_ALLOWED, ctx.request()));
     }
 
     @Override
     public void handle(HttpServerRequest request) { router.accept(request); }
 
-    private void respondWithNotAllowed(HttpServerRequest request) {
-        request.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
-        request.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
-        request.response().end(StatusCode.METHOD_NOT_ALLOWED.toString());
+    private void respondWith(StatusCode statusCode, String responseMessage, HttpServerRequest request) {
+        request.response().setStatusCode(statusCode.getStatusCode());
+        request.response().setStatusMessage(statusCode.getStatusMessage());
+        request.response().end(responseMessage);
+    }
+
+    private void respondWith(StatusCode statusCode, HttpServerRequest request) {
+        respondWith(statusCode, statusCode.getStatusMessage(), request);
+    }
+
+    private QueueCircuitState extractStatusFromBody(Buffer bodyBuffer){
+        if(StringUtils.isNotEmptyTrimmed(bodyBuffer.toString())){
+            try {
+                JsonObject obj = bodyBuffer.toJsonObject();
+                QueueCircuitState state = QueueCircuitState.fromString(obj.getString(STATUS), null);
+                return state;
+            } catch (Exception ex){
+                return null;
+            }
+        }
+        return null;
     }
 
     private void jsonResponse(HttpServerResponse response, JsonObject object) {
@@ -147,6 +201,9 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
                     case getCircuitStatus:
                         handleGetCircuitStatus(event);
                         break;
+                    case closeCircuit:
+                        handleCloseCircuit(event);
+                        break;
                     default:
                         unsupportedOperation(opString, event);
                 }
@@ -158,7 +215,7 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
         String circuitHash = message.body().getJsonObject(PAYLOAD).getString(CIRCUIT_HASH);
         storage.getQueueCircuitInformation(circuitHash).setHandler(event -> {
             if(event.failed()){
-                message.reply(new JsonObject().put(STATUS, ERROR));
+                message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, event.cause().getMessage()));
                 return;
             }
             message.reply(new JsonObject().put(STATUS, OK).put(VALUE, event.result()));
@@ -169,10 +226,22 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
         String circuitHash = message.body().getJsonObject(PAYLOAD).getString(CIRCUIT_HASH);
         storage.getQueueCircuitState(circuitHash).setHandler(event -> {
             if(event.failed()){
-                message.reply(new JsonObject().put(STATUS, ERROR));
+                message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, event.cause().getMessage()));
                 return;
             }
             message.reply(new JsonObject().put(STATUS, OK).put(VALUE, new JsonObject().put("status", event.result().name())));
+        });
+    }
+
+    private void handleCloseCircuit(Message<JsonObject> message){
+        String circuitHash = message.body().getJsonObject(PAYLOAD).getString(CIRCUIT_HASH);
+        PatternAndCircuitHash patternAndCircuitHash = new PatternAndCircuitHash(null, circuitHash);
+        storage.closeCircuit(patternAndCircuitHash).setHandler(event -> {
+            if(event.failed()){
+                message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, event.cause().getMessage()));
+                return;
+            }
+            message.reply(new JsonObject().put(STATUS, OK));
         });
     }
 

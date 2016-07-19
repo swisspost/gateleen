@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerAPI.*;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerHttpRequestHandler.HTTP_REQUEST_API_ADDRESS;
@@ -39,8 +40,6 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         queueCircuitBreakerStorage = Mockito.mock(QueueCircuitBreakerStorage.class);
         new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage, "/queuing/circuit");
     }
-
-
 
     @Test
     public void testGetQueueCircuitStateSuccess(TestContext context){
@@ -125,4 +124,42 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
                     }
                 });
     }
+
+    @Test
+    public void testCloseCircuitSuccess(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.closeCircuit(any(PatternAndCircuitHash.class)))
+                .thenReturn(Future.succeededFuture());
+
+        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseCircuitOperation("someCircuit"),
+                new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        JsonObject replyBody = reply.result().body();
+                        context.assertEquals(OK, replyBody.getString(STATUS));
+                        async.complete();
+                    }
+                });
+    }
+
+    @Test
+    public void testCloseCircuitFail(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.closeCircuit(any(PatternAndCircuitHash.class)))
+                .thenReturn(Future.failedFuture("unable to close circuit"));
+
+        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseCircuitOperation("someCircuit"),
+                new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        JsonObject replyBody = reply.result().body();
+                        context.assertEquals(ERROR, replyBody.getString(STATUS));
+                        context.assertEquals("unable to close circuit", replyBody.getString(MESSAGE));
+                        async.complete();
+                    }
+                });
+    }
+
 }

@@ -1,0 +1,20 @@
+{
+  "circuitCheckEnabled": true,
+  "statisticsUpdateEnabled": true,
+  "errorThresholdPercentage": 99,
+  "entriesMaxAgeMS": 43200000,
+  "minQueueSampleCount": 4,
+  "maxQueueSampleCount": 2500,
+  "openToHalfOpen": {
+    "enabled": true,
+    "interval": 120000
+  },
+  "unlockQueues": {
+    "enabled": true,
+    "interval": 120000
+  },
+  "unlockSampleQueues": {
+    "enabled": true,
+    "interval": 120000
+  }
+}

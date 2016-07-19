@@ -18,7 +18,7 @@ public class QueueCircuitBreakerAPI {
     public static final String CIRCUIT_STATUS = "status";
 
     public enum Operation {
-        getCircuitInformation,getCircuitStatus,setCircuitStatus;
+        getCircuitInformation, getCircuitStatus, closeCircuit;
 
         Operation(){}
 
@@ -52,7 +52,7 @@ public class QueueCircuitBreakerAPI {
         return buildOperation(Operation.getCircuitStatus, new JsonObject().put(CIRCUIT_HASH, circuitHash));
     }
 
-    public static JsonObject buildSetCircuitStatusOperation(String circuitHash, QueueCircuitState state){
-        return buildOperation(Operation.getCircuitStatus, new JsonObject().put(CIRCUIT_HASH, circuitHash).put(CIRCUIT_STATUS, state.name()));
+    public static JsonObject buildCloseCircuitOperation(String circuitHash){
+        return buildOperation(Operation.closeCircuit, new JsonObject().put(CIRCUIT_HASH, circuitHash));
     }
 }
