@@ -15,6 +15,7 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Log4jConfigurer;
+import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.property.PropertyHandler;
@@ -22,6 +23,7 @@ import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
+import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -90,12 +92,15 @@ public class RunConfig {
     private CopyResourceHandler copyResourceHandler;
     private QoSHandler qosHandler;
     private PropertyHandler propertyHandler;
+    private ZipExtractHandler zipExtractHandler;
+    private DelegateHandler delegateHandler;
 
     public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
                      EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
-                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler) {
+                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler,
+                     ZipExtractHandler zipExtractHandler, DelegateHandler delegateHandler) {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.verticleClass = verticleClass;
@@ -117,6 +122,8 @@ public class RunConfig {
         this.copyResourceHandler = copyResourceHandler;
         this.qosHandler = qosHandler;
         this.propertyHandler = propertyHandler;
+        this.zipExtractHandler = zipExtractHandler;
+        this.delegateHandler = delegateHandler;
         init();
     }
 
@@ -141,7 +148,9 @@ public class RunConfig {
                 builder.authorizer,
                 builder.copyResourceHandler,
                 builder.qosHandler,
-                builder.propertyHandler);
+                builder.propertyHandler,
+                builder.zipExtractHandler,
+                builder.delegateHandler);
     }
 
     private void init(){
@@ -189,6 +198,8 @@ public class RunConfig {
         private CopyResourceHandler copyResourceHandler;
         private QoSHandler qosHandler;
         public PropertyHandler propertyHandler;
+        private ZipExtractHandler zipExtractHandler;
+        private DelegateHandler delegateHandler;
 
         public RunConfigBuilder(){}
 
@@ -264,6 +275,16 @@ public class RunConfig {
 
         public RunConfigBuilder propertyHandler(PropertyHandler propertyHandler) {
             this.propertyHandler = propertyHandler;
+            return this;
+        }
+
+        public RunConfigBuilder zipExtractHandler(ZipExtractHandler zipExtractHandler) {
+            this.zipExtractHandler = zipExtractHandler;
+            return this;
+        }
+
+        public RunConfigBuilder delegateHandler(DelegateHandler delegateHandler) {
+            this.delegateHandler = delegateHandler;
             return this;
         }
 
@@ -495,6 +516,12 @@ public class RunConfig {
                             return;
                         }
                         if (propertyHandler != null && propertyHandler.handle(request)) {
+                            return;
+                        }
+                        if ( zipExtractHandler != null && zipExtractHandler.handle(request) ) {
+                            return;
+                        }
+                        if ( delegateHandler != null && delegateHandler.handle(request)) {
                             return;
                         }
                         if (userProfileHandler != null && userProfileHandler.isUserProfileRequest(request)) {

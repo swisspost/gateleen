@@ -9,8 +9,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import jdk.Exported;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -83,7 +81,7 @@ public class ListenerTest extends AbstractTest {
 
         String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String target = targetUrlBase + "/" + listenerName;
-        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+        String[] methods = new String[]{"GET", "PUT", "DELETE", "POST"};
 
         registerListener(requestUrl, target, methods, null);
         unregisterListener(requestUrl);
@@ -110,7 +108,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrl = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String target = targetUrlBase + "/" + listenerName;
-        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+        String[] methods = new String[]{"GET", "PUT", "DELETE", "POST"};
 
         final String requestUrl = requestUrlBase + "/" + subresource + "/" + "test";
         final String targetUrl = target + "/" + "test";
@@ -164,7 +162,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String targetListener1 = targetUrlBase + "/" + listenerName;
-        String[] methodsListener1 = new String[] { "GET", "PUT", "DELETE", "POST" };
+        String[] methodsListener1 = new String[]{"GET", "PUT", "DELETE", "POST"};
         final String targetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + "test";
 
         listenerNo = "2";
@@ -172,7 +170,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrlListener2 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String targetListener2 = targetUrlBase + "/" + listenerName;
-        String[] methodsListener2 = new String[] { "GET", "PUT", "DELETE", "POST" };
+        String[] methodsListener2 = new String[]{"GET", "PUT", "DELETE", "POST"};
         final String targetUrlListener2 = targetUrlBase + "/" + listenerName + "/" + "test";
         // -------
 
@@ -250,7 +248,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String targetListener1 = targetUrlBase + "/" + listenerName;
-        String[] methodsListener1 = new String[] { "GET", "PUT", "DELETE", "POST" };
+        String[] methodsListener1 = new String[]{"GET", "PUT", "DELETE", "POST"};
         final String masterTargetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + "test";
         final String slaveTargetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + additionalSubResource + "/" + "test";
 
@@ -259,7 +257,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrlListener2 = requestUrlBase + "/" + subresource + "/" + additionalSubResource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String targetListener2 = targetUrlBase + "/" + listenerName;
-        String[] methodsListener2 = new String[] { "GET", "PUT", "DELETE", "POST" };
+        String[] methodsListener2 = new String[]{"GET", "PUT", "DELETE", "POST"};
         final String slaveTargetUrlListener2 = targetUrlBase + "/" + listenerName + "/" + "test";
         // -------
 
@@ -462,6 +460,60 @@ public class ListenerTest extends AbstractTest {
     }
 
     @Test
+    public void testAfterTriggerType(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        // Settings
+        String subresource = "afterTwoListener";
+        String listenerNo = "1";
+        String listenerName = "firstListener";
+
+        String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
+        String targetListener1 = targetUrlBase + "/" + listenerName;
+        String[] methodsListener1 = new String[]{"GET", "PUT", "DELETE", "POST"};
+        final String targetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + "test";
+
+        listenerNo = "2";
+        listenerName = "secondListener";
+
+        String registerUrlListener2 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
+        String targetListener2 = targetUrlBase + "/" + listenerName;
+        String[] methodsListener2 = new String[]{"GET", "PUT", "DELETE", "POST"};
+        final String targetUrlListener2 = targetUrlBase + "/" + listenerName + "/" + "test";
+        // -------
+
+        final String requestUrl = requestUrlBase + "/" + subresource + "/" + "test";
+        final String body = "{ \"name\" : \"" + subresource + "\"}";
+
+        delete(requestUrl);
+        delete(targetUrlListener1);
+        delete(targetUrlListener2);
+
+        /*
+         * Sending request, both listener hooked
+         */
+        registerListener(registerUrlListener1, targetListener1, methodsListener1, 4, null, null, null, HookTriggerType.AFTER);
+        registerListener(registerUrlListener2, targetListener2, methodsListener2, 4, null, null, null, HookTriggerType.BEFORE);
+
+        checkPUTStatusCode(requestUrl, body, 200);
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+        checkGETBodyWithAwait(targetUrlListener1, body);
+        checkGETBodyWithAwait(targetUrlListener2, body);
+
+        checkDELETEStatusCode(requestUrl, 200);
+        checkGETStatusCodeWithAwait(requestUrl, 404);
+        checkGETStatusCodeWithAwait(targetUrlListener1, 404);
+        checkGETStatusCodeWithAwait(targetUrlListener2, 404);
+
+        unregisterListener(registerUrlListener1);
+        unregisterListener(registerUrlListener2);
+
+        async.complete();
+    }
+
+    @Test
     public void testDeadLock(TestContext context) {
         Async async = context.async();
         delete();
@@ -522,14 +574,14 @@ public class ListenerTest extends AbstractTest {
         // ----
 
         // register Listener
-        registerListener(requestUrl,targetUrl,null, 10, null, 5);
+        registerListener(requestUrl, targetUrl, null, 10, null, 5);
 
         // lock queue
         String lockRequestUrl = "queuing/locks/" + queueName;
         given().put(lockRequestUrl);
 
         // put
-        checkPUTStatusCode(putRequest,body, 200);
+        checkPUTStatusCode(putRequest, body, 200);
 
         // check if item is in queue
         when().get("queuing/queues/").then().assertThat().body("queues", hasItem(queueName));
@@ -551,7 +603,7 @@ public class ListenerTest extends AbstractTest {
         when().get(putTarget).then().assertThat().statusCode(404);
 
         // put
-        checkPUTStatusCode(putRequest,body, 200);
+        checkPUTStatusCode(putRequest, body, 200);
 
         // get
         checkGETBodyWithAwait(putTarget, body);
@@ -578,7 +630,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrl = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String target = "http://localhost:" + WIREMOCK_PORT + "/" + listenerName;
-        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+        String[] methods = new String[]{"GET", "PUT", "DELETE", "POST"};
 
         final String requestUrl = requestUrlBase + "/" + subresource + "/" + "test";
         final String targetUrl = target + "/" + "test";
@@ -638,7 +690,7 @@ public class ListenerTest extends AbstractTest {
     /**
      * Checks if the DELETE request gets a response
      * with the given status code.
-     * 
+     *
      * @param requestUrl
      * @param statusCode
      */
@@ -649,7 +701,7 @@ public class ListenerTest extends AbstractTest {
     /**
      * Checks if the PUT request gets a response
      * with the given status code.
-     * 
+     *
      * @param requestUrl
      * @param body
      * @param statusCode
@@ -662,7 +714,7 @@ public class ListenerTest extends AbstractTest {
      * Checks if the GET request for the
      * resource gets a response with
      * the given status code.
-     * 
+     *
      * @param request
      * @param statusCode
      */
@@ -673,7 +725,7 @@ public class ListenerTest extends AbstractTest {
     /**
      * Checks if the GET request of the
      * given resource returns the wished body.
-     * 
+     *
      * @param requestUrl
      * @param body
      */
@@ -717,11 +769,11 @@ public class ListenerTest extends AbstractTest {
      * @param queueExpireTime
      */
     private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime) {
-        registerListener(requestUrl, target, methods,expireTime,filter,queueExpireTime,null);
+        registerListener(requestUrl, target, methods, expireTime, filter, queueExpireTime, null);
     }
 
     /**
-     * Registers a listener with a filter.
+     * Registers a listener with a filter and static headers.
      *
      * @param requestUrl
      * @param target
@@ -732,6 +784,21 @@ public class ListenerTest extends AbstractTest {
      * @param staticHeaders
      */
     private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders) {
+        registerListener(requestUrl, target, methods, expireTime, filter, queueExpireTime, staticHeaders, null);
+    }
+
+    /**
+     * Registers a listener with a filter, static headers and a event trigger.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param expireTime
+     * @param filter
+     * @param queueExpireTime
+     * @param staticHeaders
+     */
+    private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type) {
         String body = "{ \"destination\":\"" + target + "\"";
 
         String m = null;
@@ -745,6 +812,8 @@ public class ListenerTest extends AbstractTest {
         body += expireTime != null ? ", \""+ HookHandler.EXPIRE_AFTER + "\" : " + expireTime : "";
         body += queueExpireTime != null ? ", \""+ HookHandler.QUEUE_EXPIRE_AFTER + "\" : " + queueExpireTime : "";
         body += filter != null ? ", \"filter\" : \"" + filter + "\"" : "";
+        body += type != null ? ", \"type\" : \"" + type.text() + "\"" : "";
+
 
         if ( staticHeaders != null && staticHeaders.size() > 0 ) {
             body = body + ", \"staticHeaders\" : {";

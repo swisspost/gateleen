@@ -16,4 +16,5 @@ include 'gateleen-test'
 include 'gateleen-queue'
 include 'gateleen-user'
 include 'gateleen-validation'
+include 'gateleen-delegate'
 

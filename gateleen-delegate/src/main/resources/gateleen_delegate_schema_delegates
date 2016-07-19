@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "Delegate definition",
+  "type": "object",
+  "properties": {
+    "methods": {
+      "description": "Restricts the HTTP methods concerned by this rule (`GET`, `PUT`, `POST`, `DELETE`).\nWhen absent, all methods are concerned.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pattern": {
+      "description": "Pattern for grouping the incomming uri",
+      "type": "string"
+    },
+    "requests": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/Request"}
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Request": {
+      "properties": {
+        "uri": {
+          "description": "The target of the request",
+          "type": "string"
+        },
+        "method": {
+          "description": "The operation to perform",
+          "enum": [
+            "GET",
+            "PUT",
+            "POST",
+            "DELETE"
+          ]
+        },
+        "payload": {
+          "description": "The payload to send in requests body"
+        },
+        "headers": {
+          "description": "Headers to send with the request",
+          "type": "array",
+          "items": {
+            "description": "Header value pairs",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "uri",
+        "method"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "methods",
+    "pattern",
+    "requests"
+  ]
+}
