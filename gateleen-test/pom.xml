@@ -94,7 +94,12 @@
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
+		<dependency>
+			<groupId>org.swisspush.gateleen</groupId>
+			<artifactId>gateleen-delegate</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 		<!-- vertx stuff -->
 		<dependency>
 			<groupId>io.vertx</groupId>

@@ -26,6 +26,7 @@
 		<module>gateleen-runconfig</module>
 		<module>gateleen-integrationtest</module>
 		<module>gateleen-playground</module>
+		<module>gateleen-delegate</module>
 	</modules>
 	<packaging>pom</packaging>
 	<dependencyManagement>

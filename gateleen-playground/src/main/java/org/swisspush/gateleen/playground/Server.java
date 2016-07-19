@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
@@ -87,6 +88,7 @@ public class Server extends AbstractVerticle {
     private QoSHandler qosHandler;
     private HookHandler hookHandler;
     private ZipExtractHandler zipExtractHandler;
+    private DelegateHandler delegateHandler;
 
     private Logger log = LoggerFactory.getLogger(Server.class);
 
@@ -149,9 +151,12 @@ public class Server extends AbstractVerticle {
                     validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
                     schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
                     zipExtractHandler = new ZipExtractHandler(selfClient);
-
+                    delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/delegate/v1/delegates/", props);
                     router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
-                            (Handler<Void>) aVoid -> hookHandler.init());
+                            (Handler<Void>) aVoid -> {
+                                hookHandler.init();
+                                delegateHandler.init();
+                            });
 
                     new QueueProcessor(vertx, selfClient, monitoringHandler);
                     final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
@@ -178,6 +183,7 @@ public class Server extends AbstractVerticle {
                             .loggingResourceManager(loggingResourceManager)
                             .schedulerResourceManager(schedulerResourceManager)
                             .zipExtractHandler(zipExtractHandler)
+                            .delegateHandler(delegateHandler)
                             .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
                     Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                     selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
