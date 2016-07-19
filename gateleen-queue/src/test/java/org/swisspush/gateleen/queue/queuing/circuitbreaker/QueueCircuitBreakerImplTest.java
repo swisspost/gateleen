@@ -1,10 +1,9 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
-import io.vertx.core.Future;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -57,8 +56,11 @@ public class QueueCircuitBreakerImplTest {
         queueCircuitBreakerStorage = Mockito.mock(QueueCircuitBreakerStorage.class);
         ruleProvider = new RuleProvider(vertx, "/path/to/routing/rules", storage, props);
         ruleToCircuitMapping = Mockito.mock(QueueCircuitBreakerRulePatternToCircuitMapping.class);
-        configResourceManager = Mockito.spy(new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, "/path/to/circuitbreaker/config"));
-        queueCircuitBreaker = Mockito.spy(new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage, ruleProvider, ruleToCircuitMapping, configResourceManager));
+        configResourceManager = Mockito.spy(new QueueCircuitBreakerConfigurationResourceManager(vertx, storage,
+                "/path/to/circuitbreaker/config"));
+        Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler = Mockito.mock(Handler.class);
+        queueCircuitBreaker = Mockito.spy(new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage, ruleProvider,
+                ruleToCircuitMapping, configResourceManager, queueCircuitBreakerHttpRequestHandler,9999));
     }
 
     @Test

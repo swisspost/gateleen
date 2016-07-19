@@ -2,6 +2,8 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
 import io.vertx.core.*;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -16,7 +18,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.swisspush.redisques.util.RedisquesAPI.*;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerAPI.*;
+import static org.swisspush.redisques.util.RedisquesAPI.buildDeleteLockOperation;
+import static org.swisspush.redisques.util.RedisquesAPI.buildPutLockOperation;
+
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -36,7 +41,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private long unlockQueuesTimerId = -1;
     private long unlockSampleQueuesTimerId = -1;
 
-    public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager) {
+    public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
         this.vertx = vertx;
         this.redisquesAddress = Address.redisquesAddress();
         this.queueCircuitBreakerStorage = queueCircuitBreakerStorage;
@@ -47,6 +52,17 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         this.configResourceManager.addRefreshable(this);
 
         registerPeriodicTasks();
+
+        // in Vert.x 2x 100-continues was activated per default, in vert.x 3x it is off per default.
+        HttpServerOptions options = new HttpServerOptions().setHandle100ContinueAutomatically(true);
+
+        vertx.createHttpServer(options).requestHandler(queueCircuitBreakerHttpRequestHandler).listen(requestHandlerPort, event -> {
+            if(event.succeeded()){
+                log.info("Successfully listening to port " + requestHandlerPort);
+            } else {
+                log.error("Unable to listen to port " + requestHandlerPort + ". Cannot handle QueueCircuitBreaker http requests");
+            }
+        });
     }
 
     private void registerPeriodicTasks(){

@@ -2,6 +2,7 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.redis.RedisClient;
@@ -30,6 +31,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public static final String STORAGE_QUEUES_TO_UNLOCK = STORAGE_PREFIX + "queues-to-unlock";
     public static final String FIELD_STATE = "state";
     public static final String FIELD_FAILRATIO = "failRatio";
+    public static final String FIELD_CIRCUIT = "circuit";
 
     private LuaScriptState openCircuitLuaScriptState;
     private LuaScriptState closeCircuitLuaScriptState;
@@ -59,6 +61,54 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                     log.info("No status information found for circuit " + patternAndCircuitHash.getPattern().pattern() + ". Using default value " + QueueCircuitState.CLOSED);
                 }
                 future.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public Future<QueueCircuitState> getQueueCircuitState(String circuitHash) {
+        Future<QueueCircuitState> future = Future.future();
+        redisClient.hget(buildInfosKey(circuitHash), FIELD_STATE, event -> {
+            if(event.failed()){
+                future.fail(event.cause());
+            } else {
+                String stateAsString = event.result();
+                if(StringUtils.isEmpty(stateAsString)){
+                    log.info("No status information found for circuit " + circuitHash + ". Using default value " + QueueCircuitState.CLOSED);
+                }
+                future.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public Future<JsonObject> getQueueCircuitInformation(String circuitHash) {
+        Future<JsonObject> future = Future.future();
+        List<String> fields = Arrays.asList(FIELD_STATE, FIELD_FAILRATIO, FIELD_CIRCUIT);
+        redisClient.hmget(buildInfosKey(circuitHash), fields, event -> {
+            if(event.failed()){
+                future.fail(event.cause());
+            } else {
+                try {
+                    QueueCircuitState state = QueueCircuitState.fromString(event.result().getString(0), QueueCircuitState.CLOSED);
+                    String failRatioStr = event.result().getString(1);
+                    String circuit = event.result().getString(2);
+                    JsonObject result = new JsonObject();
+                    result.put("status", state.name());
+                    JsonObject info = new JsonObject();
+                    if (failRatioStr != null) {
+                        info.put(FIELD_FAILRATIO, Integer.valueOf(failRatioStr));
+                    }
+                    if (circuit != null) {
+                        info.put(FIELD_CIRCUIT, circuit);
+                    }
+                    result.put("info", info);
+                    future.complete(result);
+                }catch (Exception e){
+                    future.fail(e);
+                }
             }
         });
         return future;

@@ -75,6 +75,7 @@ public class Server extends AbstractVerticle {
 
     private int defaultRedisPort = 6379;
     private int mainPort = 7012;
+    private int circuitBreakerPort = 7013;
 
     private RedisClient redisClient;
     private ResourceStorage storage;
@@ -156,9 +157,12 @@ public class Server extends AbstractVerticle {
                     QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
                     queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
+                    QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
+                    QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
+                            SERVER_ROOT + "/queuing/circuit");
 
-                    QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, new RedisQueueCircuitBreakerStorage(redisClient),
-                            ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager);
+                    QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage,
+                            ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);
 
                     new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                     final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);

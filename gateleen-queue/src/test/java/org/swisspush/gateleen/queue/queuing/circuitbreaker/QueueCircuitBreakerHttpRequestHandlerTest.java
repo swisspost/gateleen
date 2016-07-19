@@ -1,0 +1,128 @@
+package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.Timeout;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+
+import static org.mockito.Matchers.anyString;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerAPI.*;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerHttpRequestHandler.HTTP_REQUEST_API_ADDRESS;
+
+/**
+ * Tests for the {@link QueueCircuitBreakerHttpRequestHandler} class
+ *
+ * @author https://github.com/mcweba [Marc-Andre Weber]
+ */
+@RunWith(VertxUnitRunner.class)
+public class QueueCircuitBreakerHttpRequestHandlerTest {
+
+    private Vertx vertx;
+    private QueueCircuitBreakerStorage queueCircuitBreakerStorage;
+
+    @org.junit.Rule
+    public Timeout rule = Timeout.seconds(5);
+
+    @Before
+    public void setUp(){
+        vertx = Vertx.vertx();
+        queueCircuitBreakerStorage = Mockito.mock(QueueCircuitBreakerStorage.class);
+        new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage, "/queuing/circuit");
+    }
+
+
+
+    @Test
+    public void testGetQueueCircuitStateSuccess(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(anyString()))
+                .thenReturn(Future.succeededFuture(QueueCircuitState.HALF_OPEN));
+
+        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitStatusOperation("someCircuit"),
+                new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        JsonObject replyBody = reply.result().body();
+                        context.assertEquals(OK, replyBody.getString(STATUS));
+                        context.assertEquals(QueueCircuitState.HALF_OPEN.name(), replyBody.getJsonObject(VALUE).getString(STATUS));
+                        async.complete();
+                    }
+                });
+    }
+
+    @Test
+    public void testGetQueueCircuitStateFail(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(anyString()))
+                .thenReturn(Future.failedFuture("unable to get state"));
+
+        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitStatusOperation("someCircuit"),
+                new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        JsonObject replyBody = reply.result().body();
+                        context.assertEquals(ERROR, replyBody.getString(STATUS));
+                        async.complete();
+                    }
+                });
+    }
+
+    @Test
+    public void testGetQueueCircuitInformationSuccess(TestContext context){
+        Async async = context.async();
+
+        JsonObject result = new JsonObject();
+        result.put("status", QueueCircuitState.HALF_OPEN.name());
+        JsonObject info = new JsonObject();
+        info.put("failRatio", 99);
+        info.put("circuit", "/path/of/circuit");
+        result.put("info", info);
+
+        Mockito.when(queueCircuitBreakerStorage.getQueueCircuitInformation(anyString()))
+                .thenReturn(Future.succeededFuture(result));
+
+        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitInformationOperation("someCircuit"),
+                new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        JsonObject replyBody = reply.result().body();
+                        context.assertEquals(OK, replyBody.getString(STATUS));
+                        JsonObject payload = replyBody.getJsonObject(VALUE);
+                        context.assertEquals(QueueCircuitState.HALF_OPEN.name(), payload.getString(STATUS));
+                        context.assertEquals(99, payload.getJsonObject("info").getInteger("failRatio"));
+                        context.assertEquals("/path/of/circuit", payload.getJsonObject("info").getString("circuit"));
+                        async.complete();
+                    }
+                });
+    }
+
+    @Test
+    public void testGetQueueCircuitInformationFail(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.getQueueCircuitInformation(anyString()))
+                .thenReturn(Future.failedFuture("failed to get information"));
+
+        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitInformationOperation("someCircuit"),
+                new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        JsonObject replyBody = reply.result().body();
+                        context.assertEquals(ERROR, replyBody.getString(STATUS));
+                        async.complete();
+                    }
+                });
+    }
+}

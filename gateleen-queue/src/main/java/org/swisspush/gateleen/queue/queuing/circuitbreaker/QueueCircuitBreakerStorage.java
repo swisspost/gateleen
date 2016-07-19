@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
 import io.vertx.core.Future;
+import io.vertx.core.json.JsonObject;
 
 import java.util.List;
 
@@ -10,6 +11,10 @@ import java.util.List;
 public interface QueueCircuitBreakerStorage {
 
     Future<QueueCircuitState> getQueueCircuitState(PatternAndCircuitHash patternAndCircuitHash);
+
+    Future<QueueCircuitState> getQueueCircuitState(String circuitHash);
+
+    Future<JsonObject> getQueueCircuitInformation(String circuitHash);
 
     Future<UpdateStatisticsResult> updateStatistics(PatternAndCircuitHash patternAndCircuitHash, String uniqueRequestID, long timestamp, int errorThresholdPercentage, long entriesMaxAgeMS, long minQueueSampleCount, long maxQueueSampleCount, QueueResponseType queueResponseType);
 

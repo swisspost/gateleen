@@ -3,6 +3,7 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
@@ -55,6 +56,47 @@ public class RedisQueueCircuitBreakerStorageTest {
             writeQueueCircuitStateToDatabase("someCircuitHash", HALF_OPEN);
             storage.getQueueCircuitState(patternAndCircuitHash).setHandler(event1 -> {
                 context.assertEquals(HALF_OPEN, event1.result());
+                async.complete();
+            });
+        });
+    }
+
+    @Test
+    public void testGetQueueCircuitStateByHash(TestContext context){
+        Async async = context.async();
+        storage.getQueueCircuitState("someCircuitHash").setHandler(event -> {
+            context.assertEquals(CLOSED, event.result());
+            writeQueueCircuitStateToDatabase("someCircuitHash", HALF_OPEN);
+            storage.getQueueCircuitState("someCircuitHash").setHandler(event1 -> {
+                context.assertEquals(HALF_OPEN, event1.result());
+                async.complete();
+            });
+        });
+    }
+
+    @Test
+    public void testGetQueueCircuitInformation(TestContext context){
+        Async async = context.async();
+        String hash = "someCircuitHash";
+        storage.getQueueCircuitInformation(hash).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            JsonObject result = event.result();
+            context.assertEquals(CLOSED.name(), result.getString("status"));
+            context.assertTrue(result.containsKey("info"));
+            context.assertFalse(result.getJsonObject("info").containsKey("failRatio"));
+            context.assertFalse(result.getJsonObject("info").containsKey("circuit"));
+
+            writeQueueCircuitField(hash, FIELD_STATE, QueueCircuitState.HALF_OPEN.name());
+            writeQueueCircuitField(hash, FIELD_FAILRATIO, "99");
+            writeQueueCircuitField(hash, FIELD_CIRCUIT, "/some/circuit/path");
+
+            storage.getQueueCircuitInformation(hash).setHandler(event1 -> {
+                context.assertTrue(event1.succeeded());
+                JsonObject result1 = event1.result();
+                context.assertEquals(HALF_OPEN.name(), result1.getString("status"));
+                context.assertTrue(result1.containsKey("info"));
+                context.assertEquals(99, result1.getJsonObject("info").getInteger("failRatio"));
+                context.assertEquals("/some/circuit/path", result1.getJsonObject("info").getString("circuit"));
                 async.complete();
             });
         });
@@ -628,6 +670,10 @@ public class RedisQueueCircuitBreakerStorageTest {
 
     private void writeQueueCircuitStateToDatabase(String circuitHash, QueueCircuitState state){
         jedis.hset(STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX, FIELD_STATE, state.name());
+    }
+
+    private void writeQueueCircuitField(String circuitHash, String field, String value){
+        jedis.hset(STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX, field, value);
     }
 
     private void writeQueueCircuitFailPercentageToDatabase(String circuitHash, int failPercentage){
