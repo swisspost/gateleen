@@ -5,6 +5,7 @@ import io.vertx.core.http.*;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.reststorage.MimeTypeResolver;
 
 import java.io.ByteArrayInputStream;
 import java.util.zip.ZipEntry;
@@ -22,8 +23,10 @@ public class ZipExtractHandler {
     private static final String ZIP_RESOURCE_FLAG = ".zip/";
     private static final int DEFAULT_TIMEOUT = 120000;
     private static final byte[] ZIP_BUFFER_SIZE = new byte[2048];
+    private static final String DEFAULT_MIME_TYPE = "application/json";
 
     private final HttpClient selfClient;
+    private final MimeTypeResolver mimeTypeResolver;
 
 
     /**
@@ -33,6 +36,7 @@ public class ZipExtractHandler {
      */
     public ZipExtractHandler(HttpClient selfClient) {
         this.selfClient = selfClient;
+        this.mimeTypeResolver = new MimeTypeResolver(DEFAULT_MIME_TYPE);
     }
 
     /**
@@ -75,7 +79,7 @@ public class ZipExtractHandler {
                 extractResourceFromZip(req, zipUrl, insidePath, response);
             } else {
                 log.debug("GET of zip resource {} failed.", zipUrl);
-                createResponse(req, response.statusCode(), response.statusMessage(), null);
+                createResponse(req, response.statusCode(), response.statusMessage(), null, null);
             }
         });
 
@@ -96,10 +100,16 @@ public class ZipExtractHandler {
      * @param statusCode
      * @param statusMessage
      * @param buffer
+     * @param mimeType
      */
-    private void createResponse(final HttpServerRequest req, final int statusCode, final String statusMessage, final Buffer buffer) {
+    private void createResponse(final HttpServerRequest req, final int statusCode, final String statusMessage, final Buffer buffer, final String mimeType) {
         req.response().setStatusCode(statusCode);
         req.response().setStatusMessage(statusMessage);
+
+        if ( mimeType != null ) {
+            req.response().headers().add("Content-Type", mimeType);
+        }
+
         if ( buffer != null ) {
             req.response().end(buffer);
         }
@@ -149,16 +159,16 @@ public class ZipExtractHandler {
 
                 if ( foundEntry ) {
                     // append content to response
-                    createResponse(req, StatusCode.OK.getStatusCode(),StatusCode.OK.getStatusMessage(), contentBuffer);
+                    createResponse(req, StatusCode.OK.getStatusCode(),StatusCode.OK.getStatusMessage(), contentBuffer, mimeTypeResolver.resolveMimeType(insidePath));
                 }
                 else {
                     // return 404 - not found
                     log.error("could not extract {} from {}", new Object[] { insidePath, zipUrl });
-                    createResponse(req, StatusCode.NOT_FOUND.getStatusCode(),StatusCode.NOT_FOUND.getStatusMessage(), null);
+                    createResponse(req, StatusCode.NOT_FOUND.getStatusCode(),StatusCode.NOT_FOUND.getStatusMessage(), null, null);
                 }
             } catch (Exception e) {
                 log.error("could not extract {} from {}: {}", new Object[] { insidePath, zipUrl, e.getMessage() });
-                createResponse(req, StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(),StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage(), null);
+                createResponse(req, StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(),StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage(), null, null);
             }
         });
     }
