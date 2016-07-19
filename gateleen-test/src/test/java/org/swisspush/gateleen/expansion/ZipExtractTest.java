@@ -34,6 +34,9 @@ public class ZipExtractTest extends AbstractTest {
         // resource is found?
         context.assertEquals(response.getStatusCode(), 200);
 
+        // mime type correct?
+        context.assertEquals(response.getHeader("Content-Type"), "image/png");
+
         // test binary file
         try {
             File responseFile = File.createTempFile("gateleen", "png");
@@ -54,6 +57,9 @@ public class ZipExtractTest extends AbstractTest {
 
         // resource is found?
         context.assertEquals(response.getStatusCode(), 200);
+
+        // mime type correct?
+        context.assertEquals(response.getHeader("Content-Type"), "text/plain");
 
         // test plain text
         try {
