@@ -235,7 +235,7 @@ public class DelegateHandler {
         }
 
         request.bodyHandler(buffer -> {
-            final String delegateName = getDelegegateName(request.uri());
+            final String delegateName = getDelegateName(request.uri());
 
             // check if everything is fine
             try {
@@ -276,7 +276,7 @@ public class DelegateHandler {
             LOG.trace("handleDelegateUnregistration: {}", request.uri());
         }
 
-        String delegateName = getDelegegateName(request.uri());
+        String delegateName = getDelegateName(request.uri());
         storage.delete(delegatesUri + delegateName, status -> {
             vertx.eventBus().publish(REMOVE_DELEGATE_ADDRESS, delegateName);
             request.response().end();
@@ -291,7 +291,7 @@ public class DelegateHandler {
      * @param uri original request uri
      * @return the name of the delegate or null if nothing matches
      */
-    private String getDelegegateName(final String uri) {
+    private String getDelegateName(final String uri) {
         /*
             URI could be:
                 >  /gateleen/server/delegate/v1/delegates/user-zip-copy/definition
@@ -317,7 +317,7 @@ public class DelegateHandler {
      * @return true if processed, false otherwise
      */
     public boolean handle(final HttpServerRequest request) {
-        final String delegateName = getDelegegateName(request.uri());
+        final String delegateName = getDelegateName(request.uri());
         if (delegateName != null){
 
             // Registration
@@ -358,7 +358,7 @@ public class DelegateHandler {
      * @param request original request
      */
     private void handleDelegateExecution(final HttpServerRequest request) {
-        String delegateName = getDelegegateName(request.uri());
+        String delegateName = getDelegateName(request.uri());
         Delegate delegate = delegateMap.get(delegateName);
         delegate.handle(request);
     }
