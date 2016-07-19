@@ -29,6 +29,7 @@ public class Delegate {
     private static final String URI = "uri";
     private static final String METHOD = "method";
     private static final int FIRST = 0;
+    private static final int STATUS_CODE_2XX = 2;
 
     private final String name;
     private final HttpClient selfClient;
@@ -156,8 +157,7 @@ public class Delegate {
                 }
 
                 // request was fine
-                if ( response.statusCode() == StatusCode.OK.getStatusCode() ||
-                        response.statusCode() == StatusCode.ACCEPTED.getStatusCode() ) {
+                if ( ( response.statusCode() / 100 ) == STATUS_CODE_2XX  ) {
                     if ( LOG.isTraceEnabled() ) {
                         LOG.trace("Done handler - OK");
                     }
@@ -174,7 +174,7 @@ public class Delegate {
                     // if not, send corresponding respond
                     else {
                         if ( LOG.isTraceEnabled() ) {
-                            LOG.trace("Done handler - all requests done, create response");
+                        LOG.trace("Done handler - not 2XX, create response [{}]", response.statusCode());
                         }
                         createResponse(request, response);
                     }
