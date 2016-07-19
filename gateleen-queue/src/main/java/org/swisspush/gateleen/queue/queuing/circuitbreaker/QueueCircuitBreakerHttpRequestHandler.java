@@ -48,12 +48,12 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
 
         // list all circuits
         router.get(prefix).handler(ctx ->{
-            ctx.response().end();
+            handleGetAllCircuitsRequest(ctx);
         });
 
         // list all circuits
         router.get(prefix + "/" + allPrefix).handler(ctx ->{
-            ctx.response().end();
+            handleGetAllCircuitsRequest(ctx);
         });
 
         // change all circuit states
@@ -208,6 +208,27 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
         return ctx.request().getParam("circuitId");
     }
 
+    private void handleGetAllCircuitsRequest(RoutingContext ctx){
+        eventBus.send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetAllCircuitsOperation(),
+                new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        if(reply.succeeded()){
+                            JsonObject replyBody = reply.result().body();
+                            if (OK.equals(replyBody.getString(STATUS))) {
+                                jsonResponse(ctx.response(), replyBody.getJsonObject(VALUE));
+                            } else {
+                                ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
+                                ctx.response().end(reply.result().body().getString(MESSAGE));
+                            }
+                        } else {
+                            ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                            ctx.response().end(reply.cause().getMessage());
+                        }
+                    }
+                });
+    }
+
     private void registerAPIConsumer(){
         eventBus.localConsumer(QueueCircuitBreakerHttpRequestHandler.HTTP_REQUEST_API_ADDRESS, new Handler<Message<JsonObject>>(){
 
@@ -232,6 +253,9 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
                         break;
                     case closeAllCircuits:
                         handleCloseAllCircuits(event);
+                        break;
+                    case getAllCircuits:
+                        handleGetAllCircuits(event);
                         break;
                     default:
                         unsupportedOperation(opString, event);
@@ -281,6 +305,16 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
                 return;
             }
             message.reply(new JsonObject().put(STATUS, OK));
+        });
+    }
+
+    private void handleGetAllCircuits(Message<JsonObject> message){
+        storage.getAllCircuits().setHandler(event -> {
+            if(event.failed()){
+                message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, event.cause().getMessage()));
+                return;
+            }
+            message.reply(new JsonObject().put(STATUS, OK).put(VALUE, event.result()));
         });
     }
 

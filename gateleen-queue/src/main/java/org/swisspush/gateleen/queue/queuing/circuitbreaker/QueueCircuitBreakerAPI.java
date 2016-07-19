@@ -17,7 +17,7 @@ public class QueueCircuitBreakerAPI {
     public static final String CIRCUIT_HASH = "circuit";
 
     public enum Operation {
-        getCircuitInformation, getCircuitStatus, closeCircuit, closeAllCircuits;
+        getAllCircuits, getCircuitInformation, getCircuitStatus, closeCircuit, closeAllCircuits;
 
         Operation(){}
 
@@ -57,5 +57,9 @@ public class QueueCircuitBreakerAPI {
 
     public static JsonObject buildCloseAllCircuitsOperation(){
         return buildOperation(Operation.closeAllCircuits);
+    }
+
+    public static JsonObject buildGetAllCircuitsOperation(){
+        return buildOperation(Operation.getAllCircuits);
     }
 }

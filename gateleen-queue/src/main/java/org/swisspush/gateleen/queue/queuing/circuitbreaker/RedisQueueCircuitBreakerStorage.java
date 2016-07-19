@@ -6,6 +6,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.redis.RedisClient;
+import io.vertx.redis.op.ScanOptions;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.*;
@@ -26,6 +27,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public static final String STORAGE_PREFIX = "gateleen.queue-circuit-breaker:";
     public static final String STORAGE_INFOS_SUFFIX = ":infos";
     public static final String STORAGE_QUEUES_SUFFIX = ":queues";
+    public static final String STORAGE_ALL_CIRCUITS = STORAGE_PREFIX + "all-circuits";
     public static final String STORAGE_HALFOPEN_CIRCUITS = STORAGE_PREFIX + "half-open-circuits";
     public static final String STORAGE_OPEN_CIRCUITS = STORAGE_PREFIX + "open-circuits";
     public static final String STORAGE_QUEUES_TO_UNLOCK = STORAGE_PREFIX + "queues-to-unlock";
@@ -115,6 +117,13 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     }
 
     @Override
+    public Future<JsonObject> getAllCircuits() {
+        Future<JsonObject> future = Future.future();
+        //TODO implment
+        return future;
+    }
+
+    @Override
     public Future<UpdateStatisticsResult> updateStatistics(PatternAndCircuitHash patternAndCircuitHash, String uniqueRequestID, long timestamp,
                                                            int errorThresholdPercentage, long entriesMaxAgeMS, long minQueueSampleCount,
                                                            long maxQueueSampleCount, QueueResponseType queueResponseType) {
@@ -125,7 +134,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 buildStatsKey(circuitHash, QueueResponseType.SUCCESS),
                 buildStatsKey(circuitHash, QueueResponseType.FAILURE),
                 buildStatsKey(circuitHash, queueResponseType),
-                STORAGE_OPEN_CIRCUITS
+                STORAGE_OPEN_CIRCUITS,
+                STORAGE_ALL_CIRCUITS
         );
 
         List<String> arguments = Arrays.asList(
@@ -189,6 +199,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 buildStatsKey(circuitHash, QueueResponseType.SUCCESS),
                 buildStatsKey(circuitHash, QueueResponseType.FAILURE),
                 buildQueuesKey(circuitHash),
+                STORAGE_ALL_CIRCUITS,
                 STORAGE_HALFOPEN_CIRCUITS,
                 STORAGE_OPEN_CIRCUITS,
                 STORAGE_QUEUES_TO_UNLOCK

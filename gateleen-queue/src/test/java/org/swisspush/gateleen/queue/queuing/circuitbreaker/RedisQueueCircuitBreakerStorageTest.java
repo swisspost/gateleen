@@ -11,6 +11,7 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import redis.clients.jedis.Jedis;
@@ -86,9 +87,7 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertFalse(result.getJsonObject("info").containsKey("failRatio"));
             context.assertFalse(result.getJsonObject("info").containsKey("circuit"));
 
-            writeQueueCircuitField(hash, FIELD_STATE, QueueCircuitState.HALF_OPEN.name());
-            writeQueueCircuitField(hash, FIELD_FAILRATIO, "99");
-            writeQueueCircuitField(hash, FIELD_CIRCUIT, "/some/circuit/path");
+            writeQueueCircuit(hash, HALF_OPEN, "/some/circuit/path", 99);
 
             storage.getQueueCircuitInformation(hash).setHandler(event1 -> {
                 context.assertTrue(event1.succeeded());
@@ -99,6 +98,34 @@ public class RedisQueueCircuitBreakerStorageTest {
                 context.assertEquals("/some/circuit/path", result1.getJsonObject("info").getString("circuit"));
                 async.complete();
             });
+        });
+    }
+
+    @Ignore
+    @Test
+    public void testGetAllCircuits(TestContext context){
+        Async async = context.async();
+
+        String hash1 = "hash_1";
+        String hash2 = "hash_2";
+        String hash3 = "hash_3";
+
+        context.assertFalse(jedis.exists(infosKey(hash1)));
+        context.assertFalse(jedis.exists(infosKey(hash2)));
+        context.assertFalse(jedis.exists(infosKey(hash3)));
+
+        // prepare
+        writeQueueCircuit(hash1, HALF_OPEN, "/path/to/hash_1", 60);
+        writeQueueCircuit(hash2, CLOSED, "/path/to/hash_2", 20);
+        writeQueueCircuit(hash3, OPEN, "/path/to/hash_3", 99);
+
+        context.assertTrue(jedis.exists(infosKey(hash1)));
+        context.assertTrue(jedis.exists(infosKey(hash2)));
+        context.assertTrue(jedis.exists(infosKey(hash3)));
+
+        storage.getAllCircuits().setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            async.complete();
         });
     }
 
@@ -243,6 +270,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertFalse(jedis.exists(key(circuitHash, QueueResponseType.FAILURE)));
         context.assertFalse(jedis.exists(queuesKey(circuitHash)));
 
+        context.assertFalse(jedis.exists(STORAGE_ALL_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_OPEN_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
@@ -262,10 +290,10 @@ public class RedisQueueCircuitBreakerStorageTest {
         jedis.zadd(queuesKey(circuitHash), 2, "queue_2");
         jedis.zadd(queuesKey(circuitHash), 3, "queue_3");
 
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, "a");
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, circuitHash);
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, "b");
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, "c");
+        addToCircuitsSets(HALF_OPEN, "a");
+        addToCircuitsSets(HALF_OPEN, circuitHash);
+        addToCircuitsSets(HALF_OPEN, "b");
+        addToCircuitsSets(HALF_OPEN, "c");
 
         jedis.sadd(STORAGE_OPEN_CIRCUITS, "x");
 
@@ -273,6 +301,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertEquals(3L, jedis.zcard(key(circuitHash, QueueResponseType.FAILURE)));
         context.assertEquals(3L, jedis.zcard(queuesKey(circuitHash)));
         context.assertEquals(4L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertEquals(4L, jedis.scard(STORAGE_ALL_CIRCUITS));
         context.assertEquals(1L, jedis.scard(STORAGE_OPEN_CIRCUITS));
         context.assertEquals(0L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
 
@@ -284,6 +313,7 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertFalse(jedis.exists(key(circuitHash, QueueResponseType.FAILURE)));
             context.assertFalse(jedis.exists(queuesKey(circuitHash)));
 
+            context.assertTrue(jedis.exists(STORAGE_ALL_CIRCUITS));
             context.assertTrue(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
             context.assertTrue(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
 
@@ -296,11 +326,18 @@ public class RedisQueueCircuitBreakerStorageTest {
             assertStateAndErroPercentage(context, circuitHash, CLOSED, 0);
 
             context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+            context.assertEquals(4L, jedis.scard(STORAGE_ALL_CIRCUITS));
             Set<String> halfOpenCircuits = jedis.smembers(STORAGE_HALFOPEN_CIRCUITS);
             context.assertTrue(halfOpenCircuits.contains("a"));
             context.assertTrue(halfOpenCircuits.contains("b"));
             context.assertTrue(halfOpenCircuits.contains("c"));
             context.assertFalse(halfOpenCircuits.contains(circuitHash));
+
+            Set<String> allCircuits = jedis.smembers(STORAGE_ALL_CIRCUITS);
+            context.assertTrue(allCircuits.contains("a"));
+            context.assertTrue(allCircuits.contains("b"));
+            context.assertTrue(allCircuits.contains("c"));
+            context.assertTrue(allCircuits.contains(circuitHash));
 
             context.assertEquals(1L, jedis.scard(STORAGE_OPEN_CIRCUITS));
             Set<String> openCircuits = jedis.smembers(STORAGE_OPEN_CIRCUITS);
@@ -318,6 +355,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertFalse(jedis.exists(key(circuitHash, QueueResponseType.FAILURE)));
         context.assertFalse(jedis.exists(queuesKey(circuitHash)));
 
+        context.assertFalse(jedis.exists(STORAGE_ALL_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_OPEN_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
@@ -337,10 +375,10 @@ public class RedisQueueCircuitBreakerStorageTest {
         jedis.zadd(queuesKey(circuitHash), 2, "queue_2");
         jedis.zadd(queuesKey(circuitHash), 3, "queue_3");
 
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, "a");
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, circuitHash);
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, "b");
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, "c");
+        addToCircuitsSets(HALF_OPEN, "a");
+        addToCircuitsSets(HALF_OPEN, circuitHash);
+        addToCircuitsSets(HALF_OPEN, "b");
+        addToCircuitsSets(HALF_OPEN, "c");
 
         jedis.sadd(STORAGE_OPEN_CIRCUITS, "x");
 
@@ -348,6 +386,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertEquals(3L, jedis.zcard(key(circuitHash, QueueResponseType.FAILURE)));
         context.assertEquals(3L, jedis.zcard(queuesKey(circuitHash)));
         context.assertEquals(4L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertEquals(4L, jedis.scard(STORAGE_ALL_CIRCUITS));
         context.assertEquals(1L, jedis.scard(STORAGE_OPEN_CIRCUITS));
         context.assertEquals(0L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
 
@@ -360,6 +399,7 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertFalse(jedis.exists(queuesKey(circuitHash)));
 
             context.assertTrue(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
+            context.assertTrue(jedis.exists(STORAGE_ALL_CIRCUITS));
             context.assertTrue(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
 
             context.assertEquals(3L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
@@ -373,11 +413,18 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertFalse(jedis.exists(queuesKey(circuitHash)));
 
             context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+            context.assertEquals(3L, jedis.scard(STORAGE_ALL_CIRCUITS));
             Set<String> halfOpenCircuits = jedis.smembers(STORAGE_HALFOPEN_CIRCUITS);
             context.assertTrue(halfOpenCircuits.contains("a"));
             context.assertTrue(halfOpenCircuits.contains("b"));
             context.assertTrue(halfOpenCircuits.contains("c"));
             context.assertFalse(halfOpenCircuits.contains(circuitHash));
+
+            Set<String> allCircuits = jedis.smembers(STORAGE_ALL_CIRCUITS);
+            context.assertTrue(allCircuits.contains("a"));
+            context.assertTrue(allCircuits.contains("b"));
+            context.assertTrue(allCircuits.contains("c"));
+            context.assertFalse(allCircuits.contains(circuitHash));
 
             context.assertEquals(1L, jedis.scard(STORAGE_OPEN_CIRCUITS));
             Set<String> openCircuits = jedis.smembers(STORAGE_OPEN_CIRCUITS);
@@ -391,6 +438,7 @@ public class RedisQueueCircuitBreakerStorageTest {
     public void testCloseAllCircuits(TestContext context){
         Async async = context.async();
         context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertFalse(jedis.exists(STORAGE_ALL_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_OPEN_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
 
@@ -402,6 +450,7 @@ public class RedisQueueCircuitBreakerStorageTest {
 
         context.assertEquals(2L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
         context.assertEquals(3L, jedis.scard(STORAGE_OPEN_CIRCUITS));
+        context.assertEquals(5L, jedis.scard(STORAGE_ALL_CIRCUITS));
 
         for (int index = 1; index <= 5; index++) {
             String hash = "hash_" + index;
@@ -415,6 +464,7 @@ public class RedisQueueCircuitBreakerStorageTest {
 
             context.assertEquals(0L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
             context.assertEquals(0L, jedis.scard(STORAGE_OPEN_CIRCUITS));
+            context.assertEquals(5L, jedis.scard(STORAGE_ALL_CIRCUITS));
             context.assertEquals(15L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
 
             for (int index = 1; index <= 5; index++) {
@@ -437,15 +487,18 @@ public class RedisQueueCircuitBreakerStorageTest {
     public void testCloseAllCircuitsEmptySets(TestContext context){
         Async async = context.async();
         context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertFalse(jedis.exists(STORAGE_ALL_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_OPEN_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
 
+        context.assertEquals(0L, jedis.scard(STORAGE_ALL_CIRCUITS));
         context.assertEquals(0L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
         context.assertEquals(0L, jedis.scard(STORAGE_OPEN_CIRCUITS));
 
         storage.closeAllCircuits().setHandler(event -> {
             context.assertTrue(event.succeeded());
 
+            context.assertEquals(0L, jedis.scard(STORAGE_ALL_CIRCUITS));
             context.assertEquals(0L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
             context.assertEquals(0L, jedis.scard(STORAGE_OPEN_CIRCUITS));
             context.assertEquals(0L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
@@ -460,6 +513,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         Async async = context.async();
         String circuitHash = "anotherCircuitHash";
 
+        context.assertFalse(jedis.exists(STORAGE_ALL_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_OPEN_CIRCUITS));
 
@@ -467,17 +521,18 @@ public class RedisQueueCircuitBreakerStorageTest {
         writeQueueCircuitStateToDatabase(circuitHash, HALF_OPEN);
         writeQueueCircuitFailPercentageToDatabase(circuitHash, 50);
 
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, "a");
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, circuitHash);
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, "b");
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, "c");
+        addToCircuitsSets(HALF_OPEN, "a");
+        addToCircuitsSets(HALF_OPEN, circuitHash);
+        addToCircuitsSets(HALF_OPEN, "b");
+        addToCircuitsSets(HALF_OPEN, "c");
 
-        jedis.sadd(STORAGE_OPEN_CIRCUITS, "d");
-        jedis.sadd(STORAGE_OPEN_CIRCUITS, "e");
-        jedis.sadd(STORAGE_OPEN_CIRCUITS, "f");
-        jedis.sadd(STORAGE_OPEN_CIRCUITS, "g");
-        jedis.sadd(STORAGE_OPEN_CIRCUITS, "h");
+        addToCircuitsSets(OPEN, "d");
+        addToCircuitsSets(OPEN, "e");
+        addToCircuitsSets(OPEN, "f");
+        addToCircuitsSets(OPEN, "g");
+        addToCircuitsSets(OPEN, "h");
 
+        context.assertEquals(9L, jedis.scard(STORAGE_ALL_CIRCUITS));
         context.assertEquals(4L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
         context.assertEquals(5L, jedis.scard(STORAGE_OPEN_CIRCUITS));
 
@@ -485,6 +540,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         storage.reOpenCircuit(patternAndCircuitHash).setHandler(event -> {
             context.assertTrue(event.succeeded());
 
+            context.assertTrue(jedis.exists(STORAGE_ALL_CIRCUITS));
             context.assertTrue(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
             context.assertTrue(jedis.exists(STORAGE_OPEN_CIRCUITS));
 
@@ -496,6 +552,18 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertTrue(halfOpenCircuits.contains("b"));
             context.assertTrue(halfOpenCircuits.contains("c"));
             context.assertFalse(halfOpenCircuits.contains(circuitHash));
+
+            context.assertEquals(9L, jedis.scard(STORAGE_ALL_CIRCUITS));
+            Set<String> allCircuits = jedis.smembers(STORAGE_ALL_CIRCUITS);
+            context.assertTrue(allCircuits.contains("a"));
+            context.assertTrue(allCircuits.contains("b"));
+            context.assertTrue(allCircuits.contains("c"));
+            context.assertTrue(allCircuits.contains("d"));
+            context.assertTrue(allCircuits.contains("e"));
+            context.assertTrue(allCircuits.contains("f"));
+            context.assertTrue(allCircuits.contains("g"));
+            context.assertTrue(allCircuits.contains("h"));
+            context.assertTrue(allCircuits.contains(circuitHash));
 
             context.assertEquals(6L, jedis.scard(STORAGE_OPEN_CIRCUITS));
             Set<String> openCircuits = jedis.smembers(STORAGE_OPEN_CIRCUITS);
@@ -513,6 +581,7 @@ public class RedisQueueCircuitBreakerStorageTest {
     @Test
     public void testSetOpenCircuitsToHalfOpen(TestContext context){
         Async async = context.async();
+        context.assertFalse(jedis.exists(STORAGE_ALL_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_OPEN_CIRCUITS));
 
@@ -528,6 +597,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         buildCircuitEntry(h4, OPEN);
         buildCircuitEntry(h5, HALF_OPEN);
 
+        context.assertEquals(5L, jedis.scard(STORAGE_ALL_CIRCUITS));
         context.assertEquals(2L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
         context.assertEquals(3L, jedis.scard(STORAGE_OPEN_CIRCUITS));
 
@@ -547,6 +617,7 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertTrue(event.succeeded());
             context.assertEquals(3L, event.result());
 
+            context.assertEquals(5L, jedis.scard(STORAGE_ALL_CIRCUITS));
             context.assertEquals(5L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
             context.assertEquals(0L, jedis.scard(STORAGE_OPEN_CIRCUITS));
 
@@ -575,6 +646,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         String c2 = "circuit_2";
         String c3 = "circuit_3";
 
+        context.assertFalse(jedis.exists(STORAGE_ALL_CIRCUITS));
         context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
 
         context.assertFalse(jedis.exists(queuesKey(c1)));
@@ -582,9 +654,9 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertFalse(jedis.exists(queuesKey(c3)));
 
         // prepare some test data
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, c1);
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, c2);
-        jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, c3);
+        addToCircuitsSets(HALF_OPEN, c1);
+        addToCircuitsSets(HALF_OPEN, c2);
+        addToCircuitsSets(HALF_OPEN, c3);
 
         jedis.zadd(queuesKey(c1), 1, "c1_1");
         jedis.zadd(queuesKey(c1), 2, "c1_2");
@@ -598,6 +670,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         jedis.zadd(queuesKey(c3), 3, "c3_3");
         jedis.zadd(queuesKey(c3), 4, "c3_4");
 
+        context.assertEquals(3L, jedis.scard(STORAGE_ALL_CIRCUITS));
         context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
         context.assertEquals(3L, jedis.zcard(queuesKey(c1)));
         context.assertEquals(2L, jedis.zcard(queuesKey(c2)));
@@ -611,6 +684,7 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertTrue(event.result().contains("c2_1"));
             context.assertTrue(event.result().contains("c3_1"));
 
+            context.assertEquals(3L, jedis.scard(STORAGE_ALL_CIRCUITS));
             context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
             context.assertEquals(3L, jedis.zcard(queuesKey(c1)));
             context.assertEquals(2L, jedis.zcard(queuesKey(c2)));
@@ -623,6 +697,7 @@ public class RedisQueueCircuitBreakerStorageTest {
                 context.assertTrue(event1.result().contains("c2_2"));
                 context.assertTrue(event1.result().contains("c3_2"));
 
+                context.assertEquals(3L, jedis.scard(STORAGE_ALL_CIRCUITS));
                 context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
                 context.assertEquals(3L, jedis.zcard(queuesKey(c1)));
                 context.assertEquals(2L, jedis.zcard(queuesKey(c2)));
@@ -635,6 +710,7 @@ public class RedisQueueCircuitBreakerStorageTest {
                     context.assertTrue(event2.result().contains("c2_1"));
                     context.assertTrue(event2.result().contains("c3_3"));
 
+                    context.assertEquals(3L, jedis.scard(STORAGE_ALL_CIRCUITS));
                     context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
                     context.assertEquals(3L, jedis.zcard(queuesKey(c1)));
                     context.assertEquals(2L, jedis.zcard(queuesKey(c2)));
@@ -650,15 +726,20 @@ public class RedisQueueCircuitBreakerStorageTest {
         buildCircuitEntry(circuitHash, state, new ArrayList<>());
     }
 
-    private void buildCircuitEntry(String circuitHash, QueueCircuitState state, List<String> queues){
-        writeQueueCircuitStateToDatabase(circuitHash, state);
-        writeQueueCircuitFailPercentageToDatabase(circuitHash, 50);
-
+    private void addToCircuitsSets(QueueCircuitState state, String circuitHash){
         if(OPEN == state){
             jedis.sadd(STORAGE_OPEN_CIRCUITS, circuitHash);
         } else if(HALF_OPEN == state){
             jedis.sadd(STORAGE_HALFOPEN_CIRCUITS, circuitHash);
         }
+        jedis.sadd(STORAGE_ALL_CIRCUITS, circuitHash);
+    }
+
+    private void buildCircuitEntry(String circuitHash, QueueCircuitState state, List<String> queues){
+        writeQueueCircuitStateToDatabase(circuitHash, state);
+        writeQueueCircuitFailPercentageToDatabase(circuitHash, 50);
+
+        addToCircuitsSets(state, circuitHash);
 
         jedis.zadd(key(circuitHash, QueueResponseType.SUCCESS), 1, "req-1");
         jedis.zadd(key(circuitHash, QueueResponseType.SUCCESS), 2, "req-2");
@@ -690,8 +771,14 @@ public class RedisQueueCircuitBreakerStorageTest {
         return STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX;
     }
 
+    private void writeQueueCircuit(String circuitHash, QueueCircuitState state, String circuit, int failPercentage){
+        writeQueueCircuitField(circuitHash, FIELD_STATE, state.name().toLowerCase());
+        writeQueueCircuitField(circuitHash, FIELD_CIRCUIT, circuit);
+        writeQueueCircuitField(circuitHash, FIELD_FAILRATIO, String.valueOf(failPercentage));
+    }
+
     private void writeQueueCircuitStateToDatabase(String circuitHash, QueueCircuitState state){
-        jedis.hset(STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX, FIELD_STATE, state.name());
+        writeQueueCircuitField(circuitHash, FIELD_STATE, state.name().toLowerCase());
     }
 
     private void writeQueueCircuitField(String circuitHash, String field, String value){
@@ -699,7 +786,7 @@ public class RedisQueueCircuitBreakerStorageTest {
     }
 
     private void writeQueueCircuitFailPercentageToDatabase(String circuitHash, int failPercentage){
-        jedis.hset(STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX, FIELD_FAILRATIO, String.valueOf(failPercentage));
+        writeQueueCircuitField(circuitHash, FIELD_FAILRATIO, String.valueOf(failPercentage));
     }
 
     private void assertState(TestContext context, String circuitHash, QueueCircuitState state){

@@ -16,6 +16,8 @@ public interface QueueCircuitBreakerStorage {
 
     Future<JsonObject> getQueueCircuitInformation(String circuitHash);
 
+    Future<JsonObject> getAllCircuits();
+
     Future<UpdateStatisticsResult> updateStatistics(PatternAndCircuitHash patternAndCircuitHash, String uniqueRequestID, long timestamp, int errorThresholdPercentage, long entriesMaxAgeMS, long minQueueSampleCount, long maxQueueSampleCount, QueueResponseType queueResponseType);
 
     Future<Void> lockQueue(String queueName, PatternAndCircuitHash patternAndCircuitHash);

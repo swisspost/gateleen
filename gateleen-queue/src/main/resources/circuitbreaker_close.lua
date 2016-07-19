@@ -5,9 +5,10 @@ local circuitInfoKey = KEYS[1]
 local circuitSuccessKey = KEYS[2]
 local circuitFailureKey = KEYS[3]
 local circuitQueuesKey = KEYS[4]
-local halfOpenCircuitsKey = KEYS[5]
-local openCircuitsKey = KEYS[6]
-local queuesToUnlockKey = KEYS[7]
+local allCircuitsKey = KEYS[5]
+local halfOpenCircuitsKey = KEYS[6]
+local openCircuitsKey = KEYS[7]
+local queuesToUnlockKey = KEYS[8]
 
 local circuitHash = ARGV[1]
 local removeCircuit = ARGV[2]
@@ -22,6 +23,7 @@ redis.call('del',circuitQueuesKey)
 -- reset circuit infos
 if removeCircuit == "true" then
     redis.call('del',circuitInfoKey)
+    redis.call('srem',allCircuitsKey, circuitHash)
 else
     redis.call('hset',circuitInfoKey,stateField,"closed")
     redis.call('hset',circuitInfoKey,failRatioField,0)

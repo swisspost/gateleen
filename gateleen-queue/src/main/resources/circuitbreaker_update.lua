@@ -6,6 +6,7 @@ local circuitSuccessKey = KEYS[2]
 local circuitFailureKey = KEYS[3]
 local circuitKeyToUpdate = KEYS[4]
 local openCircuitsKey = KEYS[5]
+local allCircuitsKey = KEYS[6]
 
 local requestID = ARGV[1]
 local circuit = ARGV[2]
@@ -22,6 +23,8 @@ local return_value = "OK"
 redis.call('zadd',circuitKeyToUpdate,requestTS,requestID)
 -- write circuit pattern to infos
 redis.call('hsetnx',circuitInfoKey, circuitField, circuit)
+-- add circuit to all circuits set
+redis.call('sadd',allCircuitsKey,circuitHash)
 
 local function setCircuitState(state)
     redis.call('hset',circuitInfoKey,stateField,state)

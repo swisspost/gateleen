@@ -24,6 +24,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
     private final String circuitSuccessKey = "q:success";
     private final String circuitFailureKey = "q:failure";
     private final String openCircuitsKey = "open_circuits";
+    private final String allCircuitsKey = "all_circuits";
 
     @Test
     public void testCalculateErrorPercentage(){
@@ -31,6 +32,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertThat(jedis.exists(circuitSuccessKey), is(false));
         assertThat(jedis.exists(circuitFailureKey), is(false));
         assertThat(jedis.exists(openCircuitsKey), is(false));
+        assertThat(jedis.exists(allCircuitsKey), is(false));
 
         String update_success = "q:success";
         String update_fail = "q:failure";
@@ -53,24 +55,29 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertThat(jedis.exists(circuitSuccessKey), is(true));
         assertThat(jedis.exists(circuitFailureKey), is(true));
         assertThat(jedis.exists(openCircuitsKey), is(true));
+        assertThat(jedis.exists(allCircuitsKey), is(true));
         assertStateAndErroPercentage(OPEN, 75);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
 
         // add 2 more successful requests => failurePercentage should drop
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_5", "url_pattern", 4, 50, 10, 4, 10);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_6", "url_pattern", 5, 50, 10, 4, 10);
         assertStateAndErroPercentage(OPEN, 50);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
 
         // add 1 more successful request => failurePercentage should drop and state should switch to 'half_open'
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 6, 50, 10, 4, 10);
         assertStateAndErroPercentage(OPEN, 42);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
 
         // add 1 more failing request => failurePercentage should raise again but state should remain 'half_open'
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_8", "url_pattern", 7, 50, 10, 4, 10);
         assertStateAndErroPercentage(OPEN, 50);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
 
         // add 3 more failing request => failurePercentage should raise again but state should remain 'half_open'
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_9", "url_pattern", 8, 50, 10, 4, 10);
@@ -78,6 +85,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_11", "url_pattern", 10, 50, 10, 4, 10);
         assertStateAndErroPercentage(OPEN, 63);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
 
         assertCircuit("url_pattern");
     }
@@ -119,24 +127,31 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_4", "url_pattern", 4, 50, 3, 1, 100);
         assertStateAndErroPercentage(OPEN, 50);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_5", "url_pattern", 5, 50, 3, 1, 100);
         assertStateAndErroPercentage(OPEN, 75); // req_1 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_6", "url_pattern", 6, 50, 3, 1, 100);
         assertStateAndErroPercentage(OPEN, 100); // req_2 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 7, 50, 3, 1, 100);
         assertStateAndErroPercentage(OPEN, 75); // req_3 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_8", "url_pattern", 8, 50, 3, 1, 100);
         assertStateAndErroPercentage(OPEN, 50); // req_4 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_9", "url_pattern", 9, 50, 3, 1, 100);
         assertStateAndErroPercentage(OPEN, 25); // req_5 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_10", "url_pattern", 10, 50, 3, 1, 100);
         assertStateAndErroPercentage(OPEN, 0); // req_6 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
+        assertHashInAllCircuitsSet("url_patternHash", 1);
 
         assertCircuit("url_pattern");
     }
@@ -151,6 +166,12 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         Set<String> openCircuits = jedis.smembers(openCircuitsKey);
         assertThat(openCircuits.contains(hash), is(true));
         assertThat(jedis.scard(openCircuitsKey), equalTo(amountOfOpenCircuits));
+    }
+
+    private void assertHashInAllCircuitsSet(String hash, long amountOfCircuits){
+        Set<String> openCircuits = jedis.smembers(allCircuitsKey);
+        assertThat(openCircuits.contains(hash), is(true));
+        assertThat(jedis.scard(allCircuitsKey), equalTo(amountOfCircuits));
     }
 
     private void assertCircuit(String circuit){
@@ -171,7 +192,8 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
                 circuitSuccessKey,
                 circuitFailureKey,
                 circuitKeyToUpdate,
-                openCircuitsKey
+                openCircuitsKey,
+                allCircuitsKey
         );
 
         List<String> arguments = Arrays.asList(
