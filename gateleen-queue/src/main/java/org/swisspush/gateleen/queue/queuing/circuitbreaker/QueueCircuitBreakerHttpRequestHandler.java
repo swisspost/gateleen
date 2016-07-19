@@ -58,7 +58,33 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
 
         // change all circuit states
         router.putWithRegex(prefix + "/" + allPrefix + statusSuffix).handler(ctx ->{
-            ctx.response().end();
+            ctx.request().bodyHandler(event -> {
+                QueueCircuitState state = extractStatusFromBody(event);
+                if(state == null){
+                    respondWith(StatusCode.BAD_REQUEST, "Body must contain a correct 'status' value", ctx.request());
+                } else if (QueueCircuitState.CLOSED != state){
+                    respondWith(StatusCode.FORBIDDEN, "Status can be changed to 'CLOSED' only", ctx.request());
+                } else {
+                    eventBus.send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseAllCircuitsOperation(),
+                            new Handler<AsyncResult<Message<JsonObject>>>() {
+                                @Override
+                                public void handle(AsyncResult<Message<JsonObject>> reply) {
+                                    if(reply.succeeded()){
+                                        JsonObject replyBody = reply.result().body();
+                                        if (OK.equals(replyBody.getString(STATUS))) {
+                                            ctx.response().end();
+                                        } else {
+                                            ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                                            ctx.response().end(reply.result().body().getString(MESSAGE));
+                                        }
+                                    } else {
+                                        ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                                        ctx.response().end(reply.cause().getMessage());
+                                    }
+                                }
+                            });
+                }
+            });
         });
 
         // get all circuit states
@@ -204,6 +230,9 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
                     case closeCircuit:
                         handleCloseCircuit(event);
                         break;
+                    case closeAllCircuits:
+                        handleCloseAllCircuits(event);
+                        break;
                     default:
                         unsupportedOperation(opString, event);
                 }
@@ -237,6 +266,16 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
         String circuitHash = message.body().getJsonObject(PAYLOAD).getString(CIRCUIT_HASH);
         PatternAndCircuitHash patternAndCircuitHash = new PatternAndCircuitHash(null, circuitHash);
         storage.closeCircuit(patternAndCircuitHash).setHandler(event -> {
+            if(event.failed()){
+                message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, event.cause().getMessage()));
+                return;
+            }
+            message.reply(new JsonObject().put(STATUS, OK));
+        });
+    }
+
+    private void handleCloseAllCircuits(Message<JsonObject> message){
+        storage.closeAllCircuits().setHandler(event -> {
             if(event.failed()){
                 message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, event.cause().getMessage()));
                 return;

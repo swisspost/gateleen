@@ -162,4 +162,40 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
                 });
     }
 
+    @Test
+    public void testCloseAllCircuitsSuccess(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.closeAllCircuits())
+                .thenReturn(Future.succeededFuture());
+
+        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseAllCircuitsOperation(),
+                new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        JsonObject replyBody = reply.result().body();
+                        context.assertEquals(OK, replyBody.getString(STATUS));
+                        async.complete();
+                    }
+                });
+    }
+
+    @Test
+    public void testCloseAllCircuitsFail(TestContext context){
+        Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.closeAllCircuits())
+                .thenReturn(Future.failedFuture("unable to close all circuits"));
+
+        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseAllCircuitsOperation(),
+                new Handler<AsyncResult<Message<JsonObject>>>() {
+                    @Override
+                    public void handle(AsyncResult<Message<JsonObject>> reply) {
+                        JsonObject replyBody = reply.result().body();
+                        context.assertEquals(ERROR, replyBody.getString(STATUS));
+                        context.assertEquals("unable to close all circuits", replyBody.getString(MESSAGE));
+                        async.complete();
+                    }
+                });
+    }
 }

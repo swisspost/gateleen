@@ -232,13 +232,17 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 for (Object circuit : openCircuits) {
                     futures.add(closeCircuit((String)circuit, false));
                 }
-                CompositeFuture.all(futures).setHandler(event1 -> {
-                    if(event1.succeeded()){
-                        future.complete();
-                    } else {
-                        future.fail(event1.cause().getMessage());
-                    }
-                });
+                if(futures.size() == 0){
+                    future.complete();
+                } else {
+                    CompositeFuture.all(futures).setHandler(event1 -> {
+                        if (event1.succeeded()) {
+                            future.complete();
+                        } else {
+                            future.fail(event1.cause().getMessage());
+                        }
+                    });
+                }
             } else {
                 future.fail(event.cause().getMessage());
             }

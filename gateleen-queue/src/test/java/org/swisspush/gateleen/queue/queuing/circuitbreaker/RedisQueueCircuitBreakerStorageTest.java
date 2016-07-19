@@ -434,6 +434,28 @@ public class RedisQueueCircuitBreakerStorageTest {
     }
 
     @Test
+    public void testCloseAllCircuitsEmptySets(TestContext context){
+        Async async = context.async();
+        context.assertFalse(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertFalse(jedis.exists(STORAGE_OPEN_CIRCUITS));
+        context.assertFalse(jedis.exists(STORAGE_QUEUES_TO_UNLOCK));
+
+        context.assertEquals(0L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+        context.assertEquals(0L, jedis.scard(STORAGE_OPEN_CIRCUITS));
+
+        storage.closeAllCircuits().setHandler(event -> {
+            context.assertTrue(event.succeeded());
+
+            context.assertEquals(0L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
+            context.assertEquals(0L, jedis.scard(STORAGE_OPEN_CIRCUITS));
+            context.assertEquals(0L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
+
+            async.complete();
+        });
+    }
+
+
+    @Test
     public void testReOpenCircuit(TestContext context){
         Async async = context.async();
         String circuitHash = "anotherCircuitHash";

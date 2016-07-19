@@ -15,10 +15,9 @@ public class QueueCircuitBreakerAPI {
     public static final String OPERATION = "operation";
     public static final String PAYLOAD = "payload";
     public static final String CIRCUIT_HASH = "circuit";
-    public static final String CIRCUIT_STATUS = "status";
 
     public enum Operation {
-        getCircuitInformation, getCircuitStatus, closeCircuit;
+        getCircuitInformation, getCircuitStatus, closeCircuit, closeAllCircuits;
 
         Operation(){}
 
@@ -54,5 +53,9 @@ public class QueueCircuitBreakerAPI {
 
     public static JsonObject buildCloseCircuitOperation(String circuitHash){
         return buildOperation(Operation.closeCircuit, new JsonObject().put(CIRCUIT_HASH, circuitHash));
+    }
+
+    public static JsonObject buildCloseAllCircuitsOperation(){
+        return buildOperation(Operation.closeAllCircuits);
     }
 }
