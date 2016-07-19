@@ -3,7 +3,7 @@
     <parent>
         <artifactId>gateleen</artifactId>
         <groupId>org.swisspush.gateleen</groupId>
-        <version>1.0.16-SNAPSHOT</version>
+        <version>1.0.17-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -42,6 +42,12 @@
         <dependency>
             <groupId>org.quartz-scheduler</groupId>
             <artifactId>quartz</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>c3p0</groupId>
+                    <artifactId>c3p0</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

@@ -28,7 +28,7 @@ public final class RecursiveHandlerFactory {
      * @author https://github.com/ljucam [Mario Ljuca]
      */
     public enum RecursiveHandlerTypes {
-        EXPANSION, ZIP
+        EXPANSION, ZIP, STORE
     }
 
     /**
@@ -52,6 +52,7 @@ public final class RecursiveHandlerFactory {
         case EXPANSION:
             return new RecursiveExpansionHandler(subResourceNames, collectionName, collectioneTag, parentHandler);
         case ZIP:
+        case STORE:
             return new RecursiveZipHandler(subResourceNames, collectionName, parentHandler);
         default:
             return null;
@@ -79,7 +80,8 @@ public final class RecursiveHandlerFactory {
         case EXPANSION:
             return new RecursiveExpansionRootHandler(request, data, finalOriginalParams);
         case ZIP:
-            return new RecursiveZipRootHandler(request, serverRoot, data, finalOriginalParams);
+        case STORE:
+            return new RecursiveZipRootHandler(request, serverRoot, data, finalOriginalParams, type);
         default:
             return null;
         }
