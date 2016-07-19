@@ -101,7 +101,6 @@ public class RedisQueueCircuitBreakerStorageTest {
         });
     }
 
-    @Ignore
     @Test
     public void testGetAllCircuits(TestContext context){
         Async async = context.async();
@@ -125,6 +124,30 @@ public class RedisQueueCircuitBreakerStorageTest {
 
         storage.getAllCircuits().setHandler(event -> {
             context.assertTrue(event.succeeded());
+            JsonObject expectedResult = new JsonObject("{\n" +
+                    " \"hash_1\": {\n" +
+                    "  \"status\": \"half_open\",\n" +
+                    "  \"info\": {\n" +
+                    "   \"failRatio\": 60,\n" +
+                    "   \"circuit\": \"/path/to/hash_1\"\n" +
+                    "  }\n" +
+                    " },\n" +
+                    " \"hash_2\": {\n" +
+                    "  \"status\": \"closed\",\n" +
+                    "  \"info\": {\n" +
+                    "   \"failRatio\": 20,\n" +
+                    "   \"circuit\": \"/path/to/hash_2\"\n" +
+                    "  }\n" +
+                    " },\n" +
+                    " \"hash_3\": {\n" +
+                    "  \"status\": \"open\",\n" +
+                    "  \"info\": {\n" +
+                    "   \"failRatio\": 99,\n" +
+                    "   \"circuit\": \"/path/to/hash_3\"\n" +
+                    "  }\n" +
+                    " }\n" +
+                    "}");
+            context.assertEquals(expectedResult, event.result());
             async.complete();
         });
     }
