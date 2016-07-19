@@ -38,7 +38,7 @@ public class RedisQueueCircuitBreakerStorageTest {
     private RedisQueueCircuitBreakerStorage storage;
 
     @org.junit.Rule
-    public Timeout rule = Timeout.seconds(10);
+    public Timeout rule = Timeout.seconds(5);
 
     @Before
     public void setUp(){
