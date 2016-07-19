@@ -6,6 +6,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,12 @@ public class QueueProcessor {
                         } else {
                             logger.warn("Ignoring request conflict to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
                         }
+                        message.reply(new JsonObject().put(STATUS, OK));
+                        monitoringHandler.updateDequeue();
+                    } else if (response.statusCode() == StatusCode.NOT_FOUND.getStatusCode() && queuedRequest.getMethod() == HttpMethod.DELETE) {
+                        // DELETEs to a non (or no more) existing resource should not block the queue.
+                        // As the resource is already deleted (for whatever reason), we assume this DELETE as success and dequeue it
+                        logger.warn("Ignoring DELETE request (resource does not exist (any more)) " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
                         message.reply(new JsonObject().put(STATUS, OK));
                         monitoringHandler.updateDequeue();
                     } else {
