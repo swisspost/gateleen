@@ -21,12 +21,12 @@
 		<module>gateleen-packing</module>
 		<module>gateleen-hook</module>
 		<module>gateleen-qos</module>
+		<module>gateleen-delegate</module>
 		<module>gateleen-player</module>
 		<module>gateleen-test</module>
 		<module>gateleen-runconfig</module>
 		<module>gateleen-integrationtest</module>
 		<module>gateleen-playground</module>
-		<module>gateleen-delegate</module>
 	</modules>
 	<packaging>pom</packaging>
 	<dependencyManagement>
