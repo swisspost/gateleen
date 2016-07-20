@@ -15,7 +15,7 @@ import java.util.zip.ZipInputStream;
  * Enables you to directly browse into a zip file and get the underlying resource. <br>
  * <code>
  *     GET /gateleen/zips/111111.zip/this/is/my/resource
- * </code>>
+ * </code>
  *
  * @author https://github.com/ljucam [Mario Ljuca]
  */

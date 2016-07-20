@@ -1,3 +1,4 @@
+rootProject.name = 'gateleen'
 include 'gateleen-core'
 include 'gateleen-delta'
 include 'gateleen-expansion'

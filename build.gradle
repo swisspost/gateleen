@@ -1,188 +1,242 @@
-subprojects {
-
-  apply plugin: 'idea'
-  apply plugin: 'java'
-  apply plugin: 'maven'
-  apply plugin: 'signing'
-
-  if (!project.hasProperty('repoUsername')) {
-    ext.repoUsername = 'randomUsername'
-  } else {
-    println 'got property repoUsername: ' + repoUsername
-  }
-
-  if (!project.hasProperty('repoPassword')) {
-    ext.repoPassword = 'randomPassword'
-  } else {
-    //println 'got property repoPassword: ' + repoPassword
-  }
-
-  if(!project.hasProperty('uploadRepository')) {
-    ext.uploadRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
-  } else {
-    //println 'found custom uploadRepository: ' + uploadRepository
-  }
-
-  if(!project.hasProperty('snapshotRepository')) {
-    ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
-  } else {
-    println 'found custom snapshotRepository: ' + snapshotRepository
-  }
-
-  repositories {
-
-    try {
-      maven { url "$repository" }
-      println 'use custom repository: ' + "$repository"
-    } catch(Exception e) {
-      maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-    }
-    mavenCentral()
-  }
-
-  ext.uploadToMavenCentral = false
-  ext.InstallOrUpload = false
-  gradle.taskGraph.whenReady { taskGraph ->
-    if (taskGraph.hasTask(uploadArchives) || taskGraph.hasTask(install)) {
-        ext.InstallOrUpload = true
-    }
-    if (taskGraph.hasTask(uploadArchives)) {
-        println "InstallOrUpload: true"
-      if ("$uploadRepository".toLowerCase().contains("sonatype")  && "$snapshotRepository".toLowerCase().contains("sonatype")) {
-        println "uploadToMavenCentral: true"
-        ext.uploadToMavenCentral = true
-      }
-    }
-  }
-
-  task sourceJar(type: Jar) {
-    description = 'Builds a source jar artifact suitable for maven deployment.'
-    classifier = 'sources'
-    from sourceSets.main.java
-  }
-sourceJar.onlyIf { InstallOrUpload }
-
-  compileJava {
-    options.encoding = "UTF-8"
-  }
-
-  javadoc {
-    options.encoding = "UTF-8"
-    classpath = configurations.compile
-  }
-javadoc.onlyIf { InstallOrUpload }
-
-  task javadocJar(type: Jar) {
-    description = 'Builds a javadoc jar artifact suitable for maven deployment.'
-    classifier = 'javadoc'
-    from javadoc.destinationDir
-  }
-  javadocJar.dependsOn javadoc
-javadocJar.onlyIf { InstallOrUpload }
-
-  uploadArchives.dependsOn sourceJar, javadocJar
-
-  artifacts {
-    archives jar, sourceJar, javadocJar
-  }
-  signing {
-    required { uploadToMavenCentral }
-    sign configurations.archives
-  }
-
-  test {
-    testLogging {
-      // set options for log level LIFECYCLE
-      events "started", "passed", "skipped", "failed"
-      exceptionFormat "full"
-
-      // set options for log level QUIET
-      quiet {
-        events "started", "passed", "skipped", "failed"
-        exceptionFormat "full"
-      }
-
-      // remove standard output/error logging from --info builds
-      // by assigning only 'failed' and 'skipped' events
-      info.events = ["failed", "skipped"]
-
-      afterSuite { desc, result ->
-        if (!desc.parent) { // will match the outermost suite
-          def output = "Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} successes, ${result.failedTestCount} failures, ${result.skippedTestCount} skipped)"
-          def startItem = '|  ', endItem = '  |'
-          def repeatLength = startItem.length() + output.length() + endItem.length()
-          println('\n' + ('-' * repeatLength) + '\n' + startItem + output + endItem + '\n' + ('-' * repeatLength))
+buildscript {
+    repositories {
+        mavenLocal()
+        try {
+            maven {
+                url "$repository"
+            }
+        }catch(Exception e) {
+            maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
         }
-      }
+        try {
+            ivy {
+                url "$repository"
+                layout "maven"
+            }
+        }catch(Exception e) {
+            maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+        }
     }
-  }
+    dependencies {
+        classpath 'net.researchgate:gradle-release:2.4.0'
+    }
+}
 
+apply plugin: 'net.researchgate.release'
 
-
-  uploadArchives {
-    group 'build'
-    description = "Does a maven deploy of archives artifacts"
+allprojects {
+    apply plugin: 'idea'
+    apply plugin: 'java'
+    apply plugin: 'maven'
+    apply plugin: 'signing'
 
     repositories {
-      mavenDeployer {
 
-        configuration = configurations.archives
-
-        repository(url: "$uploadRepository") {
-          authentication(userName: "$repoUsername", password: "$repoPassword")
-        }
-
-        snapshotRepository(url: "$snapshotRepository") {
-          authentication(userName: "$repoUsername", password: "$repoPassword")
-        }
-
-        if(uploadToMavenCentral) {
-          beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
-        }
-
-
-        configurePom(pom)
+      try {
+        maven { url "$repository" }
+        println 'use custom repository: ' + "$repository"
+      } catch(Exception e) {
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
       }
+      mavenCentral()
     }
-  }
 }
+
+subprojects{
+    apply plugin: 'idea'
+    apply plugin: 'java'
+    apply plugin: 'maven'
+    apply plugin: 'signing'
+
+    if (!project.hasProperty('repoUsername')) {
+        ext.repoUsername = 'randomUsername'
+    } else {
+        println 'got property repoUsername: ' + repoUsername
+    }
+
+    if (!project.hasProperty('repoPassword')) {
+        ext.repoPassword = 'randomPassword'
+    } else {
+        //println 'got property repoPassword: ' + repoPassword
+    }
+
+    if(!project.hasProperty('uploadRepository')) {
+        ext.uploadRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+    } else {
+        //println 'found custom uploadRepository: ' + uploadRepository
+    }
+
+    if(!project.hasProperty('snapshotRepository')) {
+        ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+    } else {
+        println 'found custom snapshotRepository: ' + snapshotRepository
+    }
+
+    ext.uploadToMavenCentral = false
+    ext.InstallOrUpload = false
+    gradle.taskGraph.whenReady { taskGraph ->
+        if (taskGraph.hasTask(uploadArchives) || taskGraph.hasTask(install)) {
+            ext.InstallOrUpload = true
+        }
+        if (taskGraph.hasTask(uploadArchives)) {
+            println "InstallOrUpload: true"
+            if ("$uploadRepository".toLowerCase().contains("sonatype")  && "$snapshotRepository".toLowerCase().contains("sonatype")) {
+                println "uploadToMavenCentral: true"
+                ext.uploadToMavenCentral = true
+            }
+        }
+    }
+
+    task sourceJar(type: Jar) {
+        description = 'Builds a source jar artifact suitable for maven deployment.'
+        classifier = 'sources'
+        from sourceSets.main.java
+    }
+    sourceJar.onlyIf { InstallOrUpload }
+
+    compileJava {
+        options.encoding = "UTF-8"
+    }
+
+    javadoc {
+        options.encoding = "UTF-8"
+        classpath = configurations.compile
+    }
+    javadoc.onlyIf { InstallOrUpload }
+
+    task javadocJar(type: Jar) {
+        description = 'Builds a javadoc jar artifact suitable for maven deployment.'
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+    }
+    javadocJar.dependsOn javadoc
+    javadocJar.onlyIf { InstallOrUpload }
+
+    uploadArchives.dependsOn sourceJar, javadocJar
+
+    artifacts {
+        archives jar, sourceJar, javadocJar
+    }
+    signing {
+        required { uploadToMavenCentral }
+        sign configurations.archives
+    }
+
+    test {
+        testLogging {
+            // set options for log level LIFECYCLE
+            events "started", "passed", "skipped", "failed"
+            exceptionFormat "full"
+
+            // set options for log level QUIET
+            quiet {
+                events "started", "passed", "skipped", "failed"
+                exceptionFormat "full"
+            }
+
+            // remove standard output/error logging from --info builds
+            // by assigning only 'failed' and 'skipped' events
+            info.events = ["failed", "skipped"]
+
+            afterSuite { desc, result ->
+                if (!desc.parent) { // will match the outermost suite
+                    def output = "Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} successes, ${result.failedTestCount} failures, ${result.skippedTestCount} skipped)"
+                    def startItem = '|  ', endItem = '  |'
+                    def repeatLength = startItem.length() + output.length() + endItem.length()
+                    println('\n' + ('-' * repeatLength) + '\n' + startItem + output + endItem + '\n' + ('-' * repeatLength))
+                }
+            }
+        }
+    }
+
+    uploadArchives {
+        group 'build'
+        description = "Does a maven deploy of archives artifacts"
+
+        repositories {
+            mavenDeployer {
+
+                configuration = configurations.archives
+
+                repository(url: "$uploadRepository") {
+                    authentication(userName: "$repoUsername", password: "$repoPassword")
+                }
+
+                snapshotRepository(url: "$snapshotRepository") {
+                    authentication(userName: "$repoUsername", password: "$repoPassword")
+                }
+
+                if(uploadToMavenCentral) {
+                    beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
+                }
+
+
+                configurePom(pom)
+            }
+        }
+    }
+}
+
+release {
+    failOnCommitNeeded = true
+    failOnPublishNeeded = true
+    failOnSnapshotDependencies = true
+    failOnUnversionedFiles = false
+    failOnUpdateNeeded = true
+    revertOnFail = true
+    preTagCommitMessage = '[Gradle Release Plugin] - pre tag commit: '
+    tagCommitMessage = '[Gradle Release Plugin] - creating tag: '
+    newVersionCommitMessage = '[Gradle Release Plugin] - new version commit: '
+    versionPropertyFile = 'gradle.properties'
+    buildTasks = ['build']
+    tagTemplate = 'v$version'
+    scmAdapters = [
+            net.researchgate.release.GitAdapter
+    ]
+    git {
+        requireBranch = 'master'
+        pushToRemote = 'origin'
+    }
+}
+beforeReleaseBuild.dependsOn subprojects.build, subprojects.test
+afterReleaseBuild.dependsOn subprojects.uploadArchives
+
 
 def configurePom(def pom) {
-  pom.project {
-    name 'gateleen'
-    description 'Middleware library based on Vert.x to build advanced JSON/REST communication servers'
-    inceptionYear '2016'
-    packaging 'jar'
-    url 'https://github.com/swisspush/gateleen'
+    pom.project {
+        name 'gateleen'
+        description 'Middleware library based on Vert.x to build advanced JSON/REST communication servers'
+        inceptionYear '2016'
+        packaging 'jar'
+        url 'https://github.com/swisspush/gateleen'
 
-    developers {
-      developer {
-        id 'floriankammermann'
-        name 'Florian Kammermann'
-        email 'florian@kammermann.me'
-      }
-      developer {
-        id 'mcweba'
-        name 'Marc-Andre Weber'
-        url 'https://github.com/mcweba'
-      }
-    }
+        developers {
+            developer {
+                id 'floriankammermann'
+                name 'Florian Kammermann'
+                email 'florian@kammermann.me'
+            }
+            developer {
+                id 'mcweba'
+                name 'Marc-Andre Weber'
+                url 'https://github.com/mcweba'
+            }
+        }
 
-    scm {
-      url 'https://github.com/swisspush/gateleen.git'
-    }
+        scm {
+            url 'https://github.com/swisspush/gateleen.git'
+        }
 
-    licenses {
-      license {
-        name 'The Apache Software License, Version 2.0'
-        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-        distribution 'repo'
-      }
-    }
+        licenses {
+            license {
+                name 'The Apache Software License, Version 2.0'
+                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                distribution 'repo'
+            }
+        }
 
-    properties {
-      setProperty('project.build.sourceEncoding', 'UTF8')
+        properties {
+            setProperty('project.build.sourceEncoding', 'UTF8')
+        }
     }
-  }
 }
-
