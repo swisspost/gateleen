@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 
+import io.vertx.core.json.JsonObject;
 import org.junit.Test;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState;
 
@@ -49,31 +50,23 @@ public class QueueCircuitBreakerGetAllCircuitsLuaScriptTests extends AbstractLua
 
         assertThat(jedis.scard(allCircuitsKey), equalTo(3L));
 
-        Object result = evalScriptGetAllCircuits();
-        System.out.println(result);
+        JsonObject result = new JsonObject(evalScriptGetAllCircuits().toString());
 
         // assertions
-//        assertThat(jedis.exists(circuitInfoKey), is(true));
-//        assertThat(jedis.exists(allCircuitsKey), is(true));
-//        assertThat(jedis.exists(openCircuitsKey), is(true));
-//
-//        assertThat(jedis.hget(circuitInfoKey, FIELD_STATE).toLowerCase(), equalTo(OPEN.name().toLowerCase()));
-//
-//        assertThat(jedis.scard(allCircuitsKey), equalTo(3L));
-//        Set<String> halfOpenCircuits = jedis.smembers(allCircuitsKey);
-//        assertThat(halfOpenCircuits.contains("a"), is(true));
-//        assertThat(halfOpenCircuits.contains("b"), is(true));
-//        assertThat(halfOpenCircuits.contains("c"), is(true));
-//        assertThat(halfOpenCircuits.contains("someCircuitHash"), is(false));
-//
-//        assertThat(jedis.scard(openCircuitsKey), equalTo(6L));
-//        Set<String> openCircuits = jedis.smembers(openCircuitsKey);
-//        assertThat(openCircuits.contains("d"), is(true));
-//        assertThat(openCircuits.contains("e"), is(true));
-//        assertThat(openCircuits.contains("f"), is(true));
-//        assertThat(openCircuits.contains("g"), is(true));
-//        assertThat(openCircuits.contains("h"), is(true));
-//        assertThat(openCircuits.contains("someCircuitHash"), is(true));
+        assertJsonObjectContents(result, hash1, "half_open", "/path/to/hash_1", 60);
+        assertJsonObjectContents(result, hash2, "closed", "/path/to/hash_2", 20);
+        assertJsonObjectContents(result, hash3, "open", "/path/to/hash_3", 99);
+    }
+
+    private void assertJsonObjectContents(JsonObject result, String hash, String status, String circuit, int failRatio){
+        assertThat(result.containsKey(hash), is(true));
+        assertThat(result.getJsonObject(hash).containsKey("status"), is(true));
+        assertThat(result.getJsonObject(hash).getString("status"), equalTo(status));
+        assertThat(result.getJsonObject(hash).containsKey("infos"), is(true));
+        assertThat(result.getJsonObject(hash).getJsonObject("infos").containsKey("circuit"), is(true));
+        assertThat(result.getJsonObject(hash).getJsonObject("infos").getString("circuit"), equalTo(circuit));
+        assertThat(result.getJsonObject(hash).getJsonObject("infos").containsKey("failRatio"), is(true));
+        assertThat(result.getJsonObject(hash).getJsonObject("infos").getInteger("failRatio"), equalTo(failRatio));
     }
 
     private Object evalScriptGetAllCircuits(){
