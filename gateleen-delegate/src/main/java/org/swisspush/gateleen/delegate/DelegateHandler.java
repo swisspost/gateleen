@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
                  "uri": "/gateleen/server/copy",
                  "method": "POST",
                  "payload": {
-                    "source": "/gateleen/$1?expand=100&zip=true",
+                    "source": "/gateleen/$1?expand=100&amp;zip=true",
                     "destination": "/gateleen/zips/users/$1.zip"
                 }
             }
@@ -47,7 +47,7 @@ import java.util.regex.Pattern;
  * </pre>
  * To trigger an execution, it suffice to perform a PUT request on the virtual collection <code>execution</code> within
  * the specified delegate.<br>
- * <code>PUT /gateleen/server/delegate/v1/delegates/user-zip-copy/execution/<...></code>
+ * <code>PUT /gateleen/server/delegate/v1/delegates/user-zip-copy/execution/&lt;...&gt;</code>
  *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
