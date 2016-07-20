@@ -122,32 +122,39 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertTrue(jedis.exists(infosKey(hash2)));
         context.assertTrue(jedis.exists(infosKey(hash3)));
 
+        context.assertEquals(3L, jedis.scard(STORAGE_ALL_CIRCUITS));
+
+        context.assertEquals(HALF_OPEN.name().toLowerCase(), jedis.hget(infosKey(hash1), FIELD_STATE).toLowerCase());
+        context.assertEquals("/path/to/hash_1", jedis.hget(infosKey(hash1), FIELD_CIRCUIT));
+        context.assertEquals("60", jedis.hget(infosKey(hash1), FIELD_FAILRATIO));
+
+        context.assertEquals(CLOSED.name().toLowerCase(), jedis.hget(infosKey(hash2), FIELD_STATE).toLowerCase());
+        context.assertEquals("/path/to/hash_2", jedis.hget(infosKey(hash2), FIELD_CIRCUIT));
+        context.assertEquals("20", jedis.hget(infosKey(hash2), FIELD_FAILRATIO));
+
+        context.assertEquals(OPEN.name().toLowerCase(), jedis.hget(infosKey(hash3), FIELD_STATE).toLowerCase());
+        context.assertEquals("/path/to/hash_3", jedis.hget(infosKey(hash3), FIELD_CIRCUIT));
+        context.assertEquals("99", jedis.hget(infosKey(hash3), FIELD_FAILRATIO));
+
         storage.getAllCircuits().setHandler(event -> {
             context.assertTrue(event.succeeded());
-            JsonObject expectedResult = new JsonObject("{\n" +
-                    " \"hash_1\": {\n" +
-                    "  \"status\": \"half_open\",\n" +
-                    "  \"info\": {\n" +
-                    "   \"failRatio\": 60,\n" +
-                    "   \"circuit\": \"/path/to/hash_1\"\n" +
-                    "  }\n" +
-                    " },\n" +
-                    " \"hash_2\": {\n" +
-                    "  \"status\": \"closed\",\n" +
-                    "  \"info\": {\n" +
-                    "   \"failRatio\": 20,\n" +
-                    "   \"circuit\": \"/path/to/hash_2\"\n" +
-                    "  }\n" +
-                    " },\n" +
-                    " \"hash_3\": {\n" +
-                    "  \"status\": \"open\",\n" +
-                    "  \"info\": {\n" +
-                    "   \"failRatio\": 99,\n" +
-                    "   \"circuit\": \"/path/to/hash_3\"\n" +
-                    "  }\n" +
-                    " }\n" +
-                    "}");
-            context.assertEquals(expectedResult, event.result());
+            JsonObject result = event.result();
+            assertJsonObjectContents(context, result, hash1, HALF_OPEN, "/path/to/hash_1", 60);
+            assertJsonObjectContents(context, result, hash2, CLOSED, "/path/to/hash_2", 20);
+            assertJsonObjectContents(context, result, hash3, OPEN, "/path/to/hash_3", 99);
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testGetAllCircuitsNoCircuits(TestContext context){
+        Async async = context.async();
+        context.assertEquals(0L, jedis.scard(STORAGE_ALL_CIRCUITS));
+        storage.getAllCircuits().setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertNotNull(event.result());
+            JsonObject result = event.result();
+            context.assertEquals(new JsonObject(), result);
             async.complete();
         });
     }
@@ -798,6 +805,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         writeQueueCircuitField(circuitHash, FIELD_STATE, state.name().toLowerCase());
         writeQueueCircuitField(circuitHash, FIELD_CIRCUIT, circuit);
         writeQueueCircuitField(circuitHash, FIELD_FAILRATIO, String.valueOf(failPercentage));
+        jedis.sadd(STORAGE_ALL_CIRCUITS, circuitHash);
     }
 
     private void writeQueueCircuitStateToDatabase(String circuitHash, QueueCircuitState state){
@@ -845,6 +853,17 @@ public class RedisQueueCircuitBreakerStorageTest {
         for (String item : items) {
             context.assertTrue(queuesToUnlock.contains(item), "queuesToUnlock does not contain item " + item);
         }
+    }
+
+    private void assertJsonObjectContents(TestContext context, JsonObject result, String hash, QueueCircuitState status, String circuit, int failRatio){
+        context.assertTrue(result.containsKey(hash));
+        context.assertTrue(result.getJsonObject(hash).containsKey("status"));
+        context.assertEquals(status.name().toLowerCase(), result.getJsonObject(hash).getString("status"));
+        context.assertTrue(result.getJsonObject(hash).containsKey("infos"));
+        context.assertTrue(result.getJsonObject(hash).getJsonObject("infos").containsKey("circuit"));
+        context.assertEquals(circuit, result.getJsonObject(hash).getJsonObject("infos").getString("circuit"));
+        context.assertTrue(result.getJsonObject(hash).getJsonObject("infos").containsKey("failRatio"));
+        context.assertEquals(failRatio, result.getJsonObject(hash).getJsonObject("infos").getInteger("failRatio"));
     }
 
     private void addToQueuesToUnlock(String queueToUnlock){

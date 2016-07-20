@@ -40,6 +40,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     private LuaScriptState reOpenCircuitLuaScriptState;
     private LuaScriptState halfOpenCircuitLuaScriptState;
     private LuaScriptState unlockSampleQueuesLuaScriptState;
+    private LuaScriptState getAllCircuitsLuaScriptState;
 
     public RedisQueueCircuitBreakerStorage(RedisClient redisClient) {
         this.redisClient = redisClient;
@@ -49,6 +50,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         reOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.REOPEN_CIRCUIT, redisClient, false);
         halfOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.HALFOPEN_CIRCUITS, redisClient, false);
         unlockSampleQueuesLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UNLOCK_SAMPLES, redisClient, false);
+        getAllCircuitsLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.ALL_CIRCUITS, redisClient, false);
     }
 
     @Override
@@ -119,34 +121,11 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     @Override
     public Future<JsonObject> getAllCircuits() {
         Future<JsonObject> future = Future.future();
-        //TODO implement
-
-        JsonObject result = new JsonObject("{\n" +
-                " \"hash_1\": {\n" +
-                "  \"status\": \"half_open\",\n" +
-                "  \"info\": {\n" +
-                "   \"failRatio\": 60,\n" +
-                "   \"circuit\": \"/path/to/hash_1\"\n" +
-                "  }\n" +
-                " },\n" +
-                " \"hash_2\": {\n" +
-                "  \"status\": \"closed\",\n" +
-                "  \"info\": {\n" +
-                "   \"failRatio\": 20,\n" +
-                "   \"circuit\": \"/path/to/hash_2\"\n" +
-                "  }\n" +
-                " },\n" +
-                " \"hash_3\": {\n" +
-                "  \"status\": \"open\",\n" +
-                "  \"info\": {\n" +
-                "   \"failRatio\": 99,\n" +
-                "   \"circuit\": \"/path/to/hash_3\"\n" +
-                "  }\n" +
-                " }\n" +
-                "}");
-
-        future.complete(result);
-
+        List<String> keys = Collections.singletonList(STORAGE_ALL_CIRCUITS);
+        List<String> arguments = Arrays.asList(STORAGE_PREFIX, STORAGE_INFOS_SUFFIX);
+        GetAllCircuitsRedisCommand cmd = new GetAllCircuitsRedisCommand(getAllCircuitsLuaScriptState,
+                keys, arguments, redisClient, log, future);
+        cmd.exec(0);
         return future;
     }
 
