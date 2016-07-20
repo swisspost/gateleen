@@ -38,7 +38,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
     public void setUp(){
         vertx = Vertx.vertx();
         queueCircuitBreakerStorage = Mockito.mock(QueueCircuitBreakerStorage.class);
-        new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage, "/queuing/circuit");
+        new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage, "/queuecircuitbreaker/circuit");
     }
 
     @Test

@@ -159,7 +159,7 @@ public class Server extends AbstractVerticle {
                     queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
                     QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
                     QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
-                            SERVER_ROOT + "/queuing/circuit");
+                            SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
                     QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage,
                             ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);

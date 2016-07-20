@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Gateleen Playground</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+    <link href="css/gateleen.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+    <script src="js/circuitbreaker.js"></script>
+</head>
+
+<body>
+
+<div class="container-fluid" style="margin: 15px">
+
+    <div class="row circuitsRow">
+        <div class="col-md-offset-2 col-md-8">
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    <span>
+                        <h2>Queue Circuits</h2>
+                        <button id="closeAllBtn" type="button" style="float:right;" class="btn btn-danger">Close all</button>
+                        <button id="getAllBtn" type="button" style="float:right;" class="btn btn-primary toolbox-panel-button">Get all Circuits</button>
+                    </span>
+                    <div id="circuitsErrorLabel" class="alert alert-danger circuitsErrorLabel" role="alert"></div>
+                    <table class="table table-striped circuitsTable" id="circuitsTable">
+                        <thead>
+                        <tr>
+                            <th>Circuit</th>
+                            <th>Status</th>
+                            <th>Fail ratio [%]</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody id="circuitsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>

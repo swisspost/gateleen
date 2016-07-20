@@ -49,6 +49,10 @@
     "path": "/playground$1",
     "storage": "main"
   },
+  "/playground/server/queuecircuitbreaker/circuit/(.*)": {
+    "description": "CircuitBreaker API",
+    "url": "http://localhost:7013/playground/server/queuecircuitbreaker/circuit/$1"
+  },
   "/(.*)": {
     "metricName": "resource_storage",
     "description": "Resource Storage",

@@ -9,3 +9,44 @@
 .logo {
     margin-top: 20px;
 }
+
+.toolbox-panel {
+    text-align: center;
+}
+
+.toolbox-panel-button {
+    margin-right: 15px;
+}
+
+.circuitsRow {
+    margin-top: 15px;
+}
+
+.circuitsTable {
+    margin-top: 20px;
+}
+
+.circuitStatusLabel {
+    font-size: 1.05em;
+}
+
+.circuitsErrorLabel {
+    margin-top: 15px;
+}
+
+.circuitCloseButton {
+    float: right;
+}
+
+h1{
+    display: inline;
+}
+
+h2{
+    margin-top: 5px;
+    display: inline;
+}
+
+.table > tbody > tr > td {
+    vertical-align: middle;
+}

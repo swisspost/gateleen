@@ -13,6 +13,7 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 
@@ -48,11 +49,13 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
 
         // list all circuits
         router.get(prefix).handler(ctx ->{
+            log(ctx.request(), "list all circuits");
             handleGetAllCircuitsRequest(ctx);
         });
 
         // list all circuits
         router.get(prefix + "/" + allPrefix).handler(ctx ->{
+            log(ctx.request(), "list all circuits");
             handleGetAllCircuitsRequest(ctx);
         });
 
@@ -60,6 +63,7 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
         router.putWithRegex(prefix + "/" + allPrefix + statusSuffix).handler(ctx ->{
             ctx.request().bodyHandler(event -> {
                 QueueCircuitState state = extractStatusFromBody(event);
+                log(ctx.request(), "change all circuit states to " + state);
                 if(state == null){
                     respondWith(StatusCode.BAD_REQUEST, "Body must contain a correct 'status' value", ctx.request());
                 } else if (QueueCircuitState.CLOSED != state){
@@ -89,12 +93,14 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
 
         // get all circuit states
         router.getWithRegex(prefix + "/" + allPrefix + statusSuffix).handler(ctx ->{
+            log(ctx.request(), "get all circuit states");
             ctx.response().end();
         });
 
         // get single circuit status
         router.get(prefix + circuitIdParam + statusSuffix).handler(ctx ->{
             String circuitId = extractCircuitId(ctx);
+            log(ctx.request(), "get status of circuit " + circuitId);
             eventBus.send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitStatusOperation(circuitId),
                     new Handler<AsyncResult<Message<JsonObject>>>() {
                 @Override
@@ -120,6 +126,7 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
             String circuitId = extractCircuitId(ctx);
             ctx.request().bodyHandler(event -> {
                 QueueCircuitState state = extractStatusFromBody(event);
+                log(ctx.request(), "change status of circuit " + circuitId + " to " + state);
                 if(state == null){
                     respondWith(StatusCode.BAD_REQUEST, "Body must contain a correct 'status' value", ctx.request());
                 } else if (QueueCircuitState.CLOSED != state){
@@ -150,6 +157,7 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
         // get single circuit
         router.get(prefix + circuitIdParam).handler(ctx ->{
             String circuitId = extractCircuitId(ctx);
+            log(ctx.request(), "get information of circuit " + circuitId);
             eventBus.send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitInformationOperation(circuitId),
                     new Handler<AsyncResult<Message<JsonObject>>>() {
                         @Override
@@ -176,7 +184,12 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
     @Override
     public void handle(HttpServerRequest request) { router.accept(request); }
 
+    private void log(HttpServerRequest request, String logMessage){
+        RequestLoggerFactory.getLogger(QueueCircuitBreakerHttpRequestHandler.class, request).info(logMessage);
+    }
+
     private void respondWith(StatusCode statusCode, String responseMessage, HttpServerRequest request) {
+        log(request, "Responding with status code " + statusCode + " and message: " + responseMessage);
         request.response().setStatusCode(statusCode.getStatusCode());
         request.response().setStatusMessage(statusCode.getStatusMessage());
         request.response().end(responseMessage);
