@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
 import io.vertx.core.*;
 import io.vertx.core.eventbus.Message;
@@ -10,6 +10,11 @@ import io.vertx.core.logging.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResource;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.*;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.routing.RuleProvider.RuleChangesObserver;

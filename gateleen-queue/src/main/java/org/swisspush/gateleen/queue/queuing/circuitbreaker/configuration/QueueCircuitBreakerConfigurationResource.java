@@ -1,11 +1,13 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration;
+
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 
 /**
  * Container class for all available {@link QueueCircuitBreaker} configuration values.
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-class QueueCircuitBreakerConfigurationResource {
+public class QueueCircuitBreakerConfigurationResource {
 
     private boolean circuitCheckEnabled;
     private boolean statisticsUpdateEnabled;
@@ -28,14 +30,14 @@ class QueueCircuitBreakerConfigurationResource {
     private static final int DEFAULT_UNLOCK_QUEUES_INTERVAL = 20000; // 20s
     private static final int DEFAULT_UNLOCK_SAMPLE_QUEUES_INTERVAL = 20000; // 20s
 
-    QueueCircuitBreakerConfigurationResource(){
+    public QueueCircuitBreakerConfigurationResource(){
         reset();
     }
 
     /**
      * Resets all configuration values to the default values
      */
-    void reset() {
+    public void reset() {
         circuitCheckEnabled = false;
         statisticsUpdateEnabled = false;
         errorThresholdPercentage = DEFAULT_ERROR_THRESHOLD;
@@ -53,75 +55,75 @@ class QueueCircuitBreakerConfigurationResource {
         unlockSampleQueuesTaskInterval = DEFAULT_UNLOCK_SAMPLE_QUEUES_INTERVAL;
     }
 
-    boolean isCircuitCheckEnabled() {
+    public boolean isCircuitCheckEnabled() {
         return circuitCheckEnabled;
     }
 
-    void setCircuitCheckEnabled(boolean circuitCheckEnabled) {
+    public void setCircuitCheckEnabled(boolean circuitCheckEnabled) {
         this.circuitCheckEnabled = circuitCheckEnabled;
     }
 
-    boolean isStatisticsUpdateEnabled() {
+    public boolean isStatisticsUpdateEnabled() {
         return statisticsUpdateEnabled;
     }
 
-    void setStatisticsUpdateEnabled(boolean statisticsUpdateEnabled) {
+    public void setStatisticsUpdateEnabled(boolean statisticsUpdateEnabled) {
         this.statisticsUpdateEnabled = statisticsUpdateEnabled;
     }
 
-    int getErrorThresholdPercentage() { return errorThresholdPercentage; }
+    public int getErrorThresholdPercentage() { return errorThresholdPercentage; }
 
-    void setErrorThresholdPercentage(int errorThresholdPercentage) {
+    public void setErrorThresholdPercentage(int errorThresholdPercentage) {
         this.errorThresholdPercentage = errorThresholdPercentage;
     }
 
-    int getEntriesMaxAgeMS() { return entriesMaxAgeMS; }
+    public int getEntriesMaxAgeMS() { return entriesMaxAgeMS; }
 
-    void setEntriesMaxAgeMS(int entriesMaxAgeMS) { this.entriesMaxAgeMS = entriesMaxAgeMS; }
+    public void setEntriesMaxAgeMS(int entriesMaxAgeMS) { this.entriesMaxAgeMS = entriesMaxAgeMS; }
 
-    int getMinQueueSampleCount() { return minQueueSampleCount; }
+    public int getMinQueueSampleCount() { return minQueueSampleCount; }
 
-    void setMinQueueSampleCount(int minQueueSampleCount) { this.minQueueSampleCount = minQueueSampleCount; }
+    public void setMinQueueSampleCount(int minQueueSampleCount) { this.minQueueSampleCount = minQueueSampleCount; }
 
-    int getMaxQueueSampleCount() { return maxQueueSampleCount; }
+    public int getMaxQueueSampleCount() { return maxQueueSampleCount; }
 
-    void setMaxQueueSampleCount(int maxQueueSampleCount) { this.maxQueueSampleCount = maxQueueSampleCount; }
+    public void setMaxQueueSampleCount(int maxQueueSampleCount) { this.maxQueueSampleCount = maxQueueSampleCount; }
 
-    boolean isOpenToHalfOpenTaskEnabled() { return openToHalfOpenTaskEnabled; }
+    public boolean isOpenToHalfOpenTaskEnabled() { return openToHalfOpenTaskEnabled; }
 
-    void setOpenToHalfOpenTaskEnabled(boolean openToHalfOpenTaskEnabled) {
+    public void setOpenToHalfOpenTaskEnabled(boolean openToHalfOpenTaskEnabled) {
         this.openToHalfOpenTaskEnabled = openToHalfOpenTaskEnabled;
     }
 
-    int getOpenToHalfOpenTaskInterval() { return openToHalfOpenTaskInterval; }
+    public int getOpenToHalfOpenTaskInterval() { return openToHalfOpenTaskInterval; }
 
-    void setOpenToHalfOpenTaskInterval(int openToHalfOpenTaskInterval) {
+    public void setOpenToHalfOpenTaskInterval(int openToHalfOpenTaskInterval) {
         this.openToHalfOpenTaskInterval = openToHalfOpenTaskInterval;
     }
 
-    int getUnlockQueuesTaskInterval() { return unlockQueuesTaskInterval; }
+    public int getUnlockQueuesTaskInterval() { return unlockQueuesTaskInterval; }
 
-    void setUnlockQueuesTaskInterval(int unlockQueuesTaskInterval) {
+    public void setUnlockQueuesTaskInterval(int unlockQueuesTaskInterval) {
         this.unlockQueuesTaskInterval = unlockQueuesTaskInterval;
     }
 
-    boolean isUnlockQueuesTaskEnabled() {
+    public boolean isUnlockQueuesTaskEnabled() {
         return unlockQueuesTaskEnabled;
     }
 
-    void setUnlockQueuesTaskEnabled(boolean unlockQueuesTaskEnabled) {
+    public void setUnlockQueuesTaskEnabled(boolean unlockQueuesTaskEnabled) {
         this.unlockQueuesTaskEnabled = unlockQueuesTaskEnabled;
     }
 
-    boolean isUnlockSampleQueuesTaskEnabled() { return unlockSampleQueuesTaskEnabled; }
+    public boolean isUnlockSampleQueuesTaskEnabled() { return unlockSampleQueuesTaskEnabled; }
 
-    void setUnlockSampleQueuesTaskEnabled(boolean unlockSampleQueuesTaskEnabled) {
+    public void setUnlockSampleQueuesTaskEnabled(boolean unlockSampleQueuesTaskEnabled) {
         this.unlockSampleQueuesTaskEnabled = unlockSampleQueuesTaskEnabled;
     }
 
-    int getUnlockSampleQueuesTaskInterval() { return unlockSampleQueuesTaskInterval; }
+    public int getUnlockSampleQueuesTaskInterval() { return unlockSampleQueuesTaskInterval; }
 
-    void setUnlockSampleQueuesTaskInterval(int unlockSampleQueuesTaskInterval) {
+    public void setUnlockSampleQueuesTaskInterval(int unlockSampleQueuesTaskInterval) {
         this.unlockSampleQueuesTaskInterval = unlockSampleQueuesTaskInterval;
     }
 

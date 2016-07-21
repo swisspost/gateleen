@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.api;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -16,8 +16,12 @@ import io.vertx.ext.web.RoutingContext;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerAPI.*;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerAPI.*;
 
 /**
  * Handles {@link QueueCircuitBreaker} related http requests. Provides access to the following

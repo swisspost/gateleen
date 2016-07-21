@@ -29,7 +29,7 @@ import org.swisspush.gateleen.packing.PackingHandler;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerConfigurationResourceManager;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.security.authorization.Authorizer;

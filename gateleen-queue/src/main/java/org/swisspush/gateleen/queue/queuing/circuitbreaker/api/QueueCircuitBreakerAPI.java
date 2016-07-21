@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.api;
 
 import io.vertx.core.json.JsonObject;
 
@@ -8,21 +8,21 @@ import io.vertx.core.json.JsonObject;
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-class QueueCircuitBreakerAPI {
+public class QueueCircuitBreakerAPI {
 
-    static final String OK = "ok";
-    static final String ERROR = "error";
-    static final String STATUS = "status";
-    static final String VALUE = "value";
-    static final String MESSAGE = "message";
-    static final String OPERATION = "operation";
-    static final String PAYLOAD = "payload";
-    static final String CIRCUIT_HASH = "circuit";
+    public static final String OK = "ok";
+    public static final String ERROR = "error";
+    public static final String STATUS = "status";
+    public static final String VALUE = "value";
+    public static final String MESSAGE = "message";
+    public static final String OPERATION = "operation";
+    public static final String PAYLOAD = "payload";
+    public static final String CIRCUIT_HASH = "circuit";
 
     /**
      * Enumeration of the available 'features' of the API
      */
-    enum Operation {
+    public enum Operation {
         getAllCircuits, getCircuitInformation, getCircuitStatus, closeCircuit, closeAllCircuits;
 
         Operation(){}
@@ -49,23 +49,23 @@ class QueueCircuitBreakerAPI {
         return op;
     }
 
-    static JsonObject buildGetCircuitInformationOperation(String circuitHash){
+    public static JsonObject buildGetCircuitInformationOperation(String circuitHash){
         return buildOperation(Operation.getCircuitInformation, new JsonObject().put(CIRCUIT_HASH, circuitHash));
     }
 
-    static JsonObject buildGetCircuitStatusOperation(String circuitHash){
+    public static JsonObject buildGetCircuitStatusOperation(String circuitHash){
         return buildOperation(Operation.getCircuitStatus, new JsonObject().put(CIRCUIT_HASH, circuitHash));
     }
 
-    static JsonObject buildCloseCircuitOperation(String circuitHash){
+    public static JsonObject buildCloseCircuitOperation(String circuitHash){
         return buildOperation(Operation.closeCircuit, new JsonObject().put(CIRCUIT_HASH, circuitHash));
     }
 
-    static JsonObject buildCloseAllCircuitsOperation(){
+    public static JsonObject buildCloseAllCircuitsOperation(){
         return buildOperation(Operation.closeAllCircuits);
     }
 
-    static JsonObject buildGetAllCircuitsOperation(){
+    public static JsonObject buildGetAllCircuitsOperation(){
         return buildOperation(Operation.getAllCircuits);
     }
 }

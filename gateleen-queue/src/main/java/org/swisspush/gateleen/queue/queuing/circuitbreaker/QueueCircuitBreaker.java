@@ -2,6 +2,8 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
 import io.vertx.core.Future;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
 /**
  * The QueueCircuitBreaker monitors the queue activity and protects the system from too much load when circuits/endpoints

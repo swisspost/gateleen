@@ -2,6 +2,10 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.UpdateStatisticsResult;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.api;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -14,11 +14,16 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerAPI;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerHttpRequestHandler;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerAPI.*;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerHttpRequestHandler.HTTP_REQUEST_API_ADDRESS;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerAPI.*;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerHttpRequestHandler.HTTP_REQUEST_API_ADDRESS;
 
 /**
  * Tests for the {@link QueueCircuitBreakerHttpRequestHandler} class

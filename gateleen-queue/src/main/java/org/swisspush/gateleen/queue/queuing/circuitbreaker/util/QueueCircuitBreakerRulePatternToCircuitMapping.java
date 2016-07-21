@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.util;
 
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -30,7 +30,7 @@ public class QueueCircuitBreakerRulePatternToCircuitMapping {
      * @param rules the list of routing rules to update the mapping with
      * @return a list of removed {@link PatternAndCircuitHash} objects
      */
-    List<PatternAndCircuitHash> updateRulePatternToCircuitMapping(List<Rule> rules){
+    public List<PatternAndCircuitHash> updateRulePatternToCircuitMapping(List<Rule> rules){
         List<PatternAndCircuitHash> originalPatternAndCircuitHashes = new ArrayList<>(rulePatternToCircuitMapping);
         log.debug("clearing rule pattern to circuit mapping values");
         rulePatternToCircuitMapping.clear();
@@ -53,7 +53,7 @@ public class QueueCircuitBreakerRulePatternToCircuitMapping {
         return currentPatternAndCircuitHashes;
     }
 
-    PatternAndCircuitHash getCircuitFromRequestUri(String requestUri){
+    public PatternAndCircuitHash getCircuitFromRequestUri(String requestUri){
         for (PatternAndCircuitHash mapping : rulePatternToCircuitMapping) {
             if(mapping.getPattern().matcher(requestUri).matches()){
                 return mapping;

@@ -16,11 +16,11 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueResponseType;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueResponseType.FAILURE;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueResponseType.SUCCESS;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.FAILURE;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.SUCCESS;
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**

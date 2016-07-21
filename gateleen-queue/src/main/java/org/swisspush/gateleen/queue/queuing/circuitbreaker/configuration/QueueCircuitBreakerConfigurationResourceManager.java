@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration;
 
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -60,7 +60,7 @@ public class QueueCircuitBreakerConfigurationResourceManager {
      * returned.
      * @return returns the {@link QueueCircuitBreakerConfigurationResource}
      */
-    QueueCircuitBreakerConfigurationResource getConfigurationResource() {
+    public QueueCircuitBreakerConfigurationResource getConfigurationResource() {
         if (configurationResource == null) {
             configurationResource = new QueueCircuitBreakerConfigurationResource();
         }

@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
 import io.vertx.core.*;
 import io.vertx.core.eventbus.Message;
@@ -16,6 +16,10 @@ import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.*;
 import org.swisspush.gateleen.routing.RuleProvider;
 
 import java.util.Arrays;
@@ -27,7 +31,7 @@ import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueResponseType.*;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.*;
 
 /**
  * Tests for the {@link QueueCircuitBreakerImpl} class

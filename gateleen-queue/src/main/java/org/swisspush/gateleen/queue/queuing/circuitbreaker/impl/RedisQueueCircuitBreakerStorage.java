@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
@@ -6,10 +6,14 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.redis.RedisClient;
-import io.vertx.redis.op.ScanOptions;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.*;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.UpdateStatisticsResult;
 
 import java.util.ArrayList;
 import java.util.Arrays;

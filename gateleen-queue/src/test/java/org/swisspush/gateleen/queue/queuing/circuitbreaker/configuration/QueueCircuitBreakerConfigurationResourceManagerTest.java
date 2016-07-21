@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration;
 
 import com.google.common.collect.ImmutableMap;
 import io.vertx.core.Handler;
@@ -20,6 +20,8 @@ import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResource;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
 
 /**
  * Tests for the {@link QueueCircuitBreakerConfigurationResourceManager} class

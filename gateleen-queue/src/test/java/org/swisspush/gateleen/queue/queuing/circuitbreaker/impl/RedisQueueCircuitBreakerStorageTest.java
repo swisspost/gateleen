@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker;
+package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
@@ -11,9 +11,13 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.UpdateStatisticsResult;
 import redis.clients.jedis.Jedis;
 
 import java.util.ArrayList;
@@ -22,8 +26,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState.*;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.*;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState.*;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage.*;
 
 /**
  * Tests for the {@link RedisQueueCircuitBreakerStorage} class

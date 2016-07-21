@@ -1,20 +1,19 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 
 import org.junit.Test;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState.HALF_OPEN;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitState.OPEN;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.FIELD_FAILRATIO;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.RedisQueueCircuitBreakerStorage.FIELD_STATE;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState.HALF_OPEN;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState.OPEN;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage.FIELD_FAILRATIO;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage.FIELD_STATE;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
