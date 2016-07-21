@@ -9,6 +9,8 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 /**
+ * Helper class to map {@link Rule} objects to {@link PatternAndCircuitHash} objects.
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class QueueCircuitBreakerRulePatternToCircuitMapping {
@@ -51,7 +53,7 @@ public class QueueCircuitBreakerRulePatternToCircuitMapping {
         return currentPatternAndCircuitHashes;
     }
 
-    public PatternAndCircuitHash getCircuitFromRequestUri(String requestUri){
+    PatternAndCircuitHash getCircuitFromRequestUri(String requestUri){
         for (PatternAndCircuitHash mapping : rulePatternToCircuitMapping) {
             if(mapping.getPattern().matcher(requestUri).matches()){
                 return mapping;

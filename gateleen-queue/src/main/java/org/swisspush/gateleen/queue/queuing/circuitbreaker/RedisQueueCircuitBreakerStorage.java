@@ -17,6 +17,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * Redis based implementation of the {@link QueueCircuitBreakerStorage} interface.
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStorage {

@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * Manager class for the {@link QueueCircuitBreakerConfigurationResource}.
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class QueueCircuitBreakerConfigurationResourceManager {
@@ -52,7 +54,13 @@ public class QueueCircuitBreakerConfigurationResourceManager {
         vertx.eventBus().consumer(UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> updateConfigurationResource());
     }
 
-    public QueueCircuitBreakerConfigurationResource getConfigurationResource() {
+    /**
+     * Get the {@link QueueCircuitBreakerConfigurationResource} with the actual configuration values. When the config
+     * resource is <code>null</code>, a new {@link QueueCircuitBreakerConfigurationResource} with the default values is
+     * returned.
+     * @return returns the {@link QueueCircuitBreakerConfigurationResource}
+     */
+    QueueCircuitBreakerConfigurationResource getConfigurationResource() {
         if (configurationResource == null) {
             configurationResource = new QueueCircuitBreakerConfigurationResource();
         }
@@ -71,28 +79,14 @@ public class QueueCircuitBreakerConfigurationResourceManager {
     }
 
     /**
-     * Refreshes all refreshables.
+     * Handles the provided request when the following conditions are met:
+     * <ul>
+     *     <li>Request URI matches the configured circuit breaker configuration URI</li>
+     *     <li>Request method is either PUT or DELETE</li>
+     * </ul>
+     * @param request the request to handle
+     * @return returns true if the specified conditions are met, false otherwise
      */
-    private void notifyRefreshables() {
-        refreshables.forEach(Refreshable::refresh);
-    }
-
-    private void updateConfigurationResource() {
-        storage.get(circuitBreakerConfigUri, buffer -> {
-            if (buffer != null) {
-                try {
-                    extractConfigurationValues(buffer);
-                    log.info("Applying circuit breaker configuration values : " + getConfigurationResource().toString());
-                } catch (ValidationException e) {
-                    log.warn("Could not reconfigure circuitbreaker", e);
-                }
-            } else {
-                log.warn("Could not get URL '" + (circuitBreakerConfigUri == null ? "<null>" : circuitBreakerConfigUri) + "'.");
-            }
-            notifyRefreshables();
-        });
-    }
-
     public boolean handleConfigurationResource(final HttpServerRequest request) {
         if (request.uri().equals(circuitBreakerConfigUri) && HttpMethod.PUT == request.method()) {
             request.bodyHandler(configResourceBuffer -> {
@@ -129,6 +123,29 @@ public class QueueCircuitBreakerConfigurationResourceManager {
         }
 
         return false;
+    }
+
+    /**
+     * Refreshes all refreshables.
+     */
+    private void notifyRefreshables() {
+        refreshables.forEach(Refreshable::refresh);
+    }
+
+    private void updateConfigurationResource() {
+        storage.get(circuitBreakerConfigUri, buffer -> {
+            if (buffer != null) {
+                try {
+                    extractConfigurationValues(buffer);
+                    log.info("Applying circuit breaker configuration values : " + getConfigurationResource().toString());
+                } catch (ValidationException e) {
+                    log.warn("Could not reconfigure circuitbreaker", e);
+                }
+            } else {
+                log.warn("Could not get URL '" + (circuitBreakerConfigUri == null ? "<null>" : circuitBreakerConfigUri) + "'.");
+            }
+            notifyRefreshables();
+        });
     }
 
     private void extractConfigurationValues(Buffer configResourceBuffer) throws ValidationException {

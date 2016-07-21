@@ -18,9 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerAPI.*;
-import static org.swisspush.redisques.util.RedisquesAPI.buildDeleteLockOperation;
-import static org.swisspush.redisques.util.RedisquesAPI.buildPutLockOperation;
+import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 
 /**

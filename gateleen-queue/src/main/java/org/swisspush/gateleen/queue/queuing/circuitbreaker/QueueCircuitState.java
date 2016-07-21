@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
 /**
+ * Enumeration to represent the status of circuit.
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public enum QueueCircuitState {

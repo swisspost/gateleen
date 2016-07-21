@@ -20,6 +20,14 @@ import org.swisspush.gateleen.core.util.StringUtils;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerAPI.*;
 
 /**
+ * Handles {@link QueueCircuitBreaker} related http requests. Provides access to the following
+ * {@link QueueCircuitBreaker} related informations through http requests:
+ * <ul>
+ *     <li>Get informations of all circuits</li>
+ *     <li>Get informations of a single circuit</li>
+ *     <li>Change states of all circuits</li>
+ *     <li>Change status of a single circuit</li>
+ * </ul>
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServerRequest> {
@@ -203,8 +211,7 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
         if(StringUtils.isNotEmptyTrimmed(bodyBuffer.toString())){
             try {
                 JsonObject obj = bodyBuffer.toJsonObject();
-                QueueCircuitState state = QueueCircuitState.fromString(obj.getString(STATUS), null);
-                return state;
+                return QueueCircuitState.fromString(obj.getString(STATUS), null);
             } catch (Exception ex){
                 return null;
             }

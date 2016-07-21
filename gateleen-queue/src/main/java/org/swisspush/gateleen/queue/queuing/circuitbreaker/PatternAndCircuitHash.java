@@ -3,6 +3,9 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 import java.util.regex.Pattern;
 
 /**
+ * Container class to hold a pattern (based on the name of the routing rule) and the hash representation of this pattern.
+ * The hash representation of the pattern is used as unique identifier of a circuit.
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class PatternAndCircuitHash {
