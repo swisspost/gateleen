@@ -59,7 +59,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
                     public void handle(AsyncResult<Message<JsonObject>> reply) {
                         JsonObject replyBody = reply.result().body();
                         context.assertEquals(OK, replyBody.getString(STATUS));
-                        context.assertEquals(QueueCircuitState.HALF_OPEN.name(), replyBody.getJsonObject(VALUE).getString(STATUS));
+                        context.assertEquals(QueueCircuitState.HALF_OPEN.name().toLowerCase(), replyBody.getJsonObject(VALUE).getString(STATUS));
                         async.complete();
                     }
                 });

@@ -105,8 +105,7 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
 
         // get all circuit states
         router.getWithRegex(prefix + "/" + allPrefix + statusSuffix).handler(ctx ->{
-            log(ctx.request(), "get all circuit states");
-            ctx.response().end();
+            respondWith(StatusCode.METHOD_NOT_ALLOWED, ctx.request());
         });
 
         // get single circuit status
@@ -306,7 +305,7 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
                 message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, event.cause().getMessage()));
                 return;
             }
-            message.reply(new JsonObject().put(STATUS, OK).put(VALUE, new JsonObject().put("status", event.result().name())));
+            message.reply(new JsonObject().put(STATUS, OK).put(VALUE, new JsonObject().put("status", event.result().name().toLowerCase())));
         });
     }
 

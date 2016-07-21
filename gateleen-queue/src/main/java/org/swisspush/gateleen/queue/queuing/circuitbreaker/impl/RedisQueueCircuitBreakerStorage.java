@@ -106,7 +106,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                     String failRatioStr = event.result().getString(1);
                     String circuit = event.result().getString(2);
                     JsonObject result = new JsonObject();
-                    result.put("status", state.name());
+                    result.put("status", state.name().toLowerCase());
                     JsonObject info = new JsonObject();
                     if (failRatioStr != null) {
                         info.put(FIELD_FAILRATIO, Integer.valueOf(failRatioStr));

@@ -26,9 +26,9 @@ public class QueueCircuitBreakerConfigurationResource {
     private static final int DEFAULT_ENTRY_MAX_AGE = 86400000; // 24h
     private static final int DEFAULT_MIN_SAMPLE_COUNT = 100;
     private static final int DEFAULT_MAX_SAMPLE_COUNT = 5000;
-    private static final int DEFAULT_TO_HALFOPEN_INTERVAL = 30000; // 30s
-    private static final int DEFAULT_UNLOCK_QUEUES_INTERVAL = 20000; // 20s
-    private static final int DEFAULT_UNLOCK_SAMPLE_QUEUES_INTERVAL = 20000; // 20s
+    private static final int DEFAULT_TO_HALFOPEN_INTERVAL = 120000; // 120s
+    private static final int DEFAULT_UNLOCK_QUEUES_INTERVAL = 10000; // 10s
+    private static final int DEFAULT_UNLOCK_SAMPLE_QUEUES_INTERVAL = 120000; // 120s
 
     public QueueCircuitBreakerConfigurationResource(){
         reset();

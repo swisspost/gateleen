@@ -86,7 +86,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         storage.getQueueCircuitInformation(hash).setHandler(event -> {
             context.assertTrue(event.succeeded());
             JsonObject result = event.result();
-            context.assertEquals(CLOSED.name(), result.getString("status"));
+            context.assertEquals(CLOSED.name().toLowerCase(), result.getString("status"));
             context.assertTrue(result.containsKey("info"));
             context.assertFalse(result.getJsonObject("info").containsKey("failRatio"));
             context.assertFalse(result.getJsonObject("info").containsKey("circuit"));
@@ -96,7 +96,7 @@ public class RedisQueueCircuitBreakerStorageTest {
             storage.getQueueCircuitInformation(hash).setHandler(event1 -> {
                 context.assertTrue(event1.succeeded());
                 JsonObject result1 = event1.result();
-                context.assertEquals(HALF_OPEN.name(), result1.getString("status"));
+                context.assertEquals(HALF_OPEN.name().toLowerCase(), result1.getString("status"));
                 context.assertTrue(result1.containsKey("info"));
                 context.assertEquals(99, result1.getJsonObject("info").getInteger("failRatio"));
                 context.assertEquals("/some/circuit/path", result1.getJsonObject("info").getString("circuit"));

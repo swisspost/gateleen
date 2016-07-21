@@ -193,6 +193,26 @@ public class QueueCircuitBreakerConfigurationResourceManagerTest {
         context.assertEquals(10000, config.getUnlockSampleQueuesTaskInterval());
     }
 
+    @Test
+    public void testDefaultConfigValues(TestContext context){
+        QueueCircuitBreakerConfigurationResourceManager manager = new QueueCircuitBreakerConfigurationResourceManager(vertx, new MockResourceStorage(), CONFIGURATION_URI);
+
+        QueueCircuitBreakerConfigurationResource config = manager.getConfigurationResource();
+
+        context.assertFalse(config.isCircuitCheckEnabled());
+        context.assertFalse(config.isStatisticsUpdateEnabled());
+        context.assertEquals(90, config.getErrorThresholdPercentage());
+        context.assertEquals(86400000, config.getEntriesMaxAgeMS());
+        context.assertEquals(100, config.getMinQueueSampleCount());
+        context.assertEquals(5000, config.getMaxQueueSampleCount());
+        context.assertFalse(config.isOpenToHalfOpenTaskEnabled());
+        context.assertEquals(120000, config.getOpenToHalfOpenTaskInterval());
+        context.assertFalse(config.isUnlockQueuesTaskEnabled());
+        context.assertEquals(10000, config.getUnlockQueuesTaskInterval());
+        context.assertFalse(config.isUnlockSampleQueuesTaskEnabled());
+        context.assertEquals(120000, config.getUnlockSampleQueuesTaskInterval());
+    }
+
     class ConfigResourceDELETERequest extends DummyHttpServerRequest {
         @Override public HttpMethod method() {
             return HttpMethod.DELETE;
