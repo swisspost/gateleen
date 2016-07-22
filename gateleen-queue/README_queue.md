@@ -106,7 +106,7 @@ The following information is stored for each circuit:
 
 When the update of the statistics of a circuit leads to a fulfillment of the conditions to open the circuit, this opening will be triggered. See chapter _Opening circuits_ for details.
 
-The following sequence diagram shows this process
+The following sequence diagram shows the update statistics process
 
 ```
 +-----------+                            +-----------------+                           +---------------------+
@@ -141,15 +141,15 @@ The following sequence diagram shows this process
 ```
 **Additional information of the process:**
 - The updateStatistics() call is made only for circuits in state _open_ or _half_open_
-- When the circuit is in state _half_open_ and the queued request succeeded, the circuit is closed by calling closeCircuit()
-- When the circuit is in state _half_open_ and the queued request failed, the circuit is re-openend again by calling reOpenCircuit()
+- When the circuit is in state _half_open_ and the queued request succeeded, the circuit will be closed
+- When the circuit is in state _half_open_ and the queued request failed, the circuit will re-openend again
 
 #### Opening circuits
 Based on the calculations described in section **Update circuit statistics**, the circuit will be switched to state _open_, when the following conditions are fulfilled:
 - The amount of recorded (unique) queues has reached the value defined in configuration property _minQueueSampleCount_
 - The ratio between failed and succeeded queue requests (respecting the _entriesMaxAgeMS_ configuration property) has reached the value defined in configuration property _errorThresholdPercentage_
 
-Queued requests of open circuits will not be served anymore (fail-fast). See section **Closing circuits** for more information about how circuits are closed.
+Queued requests of open circuits will not be served anymore (fail-fast). See section [Closing circuits](#closing-circuits) for more information about how circuits are closed.
 
 #### Closing circuits
 The process to close a circuit can be seen in the sequence diagram below.
