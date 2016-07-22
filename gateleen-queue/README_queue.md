@@ -145,7 +145,7 @@ The following sequence diagram shows the update statistics process
 - When the circuit is in state _half_open_ and the queued request failed, the circuit will re-openend again
 
 #### Opening circuits
-Based on the calculations described in section **Update circuit statistics**, the circuit will be switched to state _open_, when the following conditions are fulfilled:
+Based on the calculations described in section [Update circuit statistics](#update-circuit-statistics), the circuit will be switched to state _open_, when the following conditions are fulfilled:
 - The amount of recorded (unique) queues has reached the value defined in configuration property _minQueueSampleCount_
 - The ratio between failed and succeeded queue requests (respecting the _entriesMaxAgeMS_ configuration property) has reached the value defined in configuration property _errorThresholdPercentage_
 
@@ -228,23 +228,25 @@ This periodically check can be configured with the _unlockSampleQueues_ configur
 The configuration includes the activation / deactivation of the check as well as the interval [ms] to execute the check.
 
 The following procedure is executed for every circuit in state _half_open_:
+
 1. Unlock the queue which was not unlocked the longest (get the first item from the list)
 2. Update the timestamp of this queue. (This can be seen as append the queue to the end of the list again)
 
-Those unlocked **sample** queues will then be processed by vertx-redisques again, and therefore send to the QueueBrowser. The QueueBrowser will execute those queued requests and then checks the responses. There are two possible subsequent steps to make:
-- On success: close the circuit. See section _Close a circuit_
-- On failure: re-open the circuit. See section _Re-Open circuits_
+Those unlocked **sample** queues will then be processed by vertx-redisques again, and therefore send to the QueueBrowser. The QueueBrowser will execute those queued requests and then check the responses. There are two possible subsequent steps to make:
+- On success: close the circuit. See section [Close a circuit](#close-a-circuit)
+- On failure: re-open the circuit. See section [Reopen circuits](#reopen-circuits)
 
 ##### Close a circuit
 To finally close a circuit, the following steps are processed:
+
 1. Unlock all queues related to the circuit
 2. Change status of circuit to _closed_
-3. Reset failRatio value to 0
+3. Reset fail ratio value to 0
 4. Clear all success/fail statistics entries of the circuit
 
-##### Re-Open circuits
-When a queued request of sample queue execution was not successful, the corresponding circuit is changed to status _open_ again. With the next execution of the _'Switch open circuits to state half_open'_ task, the circuit will be changed
-to status _half_open_ again and another queue will be unlocked.
+##### Reopen circuits
+When a queued request of a sample queue execution was not successful, the corresponding circuit is changed to status _open_ again. With the next execution of the [Switch open circuits to state half_open](#switch-open-circuits-to-state-half_open) task, the circuit will be changed
+to status _half_open_ again and another queue (related to this circuit) will be unlocked.
 
 ##### Unlock queues
 When a circuit is unlocked, the queues related to this circuit will be unlocked. To not overwhelm the server by unlocking all queues at once, the queues are unlocked slowly.
@@ -259,6 +261,7 @@ The unlocking of the queues can be configured with the _unlockQueues_ configurat
 }
 ```
 The configuration includes the activation / deactivation of the queue unlocking as well as the interval [ms] to unlock the queues.
+
 **Note:** During the execution only 1 queue will be unlocked. Taken the configuration above, a queue is unlocked every 10s
 
 ### API
@@ -349,7 +352,7 @@ with the request body below
 ```
 
 ### Configuration
-The Queue Circuit Breaker can be configured to match the individual needs. To setup the configuration path, configure the [QueueCircuitBreakerConfigurationResourceManager](src/main/java/org/swisspush/gateleen/queue/queuing/circuitbreaker/configuration/QueueCircuitBreakerConfigurationResourceManager.java) with the desired path.
+The QCB can be configured to match the individual needs. To setup the configuration path, configure the [QueueCircuitBreakerConfigurationResourceManager](src/main/java/org/swisspush/gateleen/queue/queuing/circuitbreaker/configuration/QueueCircuitBreakerConfigurationResourceManager.java) with the desired path.
 
 ```java
 new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
