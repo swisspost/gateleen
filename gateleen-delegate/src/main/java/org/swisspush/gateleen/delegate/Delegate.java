@@ -8,7 +8,6 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.List;
@@ -74,11 +73,16 @@ public class Delegate {
 
 
         // is method handled?
-        if ( methods.contains(request.method())) {
-            final Handler<HttpClientResponse> handler = installDoneHandler(request);
-            final JsonObject firstRequest = requests.get(FIRST);
-            createRequest(request.uri(), firstRequest, handler);
-            return;
+        if ( methods.contains(request.method()) ) {
+
+            // check if Pattern matches the given request url
+            Matcher matcher = pattern.matcher(request.uri());
+            if ( matcher.matches() ) {
+                final Handler<HttpClientResponse> handler = installDoneHandler(request);
+                final JsonObject firstRequest = requests.get(FIRST);
+                createRequest(request.uri(), firstRequest, handler);
+                return;
+            }
         }
 
         // end response, if nothing matches
