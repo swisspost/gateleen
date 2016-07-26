@@ -132,10 +132,10 @@ public class DelegateHandler {
                         JsonObject delegates = responseObject.getJsonObject("delegates");
 
                         for (String delegateName : delegates.fieldNames()) {
+                            JsonObject delegateContent = delegates.getJsonObject(delegateName);
+                            JsonObject delegateDefinition = delegateContent.getJsonObject("definition");
                             LOG.info("Loading delegate: {}", delegateName );
-
-                            JsonObject storageObject = delegates.getJsonObject(delegateName);
-                            registerDelegate(Buffer.buffer(storageObject.toString()), delegateName);
+                            registerDelegate(Buffer.buffer(delegateDefinition.toString()), delegateName);
                         }
                     } else {
                         LOG.info("Currently are no delegates stored!");
