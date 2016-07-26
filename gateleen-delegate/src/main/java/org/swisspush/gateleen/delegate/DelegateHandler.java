@@ -57,7 +57,7 @@ public class DelegateHandler {
     private static final String SAVE_DELEGATE_ADDRESS = "gateleen.delegate-insert";
     private static final String REMOVE_DELEGATE_ADDRESS = "gateleen.delegate-remove";
     private static final Logger LOG = LoggerFactory.getLogger(DelegateHandler.class);
-    private static final int NAME_GROUP_INDEX = 2;
+    private static final int NAME_GROUP_INDEX = 1;
     private static final int MESSAGE_NAME = 0;
     private static final int MESSAGE_URL = 1;
 
@@ -91,7 +91,8 @@ public class DelegateHandler {
         String delegatesSchema = ResourcesUtils.loadResource("gateleen_delegate_schema_delegates", true);
         this.delegateFactory = new DelegateFactory(monitoringHandler,selfClient,properties,delegatesSchema);
 
-        delegateNamePattern = Pattern.compile("(" + delegatesUri + ")(.*)(/" + DEFINITION_RESOURCE + "|/"+ EXECUTION_RESOURCE + "/(.*)" + "|/)");
+        delegateNamePattern = Pattern.compile(delegatesUri + "([^/]+)(/" + DEFINITION_RESOURCE + "|/"+ EXECUTION_RESOURCE + ".*" + "|/?)");
+
         delegateMap = new HashMap<>();
         initialized = false;
     }
@@ -291,7 +292,7 @@ public class DelegateHandler {
      * @param uri original request uri
      * @return the name of the delegate or null if nothing matches
      */
-    private String getDelegateName(final String uri) {
+    protected String getDelegateName(final String uri) {
         /*
             URI could be:
                 >  /gateleen/server/delegate/v1/delegates/user-zip-copy/definition

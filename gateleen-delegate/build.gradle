@@ -5,4 +5,5 @@ dependencies {
     compile "org.swisspush:redisques:$redisquesVersion"
     compile "io.vertx:vertx-core:$vertxVersion"
     compile "io.vertx:vertx-redis-client:$vertxVersion"
+    compile "junit:junit:$junitVersion"
 }
