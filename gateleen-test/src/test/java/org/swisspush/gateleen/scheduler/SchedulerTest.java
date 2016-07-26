@@ -178,14 +178,14 @@ public class SchedulerTest extends AbstractTest {
         String content = String.valueOf(System.currentTimeMillis());
         String schedulerName = "scheduler-executeOnStartup-test";
         String resourceName = "schedulerWithExecuteInStartup";
-        String cronExpression = "* * 1/1 * * ?";
+        String cronExpression = "0 0 1 1 1 ?";
 
         // scheduler config
         String testSchedulers = "{\n"
                 + "  \"schedulers\": {\n"
                 + "    \"" + schedulerName + "\": {\n"
                 + "      \"cronExpression\": \"" + cronExpression + "\",\n"
-                + "      \"executeOnStartup\": " + true + ",\n"
+                + "      \"executeOnStartup\": true,\n"
                 + "      \"requests\": [\n"
                 + "        {\n"
                 + "          \"uri\": \"" + SERVER_ROOT + "/tests/" + SERVER_NAME + "/" + resourceName + "\",\n"
@@ -207,9 +207,6 @@ public class SchedulerTest extends AbstractTest {
             }
             return null;
         }, is(notNullValue()));
-
-        // get the scheduler and the randomOffset
-        Scheduler scheduler = schedulerResourceManager.getSchedulers().stream().filter(s -> s.getName().equals(schedulerName)).findFirst().get();
 
         // wait for the vertx timer to fire the first time
         await().atMost(10, SECONDS).until( () -> jedis.get("schedulers:" + schedulerName), is(notNullValue()));
@@ -229,14 +226,14 @@ public class SchedulerTest extends AbstractTest {
         String content = String.valueOf(System.currentTimeMillis());
         String schedulerName = "scheduler-executeOnStartup-test";
         String resourceName = "schedulerWithExecuteInStartup";
-        String cronExpression = "* * 1/1 * * ?";
+        String cronExpression = "0 0 1 1 1 ?";
 
         // scheduler config
         String testSchedulers = "{\n"
                 + "  \"schedulers\": {\n"
                 + "    \"" + schedulerName + "\": {\n"
                 + "      \"cronExpression\": \"" + cronExpression + "\",\n"
-                + "      \"executeOnStartup\": " + false + ",\n"
+                + "      \"executeOnStartup\": false ,\n"
                 + "      \"requests\": [\n"
                 + "        {\n"
                 + "          \"uri\": \"" + SERVER_ROOT + "/tests/" + SERVER_NAME + "/" + resourceName + "\",\n"
@@ -258,9 +255,6 @@ public class SchedulerTest extends AbstractTest {
             }
             return null;
         }, is(notNullValue()));
-
-        // get the scheduler and the randomOffset
-        Scheduler scheduler = schedulerResourceManager.getSchedulers().stream().filter(s -> s.getName().equals(schedulerName)).findFirst().get();
 
         // wait for the vertx timer to fire the first time
         await().atMost(10, SECONDS).until( () -> jedis.get("schedulers:" + schedulerName), is(notNullValue()));

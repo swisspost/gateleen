@@ -95,16 +95,11 @@ public class Scheduler {
                     }
                 });
             }
-            if(!executed && executeOnStartup ){
-                executed = true;
-                vertx.setTimer((randomOffset + 1) * 1000, new Handler<Long>() {
-                    @Override
-                    public void handle(Long aLong) {
-                        trigger();
-                    }
-                });
-            }
         }));
+        if(!executed && executeOnStartup ){
+            executed = true;
+            trigger();
+        }
     }
 
     public void stop() {
