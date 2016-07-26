@@ -141,7 +141,13 @@ public class Delegate {
         delegateRequest.headers().setAll(headers);
         delegateRequest.exceptionHandler(exception -> LOG.warn("Delegate request {} failed: {}",requestUri , exception.getMessage()));
         delegateRequest.setTimeout(120000); // avoids blocking other requests
-        delegateRequest.end(Buffer.buffer(payloadStr));
+
+        if ( payloadStr != null ) {
+            delegateRequest.end(Buffer.buffer(payloadStr));
+        }
+        else {
+            delegateRequest.end();
+        }
     }
 
     /**
