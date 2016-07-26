@@ -460,6 +460,48 @@ public class ListenerTest extends AbstractTest {
     }
 
     @Test
+    public void testAfterTriggerTypeWithoutBefore(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        // Settings
+        String subresource = "afterTwoListener";
+        String listenerNo = "1";
+        String listenerName = "firstListener";
+
+        String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
+        String targetListener1 = targetUrlBase + "/" + listenerName;
+        String[] methodsListener1 = new String[]{"GET", "PUT", "DELETE", "POST"};
+        final String targetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + "test";
+
+        // -------
+
+        final String requestUrl = requestUrlBase + "/" + subresource + "/" + "test";
+        final String body = "{ \"name\" : \"" + subresource + "\"}";
+
+        delete(requestUrl);
+        delete(targetUrlListener1);
+
+        /*
+         * Sending request, both listener hooked
+         */
+        registerListener(registerUrlListener1, targetListener1, methodsListener1, 4, null, null, null, HookTriggerType.AFTER);
+
+        checkPUTStatusCode(requestUrl, body, 200);
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+        checkGETBodyWithAwait(targetUrlListener1, body);
+
+        checkDELETEStatusCode(requestUrl, 200);
+        checkGETStatusCodeWithAwait(requestUrl, 404);
+        checkGETStatusCodeWithAwait(targetUrlListener1, 404);
+
+        unregisterListener(registerUrlListener1);
+
+        async.complete();
+    }
+
+    @Test
     public void testAfterTriggerType(TestContext context) {
         Async async = context.async();
         delete();

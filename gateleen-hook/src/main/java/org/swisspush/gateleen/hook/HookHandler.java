@@ -466,6 +466,14 @@ public class HookHandler {
 
             requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
         }
+
+        // if for e.g. the beforListeners are empty,
+        // we have to ensure, that the original request
+        // is executed. This way the after handler will
+        // also be called properly.
+        if ( filteredListeners.isEmpty() && handler != null ) {
+            handler.handle(null);
+        }
     }
 
     /**
@@ -508,7 +516,7 @@ public class HookHandler {
                 // Because this handler is called async. we
                 // have to secure, that it is only executed
                 // once.
-                if (currentCount.incrementAndGet() == beforeListener.size() && !sent) {
+                if ( ( currentCount.incrementAndGet() == beforeListener.size() || beforeListener.isEmpty() ) && !sent) {
                     sent = true;
 
                     /*
