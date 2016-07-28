@@ -33,6 +33,7 @@ public class SchedulerFactory {
     private static final String REQUESTS = "requests";
     private static final String SCHEDULERS = "schedulers";
     private static final String RANDOM_OFFSET = "randomOffset";
+    private static final String EXECUTE_ON_STARTUP = "executeOnStartup";
 
     private final Map<String, Object> properties;
     private Vertx vertx;
@@ -68,6 +69,11 @@ public class SchedulerFactory {
         for(Map.Entry<String,Object> entry: mainObject.getJsonObject(SCHEDULERS).getMap().entrySet()) {
             Map<String,Object> schedulerJson = (Map<String,Object>)entry.getValue();
 
+            boolean executeOnStartup = false;
+            if ( schedulerJson.containsKey(EXECUTE_ON_STARTUP) ) {
+                executeOnStartup = (boolean) schedulerJson.get(EXECUTE_ON_STARTUP);
+            }
+
             int maxRandomOffset = 0;
             if ( schedulerJson.containsKey(RANDOM_OFFSET) ) {
                 try {
@@ -87,7 +93,7 @@ public class SchedulerFactory {
                 }
             }
             try {
-                result.add(new Scheduler(vertx, redisClient, entry.getKey(), (String)schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset));
+                result.add(new Scheduler(vertx, redisClient, entry.getKey(), (String)schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset, executeOnStartup));
             } catch (ParseException e) {
                 throw new ValidationException("Could not parse cron expression of scheduler '"+entry.getKey()+"'", e);
             }

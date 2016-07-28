@@ -37,10 +37,12 @@ public class Scheduler {
     private long timer;
     private MonitoringHandler monitoringHandler;
     private long randomOffset = 0L;
+    private boolean executeOnStartup=false;
+    private boolean executed = false;
 
     private Logger log;
 
-    public Scheduler(Vertx vertx, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset) throws ParseException {
+    public Scheduler(Vertx vertx, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset, boolean executeOnStartup) throws ParseException {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.name = name;
@@ -49,6 +51,7 @@ public class Scheduler {
         this.log = LoggerFactory.getLogger(Scheduler.class.getName()+".scheduler-"+name);
         this.monitoringHandler = monitoringHandler;
         calcRandomOffset(maxRandomOffset);
+        this.executeOnStartup=executeOnStartup;
     }
 
     /**
@@ -93,6 +96,10 @@ public class Scheduler {
                 });
             }
         }));
+        if(!executed && executeOnStartup ){
+            executed = true;
+            trigger();
+        }
     }
 
     public void stop() {
