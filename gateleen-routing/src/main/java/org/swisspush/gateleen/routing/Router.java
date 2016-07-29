@@ -53,7 +53,7 @@ public class Router implements Refreshable {
     private Handler<Void> doneHandlers[];
     private LocalMap<String, Object> sharedData;
     private int storagePort;
-
+    private boolean initialized = false;
     private String routingRulesSchema;
 
     public Router(Vertx vertx,
@@ -452,8 +452,14 @@ public class Router implements Refreshable {
         httpClients.clear();
         httpClients.addAll(newClients);
 
-        for (Handler<Void> doneHandler : doneHandlers) {
-            doneHandler.handle(null);
+        // the first time the update is performed, the
+        // router is initialized and the doneHandlers
+        // are called.
+        if ( ! initialized ) {
+            initialized = true;
+            for (Handler<Void> doneHandler : doneHandlers) {
+                doneHandler.handle(null);
+            }
         }
     }
 
