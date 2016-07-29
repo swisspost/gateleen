@@ -135,6 +135,7 @@ public abstract class AbstractTest {
                 new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
                 Router router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
                         (Handler<Void>) aVoid -> {
+                            System.out.println("Router initialized!");
                             hookHandler.init();
                             delegateHandler.init();
                         }
