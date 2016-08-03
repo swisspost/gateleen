@@ -149,6 +149,15 @@ subprojects{
         }
     }
 
+    if ( project.hasProperty('snapshotRepository') ) {
+        println "jap"
+    }
+    else {
+        println "nope"
+    }
+
+
+
     uploadArchives {
         group 'build'
         description = "Does a maven deploy of archives artifacts"
@@ -156,15 +165,29 @@ subprojects{
         repositories {
             mavenDeployer {
 
+                def snapRepository = project.hasProperty('snapshotRepository') ? project.getProperties().get('snapshotRepository') : null
+                def relRepository = project.hasProperty('uploadRepository') ? project.getProperties().get('uploadRepository') : null
+                def repoUsername = project.hasProperty('repoUsername') ? project.getProperties().get('repoUsername') : null
+                def repoPassword = project.hasProperty('repoPassword') ? project.getProperties().get('repoPassword') : null
+
+
                 configuration = configurations.archives
 
-                repository(url: "$uploadRepository") {
-                    authentication(userName: "$repoUsername", password: "$repoPassword")
+                if ( repoUsername == null || repoPassword == null || repoUsername == 'randomUsername' || repoPassword == 'randomPassword') {
+                    repository(url: relRepository)
+
+                    snapshotRepository(url: snapRepository)
+                }
+                else {
+                    repository(url: relRepository) {
+                        authentication(userName: repoUsername, password: repoPassword)
+                    }
+
+                    snapshotRepository(url: snapRepository) {
+                        authentication(userName: repoUsername, password: repoPassword)
+                    }
                 }
 
-                snapshotRepository(url: "$snapshotRepository") {
-                    authentication(userName: "$repoUsername", password: "$repoPassword")
-                }
 
                 if(uploadToMavenCentral) {
                     beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
@@ -220,6 +243,11 @@ def configurePom(def pom) {
                 id 'mcweba'
                 name 'Marc-Andre Weber'
                 url 'https://github.com/mcweba'
+            }
+            developer {
+                id 'ljucam'
+                name 'Mario Ljuca'
+                url 'https://github.com/ljucam'
             }
         }
 
