@@ -209,7 +209,7 @@ public class UserProfileHandler {
     }
 
     private void logPayload(final HttpServerRequest request, final Integer status, Buffer data, final MultiMap responseHeaders) {
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, request);
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, request, vertx.eventBus());
         if (HttpMethod.PUT == request.method()) {
             loggingHandler.appendRequestPayload(data);
         } else if (HttpMethod.GET == request.method()) {

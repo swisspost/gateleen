@@ -3,6 +3,7 @@ package org.swisspush.gateleen.routing;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
@@ -25,17 +26,19 @@ public class NullForwarder implements Handler<RoutingContext> {
     private LoggingResourceManager loggingResourceManager;
     private MonitoringHandler monitoringHandler;
     private Rule rule;
+    private EventBus eventBus;
 
-    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler){
+    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, EventBus eventBus){
         this.rule = rule;
         this.loggingResourceManager = loggingResourceManager;
         this.monitoringHandler = monitoringHandler;
+        this.eventBus = eventBus;
     }
 
     @Override
     public void handle(final RoutingContext ctx) {
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request());
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), eventBus);
         final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
         log.debug("Not forwarding request: " + ctx.request().uri() + " with rule " + rule.getRuleIdentifier());
         final MultiMap requestHeaders = new CaseInsensitiveHeaders();

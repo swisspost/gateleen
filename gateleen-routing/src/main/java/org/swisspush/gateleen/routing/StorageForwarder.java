@@ -54,7 +54,7 @@ public class StorageForwarder implements Handler<RoutingContext> {
 
     @Override
     public void handle(final RoutingContext ctx) {
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request());
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), this.eventBus);
         final String targetUri = urlPattern.matcher(ctx.request().uri()).replaceAll(rule.getPath()).replaceAll("\\/\\/", "/");
         final Logger log = RequestLoggerFactory.getLogger(StorageForwarder.class, ctx.request());
         monitoringHandler.updateRequestsMeter("localhost", ctx.request().uri());
