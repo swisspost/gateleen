@@ -10,13 +10,13 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.Base64;
 import java.util.HashMap;
@@ -150,7 +150,7 @@ public class Forwarder implements Handler<RoutingContext> {
     }
 
     private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap) {
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req);
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req, vertx.eventBus());
 
         final String uniqueId = req.headers().get("x-rp-unique_id");
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());

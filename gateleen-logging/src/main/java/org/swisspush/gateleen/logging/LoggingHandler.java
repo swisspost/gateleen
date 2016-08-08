@@ -2,6 +2,7 @@ package org.swisspush.gateleen.logging;
 
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -29,6 +30,7 @@ public class LoggingHandler {
     private Buffer requestPayload;
     private Buffer responsePayload;
     private LoggingResource loggingResource;
+    private EventBus eventBus;
 
     private String currentDestination;
 
@@ -55,8 +57,9 @@ public class LoggingHandler {
 
     private Logger log;
 
-    public LoggingHandler(LoggingResourceManager loggingResourceManager, HttpServerRequest request) {
+    public LoggingHandler(LoggingResourceManager loggingResourceManager, HttpServerRequest request, EventBus eventBus) {
         this.request = request;
+        this.eventBus = eventBus;
         this.loggingResource = loggingResourceManager.getLoggingResource();
         this.log = RequestLoggerFactory.getLogger(LoggingHandler.class, request);
 
@@ -171,6 +174,7 @@ public class LoggingHandler {
              */
 
             EventBusAppender appender = new EventBusAppender();
+            EventBusAppender.setEventBus(eventBus);
             appender.setName(filterDestination);
             appender.setAddress(address);
             EnhancedPatternLayout layout = new EnhancedPatternLayout();

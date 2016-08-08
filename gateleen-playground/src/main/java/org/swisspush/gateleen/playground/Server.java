@@ -1,12 +1,21 @@
 package org.swisspush.gateleen.playground;
 
-import java.io.IOException;
-import java.util.Map;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.RedisClient;
+import io.vertx.redis.RedisOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
@@ -16,6 +25,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
+import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -40,16 +50,9 @@ import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
 import org.swisspush.gateleen.validation.ValidationHandler;
 import org.swisspush.gateleen.validation.ValidationResourceManager;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.RedisClient;
-import io.vertx.redis.RedisOptions;
+
+import java.io.IOException;
+import java.util.Map;
 
 /**
  * Playground server to try Gateleen at home.
@@ -93,6 +96,8 @@ public class Server extends AbstractVerticle {
     private ValidationHandler validationHandler;
     private QoSHandler qosHandler;
     private HookHandler hookHandler;
+    private ZipExtractHandler zipExtractHandler;
+    private DelegateHandler delegateHandler;
 
     private Logger log = LoggerFactory.getLogger(Server.class);
 
@@ -154,9 +159,13 @@ public class Server extends AbstractVerticle {
                     validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
                     validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
                     schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
-
+                    zipExtractHandler = new ZipExtractHandler(selfClient);
+                    delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/delegate/v1/delegates/", props);
                     router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
-                            (Handler<Void>) aVoid -> hookHandler.init());
+                            (Handler<Void>) aVoid -> {
+                                hookHandler.init();
+                                delegateHandler.init();
+                            });
 
                     RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                     QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
@@ -194,6 +203,8 @@ public class Server extends AbstractVerticle {
                             .loggingResourceManager(loggingResourceManager)
                             .queueCircuitBreakerConfigurationResourceManager(queueCircuitBreakerConfigurationResourceManager)
                             .schedulerResourceManager(schedulerResourceManager)
+                            .zipExtractHandler(zipExtractHandler)
+                            .delegateHandler(delegateHandler)
                             .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
                     Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                     selfClient.setRoutingContexttHandler(routingContextHandlerrNew);

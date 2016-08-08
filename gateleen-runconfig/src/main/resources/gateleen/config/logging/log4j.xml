@@ -79,6 +79,12 @@
     <logger name="org.swisspush.gateleen.integrationtest">
         <level value="DEBUG" />
     </logger>
+    <logger name="org.swisspush.gateleen.delegate">
+        <level value="TRACE" />
+    </logger>
+    <logger name="org.swisspush.gateleen.hook">
+        <level value="TRACE" />
+    </logger>
     <logger name="org.swisspush.reststorage">
         <level value="DEBUG" />
     </logger>
@@ -96,7 +102,7 @@
     </logger>
 
     <root>
-        <level value="DEBUG" />
+        <level value="TRACE" />
         <appender-ref ref="consoleAppender" />
     </root>
 

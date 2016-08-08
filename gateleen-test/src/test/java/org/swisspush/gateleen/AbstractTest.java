@@ -28,8 +28,10 @@ import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
+import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -63,6 +65,7 @@ public abstract class AbstractTest {
     public static final String ROOT = "/playground";
     public static final String SERVER_ROOT = ROOT + "/server";
     public static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
+    public static final String DELEGATE_ROOT = ROOT + "/server/delegate/v1/delegates/";
     public static final int MAIN_PORT = 3332;
     public static final int REDIS_PORT = 6379;
 
@@ -121,6 +124,9 @@ public abstract class AbstractTest {
                 resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);
+                ZipExtractHandler zipExtractHandler = new ZipExtractHandler(selfClient);
+                DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, DELEGATE_ROOT, props);
+
                 // ------
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler);
@@ -128,7 +134,12 @@ public abstract class AbstractTest {
 
                 new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
                 Router router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
-                        (Handler<Void>) aVoid -> hookHandler.init());
+                        (Handler<Void>) aVoid -> {
+                            System.out.println("Router initialized!");
+                            hookHandler.init();
+                            delegateHandler.init();
+                        }
+                );
 
                 System.setProperty("org.swisspush.gateleen.addcorsheaders", "true");
 
@@ -146,6 +157,8 @@ public abstract class AbstractTest {
                                 .loggingResourceManager(loggingResourceManager)
                                 .schedulerResourceManager(schedulerResourceManager)
                                 .propertyHandler(propertyHandler)
+                                .zipExtractHandler(zipExtractHandler)
+                                .delegateHandler(delegateHandler)
                                 .build(vertx, redisClient, AbstractTest.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
