@@ -35,7 +35,14 @@ import org.swisspush.gateleen.monitoring.ResetMetricsController;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.*;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerHttpRequestHandler;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
 import org.swisspush.gateleen.routing.Router;
+import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.security.authorization.Authorizer;
@@ -69,12 +76,14 @@ public class Server extends AbstractVerticle {
     private LoggingResourceManager loggingResourceManager;
     private ValidationResourceManager validationResourceManager;
     private SchedulerResourceManager schedulerResourceManager;
+    private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
     private MonitoringHandler monitoringHandler;
 
     private EventBusHandler eventBusHandler;
 
     private int defaultRedisPort = 6379;
     private int mainPort = 7012;
+    private int circuitBreakerPort = 7013;
 
     private RedisClient redisClient;
     private ResourceStorage storage;
@@ -158,7 +167,18 @@ public class Server extends AbstractVerticle {
                                 delegateHandler.init();
                             });
 
-                    new QueueProcessor(vertx, selfClient, monitoringHandler);
+                    RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
+                    QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
+
+                    queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
+                    QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
+                    QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
+                            SERVER_ROOT + "/queuecircuitbreaker/circuit");
+
+                    QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage,
+                            ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);
+
+                    new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                     final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
 
                     LogController logController = new LogController();
@@ -181,6 +201,7 @@ public class Server extends AbstractVerticle {
                             .roleProfileHandler(roleProfileHandler)
                             .userProfileHandler(userProfileHandler)
                             .loggingResourceManager(loggingResourceManager)
+                            .queueCircuitBreakerConfigurationResourceManager(queueCircuitBreakerConfigurationResourceManager)
                             .schedulerResourceManager(schedulerResourceManager)
                             .zipExtractHandler(zipExtractHandler)
                             .delegateHandler(delegateHandler)

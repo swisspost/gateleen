@@ -5,6 +5,7 @@ dependencies {
     compile "io.vertx:vertx-codegen:$vertxVersion"
     compile "io.vertx:vertx-unit:$vertxVersion"
     compile "com.floreysoft:jmte:$jmteVersion"
+    compile "commons-codec:commons-codec:$commonscodecVersion"
     compile "com.google.guava:guava:$guavaVersion"
     compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
     compile "log4j:log4j:$log4jVersion"
