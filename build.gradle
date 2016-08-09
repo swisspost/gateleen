@@ -149,15 +149,6 @@ subprojects{
         }
     }
 
-    if ( project.hasProperty('snapshotRepository') ) {
-        println "jap"
-    }
-    else {
-        println "nope"
-    }
-
-
-
     uploadArchives {
         group 'build'
         description = "Does a maven deploy of archives artifacts"
