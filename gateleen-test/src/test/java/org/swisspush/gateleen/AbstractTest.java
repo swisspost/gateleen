@@ -174,6 +174,7 @@ public abstract class AbstractTest {
                                 .roleProfileHandler(roleProfileHandler)
                                 .userProfileHandler(userProfileHandler)
                                 .loggingResourceManager(loggingResourceManager)
+                                .queueCircuitBreakerConfigurationResourceManager(queueCircuitBreakerConfigurationResourceManager)
                                 .schedulerResourceManager(schedulerResourceManager)
                                 .propertyHandler(propertyHandler)
                                 .zipExtractHandler(zipExtractHandler)
