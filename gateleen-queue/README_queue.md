@@ -145,7 +145,7 @@ The following sequence diagram shows the update statistics process
 - When the circuit is in state _half_open_ and the queued request failed, the circuit will re-openend again
 
 #### Opening circuits
-Based on the calculations described in section [Update circuit statistics](#update-circuit-statistics), the circuit will be switched to state _open_, when the following conditions are fulfilled:
+Based on the calculations described in section [Update circuit statistics](#update-circuit-statistics), the circuit will be switched to state _open_, when all the following conditions are fulfilled:
 - The amount of recorded (unique) queues has reached the value defined in configuration property _minQueueSampleCount_
 - The ratio between failed and succeeded queue requests (respecting the _entriesMaxAgeMS_ configuration property) has reached the value defined in configuration property _errorThresholdPercentage_
 
