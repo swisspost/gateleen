@@ -33,7 +33,7 @@ public interface QueueCircuitBreaker {
      *     <li>Calculate failRatio based on fail/success records</li>
      *     <li>Change status of corresponding circuit to 'OPEN' when failRatio threshold is reached</li>
      * </ul>
-     * </p>
+     *
      * @param queueName the name of the queue
      * @param queuedRequest the queued request
      * @param queueResponseType the {@link QueueResponseType} representing the execution result of the queuedRequest
@@ -96,7 +96,7 @@ public interface QueueCircuitBreaker {
      *     <li>Set status of this circuit to 'CLOSED'</li>
      *     <li>Unlock all queues related to this circuit</li>
      * </ul>
-     * </p>
+     *
      *
      * @param queuedRequest the queued request
      * @return returns a void future when circuit could be closed successfully.
@@ -112,7 +112,7 @@ public interface QueueCircuitBreaker {
      *     <li>Set status of all non-closed circuits to 'CLOSED'</li>
      *     <li>Unlock all queues related to all non-closed circuits</li>
      * </ul>
-     * </p>
+     *
      *
      * @return returns a void future when all non-closed circuits could be closed successfully.
      */

@@ -59,7 +59,7 @@ public interface QueueCircuitBreakerStorage {
      *     <li>Change status of corresponding circuit to 'OPEN' when minQueueSampleCount and errorThresholdPercentage is reached</li>
      *     <li>Remove oldest fail/success records when maxQueueSampleCount is reached</li>
      * </ul>
-     * </p>
+     *
      *
      * @param patternAndCircuitHash the information of the circuit
      * @param uniqueRequestID the unique identifier of the queued request
@@ -98,7 +98,7 @@ public interface QueueCircuitBreakerStorage {
      *     <li>Set status of this circuit to 'CLOSED'</li>
      *     <li>Unlock all queues related to this circuit</li>
      * </ul>
-     * </p>
+     *
      *
      * @param patternAndCircuitHash the information of the circuit
      * @return returns a void future when circuit could be closed successfully.
@@ -122,7 +122,7 @@ public interface QueueCircuitBreakerStorage {
      *     <li>Set status of all non-closed circuits to 'CLOSED'</li>
      *     <li>Unlock all queues related to all non-closed circuits</li>
      * </ul>
-     * </p>
+     *
      *
      * @return returns a void future when all non-closed circuits could be closed successfully.
      */
