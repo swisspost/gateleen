@@ -32,6 +32,9 @@
 	        },
 	        "address": {
 	          "type": "string"
+	        },
+	        "metadata": {
+	          "type": "string"
 	        }
 	      },
 	      "additionalProperties": false,
@@ -51,6 +54,10 @@
 				},
 				"destination": {
 					"description": "The destination the filtered content will be logged to",
+					"type": "string"
+				},
+				"description": {
+					"description": "The description of the purpose of the filter",
 					"type": "string"
 				},
 				"reject": {

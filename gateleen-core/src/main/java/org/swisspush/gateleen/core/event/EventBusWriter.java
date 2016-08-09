@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.core.event;
 
+import io.vertx.core.MultiMap;
+import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 
 import java.io.IOException;
@@ -15,10 +17,12 @@ public class EventBusWriter extends Writer {
     private StringBuffer buffer;
     private EventBus eventBus;
     private String address;
+    private MultiMap deliveryOptionsHeaders;
 
-    public EventBusWriter(EventBus eventBus, String address) {
+    public EventBusWriter(EventBus eventBus, String address, MultiMap deliveryOptionsHeaders) {
         this.eventBus = eventBus;
         this.address = address;
+        this.deliveryOptionsHeaders = deliveryOptionsHeaders;
     }
 
     @Override
@@ -32,7 +36,11 @@ public class EventBusWriter extends Writer {
     @Override
     public void flush() throws IOException {
         if(buffer != null) {
-            eventBus.publish(address, buffer.toString());
+            DeliveryOptions options = new DeliveryOptions();
+            if(deliveryOptionsHeaders != null){
+                options.setHeaders(deliveryOptionsHeaders);
+            }
+            eventBus.publish(address, buffer.toString(), options);
             buffer = null;
         }
     }

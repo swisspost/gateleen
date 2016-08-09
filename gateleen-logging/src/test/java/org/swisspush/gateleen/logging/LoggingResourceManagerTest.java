@@ -22,6 +22,9 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * Tests for the {@link LoggingResourceManager} class
  *
@@ -30,6 +33,11 @@ import org.swisspush.gateleen.core.util.StatusCode;
 @RunWith(VertxUnitRunner.class)
 public class LoggingResourceManagerTest {
 
+    private static final String TYPE = "type";
+    private static final String FILE = "file";
+    private static final String METADATA = "metadata";
+    private static final String ADDRESS = "address";
+    private static final String EVENT_BUS = "eventBus";
     private Vertx vertx;
     private ResourceStorage storage;
 
@@ -44,6 +52,31 @@ public class LoggingResourceManagerTest {
         vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
         storage = new MockResourceStorage(ImmutableMap.of(LOGGING_URI, INITIAL_LOGGING_RESOURCE));
+    }
+
+    @Test
+    public void testLoggingResourceContent(TestContext context){
+        storage = new MockResourceStorage(ImmutableMap.of(LOGGING_URI, VALID_LOGGING_RESOURCE));
+        LoggingResourceManager manager = new LoggingResourceManager(vertx, storage, LOGGING_URI);
+        LoggingResource loggingResource = manager.getLoggingResource();
+
+        // PayloadFilters
+        List<Map<String, String>> payloadFilterEntries = loggingResource.getPayloadFilters();
+        context.assertEquals(2, payloadFilterEntries.size());
+
+        // DestinationEntries
+        Map<String, Map<String, String>> destinationEntries = loggingResource.getDestinationEntries();
+        context.assertEquals(2, destinationEntries.size());
+        context.assertTrue(destinationEntries.containsKey("fileLog"));
+        Map<String, String> fileLogProperties = destinationEntries.get("fileLog");
+        assertFilterProperty(context, fileLogProperties, TYPE, FILE);
+        assertFilterProperty(context, fileLogProperties, FILE, "requests.log");
+        assertFilterProperty(context, fileLogProperties, METADATA, "");
+        context.assertTrue(destinationEntries.containsKey("eventBusLog"));
+        Map<String, String> eventBusLogProperties = destinationEntries.get("eventBusLog");
+        assertFilterProperty(context, eventBusLogProperties, TYPE, EVENT_BUS);
+        assertFilterProperty(context, eventBusLogProperties, ADDRESS, "some_eventbus_address");
+        assertFilterProperty(context, eventBusLogProperties, METADATA, "meta 1");
     }
 
     @Test
@@ -103,6 +136,11 @@ public class LoggingResourceManagerTest {
                 async.complete();
             });
         });
+    }
+
+    private void assertFilterProperty(TestContext context, Map<String, String> entries, String property, String value){
+        context.assertTrue(entries.containsKey(property), "Entries should contain property '" + property + "'");
+        context.assertEquals(entries.get(property), value, "Property value not as excpected. Should be '" + value + "'");
     }
 
     class LoggingResourcePUTRequest extends DummyHttpServerRequest{
