@@ -3,8 +3,10 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -19,6 +21,16 @@ import java.io.InputStreamReader;
 public abstract class AbstractLuaScriptTest {
 
     Jedis jedis = null;
+
+    @BeforeClass
+    public static void checkRedisAvailable(){
+        Jedis j = new Jedis("localhost", 6379, 5000);
+        try {
+            j.flushAll();
+        } catch (JedisConnectionException e){
+            org.junit.Assume.assumeNoException("Ignoring this test because no running redis is available. This is the case during release", e);
+        }
+    }
 
     @Before
     public void connect() {
