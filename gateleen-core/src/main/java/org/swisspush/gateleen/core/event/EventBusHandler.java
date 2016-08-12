@@ -203,7 +203,7 @@ public class EventBusHandler {
         if (eventbusBridgePingInterval != null) {
             bridgeOptions = bridgeOptions.setPingTimeout(eventbusBridgePingInterval);
         }
-        router.route(sockPath).handler(SockJSHandler.create(vertx).bridge(bridgeOptions));
+        router.route(sockPath+"/*").handler(SockJSHandler.create(vertx).bridge(bridgeOptions));
         log.info("Installed SockJS endpoint on " + sockPath);
         log.info("Listening to requests on " + adressPathPattern.pattern());
         log.info("Using address prefix " + addressPrefix);
