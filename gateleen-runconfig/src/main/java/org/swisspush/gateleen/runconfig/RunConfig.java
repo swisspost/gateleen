@@ -31,6 +31,7 @@ import org.swisspush.gateleen.packing.PackingHandler;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.security.authorization.Authorizer;
@@ -79,6 +80,7 @@ public class RunConfig {
     private SchedulerResourceManager schedulerResourceManager;
     private ValidationResourceManager validationResourceManager;
     private LoggingResourceManager loggingResourceManager;
+    private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
     private EventBusHandler eventBusHandler;
     private ValidationHandler validationHandler;
     private HookHandler hookHandler;
@@ -97,6 +99,7 @@ public class RunConfig {
 
     public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
+                     QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager,
                      EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
                      DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler,
@@ -111,6 +114,7 @@ public class RunConfig {
         this.schedulerResourceManager = schedulerResourceManager;
         this.validationResourceManager = validationResourceManager;
         this.loggingResourceManager = loggingResourceManager;
+        this.queueCircuitBreakerConfigurationResourceManager = queueCircuitBreakerConfigurationResourceManager;
         this.eventBusHandler = eventBusHandler;
         this.validationHandler = validationHandler;
         this.hookHandler = hookHandler;
@@ -138,6 +142,7 @@ public class RunConfig {
                 builder.schedulerResourceManager,
                 builder.validationResourceManager,
                 builder.loggingResourceManager,
+                builder.queueCircuitBreakerConfigurationResourceManager,
                 builder.eventBusHandler,
                 builder.validationHandler,
                 builder.hookHandler,
@@ -187,6 +192,7 @@ public class RunConfig {
         private SchedulerResourceManager schedulerResourceManager;
         private ValidationResourceManager validationResourceManager;
         private LoggingResourceManager loggingResourceManager;
+        private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
         private EventBusHandler eventBusHandler;
         private ValidationHandler validationHandler;
         private HookHandler hookHandler;
@@ -220,6 +226,11 @@ public class RunConfig {
 
         public RunConfigBuilder loggingResourceManager(LoggingResourceManager loggingResourceManager){
             this.loggingResourceManager = loggingResourceManager;
+            return this;
+        }
+
+        public RunConfigBuilder queueCircuitBreakerConfigurationResourceManager(QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager){
+            this.queueCircuitBreakerConfigurationResourceManager = queueCircuitBreakerConfigurationResourceManager;
             return this;
         }
 
@@ -513,6 +524,10 @@ public class RunConfig {
                             return;
                         }
                         if (schedulerResourceManager != null && schedulerResourceManager.handleSchedulerResource(request)) {
+                            return;
+                        }
+                        if(queueCircuitBreakerConfigurationResourceManager != null &&
+                                queueCircuitBreakerConfigurationResourceManager.handleConfigurationResource(request)){
                             return;
                         }
                         if (propertyHandler != null && propertyHandler.handle(request)) {

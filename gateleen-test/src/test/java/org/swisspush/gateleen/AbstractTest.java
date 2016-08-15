@@ -41,7 +41,15 @@ import org.swisspush.gateleen.monitoring.ResetMetricsController;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerHttpRequestHandler;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
 import org.swisspush.gateleen.routing.Router;
+import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.user.RoleProfileHandler;
@@ -68,6 +76,7 @@ public abstract class AbstractTest {
     public static final String DELEGATE_ROOT = ROOT + "/server/delegate/v1/delegates/";
     public static final int MAIN_PORT = 3332;
     public static final int REDIS_PORT = 6379;
+    public static final int CIRCUIT_BREAKER_REST_API_PORT = 7014;
 
     /**
      * Basis configuration for RestAssured
@@ -128,8 +137,18 @@ public abstract class AbstractTest {
                 DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, DELEGATE_ROOT, props);
 
                 // ------
+                RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
+                QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
-                new QueueProcessor(vertx, selfClient, monitoringHandler);
+                QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
+                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
+                QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
+                        SERVER_ROOT + "/queuecircuitbreaker/circuit");
+
+                QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage,
+                        ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler, CIRCUIT_BREAKER_REST_API_PORT);
+
+                new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
 
                 new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
@@ -155,6 +174,7 @@ public abstract class AbstractTest {
                                 .roleProfileHandler(roleProfileHandler)
                                 .userProfileHandler(userProfileHandler)
                                 .loggingResourceManager(loggingResourceManager)
+                                .queueCircuitBreakerConfigurationResourceManager(queueCircuitBreakerConfigurationResourceManager)
                                 .schedulerResourceManager(schedulerResourceManager)
                                 .propertyHandler(propertyHandler)
                                 .zipExtractHandler(zipExtractHandler)

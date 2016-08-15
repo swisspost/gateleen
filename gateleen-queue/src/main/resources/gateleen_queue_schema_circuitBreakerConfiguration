@@ -1,0 +1,77 @@
+{
+ 	"$schema": "http://json-schema.org/draft-04/schema#",
+ 	"properties": {
+ 	    "circuitCheckEnabled": {
+ 		    "description": "Should circuit state be checked for queued requests",
+ 			"type": "boolean"
+ 	    },
+ 	    "statisticsUpdateEnabled": {
+ 		    "description": "Should circuit statistics be updated for queued requests",
+ 			"type": "boolean"
+ 	    },
+        "errorThresholdPercentage": {
+            "description": "The percentage threshold of failing requests to open a circuit",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+        },
+        "entriesMaxAgeMS": {
+            "description": "The maximum age (in milliseconds) a success/failure entry is kept",
+            "type": "integer",
+            "minimum": 0
+        },
+        "minQueueSampleCount": {
+            "description": "The minimum count of unique queue samples to record before a circuit will eventually be opened",
+            "type": "integer",
+            "minimum": 0
+         },
+        "maxQueueSampleCount": {
+            "description": "The maximum count of unique queue samples to record",
+            "type": "integer",
+            "minimum": 0
+         },
+        "openToHalfOpen": {
+            "description": "Task to set circuits from state open to state half-open",
+            "$ref": "#/definitions/PeriodicTask"
+        },
+        "unlockQueues": {
+            "description": "Task to unlock locked queues",
+            "$ref": "#/definitions/PeriodicTask"
+        },
+        "unlockSampleQueues": {
+            "description": "Task to unlock a sample queue for each circuit",
+            "$ref": "#/definitions/PeriodicTask"
+        }
+ 	},
+ 	"additionalProperties": false,
+ 	"required": [
+ 	    "circuitCheckEnabled",
+ 	    "statisticsUpdateEnabled",
+ 	    "errorThresholdPercentage",
+ 	    "entriesMaxAgeMS",
+ 	    "minQueueSampleCount",
+ 	    "maxQueueSampleCount",
+ 	    "openToHalfOpen",
+ 	    "unlockQueues",
+ 	    "unlockSampleQueues"
+    ],
+	"definitions": {
+	    "PeriodicTask": {
+	      "description": "A configuration to define a periodic interval for a certain task",
+	      "properties": {
+	        "enabled": {
+	          "description": "Should the task be executed with the interval configured or not",
+	          "type": "boolean"
+	        },
+
+	        "interval": {
+	          "description": "The interval (in milliseconds) to execute the task (when enabled)",
+	          "type": "integer",
+	          "minimum": 1
+	        }
+	      },
+	      "additionalProperties": false,
+	      "required": ["enabled", "interval"]
+	    }
+	}
+ }
