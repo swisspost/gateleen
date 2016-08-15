@@ -22,18 +22,23 @@ $(function(){
         $.ajax({url: baseURL+"/playground/server/queuecircuitbreaker/circuit/", dataType:"json"}).done(function(data) {
             if (data) {
                 $.each(data, function(circuitHash, circuit) {
-                    $('<tr>')
+                    var $tableRow = $('<tr>')
                         .data("circuitHash", circuitHash)
                         .appendTo($('table#circuitsTable #circuitsTableBody'))
                         .append($('<td>').text(circuit.infos.circuit))
                         .append($('<td>').html(buildStatusLabel(circuit.status)))
-                        .append($('<td>').text(circuit.infos.failRatio))
-                        .append($('<td>')
+                        .append($('<td>').text(circuit.infos.failRatio));
+
+                    if(circuit.status != 'closed'){
+                        $tableRow.append($('<td>')
                             .append($('<button>')
                                 .text('close')
                                 .addClass('circuitCloseButton btn btn-danger')
                                 .on('click', closeCircuit)
                             ));
+                    } else {
+                        $tableRow.append($('<td>'));
+                    }
                 });
             }
         }).fail(function(xhr){
