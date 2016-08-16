@@ -68,11 +68,11 @@ public final class StringUtils {
      * </p>
      *
      * <pre>
-     * StringUtils.isNotEmpty(null)      = false
-     * StringUtils.isNotEmpty("")        = false
-     * StringUtils.isNotEmpty(" ")       = false
-     * StringUtils.isNotEmpty("bob")     = true
-     * StringUtils.isNotEmpty("  bob  ") = true
+     * StringUtils.isNotEmptyTrimmed(null)      = false
+     * StringUtils.isNotEmptyTrimmed("")        = false
+     * StringUtils.isNotEmptyTrimmed(" ")       = false
+     * StringUtils.isNotEmptyTrimmed("bob")     = true
+     * StringUtils.isNotEmptyTrimmed("  bob  ") = true
      * </pre>
      *
      * @param str the String to check, may be null

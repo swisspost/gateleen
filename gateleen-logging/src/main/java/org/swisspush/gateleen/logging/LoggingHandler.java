@@ -3,6 +3,7 @@ package org.swisspush.gateleen.logging;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -41,6 +42,8 @@ public class LoggingHandler {
     private static final String DEFAULT_LOGGER = "RequestLog";
     private static final String REJECT = "reject";
     private static final String DESTINATION = "destination";
+    private static final String DESCRIPTION = "description";
+    private static final String META_DATA = "metadata";
     private static final String URL = "url";
     private static final String METHOD = "method";
     private static final String STATUS_CODE = "statusCode";
@@ -71,7 +74,9 @@ public class LoggingHandler {
 
             boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
             for (Entry<String, String> filterEntry : payloadFilter.entrySet()) {
-                if (REJECT.equalsIgnoreCase(filterEntry.getKey()) || DESTINATION.equalsIgnoreCase(filterEntry.getKey())) {
+                if (REJECT.equalsIgnoreCase(filterEntry.getKey())
+                        || DESTINATION.equalsIgnoreCase(filterEntry.getKey())
+                        || DESCRIPTION.equalsIgnoreCase(filterEntry.getKey())) {
                     continue;
                 }
 
@@ -121,7 +126,7 @@ public class LoggingHandler {
             }
             else if (destinationOptions.containsKey("address")) {
                 log.debug("found destination entry with type 'eventBus' for: " + filterDestination);
-                appender = getEventBusAppender(filterDestination, destinationOptions.get(ADDRESS));
+                appender = getEventBusAppender(filterDestination, destinationOptions);
             }
             else {
                 log.warn("Unknown typeLocation for destination: " + filterDestination);
@@ -158,10 +163,10 @@ public class LoggingHandler {
      * returned.
      *
      * @param filterDestination
-     * @param address
+     * @param destinationOptions
      * @return
      */
-    private Appender getEventBusAppender(String filterDestination, String address) {
+    private Appender getEventBusAppender(String filterDestination, Map<String, String> destinationOptions) {
         if (!appenders.containsKey(filterDestination)) {
 
             /*
@@ -176,7 +181,8 @@ public class LoggingHandler {
             EventBusAppender appender = new EventBusAppender();
             EventBusAppender.setEventBus(eventBus);
             appender.setName(filterDestination);
-            appender.setAddress(address);
+            appender.setAddress(destinationOptions.get(ADDRESS));
+            appender.setDeliveryOptionsHeaders(new CaseInsensitiveHeaders().add(META_DATA, destinationOptions.get(META_DATA)));
             EnhancedPatternLayout layout = new EnhancedPatternLayout();
             layout.setConversionPattern("%m%n");
             appender.setLayout(layout);

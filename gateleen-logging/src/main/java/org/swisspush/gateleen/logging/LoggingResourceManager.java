@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
@@ -164,6 +165,7 @@ public class LoggingResourceManager {
 
                     Map<String, String> options = new HashMap<>();
                     options.put("type", destination.getString("type"));
+                    options.put("metadata", StringUtils.getStringOrEmpty(destination.getString("metadata")));
 
                     String typeLocation = null;
 
