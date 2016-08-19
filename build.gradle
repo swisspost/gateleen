@@ -71,17 +71,6 @@ subprojects{
         println 'found custom snapshotRepository: ' + snapshotRepository
     }
 
-    repositories {
-
-        try {
-            maven { url "$repository" }
-            println 'use custom repository: ' + "$repository"
-        } catch(Exception e) {
-            maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-        }
-        mavenCentral()
-    }
-
     ext.uploadToMavenCentral = false
     ext.InstallOrUpload = false
     gradle.taskGraph.whenReady { taskGraph ->
