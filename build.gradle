@@ -17,12 +17,11 @@ buildscript {
             maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
         }
     }
-    dependencies {
-        classpath 'net.researchgate:gradle-release:2.4.0'
-    }
 }
 
-apply plugin: 'net.researchgate.release'
+plugins {
+    id 'net.researchgate.release' version '2.4.0'
+}
 
 allprojects {
     apply plugin: 'idea'
@@ -70,6 +69,17 @@ subprojects{
         ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
     } else {
         println 'found custom snapshotRepository: ' + snapshotRepository
+    }
+
+    repositories {
+
+        try {
+            maven { url "$repository" }
+            println 'use custom repository: ' + "$repository"
+        } catch(Exception e) {
+            maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+        }
+        mavenCentral()
     }
 
     ext.uploadToMavenCentral = false
@@ -161,7 +171,6 @@ subprojects{
                 def repoUsername = project.hasProperty('repoUsername') ? project.getProperties().get('repoUsername') : null
                 def repoPassword = project.hasProperty('repoPassword') ? project.getProperties().get('repoPassword') : null
 
-
                 configuration = configurations.archives
 
                 if ( repoUsername == null || repoPassword == null || repoUsername == 'randomUsername' || repoPassword == 'randomPassword') {
@@ -179,11 +188,9 @@ subprojects{
                     }
                 }
 
-
                 if(uploadToMavenCentral) {
                     beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
                 }
-
 
                 configurePom(pom)
             }
