@@ -165,7 +165,6 @@ public class LoggingResourceManager {
 
                     Map<String, String> options = new HashMap<>();
                     options.put("type", destination.getString("type"));
-                    options.put("metadata", StringUtils.getStringOrEmpty(destination.getString("metadata")));
 
                     String typeLocation = null;
 
@@ -174,6 +173,8 @@ public class LoggingResourceManager {
                     }
                     else if (destination.getString("type").equalsIgnoreCase("eventBus")) {
                         typeLocation = "address";
+                        options.put("metadata", StringUtils.getStringOrEmpty(destination.getString("metadata")));
+                        options.put("transmission", StringUtils.getStringOrDefault(destination.getString("transmission"), "publish"));
                     }
 
                     if (typeLocation != null) {

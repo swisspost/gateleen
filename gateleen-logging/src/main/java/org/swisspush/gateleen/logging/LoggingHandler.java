@@ -13,6 +13,7 @@ import org.apache.log4j.Appender;
 import org.apache.log4j.DailyRollingFileAppender;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.event.EventBusWriter;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 
 import java.util.HashMap;
@@ -44,6 +45,7 @@ public class LoggingHandler {
     private static final String DESTINATION = "destination";
     private static final String DESCRIPTION = "description";
     private static final String META_DATA = "metadata";
+    private static final String TRANSMISSION = "transmission";
     private static final String URL = "url";
     private static final String METHOD = "method";
     private static final String STATUS_CODE = "statusCode";
@@ -183,6 +185,7 @@ public class LoggingHandler {
             appender.setName(filterDestination);
             appender.setAddress(destinationOptions.get(ADDRESS));
             appender.setDeliveryOptionsHeaders(new CaseInsensitiveHeaders().add(META_DATA, destinationOptions.get(META_DATA)));
+            appender.setTransmissionMode(EventBusWriter.TransmissionMode.fromString(destinationOptions.get(TRANSMISSION)));
             EnhancedPatternLayout layout = new EnhancedPatternLayout();
             layout.setConversionPattern("%m%n");
             appender.setLayout(layout);

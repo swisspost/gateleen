@@ -17,6 +17,7 @@ public class EventBusAppender extends WriterAppender {
     private String address;
     private Writer writer;
     private MultiMap deliveryOptionsHeaders;
+    private EventBusWriter.TransmissionMode transmissionMode;
 
     public static void setEventBus(EventBus eventBus) {
         EventBusAppender.eventBus = eventBus;
@@ -30,11 +31,15 @@ public class EventBusAppender extends WriterAppender {
         this.deliveryOptionsHeaders = deliveryOptionsHeaders;
     }
 
+    public void setTransmissionMode(EventBusWriter.TransmissionMode transmissionMode) {
+        this.transmissionMode = transmissionMode;
+    }
+
     @Override
     public void append(LoggingEvent event) {
         if(eventBus != null) {
             if(writer == null) {
-                writer = new EventBusWriter(eventBus, address, deliveryOptionsHeaders);
+                writer = new EventBusWriter(eventBus, address, deliveryOptionsHeaders, transmissionMode);
                 setWriter(writer);
             }
             super.append(event);

@@ -2,16 +2,11 @@
   "payload": {
     "destinations": [
       {
-        "name" : "fileLog",
-        "type" : "file",
-        "file" : "requests.log"
-      },
-      {
         "name" : "eventBusLog",
         "type" : "eventBus",
         "address" : "some_eventbus_address",
         "metadata" : "meta 1",
-        "transmission": "send"
+        "transmission": "invalid_transmission"
       }
     ],
     "filters": [

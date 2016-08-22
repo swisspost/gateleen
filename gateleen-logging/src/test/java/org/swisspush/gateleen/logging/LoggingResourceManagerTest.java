@@ -36,6 +36,7 @@ public class LoggingResourceManagerTest {
     private static final String TYPE = "type";
     private static final String FILE = "file";
     private static final String METADATA = "metadata";
+    private static final String TRANSMISSION = "transmission";
     private static final String ADDRESS = "address";
     private static final String EVENT_BUS = "eventBus";
     private Vertx vertx;
@@ -71,12 +72,14 @@ public class LoggingResourceManagerTest {
         Map<String, String> fileLogProperties = destinationEntries.get("fileLog");
         assertFilterProperty(context, fileLogProperties, TYPE, FILE);
         assertFilterProperty(context, fileLogProperties, FILE, "requests.log");
-        assertFilterProperty(context, fileLogProperties, METADATA, "");
+        context.assertFalse(fileLogProperties.containsKey(METADATA));
+        context.assertFalse(fileLogProperties.containsKey(TRANSMISSION));
         context.assertTrue(destinationEntries.containsKey("eventBusLog"));
         Map<String, String> eventBusLogProperties = destinationEntries.get("eventBusLog");
         assertFilterProperty(context, eventBusLogProperties, TYPE, EVENT_BUS);
         assertFilterProperty(context, eventBusLogProperties, ADDRESS, "some_eventbus_address");
         assertFilterProperty(context, eventBusLogProperties, METADATA, "meta 1");
+        assertFilterProperty(context, eventBusLogProperties, TRANSMISSION, "send");
     }
 
     @Test

@@ -35,6 +35,12 @@
 	        },
 	        "metadata": {
 	          "type": "string"
+	        },
+	        "transmission": {
+	          "enum": [
+	            "publish",
+	            "send"
+	          ]
 	        }
 	      },
 	      "additionalProperties": false,

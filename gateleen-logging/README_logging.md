@@ -25,28 +25,34 @@ An optional array called destinations which contains destination objects specify
 | type        | yes | Specifies the type of the destination. This can be a file (file) or an address from the eventBus (address). |
 | file        | | Used to specify the name of the file, where the filtered content should be logged. |
 | address     | | Used to specify the address in the eventBus, where the filtered content should be logged. |
+| metadata    | | Used to specify additional data to be sent over the eventBus. The metadata will be added to the DeliveryOptions headers. Used only when type is 'eventBus' |
+| transmission | | Used to specify the transmission type ('publish', 'send') for the eventBus. Default value is 'publish'. Used only when type is 'eventBus'. When transmission type 'send' is used, the log will be sent to a **single** consumer only. When transmission type 'publish' is used, the log will be sent to **all** consumers. |
 
 > <font color="orange">Attention: </font> You have to set the property **_org.swisspush.logging.dir_** to configure the path where the log files should be stored.
 
 ```json
-"payload": {
-    "destinations": [
-      {
-        "name" : "requestLog",
-        "type" : "file",
-        "file" : "requests.log"
-      },
-      {
-        "name" : "default",
-        "type" : "file",
-        "file" : "recording.log"
-      },
-      {
-        "name" : "rec2",
-        "type" : "eventBus",
-        "address" : "event/request-test"
-      }
-    ]
+{
+    "payload" : {
+        "destinations" : [
+          {
+            "name" : "requestLog",
+            "type" : "file",
+            "file" : "requests.log"
+          },
+          {
+            "name" : "default",
+            "type" : "file",
+            "file" : "recording.log"
+          },
+          {
+            "name" : "rec2",
+            "type" : "eventBus",
+            "address" : "event/request-test",
+            "metadata" : "someMoreData",
+            "transmission" : "publish"
+          }
+        ]
+    }
 }
 ```
 
@@ -64,42 +70,46 @@ An array called filters of filter entries to specify from what requests the payl
 All filter values inside a filter entry have to match in order to log the request payload. Example of a payload filters configuration:
 
 ```json
-"payload": {
-  "filters": [
-    {
-      "url": "/gateleen/resources/.*",
-      "x-rp-mail": "john.doe@swisspush.org"
-    },
-    {
-      "url": "/gateleen/anotherres/.*"
-    },
-    {
-      "url": "/gateleen/someres/v1/.*"
-    },
-    {
-      "url": "/gateleen/server/tests/res/.*"
-    },
-    {
-      "url": "/gateleen/(?!schemas/|apps/|server/(?!tests/res/.*)|img/).+"
+{
+    "payload" : {
+      "filters" : [
+        {
+          "url" : "/gateleen/resources/.*",
+          "x-rp-mail" : "john.doe@swisspush.org"
+        },
+        {
+          "url" : "/gateleen/anotherres/.*"
+        },
+        {
+          "url" : "/gateleen/someres/v1/.*"
+        },
+        {
+          "url" : "/gateleen/server/tests/res/.*"
+        },
+        {
+          "url" : "/gateleen/(?!schemas/|apps/|server/(?!tests/res/.*)|img/).+"
+        }
+      ]
     }
-  ]
 }
 ```
 
 Example of a payload filters configuration using the reject property and the method property:
 
 ```json
-"payload": {
-  "filters": [
-    {
-      "url": "/gateleen/server/test/sub/.*",
-      "method": "PUT|POST|DELETE"
-    },
-    {
-      "url": "/gateleen/server/test/.*",
-      "reject": "true"
+{
+    "payload" : {
+      "filters" : [
+        {
+          "url" : "/gateleen/server/test/sub/.*",
+          "method" : "PUT|POST|DELETE"
+        },
+        {
+          "url" : "/gateleen/server/test/.*",
+          "reject" : "true"
+        }
+      ]
     }
-  ]
 }
 ```
 
@@ -110,8 +120,8 @@ Logs all PUT, POST and DELETE Requests to /gateleen/server/test/sub/... and belo
 Example of a payload filters configuration using destinations to redirect the logging: 
 ```json
 {
-  "payload": {
-    "destinations": [
+  "payload" : {
+    "destinations" : [
       {
         "name" : "requestLog",
         "type" : "file",
@@ -128,17 +138,17 @@ Example of a payload filters configuration using destinations to redirect the lo
         "address" : "event/request-test"
       }
     ],
-    "filters": [
+    "filters" : [
       {
-        "url": "/gateleen/audit/log",
-        "destination": "requestLog"
+        "url" : "/gateleen/audit/log",
+        "destination" : "requestLog"
       },
       {
-        "url": "/gateleen/navigation/.*"
+        "url" : "/gateleen/navigation/.*"
       },
       {
-        "url": "/gateleen/trip/.*",
-        "destination": "rec2"
+        "url" : "/gateleen/trip/.*",
+        "destination" : "rec2"
       }
     ]
   }
