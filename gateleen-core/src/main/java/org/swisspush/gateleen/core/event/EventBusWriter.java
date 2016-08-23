@@ -65,7 +65,7 @@ public class EventBusWriter extends Writer {
             }
 
             if(TransmissionMode.send == transmissionMode){
-                eventBus.send(address, buffer.toString(), new Handler<AsyncResult<Message<JsonObject>>>() {
+                eventBus.send(address, buffer.toString(), options, new Handler<AsyncResult<Message<JsonObject>>>() {
                     @Override
                     public void handle(AsyncResult<Message<JsonObject>> reply) {
                         if (reply.succeeded() && "ok".equals(reply.result().body().getString("status"))) {
