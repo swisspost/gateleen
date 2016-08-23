@@ -11,6 +11,7 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
@@ -37,23 +38,27 @@ import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCirc
 @RunWith(VertxUnitRunner.class)
 public class RedisQueueCircuitBreakerStorageTest {
 
-    private Vertx vertx;
+    private static Vertx vertx;
     private Jedis jedis;
-    private RedisQueueCircuitBreakerStorage storage;
+    private static RedisQueueCircuitBreakerStorage storage;
 
     @org.junit.Rule
     public Timeout rule = Timeout.seconds(5);
 
+    @BeforeClass
+    public static void setupStorage(){
+        vertx = Vertx.vertx();
+        storage = new RedisQueueCircuitBreakerStorage(RedisClient.create(vertx, new RedisOptions()));
+    }
+
     @Before
     public void setUp(){
-        vertx = Vertx.vertx();
         jedis = new Jedis("localhost");
         try {
             jedis.flushAll();
         } catch (JedisConnectionException e){
             org.junit.Assume.assumeNoException("Ignoring this test because no running redis is available. This is the case during release", e);
         }
-        storage = new RedisQueueCircuitBreakerStorage(RedisClient.create(vertx, new RedisOptions()));
     }
 
     @Test
