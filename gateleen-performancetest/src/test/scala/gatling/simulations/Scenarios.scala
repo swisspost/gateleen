@@ -27,4 +27,18 @@ object Scenarios {
 
   val checkQueuesEmpty = scenario("Queueing: check queues are empty")
     .exec(Tasks.readQueues)
+
+  val pushScenario = scenario("Push scenario requests")
+    .exec(Tasks.registerHook)
+    .exec(Tasks.connectWebSocket)
+    .exec(Tasks.waitForWebSocketCall)
+
+  val putHookedResourceScenario = scenario("PUT request to hooked resource")
+    .exec(Tasks.putToHookedResource)
+
+  val unregisterHooks = scenario("Unregister hooks")
+    .exec(Tasks.unregisterHook)
+
+  val connectWebSockets = scenario("Connect WebSockets")
+    .exec(Tasks.openWebSocket)
 }

@@ -7,12 +7,16 @@ import scala.util.Random
 
 object Tasks {
 
+  val registerHookCounter = new java.util.concurrent.atomic.AtomicInteger(1)
+  val unregisterHookCounter = new java.util.concurrent.atomic.AtomicInteger(1)
+  val randomResource = Random.alphanumeric.take(15).mkString
+
   val writeExpandResourcesToStorage = repeat(120, "index") {
-      exec(http("PUT regular expand resource")
-        .put("/playground/server/test/resources/expand/regular/res_${index}")
-        .body(RawFileBody("expandResource.json")).asJSON
-        .check(status is 200)
-      )
+    exec(http("PUT regular expand resource")
+      .put("/playground/server/test/resources/expand/regular/res_${index}")
+      .body(RawFileBody("expandResource.json")).asJSON
+      .check(status is 200)
+    )
       .exec(http("PUT storage expand resource")
         .put("/playground/server/test/resources/expand/storage/res_${index}")
         .body(RawFileBody("expandResource.json")).asJSON
@@ -33,20 +37,20 @@ object Tasks {
   )
 
   val writeToStorage = exec(session => session.set("resourceId", Random.alphanumeric.take(30).mkString))
-      .exec(http("write resource to storage")
-        .put("/playground/server/test/resources/crud/res_${resourceId}")
-        .body(RawFileBody("dummyContent.json")).asJSON
-        .check(status is 200)
-      )
+    .exec(http("write resource to storage")
+      .put("/playground/server/test/resources/crud/res_${resourceId}")
+      .body(RawFileBody("dummyContent.json")).asJSON
+      .check(status is 200)
+    )
 
   val readFromStorage = exec(http("read resource from storage")
-      .get("/playground/server/test/resources/crud/res_${resourceId}")
-      .check(status is 200)
+    .get("/playground/server/test/resources/crud/res_${resourceId}")
+    .check(status is 200)
   )
 
   val deleteFromStorage = exec(http("delete resource from storage")
-      .delete("/playground/server/test/resources/crud/res_${resourceId}")
-      .check(status is 200)
+    .delete("/playground/server/test/resources/crud/res_${resourceId}")
+    .check(status is 200)
   )
 
   val readNotExistingResourceFromStorage = exec(http("read not existing resource from storage")
@@ -68,4 +72,38 @@ object Tasks {
     .get("/playground/server/queuing/queues/")
     .check(status is 200, jsonPath("$.queues[*]").count is 0)
   )
+
+  val registerHook = exec(session => session.set("registerCounter", registerHookCounter.getAndIncrement))
+    .exec(session => session.set("random", randomResource))
+    .exec(http("register hook")
+      .put("/playground/server/tests/hooktest/${random}/_hooks/listeners/http/push/${registerCounter}")
+      .body(StringBody("""{ "destination": "/playground/server/event/v1/channels/${registerCounter}", "methods": ["PUT"], "expireAfter": 300, "fullUrl": true }""")).asJSON
+      .check(status is 200)
+    )
+
+  val unregisterHook =  exec(session => session.set("unregisterCounter", unregisterHookCounter.getAndIncrement))
+    .exec(session => session.set("random", randomResource))
+    .exec(http("unregister hook")
+      .delete("/playground/server/tests/hooktest/${random}/_hooks/listeners/http/push/${unregisterCounter}")
+      .check(status is 200)
+    )
+
+  val putToHookedResource = exec(session => session.set("random", randomResource))
+    .exec(http("put to hooked resource")
+      .put("/playground/server/tests/hooktest/${random}/myres")
+      .body(StringBody("""{ "someProperty": 123 }""")).asJSON
+      .check(status is 200)
+    )
+
+  val connectWebSocket = exec(session => session.set("connId", Random.alphanumeric.take(8).mkString))
+    .exec(session => session.set("serverId", "%03d".format(Random.nextInt(1000))))
+    .exec(ws("open WebSocket").open("ws://localhost:7012/playground/server/event/v1/sock/${serverId}/${connId}/websocket"))
+    .exec(ws("register WebSocket").sendText("""["{\"type\":\"register\",\"address\":\"event-${registerCounter}\"}"]"""))
+
+  val openWebSocket = exec(session => session.set("connId", Random.alphanumeric.take(8).mkString))
+    .exec(session => session.set("serverId", "%03d".format(Random.nextInt(1000))))
+    .exec(ws("open WebSocket").open("ws://localhost:7012/playground/server/event/v1/sock/${serverId}/${connId}/websocket"))
+
+  val waitForWebSocketCall = exec(ws("wait for ws call").check(wsListen.within(120 seconds).until(1).regex(".*someProperty.*")))
+
 }

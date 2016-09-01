@@ -54,7 +54,7 @@ task gatling(type: JavaExec) {
     ]
     main = "io.gatling.app.Gatling"
     args = [
-            "--simulation", "gatling.simulations.GateleenPerformanceTestSimulation",
+            "--simulation", "$simulation",
             "--results-folder", "${buildDir}/gatling-results",
             "--binaries-folder", sourceSets.test.output.classesDir.toString(), // ignored because of above bug
             "--bodies-folder", sourceSets.test.resources.srcDirs.toList().first().toString() + "/bodies",
@@ -80,6 +80,6 @@ task uploadStaticFiles << {
 }
 
 task wrapper(type: Wrapper) {
-  gradleVersion = '2.3'
-  distributionUrl = "https://services.gradle.org/distributions/gradle-$gradleVersion-all.zip"
+    gradleVersion = '2.3'
+    distributionUrl = "https://services.gradle.org/distributions/gradle-$gradleVersion-all.zip"
 }
