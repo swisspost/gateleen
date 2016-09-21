@@ -153,11 +153,17 @@ public class Forwarder implements Handler<RoutingContext> {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req, vertx.eventBus());
 
         final String uniqueId = req.headers().get("x-rp-unique_id");
+        final String timeout = req.headers().get("x-timeout");
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());
 
         final HttpClientRequest cReq = prepareRequest(req, targetUri, log, profileHeaderMap, loggingHandler, startTime);
 
-        cReq.setTimeout(rule.getTimeout());
+        if (timeout != null) {
+            cReq.setTimeout(Long.valueOf(timeout));
+        } else {
+            cReq.setTimeout(rule.getTimeout());
+        }
+
         // Fix unique ID header name for backends not able to handle underscore in header names.
         cReq.headers().setAll(req.headers());
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
@@ -183,9 +189,6 @@ public class Forwarder implements Handler<RoutingContext> {
 
         cReq.setChunked(true);
 
-        if (rule.getTimeout() > 0) {
-            cReq.setTimeout(rule.getTimeout());
-        }
         installExceptionHandler(req, targetUri, startTime, cReq);
 
         /*
