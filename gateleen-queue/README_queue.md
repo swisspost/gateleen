@@ -399,3 +399,33 @@ An example Queue Circuit Breaker configuration would look like this:
   }
 }
 ```
+#### How to find appropriate configuration values
+Finding the right configuration values can be difficult. Several parameters have to be respected like for example:
+* How many Queues is the server able to handle before it explodes
+* How many Requests are expected for a single endpoint
+* How sensitive should the Queue Circuit Breaker act
+
+Given these parameters, a sample configuration could be made with the following calculations / thoughts:
+
+**Given:** The server has a maximum capacity of 10'000 active queues (before exploding ;-))
+**Given:** The average load of the server is about 2000 active queues
+
+**Assumption:** An endpoint (backend) goes down which normally is used by about 600 queues per minute
+
+Without the Queue Circuit Breaker opening any circuits, the time to live of the server can be calculated as follows:
+* 600 req/m => The Server will be dead in approximately 13 minutes having 9'800 active queues
+* 650 req/m (+15%) => The Server will be dead in approximately 12 minutes having 9'800 active queues
+* 1000 req/m => The Server will be dead in approximately 8 minutes having 10'000 active queues
+
+Based on these calculations, the following configuration values are arguable:
+
+##### entriesMaxAgeMS
+300000 [ms] => 5 minutes. This value is approximately half the time the server will survive without opening the circuit.
+
+##### maxQueueSampleCount
+4000 => This value is based on the expected request count for a single endpoint. Make sure that this value can hold more requests than with the _entriesMaxAgeMS_ are respected. In this case the _entriesMaxAgeMS_ is 5 minutes. So there are less than 4000 requests expected over 5 minutes for a single endpoint.
+
+##### errorThresholdPercentage
+80% This value can be chosen as wished. In this case the Queue Circuit Breaker should not act too agressive.
+
+The other configuration values are not very critical and therefore not mentioned here.
