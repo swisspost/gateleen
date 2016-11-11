@@ -5,10 +5,10 @@ import io.gatling.http.Predef._
 import scala.concurrent.duration._
 import gatling.simulations._
 
-class HookPerformanceTestSimulation extends Simulation {
+class HookNoWSConsumerTestSimulation extends Simulation {
 
   before {
-    println("About to start hook performance tests on host "
+    println("About to start hook no webSocket consumer performance tests on host "
       + Constants.baseURL + " with " + Constants.numberOfUsers + " users over " + Constants.rampUpTime + " seconds")
   }
 

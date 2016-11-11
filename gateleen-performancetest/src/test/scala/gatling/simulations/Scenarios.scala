@@ -29,26 +29,26 @@ object Scenarios {
     .exec(Tasks.readQueues)
 
   val pushScenario = scenario("Push scenario requests")
-    .exec(Tasks.registerHook)
-    .exec(Tasks.connectWebSocket)
-    .exec(Tasks.waitForWebSocketCall)
+    .exec(HookTasks.registerHook)
+    .exec(HookTasks.connectWebSocket)
+    .exec(HookTasks.waitForWebSocketCall)
 
   val putHookedResourceScenario = scenario("PUT request to hooked resource")
-    .exec(Tasks.putToHookedResource)
+    .exec(HookTasks.putToHookedResource)
 
   val unregisterHooks = scenario("Unregister hooks")
-    .exec(Tasks.unregisterHook)
+    .exec(HookTasks.unregisterHook)
 
   val connectWebSockets = scenario("Connect WebSockets")
-    .exec(Tasks.openWebSocket)
+    .exec(HookTasks.openWebSocket)
 
   val registerHookConnectAndDisconnectWS = scenario("Register a hook, connect ws, register ws and disconnect ws")
-    .exec(Tasks.registerHook)
-    .exec(Tasks.openWebSocket)
-    .exec(Tasks.registerWebSocket)
-    .exec(Tasks.closeWebSocket)
+    .exec(HookTasks.registerHook)
+    .exec(HookTasks.openWebSocket)
+    .exec(HookTasks.registerWebSocket)
+    .exec(HookTasks.closeWebSocket)
 
-  val checkPushNotificationQueues = scenario("check queues").exec(Tasks.checkPushNotificationQueues)
+  val checkPushNotificationQueues = scenario("check queues").exec(HookTasks.checkPushNotificationQueues)
 
   val verifyResponsiveness = scenario("verify responsiveness").group("verify_responsiveness"){
     exec(Tasks.writeToStorage).exec(Tasks.readFromStorage)
