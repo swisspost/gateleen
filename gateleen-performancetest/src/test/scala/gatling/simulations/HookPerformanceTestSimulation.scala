@@ -16,7 +16,7 @@ class HookPerformanceTestSimulation extends Simulation {
     Scenarios.registerHookConnectAndDisconnectWS.inject(rampUsers(Constants.numberOfUsers) over(Constants.rampUpTime seconds)),
     Scenarios.putHookedResourceScenario.inject(nothingFor(Constants.rampUpTime + 10 seconds), atOnceUsers(1)),
     Scenarios.checkPushNotificationQueues.inject(nothingFor(Constants.rampUpTime + 15 seconds), atOnceUsers(1)),
-    Scenarios.verifyResponsiveness.inject(nothingFor(Constants.rampUpTime + 15 seconds), rampUsers(20) over(20 seconds))
+    Scenarios.verifyResponsiveness.inject(nothingFor(Constants.rampUpTime + 17 seconds), rampUsers(20) over(20 seconds))
   )
     .protocols(Constants.httpConf)
     .assertions(
