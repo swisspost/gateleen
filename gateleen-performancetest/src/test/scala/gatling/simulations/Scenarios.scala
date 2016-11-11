@@ -41,4 +41,16 @@ object Scenarios {
 
   val connectWebSockets = scenario("Connect WebSockets")
     .exec(Tasks.openWebSocket)
+
+  val registerHookConnectAndDisconnectWS = scenario("Register a hook, connect ws, register ws and disconnect ws")
+    .exec(Tasks.registerHook)
+    .exec(Tasks.openWebSocket)
+    .exec(Tasks.registerWebSocket)
+    .exec(Tasks.closeWebSocket)
+
+  val checkPushNotificationQueues = scenario("check queues").exec(Tasks.checkPushNotificationQueues)
+
+  val verifyResponsiveness = scenario("verify responsiveness").group("verify_responsiveness"){
+    exec(Tasks.writeToStorage).exec(Tasks.readFromStorage)
+  }
 }

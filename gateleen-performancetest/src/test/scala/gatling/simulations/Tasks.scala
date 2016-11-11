@@ -77,7 +77,7 @@ object Tasks {
     .exec(session => session.set("random", randomResource))
     .exec(http("register hook")
       .put("/playground/server/tests/hooktest/${random}/_hooks/listeners/http/push/${registerCounter}")
-      .body(StringBody("""{ "destination": "/playground/server/event/v1/channels/${registerCounter}", "methods": ["PUT"], "expireAfter": 300, "fullUrl": true }""")).asJSON
+      .body(StringBody("""{ "destination": "/playground/server/event/v1/channels/${registerCounter}", "methods": ["PUT"], "expireAfter": 60, "fullUrl": true, "staticHeaders": { "x-sync": true} }""")).asJSON
       .check(status is 200)
     )
 
@@ -104,6 +104,21 @@ object Tasks {
     .exec(session => session.set("serverId", "%03d".format(Random.nextInt(1000))))
     .exec(ws("open WebSocket").open("ws://localhost:7012/playground/server/event/v1/sock/${serverId}/${connId}/websocket"))
 
+  val registerWebSocket = exec(ws("register WebSocket").sendText("""["{\"type\":\"register\",\"address\":\"event-${registerCounter}\"}"]"""))
+
   val waitForWebSocketCall = exec(ws("wait for ws call").check(wsListen.within(120 seconds).until(1).regex(".*someProperty.*")))
 
+  val closeWebSocket = exec(ws("close WebSocket").close)
+
+  val checkPushNotificationQueues = exec(session => session.set("count", Constants.numberOfUsers))
+  .exec(http("check queues")
+    .get("/playground/server/redisques/queues?count")
+    .check(status is 200, jsonPath("$[?(@.count>=${count})]").exists)
+  )
+
+  val checkServerIsStillResponsive = exec(http("PUT some resource")
+    .put("/playground/server/tests/someResource")
+    .body(StringBody("""{ "someProperty": 123 }""")).asJSON
+    .check(status is 200)
+  )
 }

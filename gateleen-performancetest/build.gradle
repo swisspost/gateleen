@@ -50,7 +50,9 @@ task gatling(type: JavaExec) {
             "-Dgatling.core.directory.binaries=${sourceSets.test.output.classesDir.toString()}",
             "-Dlogback.configurationFile=${logbackGatlingConfig()}",
             "-DtargetHost=$targetHost",
-            "-DtargetPort=$targetPort"
+            "-DtargetPort=$targetPort",
+            "-DnumberOfUsers=$numberOfUsers",
+            "-DrampUpTime=$rampUpTime"
     ]
     main = "io.gatling.app.Gatling"
     args = [

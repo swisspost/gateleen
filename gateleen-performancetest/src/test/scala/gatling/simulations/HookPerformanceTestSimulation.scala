@@ -7,22 +7,20 @@ import gatling.simulations._
 
 class HookPerformanceTestSimulation extends Simulation {
 
-  val targetHost = System.getProperty("targetHost", "localhost")
-  val targetPort = Integer.getInteger("targetPort", 7012)
-  val baseURL = "http://" + targetHost + ":" + targetPort
-  val httpConf = http.baseURL(baseURL).warmUp(baseURL + "/playground")
-
   before {
-    println("About to start hook performance tests on host " + baseURL)
+    println("About to start hook performance tests on host "
+      + Constants.baseURL + " with " + Constants.numberOfUsers + " users over " + Constants.rampUpTime + " seconds")
   }
 
   setUp(
-//    Scenarios.connectWebSockets.inject(rampUsers(5000) over(60 seconds))
-
-    Scenarios.pushScenario.inject(rampUsers(1500) over(60 seconds)),
-    Scenarios.putHookedResourceScenario.inject(nothingFor(70 seconds), atOnceUsers(1)),
-    Scenarios.unregisterHooks.inject(nothingFor(75 seconds), rampUsers(1500) over(60 seconds))
+    Scenarios.registerHookConnectAndDisconnectWS.inject(rampUsers(Constants.numberOfUsers) over(Constants.rampUpTime seconds)),
+    Scenarios.putHookedResourceScenario.inject(nothingFor(Constants.rampUpTime + 10 seconds), atOnceUsers(1)),
+    Scenarios.checkPushNotificationQueues.inject(nothingFor(Constants.rampUpTime + 15 seconds), atOnceUsers(1)),
+    Scenarios.verifyResponsiveness.inject(nothingFor(Constants.rampUpTime + 15 seconds), rampUsers(20) over(20 seconds))
   )
-    .protocols(httpConf)
-    .assertions(global.successfulRequests.percent.is(100))
+    .protocols(Constants.httpConf)
+    .assertions(
+      details("verify_responsiveness").responseTime.percentile1.lessThan(Constants.responseTimeMs),
+      global.successfulRequests.percent.is(100)
+    )
 }
