@@ -18,38 +18,47 @@
 <body>
 
 <script>
+    function getParameterByName(name, url) {
+        if (!url) {
+            url = window.location.href;
+        }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                results = regex.exec(url);
+        if (!results) return null;
+        if (!results[2]) return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
 
     function hookToUrl() {
-        var uniqueId = randomString(10);
         var eb = new vertx.EventBus('/playground/server/event/v1/sock');
         eb.onopen = function () {
             console.log('Opened sock 1');
-            eb.registerHandler('event-' + uniqueId,
+            eb.registerHandler('event-' + eventId,
                     function (message, reply) {
                         $('#result-text').html(message.payload);
+                        if(dontReply == null) {
+                            var replyObj = {};
+                            reply(replyObj, null);
+                        }
                     });
         };
 
         $.ajax({
-            url: '/playground/server/tests/hooktest/_hooks/listeners/http/push/' + uniqueId,
+            url: '/playground/server/tests/hooktest/_hooks/listeners/http/push/' + eventId,
             type: 'PUT',
-            data: JSON.stringify({ "destination": "/playground/server/event/v1/channels/" + uniqueId, "methods": ["PUT"], "expireAfter": 300, "fullUrl": true }),
+            data: JSON.stringify({ "destination": "/playground/server/event/v1/channels/" + eventId, "methods": ["PUT"], "expireAfter": 300, "fullUrl": true, "staticHeaders": { "x-sync": true} }),
             success: function(result) {
                 // Do something with the result
                 $('#result-text').html(result);
             }
         });
-
-        function randomString(x){
-            var s = "";
-            while(s.length<x&&x>0){
-                var r = Math.random();
-                s+= (r<0.1?Math.floor(r*100):String.fromCharCode(Math.floor(r*26) + (r>0.5?97:65)));
-            }
-            return s;
-        }
-
     }
+
+    var eventId = getParameterByName('eventId');
+    var dontReply = getParameterByName('dontReply');
+    hookToUrl();
+
 </script>
 
 <div class="container-fluid" style="margin: 15px">
@@ -58,7 +67,7 @@
         <div class="panel panel-default">
             <div class="panel-heading">hook to url</div>
             <div class="panel-body">
-                <button type="button" class="btn btn-primary" onclick="hookToUrl()">/playground/server/tests/hooktest/</button>
+                <!--<button type="button" class="btn btn-primary" onclick="hookToUrl()">/playground/server/tests/hooktest/</button>-->
             </div>
         </div>
         <div class="panel panel-default">
