@@ -34,14 +34,16 @@
         var eb = new vertx.EventBus('/playground/server/event/v1/sock');
         eb.onopen = function () {
             console.log('Opened sock 1');
-            eb.registerHandler('event-' + eventId,
-                    function (message, reply) {
-                        $('#result-text').html(message.payload);
-                        if(dontReply == null) {
-                            var replyObj = {};
-                            reply(replyObj, null);
-                        }
-                    });
+            if(dontRegister == null) {
+                eb.registerHandler('event-' + eventId,
+                        function (message, reply) {
+                            $('#result-text').html(message.payload);
+                            if (dontReply == null) {
+                                var replyObj = {};
+                                reply(replyObj, null);
+                            }
+                        });
+            }
         };
 
         $.ajax({
@@ -57,6 +59,7 @@
 
     var eventId = getParameterByName('eventId');
     var dontReply = getParameterByName('dontReply');
+    var dontRegister = getParameterByName('dontRegister');
     hookToUrl();
 
 </script>

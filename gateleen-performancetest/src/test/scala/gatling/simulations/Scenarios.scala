@@ -50,7 +50,16 @@ object Scenarios {
 
   val checkPushNotificationQueues = scenario("check queues").exec(HookTasks.checkPushNotificationQueues)
 
+  val checkPushNotificationQueuesEmpty = scenario("check queues are empty").exec(HookTasks.checkPushNotificationQueuesEmpty)
+
   val verifyResponsiveness = scenario("verify responsiveness").group("verify_responsiveness"){
     exec(Tasks.writeToStorage).exec(Tasks.readFromStorage)
   }
+
+  val registerHookConnectAndReply = scenario("Register a hook, connect ws, register ws and reply when message arrives")
+    .exec(HookTasks.registerHook)
+    .exec(HookTasks.openWebSocket)
+    .exec(HookTasks.registerWebSocket)
+    .exec(HookTasks.awaitMessageAndThenReply)
+
 }

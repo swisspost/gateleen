@@ -4,6 +4,8 @@ import io.gatling.core.Predef._
 import io.gatling.http.Predef._
 import scala.concurrent.duration._
 import scala.util.Random
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.gatling.jsonpath._
 
 object HookTasks {
 
@@ -15,7 +17,7 @@ object HookTasks {
     .exec(session => session.set("random", randomResource))
     .exec(http("register hook")
       .put("/playground/server/tests/hooktest/${random}/_hooks/listeners/http/push/${registerCounter}")
-      .body(StringBody("""{ "destination": "/playground/server/event/v1/channels/${registerCounter}", "methods": ["PUT"], "expireAfter": 60, "fullUrl": true, "staticHeaders": { "x-sync": true} }""")).asJSON
+      .body(StringBody("""{ "destination": "/playground/server/event/v1/channels/${registerCounter}", "methods": ["PUT"], "expireAfter": 1200, "fullUrl": true, "staticHeaders": { "x-sync": true} }""")).asJSON
       .check(status is 200)
     )
 
@@ -54,9 +56,26 @@ object HookTasks {
       .check(status is 200, jsonPath("$[?(@.count>=${count})]").exists)
     )
 
+  val checkPushNotificationQueuesEmpty = exec(http("check queues")
+      .get("/playground/server/redisques/queues?count")
+      .check(status is 200, jsonPath("$[?(@.count<=1)]").exists)
+    )
+
   val checkServerIsStillResponsive = exec(http("PUT some resource")
     .put("/playground/server/tests/someResource")
     .body(StringBody("""{ "someProperty": 123 }""")).asJSON
     .check(status is 200)
   )
+
+  val replyWebkSocket = exec(ws("reply WebSocket").sendText("""["{\"type\":\"send\",\"address\":\"123\",\"body\":{}}"]"""))
+
+  val awaitMessageAndThenReply = exec(ws("wait for ws call").check(wsAwait.within(120 seconds).until(1).regex("a\\[.*").saveAs("send_response")))
+    .exec {session =>
+      val sendResponse = session("send_response").as[String]
+      val splitted = sendResponse.split("replyAddress")
+      val replyAddress = splitted(1).replaceAll("[^A-Za-z0-9]", "")
+
+      session.set("replyAddress", replyAddress)
+    }
+    .exec(ws("reply WebSocket").sendText("""["{\"type\":\"send\",\"address\":\"${replyAddress}\",\"body\":{}}"]"""))
 }
