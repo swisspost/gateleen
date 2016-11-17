@@ -62,4 +62,9 @@ object Scenarios {
     .exec(HookTasks.registerWebSocket)
     .exec(HookTasks.awaitMessageAndThenReply)
 
+  val proxy_login = scenario("proxy login")
+    .exec(ProxyTasks.get_ticket)
+    .exec(ProxyTasks.get_service_ticket)
+    .exec(ProxyTasks.get_cookie)
+
 }
