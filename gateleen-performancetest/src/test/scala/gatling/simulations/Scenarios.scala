@@ -36,6 +36,9 @@ object Scenarios {
   val putHookedResourceScenario = scenario("PUT request to hooked resource")
     .exec(HookTasks.putToHookedResource)
 
+  val registerHooks = scenario("Register hooks")
+    .exec(HookTasks.registerHooks)
+
   val unregisterHooks = scenario("Unregister hooks")
     .exec(HookTasks.unregisterHook)
 

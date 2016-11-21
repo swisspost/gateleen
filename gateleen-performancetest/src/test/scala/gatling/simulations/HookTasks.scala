@@ -21,6 +21,14 @@ object HookTasks {
       .check(status is 200)
     )
 
+  val registerHooks = exec(session => session.set("registerCounter", registerHookCounter.getAndIncrement))
+    .exec(session => session.set("random", Random.alphanumeric.take(15).mkString))
+    .exec(http("register hook")
+      .put("/playground/server/tests/hooktest/${random}/_hooks/listeners/http/push/${registerCounter}")
+      .body(StringBody("""{ "destination": "/playground/server/event/v1/channels/${registerCounter}", "methods": ["PUT"], "expireAfter": 1200, "fullUrl": true, "staticHeaders": { "x-sync": true} }""")).asJSON
+      .check(status is 200)
+    )
+
   val unregisterHook =  exec(session => session.set("unregisterCounter", unregisterHookCounter.getAndIncrement))
     .exec(session => session.set("random", randomResource))
     .exec(http("unregister hook")
