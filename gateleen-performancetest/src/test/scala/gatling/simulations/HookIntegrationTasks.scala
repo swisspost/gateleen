@@ -21,6 +21,12 @@ object HookIntegrationTasks {
       .check(status is 200)
     )
 
+  val getResource = exec(http("get a resource")
+      .get("/nemo/server/admin/v1/logging")
+      .header("Cookie", session => { Success(Constants.modAuthCas) })
+      .check(status is 200)
+    )
+
 
   val registerHook = exec(session => session.set("registerCounter", registerHookCounter.getAndIncrement))
     .exec(session => session.set("random", randomResource))

@@ -8,7 +8,7 @@ import gatling.simulations._
 class HookWSWithLoginSimulation extends Simulation {
 
   setUp(
-    IntegrationScenarios.proxy_login.inject(atOnceUsers(1)),
+    IntegrationScenarios.proxy_login.inject(atOnceUsers(1))
 
 //    IntegrationScenarios.registerHooks.inject(nothingFor(3 seconds), constantUsersPerSec(Constants.numberOfUsers) during(Constants.rampUpTime seconds))
 

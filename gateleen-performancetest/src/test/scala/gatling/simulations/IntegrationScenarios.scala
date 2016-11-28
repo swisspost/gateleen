@@ -12,6 +12,11 @@ object IntegrationScenarios {
     .exec(ProxyTasks.get_service_ticket)
     .exec(ProxyTasks.get_cookie)
 
+  val registerHookConnectAndRegisterWS = scenario("Register a hook, connect ws and register ws")
+    .exec(HookIntegrationTasks.registerHook)
+    .exec(HookIntegrationTasks.openWebSocket)
+    .exec(HookIntegrationTasks.registerWebSocket)
+
   val registerHookConnectAndReply = scenario("Register a hook, connect ws, register ws and reply when message arrives")
     .exec(HookIntegrationTasks.registerHook)
     .exec(HookIntegrationTasks.openWebSocket)
@@ -29,4 +34,14 @@ object IntegrationScenarios {
 
   val registerHooks = scenario("Register hooks")
     .exec(HookIntegrationTasks.registerHooks)
+
+  val registerHookConnectPUTAndReply = scenario("Register a hook, connect ws, register ws, put resource and reply when message arrives")
+    .exec(HookIntegrationTasks.registerHook)
+    .exec(HookIntegrationTasks.openWebSocket)
+    .exec(HookIntegrationTasks.registerWebSocket)
+    .exec(HookIntegrationTasks.awaitMessageAndThenReply)
+    .exec(HookIntegrationTasks.putToHookedResource)
+
+  val waitAndThenGetAResource = scenario("Wait and then get a resource")
+    .exec(HookIntegrationTasks.getResource)
 }
