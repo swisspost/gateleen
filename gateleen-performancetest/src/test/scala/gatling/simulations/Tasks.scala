@@ -8,11 +8,11 @@ import scala.util.Random
 object Tasks {
 
   val writeExpandResourcesToStorage = repeat(120, "index") {
-      exec(http("PUT regular expand resource")
-        .put("/playground/server/test/resources/expand/regular/res_${index}")
-        .body(RawFileBody("expandResource.json")).asJSON
-        .check(status is 200)
-      )
+    exec(http("PUT regular expand resource")
+      .put("/playground/server/test/resources/expand/regular/res_${index}")
+      .body(RawFileBody("expandResource.json")).asJSON
+      .check(status is 200)
+    )
       .exec(http("PUT storage expand resource")
         .put("/playground/server/test/resources/expand/storage/res_${index}")
         .body(RawFileBody("expandResource.json")).asJSON
@@ -33,20 +33,20 @@ object Tasks {
   )
 
   val writeToStorage = exec(session => session.set("resourceId", Random.alphanumeric.take(30).mkString))
-      .exec(http("write resource to storage")
-        .put("/playground/server/test/resources/crud/res_${resourceId}")
-        .body(RawFileBody("dummyContent.json")).asJSON
-        .check(status is 200)
-      )
+    .exec(http("write resource to storage")
+      .put("/playground/server/test/resources/crud/res_${resourceId}")
+      .body(RawFileBody("dummyContent.json")).asJSON
+      .check(status is 200)
+    )
 
   val readFromStorage = exec(http("read resource from storage")
-      .get("/playground/server/test/resources/crud/res_${resourceId}")
-      .check(status is 200)
+    .get("/playground/server/test/resources/crud/res_${resourceId}")
+    .check(status is 200)
   )
 
   val deleteFromStorage = exec(http("delete resource from storage")
-      .delete("/playground/server/test/resources/crud/res_${resourceId}")
-      .check(status is 200)
+    .delete("/playground/server/test/resources/crud/res_${resourceId}")
+    .check(status is 200)
   )
 
   val readNotExistingResourceFromStorage = exec(http("read not existing resource from storage")

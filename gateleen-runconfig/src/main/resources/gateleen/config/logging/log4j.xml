@@ -37,6 +37,9 @@
     <logger name="org.jminix">
         <level value="WARN" />
     </logger>
+    <logger name="io.netty.handler.codec.http.websocketx">
+        <level value="INFO" />
+    </logger>
     <logger name="org.swisspush.gateleen.security.authorization">
         <level value="DEBUG" />
     </logger>
@@ -80,10 +83,10 @@
         <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.gateleen.delegate">
-        <level value="TRACE" />
+        <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.gateleen.hook">
-        <level value="TRACE" />
+        <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.reststorage">
         <level value="DEBUG" />

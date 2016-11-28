@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Gateleen Playground</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+    <link href="css/gateleen.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+    <script src="js/sockjs.js"></script>
+    <script src="js/vertxbus.js"></script>
+</head>
+
+<body>
+
+<script>
+    function getParameterByName(name, url) {
+        if (!url) {
+            url = window.location.href;
+        }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                results = regex.exec(url);
+        if (!results) return null;
+        if (!results[2]) return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+
+    function hookToUrl() {
+        var eb = new vertx.EventBus('/playground/server/event/v1/sock');
+        eb.onopen = function () {
+            console.log('Opened sock 1');
+            if(dontRegister == null) {
+                eb.registerHandler('event-' + eventId,
+                        function (message, reply) {
+                            $('#result-text').html(message.payload);
+                            if (dontReply == null) {
+                                var replyObj = {};
+                                reply(replyObj, null);
+                            }
+                        });
+            }
+        };
+
+        $.ajax({
+            url: '/playground/server/tests/hooktest/_hooks/listeners/http/push/' + eventId,
+            type: 'PUT',
+            data: JSON.stringify({ "destination": "/playground/server/event/v1/channels/" + eventId, "methods": ["PUT"], "expireAfter": 300, "fullUrl": true, "staticHeaders": { "x-sync": true} }),
+            success: function(result) {
+                // Do something with the result
+                $('#result-text').html(result);
+            }
+        });
+    }
+
+    var eventId = getParameterByName('eventId');
+    var dontReply = getParameterByName('dontReply');
+    var dontRegister = getParameterByName('dontRegister');
+    hookToUrl();
+
+</script>
+
+<div class="container-fluid" style="margin: 15px">
+
+    <div class="row">
+        <div class="panel panel-default">
+            <div class="panel-heading">hook to url</div>
+            <div class="panel-body">
+                <!--<button type="button" class="btn btn-primary" onclick="hookToUrl()">/playground/server/tests/hooktest/</button>-->
+            </div>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-heading">received push message</div>
+            <div class="panel-body">
+                <div id="result-text"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+
+</html>

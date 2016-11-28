@@ -53,6 +53,10 @@
     "description": "CircuitBreaker API",
     "url": "http://localhost:7013/playground/server/queuecircuitbreaker/circuit/$1"
   },
+  "/playground/server/redisques/(.*)": {
+    "description": "Redisques API",
+    "url": "http://localhost:7015/queuing/$1"
+  },
   "/(.*)": {
     "metricName": "resource_storage",
     "description": "Resource Storage",

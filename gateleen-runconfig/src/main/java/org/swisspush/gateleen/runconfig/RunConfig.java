@@ -348,6 +348,8 @@ public class RunConfig {
         return RedisquesConfiguration.with()
                 .address(Address.redisquesAddress())
                 .processorAddress(Address.queueProcessorAddress())
+                .httpRequestHandlerEnabled(true)
+                .httpRequestHandlerPort(7015)
                 .build()
                 .asJsonObject();
     }
