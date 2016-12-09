@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.core.event;
 
+import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonMultiMap;
 import io.vertx.core.AsyncResult;
@@ -75,7 +76,13 @@ public class EventBusHandler {
     private String sockPath;
     private String addressPrefix;
     private Pattern adressPathPattern;
+
     private Long eventbusBridgePingInterval = null;
+    private Long eventbusBridgeReplyTimeout = null;
+    private Integer eventbusBridgeMaxAddressLength = null;
+    private Integer eventbusBridgeMaxHandlersPerSocket = null;
+
+    private SockJSHandlerOptions sockJSHandlerOptions = null;
 
     /**
      * Constructs and configures the handler.
@@ -143,7 +150,7 @@ public class EventBusHandler {
                                                 request.response().headers().setAll(headers);
                                             }
                                         } catch (DecodeException e) {
-                                            log.warn("Wrong headers in reply", e);
+                                            requestLog.warn("Wrong headers in reply", e);
                                         }
                                         if (response.fieldNames().contains(PAYLOAD)) {
                                             String responseContentType;
@@ -162,7 +169,7 @@ public class EventBusHandler {
                                                     request.response().end(Buffer.buffer(response.getBinary(PAYLOAD)));
                                                 }
                                             } catch (DecodeException e) {
-                                                log.warn("Wrong payload in reply for content-type " + responseContentType, e);
+                                                requestLog.warn("Wrong payload in reply for content-type " + responseContentType, e);
                                                 request.response().setStatusCode(500);
                                                 request.response().end("Wrong payload in reply for content-type " + responseContentType + ": ", e.getMessage());
                                             }
@@ -178,7 +185,7 @@ public class EventBusHandler {
                                 }
                             });
                         } else {
-                            log.debug("This is an asynchronous request");
+                            requestLog.debug("This is an asynchronous request");
                             vertx.eventBus().publish(address, message);
                             request.response().setStatusCode(ACCEPTED);
                             request.response().end();
@@ -197,14 +204,11 @@ public class EventBusHandler {
      * @param router router
      */
     public void install(Router router) {
-        BridgeOptions bridgeOptions = new BridgeOptions()
-                .addOutboundPermitted(new PermittedOptions().setAddressRegex(addressPrefix + "(.*)"));
-
-        if (eventbusBridgePingInterval != null) {
-            bridgeOptions = bridgeOptions.setPingTimeout(eventbusBridgePingInterval);
-        }
-        router.route(sockPath).handler(SockJSHandler.create(vertx).bridge(bridgeOptions));
+        BridgeOptions bridgeOptions = buildBridgeOptions();
+        router.route(sockPath).handler(SockJSHandler.create(vertx, getSockJSHandlerOptions()).bridge(bridgeOptions));
         log.info("Installed SockJS endpoint on " + sockPath);
+        log.info("Installed event bus bridge with options: " + bridgeOptionsToString(bridgeOptions));
+        log.info("Installed SockJS with handler options: " + sockJSHandlerOptionsToString());
         log.info("Listening to requests on " + adressPathPattern.pattern());
         log.info("Using address prefix " + addressPrefix);
     }
@@ -217,5 +221,91 @@ public class EventBusHandler {
      */
     public void setEventbusBridgePingInterval(Long eventbusBridgePingInterval) {
         this.eventbusBridgePingInterval = eventbusBridgePingInterval;
+    }
+
+    /**
+     * Sets the reply timeout passed to the eventbus bridge.
+     * Set the interval before calling {@link #install(io.vertx.ext.web.Router)}
+     *
+     * @param eventbusBridgeReplyTimeout Timeout in milliseconds or null to use the default reply timeout of the eventbus bridge (30 seconds)
+     */
+    public void setEventbusBridgeReplyTimeout(Long eventbusBridgeReplyTimeout){
+        this.eventbusBridgeReplyTimeout = eventbusBridgeReplyTimeout;
+    }
+
+    /**
+     * Sets the maximum address length passed to the eventbus bridge.
+     * Set the interval before calling {@link #install(io.vertx.ext.web.Router)}
+     *
+     * @param eventbusBridgeMaxAddressLength Maximum address length or null to use the default value of the eventbus bridge (200)
+     */
+    public void setEventbusBridgeMaxAddressLength(Integer eventbusBridgeMaxAddressLength) {
+        this.eventbusBridgeMaxAddressLength = eventbusBridgeMaxAddressLength;
+    }
+
+    /**
+     * Sets the max handlers per socket passed to the eventbus bridge.
+     * Set the interval before calling {@link #install(io.vertx.ext.web.Router)}
+     *
+     * @param eventbusBridgeMaxHandlersPerSocket Maximum handlers per socket or null to use the default value of the eventbus bridge (1000)
+     */
+    public void setEventbusBridgeMaxHandlersPerSocket(Integer eventbusBridgeMaxHandlersPerSocket) {
+        this.eventbusBridgeMaxHandlersPerSocket = eventbusBridgeMaxHandlersPerSocket;
+    }
+
+    /**
+     * Sets the {@link SockJSHandlerOptions} to be used for the websocket connections.
+     * Set these options before calling {@link #install(io.vertx.ext.web.Router)}
+     *
+     * @param sockJSHandlerOptions {@link SockJSHandlerOptions} to be used. Default {@link SockJSHandlerOptions} are used when null provided
+     */
+    public void setSockJSHandlerOptions(SockJSHandlerOptions sockJSHandlerOptions){
+        if(sockJSHandlerOptions == null) {
+            log.warn("Null provided instead of valid SockJSHandlerOptions. Using default values instead");
+        }
+        this.sockJSHandlerOptions = sockJSHandlerOptions;
+    }
+
+    public SockJSHandlerOptions getSockJSHandlerOptions(){
+        if(this.sockJSHandlerOptions == null){
+            this.sockJSHandlerOptions = new SockJSHandlerOptions();
+        }
+        return this.sockJSHandlerOptions;
+    }
+
+    private BridgeOptions buildBridgeOptions(){
+        BridgeOptions bridgeOptions = new BridgeOptions()
+                .addOutboundPermitted(new PermittedOptions().setAddressRegex(addressPrefix + "(.*)"));
+
+        if (eventbusBridgePingInterval != null) {
+            bridgeOptions = bridgeOptions.setPingTimeout(eventbusBridgePingInterval);
+        }
+        if(eventbusBridgeReplyTimeout != null){
+            bridgeOptions = bridgeOptions.setReplyTimeout(eventbusBridgeReplyTimeout);
+        }
+        if(eventbusBridgeMaxAddressLength != null){
+            bridgeOptions = bridgeOptions.setMaxAddressLength(eventbusBridgeMaxAddressLength);
+        }
+        if(eventbusBridgeMaxHandlersPerSocket != null){
+            bridgeOptions = bridgeOptions.setMaxHandlersPerSocket(eventbusBridgeMaxHandlersPerSocket);
+        }
+
+        return bridgeOptions;
+    }
+
+    private String sockJSHandlerOptionsToString(){
+        SockJSHandlerOptions options = getSockJSHandlerOptions();
+        return "heartbeatInterval=" + options.getHeartbeatInterval() +
+                " maxBytesStreaming=" + options.getMaxBytesStreaming() +
+                " sessionTimeout=" + options.getSessionTimeout() +
+                " insertJSESSIONID=" + options.isInsertJSESSIONID() +
+                " libraryURL=" + options.getLibraryURL();
+    }
+
+    private String bridgeOptionsToString(BridgeOptions options){
+        return "maxAddressLength=" + options.getMaxAddressLength() +
+                " maxHandlersPerSocket=" + options.getMaxHandlersPerSocket() +
+                " pingTimeout=" + options.getPingTimeout() +
+                " replyTimeout=" + options.getReplyTimeout();
     }
 }
