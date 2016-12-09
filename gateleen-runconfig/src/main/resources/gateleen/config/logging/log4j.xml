@@ -61,7 +61,7 @@
     <logger name="org.swisspush.gateleen.core.http">
         <level value="DEBUG" />
     </logger>
-    <logger name="org.swisspush.gateleen.core.logging">
+    <logger name="org.swisspush.gateleen.core.event">
         <level value="INFO" />
     </logger>
     <logger name="org.swisspush.gateleen.scheduler">

@@ -205,7 +205,12 @@ public class EventBusHandler {
      */
     public void install(Router router) {
         BridgeOptions bridgeOptions = buildBridgeOptions();
-        router.route(sockPath).handler(SockJSHandler.create(vertx, getSockJSHandlerOptions()).bridge(bridgeOptions));
+        router.route(sockPath).handler(SockJSHandler.create(vertx, getSockJSHandlerOptions()).bridge(bridgeOptions, be -> {
+            if (log.isTraceEnabled()) {
+                log.trace("SockJS bridge event: " + be.type().toString());
+            }
+            be.complete(true);
+        }));
         log.info("Installed SockJS endpoint on " + sockPath);
         log.info("Installed event bus bridge with options: " + bridgeOptionsToString(bridgeOptions));
         log.info("Installed SockJS with handler options: " + sockJSHandlerOptionsToString());
