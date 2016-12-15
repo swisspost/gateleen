@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.core.event;
 
 import io.vertx.ext.web.handler.sockjs.*;
+import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
+import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonMultiMap;
 import io.vertx.core.AsyncResult;
@@ -17,6 +19,8 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.StringUtils;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -52,7 +56,7 @@ import java.util.regex.Pattern;
  *
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class EventBusHandler {
+public class EventBusHandler implements ConfigurationResourceObserver {
 
     public static final int ACCEPTED = 202;
     public static final String SYNC = "x-sync";
@@ -73,13 +77,21 @@ public class EventBusHandler {
     private String sockPath;
     private String addressPrefix;
     private Pattern adressPathPattern;
+    private String configResourceUri;
 
     private Long eventbusBridgePingInterval = null;
     private Long eventbusBridgeReplyTimeout = null;
     private Integer eventbusBridgeMaxAddressLength = null;
     private Integer eventbusBridgeMaxHandlersPerSocket = null;
 
+    private ConfigurationResourceManager configurationResourceManager;
+    private boolean websocketConnectionsEnabled = true;
+
     private SockJSHandlerOptions sockJSHandlerOptions = null;
+
+    public EventBusHandler(Vertx vertx, String apiPath, String sockPath, String addressPrefix, String addressPathPattern) {
+        this(vertx, apiPath, sockPath, addressPrefix, addressPathPattern, null, null);
+    }
 
     /**
      * Constructs and configures the handler.
@@ -91,13 +103,31 @@ public class EventBusHandler {
      * @param addressPathPattern A pattern to extract the address from the URI. This pattern is appended to the apiPath and must have a group.
      * For example, a pattern <code>hello/(world/[^/]+)/.*</code> will forward requests on
      * <code>/context/server/event/v1/hello/world/foo/bar</code> to address <code>event/world/foo</code>.
+     * @param configurationResourceManager The ConfigurationResourceManager used to get notifications on resource updates
+     * @param configResourceUri The full URI path of the configuration resource
      */
-    public EventBusHandler(Vertx vertx, String apiPath, String sockPath, String addressPrefix, String addressPathPattern) {
+    public EventBusHandler(Vertx vertx, String apiPath, String sockPath, String addressPrefix, String addressPathPattern,
+                           ConfigurationResourceManager configurationResourceManager, String configResourceUri) {
         this.vertx = vertx;
         this.apiPath = apiPath;
         this.sockPath = sockPath;
         this.addressPrefix = addressPrefix;
         this.adressPathPattern = Pattern.compile(apiPath + addressPathPattern);
+        this.configResourceUri = configResourceUri;
+        this.configurationResourceManager = configurationResourceManager;
+
+        initializeConfigurationResourceManagement();
+    }
+
+    private void initializeConfigurationResourceManagement(){
+        if(configurationResourceManager != null && StringUtils.isNotEmptyTrimmed(configResourceUri)){
+            log.info("Register resource and observer for config resource uri " + configResourceUri);
+            String schema = ResourcesUtils.loadResource("gateleen_core_schema_websocket", true);
+            configurationResourceManager.registerResource(configResourceUri, schema);
+            configurationResourceManager.registerObserver(this, configResourceUri);
+        } else {
+            log.info("No configuration resource manager and/or no configuration resource uri defined. Not using this feature in this case");
+        }
     }
 
     public boolean handle(final HttpServerRequest request) {
@@ -206,13 +236,45 @@ public class EventBusHandler {
             if (log.isTraceEnabled()) {
                 log.trace("SockJS bridge event: " + be.type().toString());
             }
-            be.complete(true);
+
+            if(!websocketConnectionsEnabled && BridgeEventType.SOCKET_CREATED == be.type()){
+                log.info("WebSocket connections are disabled. Not allowing another connection");
+                be.complete(false);
+            } else {
+                be.complete(true);
+            }
         }));
         log.info("Installed SockJS endpoint on " + sockPath);
         log.info("Installed event bus bridge with options: " + bridgeOptionsToString(bridgeOptions));
         log.info("Installed SockJS with handler options: " + sockJSHandlerOptionsToString());
         log.info("Listening to requests on " + adressPathPattern.pattern());
         log.info("Using address prefix " + addressPrefix);
+    }
+
+    @Override
+    public void resourceChanged(String resourceUri, String resource) {
+        if(configResourceUri != null && configResourceUri.equals(resourceUri)){
+            log.info("Got notified about configuration resource update for "+resourceUri+" with new data: " + resource);
+            try {
+                JsonObject obj = new JsonObject(resource);
+                Boolean websockets_enabled = obj.getBoolean("websockets_enabled");
+                if(websockets_enabled != null){
+                    websocketConnectionsEnabled = websockets_enabled;
+                } else {
+                    log.warn("No value for property 'websockets_enabled' found. Therefore not changing any configuration");
+                }
+            } catch (DecodeException ex){
+                log.warn("Unable to decode configuration resource for " + resourceUri + " with data: " + resource + " Reason: " + ex.getMessage());
+            }
+        }
+    }
+
+    @Override
+    public void resourceResetted(String resourceUri) {
+        if(configResourceUri != null && configResourceUri.equals(resourceUri)){
+            log.info("Resetting configuration resource "+resourceUri+". Using default values instead");
+            websocketConnectionsEnabled = true;
+        }
     }
 
     /**

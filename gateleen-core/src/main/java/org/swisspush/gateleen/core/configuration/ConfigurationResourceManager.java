@@ -83,7 +83,7 @@ public class ConfigurationResourceManager {
     public boolean handleConfigurationResource(final HttpServerRequest request) {
         final Logger requestLog = RequestLoggerFactory.getLogger(ConfigurationResourceManager.class, request);
 
-        for (Map.Entry<String, String> entry : registeredResources.entrySet()) {
+        for (Map.Entry<String, String> entry : getRegisteredResources().entrySet()) {
             String resourceUri = entry.getKey();
             String resourceSchema = entry.getValue();
 

@@ -1,0 +1,11 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"properties": {
+		"websockets_enabled": {
+			"description": "Enable or disable websocket connections",
+			"type": "boolean"
+		}
+	},
+	"additionalProperties": false,
+    "required": ["websockets_enabled"]
+}
