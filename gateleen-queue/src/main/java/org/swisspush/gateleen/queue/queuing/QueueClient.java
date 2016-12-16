@@ -37,6 +37,10 @@ public class QueueClient implements RequestQueue {
         this.monitoringHandler = monitoringHandler;
     }
 
+    public String getRedisquesAddress(){
+        return Address.redisquesAddress();
+    }
+
     /**
      * Enqueues the given request.
      * 
@@ -112,7 +116,7 @@ public class QueueClient implements RequestQueue {
      * @param doneHandler a handler which is called as soon as the request is written into the queue.
      */
     private void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Void> doneHandler) {
-        vertx.eventBus().send(Address.redisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
+        vertx.eventBus().send(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
             public void handle(AsyncResult<Message<JsonObject>> event) {
                 if (OK.equals(event.result().body().getString(STATUS))) {
