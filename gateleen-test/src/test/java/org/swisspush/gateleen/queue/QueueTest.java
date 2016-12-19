@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.queue;
 
+import org.junit.Ignore;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 import com.jayway.restassured.RestAssured;
@@ -20,6 +21,7 @@ import static junit.framework.Assert.assertTrue;
 import static org.hamcrest.CoreMatchers.*;
 
 @RunWith(VertxUnitRunner.class)
+@Ignore
 public class QueueTest extends AbstractTest {
 
     public void init() {
