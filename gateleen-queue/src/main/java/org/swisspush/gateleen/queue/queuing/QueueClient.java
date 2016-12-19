@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.queue.queuing;
 
-import org.swisspush.gateleen.core.util.Address;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -10,9 +9,9 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
@@ -37,7 +36,13 @@ public class QueueClient implements RequestQueue {
         this.monitoringHandler = monitoringHandler;
     }
 
-    public String getRedisquesAddress(){
+    /**
+     * Get the event bus address of redisques.
+     * Override this method when you want to use a custom redisques address
+     *
+     * @return the event bus address of redisques
+     */
+    protected String getRedisquesAddress(){
         return Address.redisquesAddress();
     }
 

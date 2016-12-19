@@ -26,11 +26,9 @@ public final class Address {
         return "redisques-processor-"+ID;
     }
 
-    public static String customQueueProcessorAddress(String queueProcessorAddress) {
-        return queueProcessorAddress + "-" + ID;
-    }
+    public static String customQueueProcessorAddress(String queueProcessorAddress) { return queueProcessorAddress + "-" + ID; }
 
-    public static String monitoringAddress(){
-        return "org.swisspush.metrics-"+ID;
-    }
+    public static String monitoringAddress(){ return "org.swisspush.metrics-"+ID; }
+
+    public static String customMonitoringAddress(String customMonitoringAddress){ return customMonitoringAddress + "-" + ID; }
 }

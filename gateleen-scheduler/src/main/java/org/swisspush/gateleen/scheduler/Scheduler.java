@@ -31,6 +31,7 @@ public class Scheduler {
 
     private Vertx vertx;
     private RedisClient redisClient;
+    private String redisquesAddress;
     private String name;
     private CronExpression cronExpression;
     private List<HttpRequest> requests;
@@ -42,8 +43,9 @@ public class Scheduler {
 
     private Logger log;
 
-    public Scheduler(Vertx vertx, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset, boolean executeOnStartup) throws ParseException {
+    public Scheduler(Vertx vertx, String redisquesAddress, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset, boolean executeOnStartup) throws ParseException {
         this.vertx = vertx;
+        this.redisquesAddress = redisquesAddress;
         this.redisClient = redisClient;
         this.name = name;
         this.cronExpression = new CronExpression(cronExpression);
@@ -127,7 +129,7 @@ public class Scheduler {
 
             ExpiryCheckHandler.updateServerTimestampHeader(request);
 
-            vertx.eventBus().send(Address.redisquesAddress(), buildEnqueueOperation("scheduler-" + name, request.toJsonObject().encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
+            vertx.eventBus().send(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
                 @Override
                 public void handle(AsyncResult<Message<JsonObject>> event) {
                     if (!OK.equals(event.result().body().getString(STATUS))) {

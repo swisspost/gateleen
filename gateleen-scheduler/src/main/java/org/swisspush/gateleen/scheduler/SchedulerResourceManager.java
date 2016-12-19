@@ -10,6 +10,7 @@ import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.refresh.Refreshable;
+import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
@@ -39,13 +40,17 @@ public class SchedulerResourceManager implements Refreshable {
     }
 
     public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props) {
+        this(vertx, redisClient, storage, monitoringHandler, schedulersUri, props, Address.redisquesAddress());
+    }
+
+    public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props, String redisquesAddress) {
         this.vertx = vertx;
         this.storage = storage;
         this.schedulersUri = schedulersUri;
         this.properties = props;
 
         this.schedulersSchema = ResourcesUtils.loadResource("gateleen_scheduler_schema_schedulers", true);
-        this.schedulerFactory = new SchedulerFactory(properties, vertx, redisClient, monitoringHandler, schedulersSchema);
+        this.schedulerFactory = new SchedulerFactory(properties, vertx, redisClient, monitoringHandler, schedulersSchema, redisquesAddress);
 
         updateSchedulers();
 

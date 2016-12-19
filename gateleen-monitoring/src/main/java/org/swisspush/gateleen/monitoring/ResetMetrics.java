@@ -7,7 +7,6 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.RedisUtils;
 
 /**
@@ -19,12 +18,14 @@ public class ResetMetrics implements ResetMetricsMBean {
 
     private Vertx vertx;
     private String prefix;
+    private String monitoringAddress;
 
     private static Logger log = LoggerFactory.getLogger(ResetMetrics.class);
 
-    public ResetMetrics(Vertx vertx, String prefix){
+    public ResetMetrics(Vertx vertx, String prefix, String monitoringAddress){
         this.vertx = vertx;
         this.prefix = prefix;
+        this.monitoringAddress = monitoringAddress;
     }
 
     @Override
@@ -48,14 +49,11 @@ public class ResetMetrics implements ResetMetricsMBean {
 
     private void removeMetric(final String metric){
         log.debug("About to reset '" + metric + "' (triggered by an operation from MBean)");
-        vertx.eventBus().send(Address.monitoringAddress(), new JsonObject().put("name", metric).put("action", "remove"), new Handler<AsyncResult<Message<JsonObject>>>() {
-            @Override
-            public void handle(AsyncResult<Message<JsonObject>> reply) {
-                if (!RedisUtils.STATUS_OK.equals(reply.result().body().getString(RedisUtils.REPLY_STATUS))) {
-                    log.error("Removing value for metric '" + metric + "' resulted in status '" + reply.result().body().getString(RedisUtils.REPLY_STATUS) + "'. Message: " + reply.result().body().getString(RedisUtils.REPLY_MESSAGE));
-                } else {
-                    log.debug("Value for metric '" + metric + "' successfully removed");
-                }
+        vertx.eventBus().send(monitoringAddress, new JsonObject().put("name", metric).put("action", "remove"), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            if (!RedisUtils.STATUS_OK.equals(reply.result().body().getString(RedisUtils.REPLY_STATUS))) {
+                log.error("Removing value for metric '" + metric + "' resulted in status '" + reply.result().body().getString(RedisUtils.REPLY_STATUS) + "'. Message: " + reply.result().body().getString(RedisUtils.REPLY_MESSAGE));
+            } else {
+                log.debug("Value for metric '" + metric + "' successfully removed");
             }
         });
     }

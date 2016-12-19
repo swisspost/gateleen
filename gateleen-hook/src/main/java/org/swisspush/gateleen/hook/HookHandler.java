@@ -99,7 +99,7 @@ public class HookHandler {
         this.monitoringHandler = monitoringHandler;
         this.userProfilePath = userProfilePath;
         this.hookRootUri = hookRootUri;
-        this. requestQueue = requestQueue;
+        this.requestQueue = requestQueue;
 
         listenerRepository = new LocalListenerRepository();
         routeRepository = new LocalRouteRepository();

@@ -248,7 +248,7 @@
 		<mod-metrics.version>2.1.0</mod-metrics.version>
 		<metrics-core.version>3.0.2</metrics-core.version>
 		<jedis.version>2.4.1</jedis.version>
-		<mockito.version>2.3.0</mockito.version>
+		<mockito.version>1.9.5</mockito.version>
 		<wiremock.version>1.56</wiremock.version>
 		<awaitility.version>1.6.5</awaitility.version>
 	</properties>
