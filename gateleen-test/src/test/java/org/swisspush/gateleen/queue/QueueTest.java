@@ -21,7 +21,6 @@ import static junit.framework.Assert.assertTrue;
 import static org.hamcrest.CoreMatchers.*;
 
 @RunWith(VertxUnitRunner.class)
-@Ignore
 public class QueueTest extends AbstractTest {
 
     public void init() {

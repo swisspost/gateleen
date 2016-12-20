@@ -28,7 +28,6 @@ import static org.hamcrest.CoreMatchers.hasItem;
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 @RunWith(VertxUnitRunner.class)
-@Ignore
 public class ResourceQueueExpiryTest extends AbstractTest {
 
     /**
