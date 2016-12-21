@@ -36,20 +36,6 @@ public abstract class ConfigurationResourceTestBase {
             "\t\"required\": [\"firstName\", \"lastName\"]\n" +
             "}";
 
-    protected final String PERSON_SCHEMA2 = "{\n" +
-            "\t\"$schema\": \"http://json-schema.org/draft-04/schema#\",\n" +
-            "\t\"xxtype\": \"object\",\n" +
-            "\t\"properties\": {\n" +
-            "\t\t\"firstName\": {\n" +
-            "\t\t\t\"type\": \"string\"\n" +
-            "\t\t},\n" +
-            "\t\t\"lastName\": {\n" +
-            "\t\t\t\"type\": \"string\"\n" +
-            "\t\t}\n" +
-            "\t},\n" +
-            "\t\"required\": [\"firstName\", \"lastName\"]\n" +
-            "}";
-
     protected final String INVALID_SCHEMA_MISSING_DECLARATION = "{\n" +
             "\t\"type\": \"object\",\n" +
             "\t\"properties\": {\n" +
