@@ -48,12 +48,16 @@ public class ResetMetrics implements ResetMetricsMBean {
     }
 
     private void removeMetric(final String metric){
-        log.debug("About to reset '" + metric + "' (triggered by an operation from MBean)");
+        log.debug("About to reset '" + metric + "' (triggered by an operation from MBean) by sending message to monitoring address '"+monitoringAddress+"'");
         vertx.eventBus().send(monitoringAddress, new JsonObject().put("name", metric).put("action", "remove"), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
-            if (!RedisUtils.STATUS_OK.equals(reply.result().body().getString(RedisUtils.REPLY_STATUS))) {
-                log.error("Removing value for metric '" + metric + "' resulted in status '" + reply.result().body().getString(RedisUtils.REPLY_STATUS) + "'. Message: " + reply.result().body().getString(RedisUtils.REPLY_MESSAGE));
+            if(reply.failed()){
+             log.error("Failed to remove value for metric '"+metric+"'. Cause: " + reply.cause().getMessage(), reply.cause());
             } else {
-                log.debug("Value for metric '" + metric + "' successfully removed");
+                if (!RedisUtils.STATUS_OK.equals(reply.result().body().getString(RedisUtils.REPLY_STATUS))) {
+                    log.error("Removing value for metric '" + metric + "' resulted in status '" + reply.result().body().getString(RedisUtils.REPLY_STATUS) + "'. Message: " + reply.result().body().getString(RedisUtils.REPLY_MESSAGE));
+                } else {
+                    log.debug("Value for metric '" + metric + "' successfully removed");
+                }
             }
         });
     }

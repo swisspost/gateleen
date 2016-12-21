@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.monitoring;
 
 import io.vertx.core.Vertx;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.Address;
 
 import javax.management.MBeanServer;
@@ -15,6 +17,7 @@ import java.lang.management.ManagementFactory;
  */
 public class ResetMetricsController {
 
+    private static Logger log = LoggerFactory.getLogger(ResetMetricsController.class);
     private static final String RESET_METRICS_MBEAN_NAME = ":type=ResetMetricsController";
 
     private Vertx vertx;
@@ -28,10 +31,9 @@ public class ResetMetricsController {
     }
 
     public void registerResetMetricsControlMBean(String domain, String prefix) {
+        log.debug("About to register ResetMetricsControlMBean with domain '"+domain+"', prefix '"+prefix+"' and monitoring address '"+monitoringAddress+"'");
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-
         ResetMetrics resetMetrics = new ResetMetrics(vertx, prefix, monitoringAddress);
-
         ObjectName name;
         try {
             name = new ObjectName(domain+RESET_METRICS_MBEAN_NAME);
