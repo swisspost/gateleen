@@ -83,58 +83,61 @@ public class ConfigurationResourceManager {
     public boolean handleConfigurationResource(final HttpServerRequest request) {
         final Logger requestLog = RequestLoggerFactory.getLogger(ConfigurationResourceManager.class, request);
 
-        for (Map.Entry<String, String> entry : getRegisteredResources().entrySet()) {
-            String resourceUri = entry.getKey();
-            String resourceSchema = entry.getValue();
-
-            if (request.uri().equals(resourceUri) && HttpMethod.PUT == request.method()) {
-                requestLog.info("Refresh resource " + resourceUri);
-                request.bodyHandler(buffer -> {
-                    configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
-                        if (event.failed() || (event.succeeded() && !event.result().isSuccess())) {
-                            requestLog.error("Could not parse configuration resource for uri '" + resourceUri + "' message: " + event.result().getMessage());
-                            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                            request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + event.result().getMessage());
-                            if (event.result().getValidationDetails() != null) {
-                                request.response().headers().add("content-type", "application/json");
-                                request.response().end(event.result().getValidationDetails().encode());
-                            } else {
-                                request.response().end(event.result().getMessage());
-                            }
-                        } else {
-                            storage.put(resourceUri, buffer, status -> {
-                                if (status == StatusCode.OK.getStatusCode()) {
-                                    JsonObject object = new JsonObject();
-                                    object.put("requestUri", resourceUri);
-                                    object.put("type", ConfigurationResourceChangeType.CHANGE);
-                                    vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
-                                } else {
-                                    request.response().setStatusCode(status);
-                                }
-                                request.response().end();
-                            });
-                        }
-                    });
-                });
-                return true;
-            }
-
-            if (request.uri().equals(resourceUri) && HttpMethod.DELETE == request.method()) {
-                requestLog.info("Reset resource " + resourceUri);
-                storage.delete(resourceUri, status -> {
-                    if (status == StatusCode.OK.getStatusCode()) {
-                        JsonObject object = new JsonObject();
-                        object.put("requestUri", resourceUri);
-                        object.put("type", ConfigurationResourceChangeType.RESET);
-                        vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
-                    } else {
-                        request.response().setStatusCode(status);
-                    }
-                    request.response().end();
-                });
-                return true;
-            }
+        if(null == getRegisteredResources().get(request.uri())){
+            return false;
         }
+
+        String resourceUri = request.uri();
+        String resourceSchema = getRegisteredResources().get(request.uri());
+
+        if(HttpMethod.PUT == request.method()) {
+            requestLog.info("Refresh resource " + resourceUri);
+            request.bodyHandler(buffer -> {
+                configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
+                    if (event.failed() || (event.succeeded() && !event.result().isSuccess())) {
+                        requestLog.error("Could not parse configuration resource for uri '" + resourceUri + "' message: " + event.result().getMessage());
+                        request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                        request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + event.result().getMessage());
+                        if (event.result().getValidationDetails() != null) {
+                            request.response().headers().add("content-type", "application/json");
+                            request.response().end(event.result().getValidationDetails().encode());
+                        } else {
+                            request.response().end(event.result().getMessage());
+                        }
+                    } else {
+                        storage.put(resourceUri, buffer, status -> {
+                            if (status == StatusCode.OK.getStatusCode()) {
+                                JsonObject object = new JsonObject();
+                                object.put("requestUri", resourceUri);
+                                object.put("type", ConfigurationResourceChangeType.CHANGE);
+                                vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
+                            } else {
+                                request.response().setStatusCode(status);
+                            }
+                            request.response().end();
+                        });
+                    }
+                });
+            });
+            return true;
+        }
+
+        if(HttpMethod.DELETE == request.method()) {
+            requestLog.info("Reset resource " + resourceUri);
+            storage.delete(resourceUri, status -> {
+                if (status == StatusCode.OK.getStatusCode()) {
+                    JsonObject object = new JsonObject();
+                    object.put("requestUri", resourceUri);
+                    object.put("type", ConfigurationResourceChangeType.RESET);
+                    vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
+                } else {
+                    request.response().setStatusCode(status);
+                }
+                request.response().end();
+            });
+            return true;
+        }
+
         return false;
     }
 
