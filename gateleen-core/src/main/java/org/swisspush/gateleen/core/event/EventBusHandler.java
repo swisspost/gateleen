@@ -233,10 +233,7 @@ public class EventBusHandler implements ConfigurationResourceObserver {
     public void install(Router router) {
         BridgeOptions bridgeOptions = buildBridgeOptions();
         router.route(sockPath).handler(SockJSHandler.create(vertx, getSockJSHandlerOptions()).bridge(bridgeOptions, be -> {
-            if (log.isTraceEnabled()) {
-                log.trace("SockJS bridge event: " + be.type().toString());
-            }
-
+            log.debug("SockJS bridge event: " + be.type().toString());
             if(!websocketConnectionsEnabled && BridgeEventType.SOCKET_CREATED == be.type()){
                 log.info("WebSocket connections are disabled. Not allowing another connection");
                 be.complete(false);
