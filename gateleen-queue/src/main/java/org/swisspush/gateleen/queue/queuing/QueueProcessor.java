@@ -43,7 +43,7 @@ public class QueueProcessor {
         this.monitoringHandler = monitoringHandler;
         this.queueCircuitBreaker = queueCircuitBreaker;
 
-        vertx.eventBus().localConsumer(Address.queueProcessorAddress(), new Handler<Message<JsonObject>>() {
+        vertx.eventBus().localConsumer(getQueueProcessorAddress(), new Handler<Message<JsonObject>>() {
             public void handle(final Message<JsonObject> message) {
                 HttpRequest queuedRequestTry = null;
                 JsonObject jsonRequest = new JsonObject(message.body().getString("payload"));
@@ -82,6 +82,10 @@ public class QueueProcessor {
                 }
             }
         });
+    }
+
+    public String getQueueProcessorAddress(){
+        return Address.queueProcessorAddress();
     }
 
     private boolean isCircuitCheckEnabled() {

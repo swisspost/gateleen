@@ -5,6 +5,7 @@ import com.jayway.restassured.response.Response;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.AbstractTest;
@@ -24,6 +25,7 @@ public class ZipExtractTest extends AbstractTest {
     private static final String TEST_RESOURCE_PATH = "ZipExtractHandlerTest/";
 
     @Test
+    @Ignore
     public void testExtractZipContentFound(TestContext context) {
         Async async = context.async();
         init();

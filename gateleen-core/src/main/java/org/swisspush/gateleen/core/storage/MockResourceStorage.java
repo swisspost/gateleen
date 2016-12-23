@@ -17,6 +17,9 @@ public class MockResourceStorage implements ResourceStorage {
 
     private Map<String, String> localStorageValues = new HashMap<>();
 
+    private Integer putRequestFailValue = null;
+    private Integer deleteRequestFailValue = null;
+
     public MockResourceStorage(){}
 
     public MockResourceStorage(Map<String, String> initalMockData){
@@ -26,6 +29,10 @@ public class MockResourceStorage implements ResourceStorage {
     public void putMockData(String key, String value){
         localStorageValues.put(key, value);
     }
+
+    public void failPutWith(Integer value){ this.putRequestFailValue = value; }
+
+    public void failDeleteWith(Integer value){ this.deleteRequestFailValue = value; }
 
     /**
      * Synchronous access to the mocked data
@@ -46,19 +53,31 @@ public class MockResourceStorage implements ResourceStorage {
 
     @Override
     public void put(String uri, MultiMap headers, Buffer buffer, Handler<Integer> doneHandler) {
-        localStorageValues.put(uri, buffer.toString());
-        doneHandler.handle(StatusCode.OK.getStatusCode());
+        if(putRequestFailValue != null){
+            doneHandler.handle(putRequestFailValue);
+        } else {
+            localStorageValues.put(uri, buffer.toString());
+            doneHandler.handle(StatusCode.OK.getStatusCode());
+        }
     }
 
     @Override
     public void put(String uri, Buffer buffer, Handler<Integer> doneHandler) {
-        localStorageValues.put(uri, buffer.toString());
-        doneHandler.handle(StatusCode.OK.getStatusCode());
+        if(putRequestFailValue != null){
+            doneHandler.handle(putRequestFailValue);
+        } else {
+            localStorageValues.put(uri, buffer.toString());
+            doneHandler.handle(StatusCode.OK.getStatusCode());
+        }
     }
 
     @Override
     public void delete(String uri, Handler<Integer> doneHandler) {
-        localStorageValues.remove(uri);
-        doneHandler.handle(StatusCode.OK.getStatusCode());
+        if(deleteRequestFailValue != null){
+            doneHandler.handle(deleteRequestFailValue);
+        }else {
+            localStorageValues.remove(uri);
+            doneHandler.handle(StatusCode.OK.getStatusCode());
+        }
     }
 }

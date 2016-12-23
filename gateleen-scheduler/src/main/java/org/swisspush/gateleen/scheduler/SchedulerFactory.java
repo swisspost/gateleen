@@ -11,7 +11,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
-import org.swisspush.gateleen.validation.ValidationResult;
+import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
 
 import java.nio.charset.Charset;
@@ -40,15 +40,17 @@ public class SchedulerFactory {
     private RedisClient redisClient;
     private MonitoringHandler monitoringHandler;
     private String schedulersSchema;
+    private String redisquesAddress;
 
     private Logger log = LoggerFactory.getLogger(SchedulerFactory.class);
 
-    public SchedulerFactory(Map<String, Object> properties, Vertx vertx, RedisClient redisClient, MonitoringHandler monitoringHandler, String schedulersSchema) {
+    public SchedulerFactory(Map<String, Object> properties, Vertx vertx, RedisClient redisClient, MonitoringHandler monitoringHandler, String schedulersSchema, String redisquesAddress) {
         this.properties = properties;
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.monitoringHandler = monitoringHandler;
         this.schedulersSchema = schedulersSchema;
+        this.redisquesAddress = redisquesAddress;
     }
 
     public List<Scheduler> parseSchedulers(Buffer buffer) throws ValidationException {
@@ -93,7 +95,7 @@ public class SchedulerFactory {
                 }
             }
             try {
-                result.add(new Scheduler(vertx, redisClient, entry.getKey(), (String)schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset, executeOnStartup));
+                result.add(new Scheduler(vertx, redisquesAddress, redisClient, entry.getKey(), (String)schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset, executeOnStartup));
             } catch (ParseException e) {
                 throw new ValidationException("Could not parse cron expression of scheduler '"+entry.getKey()+"'", e);
             }

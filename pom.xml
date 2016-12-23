@@ -100,6 +100,11 @@
 				<artifactId>quartz</artifactId>
 				<version>${quartz.version}</version>
 			</dependency>
+			<dependency>
+				<groupId>com.github.fge</groupId>
+				<artifactId>json-schema-validator</artifactId>
+				<version>${json-schema-validator.version}</version>
+			</dependency>
 
 			<!-- for testing -->
 			<dependency>
@@ -153,6 +158,12 @@
 				<groupId>com.github.tomakehurst</groupId>
 				<artifactId>wiremock</artifactId>
 				<version>${wiremock.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.jayway.awaitility</groupId>
+				<artifactId>awaitility</artifactId>
+				<version>${awaitility.version}</version>
 				<scope>test</scope>
 			</dependency>
 		</dependencies>
@@ -229,6 +240,7 @@
 		<joda-time.version>2.3</joda-time.version>
 		<spring.version>4.1.7.RELEASE</spring.version>
 		<quartz.version>2.2.1</quartz.version>
+		<json-schema-validator.version>2.0.1</json-schema-validator.version>
 		<rest.assured.version>2.4.1</rest.assured.version>
 		<rest-storage.version>2.1.6</rest-storage.version>
 		<awaitility.version>1.5.0</awaitility.version>
@@ -238,6 +250,7 @@
 		<jedis.version>2.4.1</jedis.version>
 		<mockito.version>1.9.5</mockito.version>
 		<wiremock.version>1.56</wiremock.version>
+		<awaitility.version>1.6.5</awaitility.version>
 	</properties>
 
 </project>

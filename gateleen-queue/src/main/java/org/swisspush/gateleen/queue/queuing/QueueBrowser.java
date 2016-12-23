@@ -24,7 +24,7 @@ import java.util.*;
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
- * @deprecated Use http api from vertx-redisques (version > v2.2.4) directly. See https://github.com/swisspush/vertx-redisques
+ * @deprecated Use http api from vertx-redisques (version greater than v2.2.4) directly. See https://github.com/swisspush/vertx-redisques
  *
  * @author https://github.com/lbovet [Laurent Bovet]
  */

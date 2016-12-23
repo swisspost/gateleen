@@ -49,7 +49,7 @@ public class RedisMonitor {
                 redisClient.zcard(elementCountKey, reply -> {
                     if(reply.succeeded()){
                         long value = reply.result();
-                        vertx.eventBus().publish(Address.monitoringAddress(),
+                        vertx.eventBus().publish(getMonitoringAddress(),
                                 new JsonObject().put("name", prefix + metricName).put("action", "set").put("n", value));
                     } else {
                         log.warn("Cannot collect zcard from redis for key " + elementCountKey);
@@ -63,6 +63,16 @@ public class RedisMonitor {
         if (timer != 0) {
             vertx.cancelTimer(timer);
         }
+    }
+
+    /**
+     * Get the event bus address of the monitoring.
+     * Override this method when you want to use a custom monitoring address
+     *
+     * @return the event bus address of monitoring
+     */
+    protected String getMonitoringAddress(){
+        return Address.monitoringAddress();
     }
 
     public void enableElementCount(String metricName, String key){
@@ -102,7 +112,7 @@ public class RedisMonitor {
             } else {
                 value = Long.parseLong(stringValue);
             }
-            vertx.eventBus().publish(Address.monitoringAddress(),
+            vertx.eventBus().publish(getMonitoringAddress(),
                     new JsonObject().put("name", prefix + name).put("action", "set").put("n", value));
         } catch (NumberFormatException e) {
             // ignore this field

@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
@@ -63,6 +64,7 @@ public class IntegrationTestVerticle extends AbstractVerticle {
     private Authorizer authorizer;
     private Router router;
     private LoggingResourceManager loggingResourceManager;
+    private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
     private SchedulerResourceManager schedulerResourceManager;
     private MonitoringHandler monitoringHandler;
@@ -117,8 +119,12 @@ public class IntegrationTestVerticle extends AbstractVerticle {
         copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
         monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX);
         qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
-        eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/push/v1/", SERVER_ROOT + "/push/v1/sock", "push-", "devices/([^/]+).*");
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+
+        eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/push/v1/", SERVER_ROOT + "/push/v1/sock", "push-", "devices/([^/]+).*",
+                configurationResourceManager, SERVER_ROOT + "/admin/v1/hookconfig");
         eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
+
         loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
         userProfileHandler = new UserProfileHandler(vertx, storage, loggingResourceManager, RunConfig.buildUserProfileConfiguration());
         roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
@@ -160,6 +166,7 @@ public class IntegrationTestVerticle extends AbstractVerticle {
                                     .roleProfileHandler(roleProfileHandler)
                                     .userProfileHandler(userProfileHandler)
                                     .loggingResourceManager(loggingResourceManager)
+                                    .configurationResourceManager(configurationResourceManager)
                                     .schedulerResourceManager(schedulerResourceManager)
                                     .build(vertx, redisClient, IntegrationTestVerticle.class, router, monitoringHandler, queueBrowser);
                     Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();

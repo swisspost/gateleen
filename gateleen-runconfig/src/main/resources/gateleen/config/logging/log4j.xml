@@ -40,6 +40,12 @@
     <logger name="io.netty.handler.codec.http.websocketx">
         <level value="INFO" />
     </logger>
+    <logger name="io.vertx.ext.web.handler.sockjs">
+        <level value="DEBUG" />
+    </logger>
+    <logger name="org.swisspush.gateleen">
+        <level value="DEBUG" />
+    </logger>
     <logger name="org.swisspush.gateleen.security.authorization">
         <level value="DEBUG" />
     </logger>
@@ -55,7 +61,7 @@
     <logger name="org.swisspush.gateleen.core.http">
         <level value="DEBUG" />
     </logger>
-    <logger name="org.swisspush.gateleen.core.logging">
+    <logger name="org.swisspush.gateleen.core.event">
         <level value="INFO" />
     </logger>
     <logger name="org.swisspush.gateleen.scheduler">
@@ -65,6 +71,9 @@
         <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.gateleen.queue">
+        <level value="DEBUG" />
+    </logger>
+    <logger name="org.swisspush.gateleen.queue.queuing.circuitbreaker">
         <level value="DEBUG" />
     </logger>
     <logger name="org.swisspush.gateleen.routing">

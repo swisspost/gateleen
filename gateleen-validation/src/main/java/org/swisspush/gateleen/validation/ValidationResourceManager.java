@@ -14,6 +14,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.core.validation.ValidationResult;
 
 import java.util.HashMap;
 import java.util.Map;

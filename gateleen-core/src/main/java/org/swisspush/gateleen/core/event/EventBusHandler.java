@@ -1,5 +1,8 @@
 package org.swisspush.gateleen.core.event;
 
+import io.vertx.ext.web.handler.sockjs.*;
+import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
+import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonMultiMap;
 import io.vertx.core.AsyncResult;
@@ -14,11 +17,10 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.handler.sockjs.BridgeOptions;
-import io.vertx.ext.web.handler.sockjs.PermittedOptions;
-import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.StringUtils;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -54,7 +56,7 @@ import java.util.regex.Pattern;
  *
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class EventBusHandler {
+public class EventBusHandler implements ConfigurationResourceObserver {
 
     public static final int ACCEPTED = 202;
     public static final String SYNC = "x-sync";
@@ -70,12 +72,30 @@ public class EventBusHandler {
     public static final String HEADERS = "headers";
     public static final int TIMEOUT = 20000;
     public static final int GATEWAY_TIMEOUT = 504;
+
+    private static final boolean DEFAULT_WEBSOCKET_CONNECTION_STATE = true;
+
     private Vertx vertx;
     private String apiPath;
     private String sockPath;
     private String addressPrefix;
     private Pattern adressPathPattern;
+    private String configResourceUri;
+
     private Long eventbusBridgePingInterval = null;
+    private Long eventbusBridgeReplyTimeout = null;
+    private Integer eventbusBridgeMaxAddressLength = null;
+    private Integer eventbusBridgeMaxHandlersPerSocket = null;
+
+    private ConfigurationResourceManager configurationResourceManager;
+
+    private boolean websocketConnectionsEnabled = DEFAULT_WEBSOCKET_CONNECTION_STATE;
+
+    private SockJSHandlerOptions sockJSHandlerOptions = null;
+
+    public EventBusHandler(Vertx vertx, String apiPath, String sockPath, String addressPrefix, String addressPathPattern) {
+        this(vertx, apiPath, sockPath, addressPrefix, addressPathPattern, null, null);
+    }
 
     /**
      * Constructs and configures the handler.
@@ -87,13 +107,31 @@ public class EventBusHandler {
      * @param addressPathPattern A pattern to extract the address from the URI. This pattern is appended to the apiPath and must have a group.
      * For example, a pattern <code>hello/(world/[^/]+)/.*</code> will forward requests on
      * <code>/context/server/event/v1/hello/world/foo/bar</code> to address <code>event/world/foo</code>.
+     * @param configurationResourceManager The ConfigurationResourceManager used to get notifications on resource updates
+     * @param configResourceUri The full URI path of the configuration resource
      */
-    public EventBusHandler(Vertx vertx, String apiPath, String sockPath, String addressPrefix, String addressPathPattern) {
+    public EventBusHandler(Vertx vertx, String apiPath, String sockPath, String addressPrefix, String addressPathPattern,
+                           ConfigurationResourceManager configurationResourceManager, String configResourceUri) {
         this.vertx = vertx;
         this.apiPath = apiPath;
         this.sockPath = sockPath;
         this.addressPrefix = addressPrefix;
         this.adressPathPattern = Pattern.compile(apiPath + addressPathPattern);
+        this.configResourceUri = configResourceUri;
+        this.configurationResourceManager = configurationResourceManager;
+
+        initializeConfigurationResourceManagement();
+    }
+
+    private void initializeConfigurationResourceManagement(){
+        if(configurationResourceManager != null && StringUtils.isNotEmptyTrimmed(configResourceUri)){
+            log.info("Register resource and observer for config resource uri " + configResourceUri);
+            String schema = ResourcesUtils.loadResource("gateleen_core_schema_websocket", true);
+            configurationResourceManager.registerResource(configResourceUri, schema);
+            configurationResourceManager.registerObserver(this, configResourceUri);
+        } else {
+            log.info("No configuration resource manager and/or no configuration resource uri defined. Not using this feature in this case");
+        }
     }
 
     public boolean handle(final HttpServerRequest request) {
@@ -143,7 +181,7 @@ public class EventBusHandler {
                                                 request.response().headers().setAll(headers);
                                             }
                                         } catch (DecodeException e) {
-                                            log.warn("Wrong headers in reply", e);
+                                            requestLog.warn("Wrong headers in reply", e);
                                         }
                                         if (response.fieldNames().contains(PAYLOAD)) {
                                             String responseContentType;
@@ -162,7 +200,7 @@ public class EventBusHandler {
                                                     request.response().end(Buffer.buffer(response.getBinary(PAYLOAD)));
                                                 }
                                             } catch (DecodeException e) {
-                                                log.warn("Wrong payload in reply for content-type " + responseContentType, e);
+                                                requestLog.warn("Wrong payload in reply for content-type " + responseContentType, e);
                                                 request.response().setStatusCode(500);
                                                 request.response().end("Wrong payload in reply for content-type " + responseContentType + ": ", e.getMessage());
                                             }
@@ -178,7 +216,7 @@ public class EventBusHandler {
                                 }
                             });
                         } else {
-                            log.debug("This is an asynchronous request");
+                            requestLog.debug("This is an asynchronous request");
                             vertx.eventBus().publish(address, message);
                             request.response().setStatusCode(ACCEPTED);
                             request.response().end();
@@ -197,16 +235,47 @@ public class EventBusHandler {
      * @param router router
      */
     public void install(Router router) {
-        BridgeOptions bridgeOptions = new BridgeOptions()
-                .addOutboundPermitted(new PermittedOptions().setAddressRegex(addressPrefix + "(.*)"));
-
-        if (eventbusBridgePingInterval != null) {
-            bridgeOptions = bridgeOptions.setPingTimeout(eventbusBridgePingInterval);
-        }
-        router.route(sockPath).handler(SockJSHandler.create(vertx).bridge(bridgeOptions));
+        BridgeOptions bridgeOptions = buildBridgeOptions();
+        router.route(sockPath).handler(SockJSHandler.create(vertx, getSockJSHandlerOptions()).bridge(bridgeOptions, be -> {
+            log.debug("SockJS bridge event: " + be.type().toString());
+            if(!websocketConnectionsEnabled && BridgeEventType.SOCKET_CREATED == be.type()){
+                log.info("WebSocket connections are disabled. Not allowing another connection");
+                be.complete(false);
+            } else {
+                be.complete(true);
+            }
+        }));
         log.info("Installed SockJS endpoint on " + sockPath);
+        log.info("Installed event bus bridge with options: " + bridgeOptionsToString(bridgeOptions));
+        log.info("Installed SockJS with handler options: " + sockJSHandlerOptionsToString());
         log.info("Listening to requests on " + adressPathPattern.pattern());
         log.info("Using address prefix " + addressPrefix);
+    }
+
+    @Override
+    public void resourceChanged(String resourceUri, String resource) {
+        if(configResourceUri != null && configResourceUri.equals(resourceUri)){
+            log.info("Got notified about configuration resource update for "+resourceUri+" with new data: " + resource);
+            try {
+                JsonObject obj = new JsonObject(resource);
+                Boolean websockets_enabled = obj.getBoolean("websockets_enabled");
+                if(websockets_enabled != null){
+                    websocketConnectionsEnabled = websockets_enabled;
+                } else {
+                    log.warn("No value for property 'websockets_enabled' found. Therefore not changing any configuration");
+                }
+            } catch (DecodeException ex){
+                log.warn("Unable to decode configuration resource for " + resourceUri + " with data: " + resource + " Reason: " + ex.getMessage());
+            }
+        }
+    }
+
+    @Override
+    public void resourceRemoved(String resourceUri) {
+        if(configResourceUri != null && configResourceUri.equals(resourceUri)){
+            log.info("Configuration resource "+resourceUri+" was removed. Using default values instead");
+            websocketConnectionsEnabled = DEFAULT_WEBSOCKET_CONNECTION_STATE;
+        }
     }
 
     /**
@@ -217,5 +286,91 @@ public class EventBusHandler {
      */
     public void setEventbusBridgePingInterval(Long eventbusBridgePingInterval) {
         this.eventbusBridgePingInterval = eventbusBridgePingInterval;
+    }
+
+    /**
+     * Sets the reply timeout passed to the eventbus bridge.
+     * Set the interval before calling {@link #install(io.vertx.ext.web.Router)}
+     *
+     * @param eventbusBridgeReplyTimeout Timeout in milliseconds or null to use the default reply timeout of the eventbus bridge (30 seconds)
+     */
+    public void setEventbusBridgeReplyTimeout(Long eventbusBridgeReplyTimeout){
+        this.eventbusBridgeReplyTimeout = eventbusBridgeReplyTimeout;
+    }
+
+    /**
+     * Sets the maximum address length passed to the eventbus bridge.
+     * Set the interval before calling {@link #install(io.vertx.ext.web.Router)}
+     *
+     * @param eventbusBridgeMaxAddressLength Maximum address length or null to use the default value of the eventbus bridge (200)
+     */
+    public void setEventbusBridgeMaxAddressLength(Integer eventbusBridgeMaxAddressLength) {
+        this.eventbusBridgeMaxAddressLength = eventbusBridgeMaxAddressLength;
+    }
+
+    /**
+     * Sets the max handlers per socket passed to the eventbus bridge.
+     * Set the interval before calling {@link #install(io.vertx.ext.web.Router)}
+     *
+     * @param eventbusBridgeMaxHandlersPerSocket Maximum handlers per socket or null to use the default value of the eventbus bridge (1000)
+     */
+    public void setEventbusBridgeMaxHandlersPerSocket(Integer eventbusBridgeMaxHandlersPerSocket) {
+        this.eventbusBridgeMaxHandlersPerSocket = eventbusBridgeMaxHandlersPerSocket;
+    }
+
+    /**
+     * Sets the {@link SockJSHandlerOptions} to be used for the websocket connections.
+     * Set these options before calling {@link #install(io.vertx.ext.web.Router)}
+     *
+     * @param sockJSHandlerOptions {@link SockJSHandlerOptions} to be used. Default {@link SockJSHandlerOptions} are used when null provided
+     */
+    public void setSockJSHandlerOptions(SockJSHandlerOptions sockJSHandlerOptions){
+        if(sockJSHandlerOptions == null) {
+            log.warn("Null provided instead of valid SockJSHandlerOptions. Using default values instead");
+        }
+        this.sockJSHandlerOptions = sockJSHandlerOptions;
+    }
+
+    public SockJSHandlerOptions getSockJSHandlerOptions(){
+        if(this.sockJSHandlerOptions == null){
+            this.sockJSHandlerOptions = new SockJSHandlerOptions();
+        }
+        return this.sockJSHandlerOptions;
+    }
+
+    private BridgeOptions buildBridgeOptions(){
+        BridgeOptions bridgeOptions = new BridgeOptions()
+                .addOutboundPermitted(new PermittedOptions().setAddressRegex(addressPrefix + "(.*)"));
+
+        if (eventbusBridgePingInterval != null) {
+            bridgeOptions = bridgeOptions.setPingTimeout(eventbusBridgePingInterval);
+        }
+        if(eventbusBridgeReplyTimeout != null){
+            bridgeOptions = bridgeOptions.setReplyTimeout(eventbusBridgeReplyTimeout);
+        }
+        if(eventbusBridgeMaxAddressLength != null){
+            bridgeOptions = bridgeOptions.setMaxAddressLength(eventbusBridgeMaxAddressLength);
+        }
+        if(eventbusBridgeMaxHandlersPerSocket != null){
+            bridgeOptions = bridgeOptions.setMaxHandlersPerSocket(eventbusBridgeMaxHandlersPerSocket);
+        }
+
+        return bridgeOptions;
+    }
+
+    private String sockJSHandlerOptionsToString(){
+        SockJSHandlerOptions options = getSockJSHandlerOptions();
+        return "heartbeatInterval=" + options.getHeartbeatInterval() +
+                " maxBytesStreaming=" + options.getMaxBytesStreaming() +
+                " sessionTimeout=" + options.getSessionTimeout() +
+                " insertJSESSIONID=" + options.isInsertJSESSIONID() +
+                " libraryURL=" + options.getLibraryURL();
+    }
+
+    private String bridgeOptionsToString(BridgeOptions options){
+        return "maxAddressLength=" + options.getMaxAddressLength() +
+                " maxHandlersPerSocket=" + options.getMaxHandlersPerSocket() +
+                " pingTimeout=" + options.getPingTimeout() +
+                " replyTimeout=" + options.getReplyTimeout();
     }
 }

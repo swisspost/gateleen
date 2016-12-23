@@ -4,6 +4,7 @@ import io.vertx.core.Vertx;
 import io.vertx.redis.RedisClient;
 
 /**
+ * @deprecated Extend the {@link RedisMonitor} in your client source code
  * @author https://github.com/lbovet [Laurent Bovet] 19.09.2014
  */
 public class CustomRedisMonitor extends RedisMonitor {

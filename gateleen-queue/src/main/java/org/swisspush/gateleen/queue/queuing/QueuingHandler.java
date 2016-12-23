@@ -70,6 +70,11 @@ public class QueuingHandler implements Handler<Buffer> {
         }
     }
 
+    /**
+     * @deprecated Use vertx-redisques version 2.2.1 or higher, since redisques makes the cleanup automatically
+     * @param vertx the vertx instance
+     */
+    @Deprecated
     public static void cleanup(Vertx vertx) {
         vertx.eventBus().send(Address.redisquesAddress(), buildCheckOperation());
     }

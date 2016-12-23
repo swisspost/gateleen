@@ -13,6 +13,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.validation.ValidationException;
@@ -49,7 +50,7 @@ public class SchedulerFactoryTest {
         redisClient = Mockito.mock(RedisClient.class);
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
 
-        schedulerFactory = new SchedulerFactory(null, vertx, redisClient, monitoringHandler, schedulersSchema);
+        schedulerFactory = new SchedulerFactory(null, vertx, redisClient, monitoringHandler, schedulersSchema, Address.redisquesAddress());
     }
 
     @Test

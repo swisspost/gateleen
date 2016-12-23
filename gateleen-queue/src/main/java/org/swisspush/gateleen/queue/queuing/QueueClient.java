@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.queue.queuing;
 
-import org.swisspush.gateleen.core.util.Address;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -10,9 +9,9 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
@@ -35,6 +34,16 @@ public class QueueClient implements RequestQueue {
     public QueueClient(Vertx vertx, MonitoringHandler monitoringHandler) {
         this.vertx = vertx;
         this.monitoringHandler = monitoringHandler;
+    }
+
+    /**
+     * Get the event bus address of redisques.
+     * Override this method when you want to use a custom redisques address
+     *
+     * @return the event bus address of redisques
+     */
+    protected String getRedisquesAddress(){
+        return Address.redisquesAddress();
     }
 
     /**
@@ -112,7 +121,7 @@ public class QueueClient implements RequestQueue {
      * @param doneHandler a handler which is called as soon as the request is written into the queue.
      */
     private void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Void> doneHandler) {
-        vertx.eventBus().send(Address.redisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
+        vertx.eventBus().send(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
             public void handle(AsyncResult<Message<JsonObject>> event) {
                 if (OK.equals(event.result().body().getString(STATUS))) {

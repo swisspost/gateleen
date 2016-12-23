@@ -15,6 +15,7 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Log4jConfigurer;
+import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
@@ -80,6 +81,7 @@ public class RunConfig {
     private SchedulerResourceManager schedulerResourceManager;
     private ValidationResourceManager validationResourceManager;
     private LoggingResourceManager loggingResourceManager;
+    private ConfigurationResourceManager configurationResourceManager;
     private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
     private EventBusHandler eventBusHandler;
     private ValidationHandler validationHandler;
@@ -99,7 +101,7 @@ public class RunConfig {
 
     public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
-                     QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager,
+                     ConfigurationResourceManager configurationResourceManager, QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager,
                      EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
                      DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler,
@@ -114,6 +116,7 @@ public class RunConfig {
         this.schedulerResourceManager = schedulerResourceManager;
         this.validationResourceManager = validationResourceManager;
         this.loggingResourceManager = loggingResourceManager;
+        this.configurationResourceManager = configurationResourceManager;
         this.queueCircuitBreakerConfigurationResourceManager = queueCircuitBreakerConfigurationResourceManager;
         this.eventBusHandler = eventBusHandler;
         this.validationHandler = validationHandler;
@@ -142,6 +145,7 @@ public class RunConfig {
                 builder.schedulerResourceManager,
                 builder.validationResourceManager,
                 builder.loggingResourceManager,
+                builder.configurationResourceManager,
                 builder.queueCircuitBreakerConfigurationResourceManager,
                 builder.eventBusHandler,
                 builder.validationHandler,
@@ -192,6 +196,7 @@ public class RunConfig {
         private SchedulerResourceManager schedulerResourceManager;
         private ValidationResourceManager validationResourceManager;
         private LoggingResourceManager loggingResourceManager;
+        private ConfigurationResourceManager configurationResourceManager;
         private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
         private EventBusHandler eventBusHandler;
         private ValidationHandler validationHandler;
@@ -209,7 +214,7 @@ public class RunConfig {
 
         public RunConfigBuilder(){}
 
-        public RunConfigBuilder     corsHandler(CORSHandler corsHandler){
+        public RunConfigBuilder corsHandler(CORSHandler corsHandler){
             this.corsHandler = corsHandler;
             return this;
         }
@@ -226,6 +231,11 @@ public class RunConfig {
 
         public RunConfigBuilder loggingResourceManager(LoggingResourceManager loggingResourceManager){
             this.loggingResourceManager = loggingResourceManager;
+            return this;
+        }
+
+        public RunConfigBuilder configurationResourceManager(ConfigurationResourceManager configurationResourceManager){
+            this.configurationResourceManager = configurationResourceManager;
             return this;
         }
 
@@ -518,6 +528,9 @@ public class RunConfig {
                             return;
                         }
                         if (loggingResourceManager != null && loggingResourceManager.handleLoggingResource(request)) {
+                            return;
+                        }
+                        if(configurationResourceManager != null && configurationResourceManager.handleConfigurationResource(request)){
                             return;
                         }
                         if (validationResourceManager != null && validationResourceManager.handleValidationResource(request)) {

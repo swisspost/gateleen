@@ -8,8 +8,8 @@ import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
-import org.swisspush.gateleen.validation.ValidationResult;
-import org.swisspush.gateleen.validation.ValidationStatus;
+import org.swisspush.gateleen.core.validation.ValidationResult;
+import org.swisspush.gateleen.core.validation.ValidationStatus;
 import org.swisspush.gateleen.validation.Validator;
 
 /**
