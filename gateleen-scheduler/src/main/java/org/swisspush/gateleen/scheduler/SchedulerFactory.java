@@ -11,7 +11,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
-import org.swisspush.gateleen.validation.ValidationResult;
+import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
 
 import java.nio.charset.Charset;

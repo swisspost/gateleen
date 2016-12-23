@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.validation;
+package org.swisspush.gateleen.core.validation;
 
 import io.vertx.core.json.JsonArray;
 

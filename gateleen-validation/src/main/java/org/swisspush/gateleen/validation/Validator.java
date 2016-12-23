@@ -18,6 +18,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.swisspush.gateleen.core.validation.ValidationResult;
+import org.swisspush.gateleen.core.validation.ValidationStatus;
 
 import java.io.IOException;
 import java.util.ArrayList;

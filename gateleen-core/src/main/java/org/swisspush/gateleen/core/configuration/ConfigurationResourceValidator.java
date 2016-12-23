@@ -17,6 +17,8 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.LoggerFactory;
 import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.core.validation.ValidationResult;
+import org.swisspush.gateleen.core.validation.ValidationStatus;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -108,42 +110,5 @@ class ConfigurationResourceValidator {
             resultArray.add(new JsonObject(node.toString()));
         }
         return resultArray;
-    }
-
-    enum ValidationStatus {
-        VALIDATED_POSITIV,VALIDATED_NEGATIV,COULD_NOT_VALIDATE
-    }
-
-    class ValidationResult {
-
-        private ValidationStatus status;
-        private String message;
-        private JsonArray validationDetails;
-
-        public ValidationResult(ValidationStatus status, String message){
-            this(status, message, null);
-        }
-
-        public ValidationResult(ValidationStatus status, String message, JsonArray validationDetails){
-            this.status = status;
-            this.message = message;
-            this.validationDetails = validationDetails;
-        }
-
-        public ValidationResult(ValidationStatus success){
-            this(success, null);
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public JsonArray getValidationDetails() { return validationDetails; }
-
-        public ValidationStatus getValidationStatus() { return status; }
-
-        public boolean isSuccess() {
-            return ValidationStatus.VALIDATED_POSITIV.equals(status);
-        }
     }
 }

@@ -15,7 +15,7 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
-import org.swisspush.gateleen.validation.ValidationResult;
+import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
 
 import java.util.HashMap;

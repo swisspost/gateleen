@@ -7,6 +7,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.core.validation.ValidationStatus;
 
 /**
  * Tests for the {@link ConfigurationResourceValidator} class
@@ -25,7 +26,7 @@ public class ConfigurationResourceValidatorTest extends ConfigurationResourceTes
 
         configurationResourceValidator.validateConfigurationResource(Buffer.buffer(INVALID_JSON_CONTENT), PERSON_SCHEMA, event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(ConfigurationResourceValidator.ValidationStatus.VALIDATED_NEGATIV, event.result().getValidationStatus());
+            context.assertEquals(ValidationStatus.VALIDATED_NEGATIV, event.result().getValidationStatus());
             String expectedMessage = "Unable to parse json";
             context.assertEquals(expectedMessage, event.result().getMessage());
             async.complete();
@@ -39,7 +40,7 @@ public class ConfigurationResourceValidatorTest extends ConfigurationResourceTes
 
         configurationResourceValidator.validateConfigurationResource(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA), null, event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(ConfigurationResourceValidator.ValidationStatus.VALIDATED_POSITIV, event.result().getValidationStatus());
+            context.assertEquals(ValidationStatus.VALIDATED_POSITIV, event.result().getValidationStatus());
             async.complete();
         });
     }
@@ -51,7 +52,7 @@ public class ConfigurationResourceValidatorTest extends ConfigurationResourceTes
 
         configurationResourceValidator.validateConfigurationResource(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA), "", event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(ConfigurationResourceValidator.ValidationStatus.VALIDATED_POSITIV, event.result().getValidationStatus());
+            context.assertEquals(ValidationStatus.VALIDATED_POSITIV, event.result().getValidationStatus());
             async.complete();
         });
     }
@@ -63,7 +64,7 @@ public class ConfigurationResourceValidatorTest extends ConfigurationResourceTes
 
         configurationResourceValidator.validateConfigurationResource(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA), INVALID_SCHEMA, event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(ConfigurationResourceValidator.ValidationStatus.VALIDATED_NEGATIV, event.result().getValidationStatus());
+            context.assertEquals(ValidationStatus.VALIDATED_NEGATIV, event.result().getValidationStatus());
             String expectedMessage = "Unable to parse json schema";
             context.assertEquals(expectedMessage, event.result().getMessage());
             async.complete();
@@ -77,7 +78,7 @@ public class ConfigurationResourceValidatorTest extends ConfigurationResourceTes
 
         configurationResourceValidator.validateConfigurationResource(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA), INVALID_SCHEMA_MISSING_DECLARATION, event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(ConfigurationResourceValidator.ValidationStatus.VALIDATED_NEGATIV, event.result().getValidationStatus());
+            context.assertEquals(ValidationStatus.VALIDATED_NEGATIV, event.result().getValidationStatus());
             String expectedMessage = "Invalid schema: Expected property '$schema'";
             context.assertTrue(event.result().getMessage().startsWith(expectedMessage));
             async.complete();
@@ -91,7 +92,7 @@ public class ConfigurationResourceValidatorTest extends ConfigurationResourceTes
 
         configurationResourceValidator.validateConfigurationResource(Buffer.buffer(CONTENT_NOT_MATCHING_PERSON_SCHEMA), PERSON_SCHEMA, event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(ConfigurationResourceValidator.ValidationStatus.VALIDATED_NEGATIV, event.result().getValidationStatus());
+            context.assertEquals(ValidationStatus.VALIDATED_NEGATIV, event.result().getValidationStatus());
             String expectedMessage = "Validation failed";
             context.assertEquals(expectedMessage, event.result().getMessage());
 
@@ -111,7 +112,7 @@ public class ConfigurationResourceValidatorTest extends ConfigurationResourceTes
 
         configurationResourceValidator.validateConfigurationResource(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA), PERSON_SCHEMA, event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(ConfigurationResourceValidator.ValidationStatus.VALIDATED_POSITIV, event.result().getValidationStatus());
+            context.assertEquals(ValidationStatus.VALIDATED_POSITIV, event.result().getValidationStatus());
             async.complete();
         });
     }

@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.validation;
 
 import io.vertx.core.json.JsonArray;
+import org.swisspush.gateleen.core.validation.ValidationResult;
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
