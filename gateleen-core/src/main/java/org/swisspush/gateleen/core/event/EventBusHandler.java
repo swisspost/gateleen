@@ -72,6 +72,9 @@ public class EventBusHandler implements ConfigurationResourceObserver {
     public static final String HEADERS = "headers";
     public static final int TIMEOUT = 20000;
     public static final int GATEWAY_TIMEOUT = 504;
+
+    private static final boolean DEFAULT_WEBSOCKET_CONNECTION_STATE = true;
+
     private Vertx vertx;
     private String apiPath;
     private String sockPath;
@@ -85,7 +88,8 @@ public class EventBusHandler implements ConfigurationResourceObserver {
     private Integer eventbusBridgeMaxHandlersPerSocket = null;
 
     private ConfigurationResourceManager configurationResourceManager;
-    private boolean websocketConnectionsEnabled = true;
+
+    private boolean websocketConnectionsEnabled = DEFAULT_WEBSOCKET_CONNECTION_STATE;
 
     private SockJSHandlerOptions sockJSHandlerOptions = null;
 
@@ -270,7 +274,7 @@ public class EventBusHandler implements ConfigurationResourceObserver {
     public void resourceResetted(String resourceUri) {
         if(configResourceUri != null && configResourceUri.equals(resourceUri)){
             log.info("Resetting configuration resource "+resourceUri+". Using default values instead");
-            websocketConnectionsEnabled = true;
+            websocketConnectionsEnabled = DEFAULT_WEBSOCKET_CONNECTION_STATE;
         }
     }
 
