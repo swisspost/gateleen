@@ -133,6 +133,6 @@ public abstract class ConfigurationResourceTestBase {
         public void resourceChanged(String resourceUri, String resource) { }
 
         @Override
-        public void resourceResetted(String resourceUri) { }
+        public void resourceRemoved(String resourceUri) { }
     }
 }

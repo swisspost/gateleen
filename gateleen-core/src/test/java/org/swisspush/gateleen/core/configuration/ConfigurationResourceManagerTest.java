@@ -149,7 +149,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     }
 
     @Test
-    public void testResetResource(TestContext context) {
+    public void testRemoveResource(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
         configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
@@ -183,7 +183,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         context.assertTrue(handledDelete, "DELETE Request to configuration resource should be handled");
 
         await().atMost(3, SECONDS).until( () -> storage.getMockData().get(resourceURI), is(nullValue()));
-        verify(observer, Mockito.times(1)).resourceResetted(eq(resourceURI));
+        verify(observer, Mockito.times(1)).resourceRemoved(eq(resourceURI));
 
         async.complete();
     }

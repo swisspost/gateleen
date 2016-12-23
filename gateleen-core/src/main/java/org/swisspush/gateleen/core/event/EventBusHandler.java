@@ -271,9 +271,9 @@ public class EventBusHandler implements ConfigurationResourceObserver {
     }
 
     @Override
-    public void resourceResetted(String resourceUri) {
+    public void resourceRemoved(String resourceUri) {
         if(configResourceUri != null && configResourceUri.equals(resourceUri)){
-            log.info("Resetting configuration resource "+resourceUri+". Using default values instead");
+            log.info("Configuration resource "+resourceUri+" was removed. Using default values instead");
             websocketConnectionsEnabled = DEFAULT_WEBSOCKET_CONNECTION_STATE;
         }
     }

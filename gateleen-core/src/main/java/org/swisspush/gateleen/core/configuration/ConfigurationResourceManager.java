@@ -51,8 +51,8 @@ public class ConfigurationResourceManager {
             if (requestUri != null && type != null) {
                 if (ConfigurationResourceChangeType.CHANGE == type) {
                     notifyObserversAboutResourceChange(requestUri);
-                } else if (ConfigurationResourceChangeType.RESET == type) {
-                    notifyObserversAboutResourceReset(requestUri);
+                } else if (ConfigurationResourceChangeType.REMOVE == type) {
+                    notifyObserversAboutRemovedResource(requestUri);
                 } else {
                     log.warn("Not supported configuration resource change type '" + type + "' received. Doing nothing with it");
                 }
@@ -123,12 +123,12 @@ public class ConfigurationResourceManager {
         }
 
         if(HttpMethod.DELETE == request.method()) {
-            requestLog.info("Reset resource " + resourceUri);
+            requestLog.info("Remove resource " + resourceUri);
             storage.delete(resourceUri, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
                     JsonObject object = new JsonObject();
                     object.put("requestUri", resourceUri);
-                    object.put("type", ConfigurationResourceChangeType.RESET);
+                    object.put("type", ConfigurationResourceChangeType.REMOVE);
                     vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
                 } else {
                     request.response().setStatusCode(status);
@@ -155,11 +155,11 @@ public class ConfigurationResourceManager {
         return observers;
     }
 
-    private void notifyObserversAboutResourceReset(String requestUri) {
-        log.info("About to notify observers about reset of resource " + requestUri);
+    private void notifyObserversAboutRemovedResource(String requestUri) {
+        log.info("About to notify observers that resource " + requestUri + " has been removed");
         List<ConfigurationResourceObserver> observersByResourceUri = getObserversByResourceUri(requestUri);
         for (ConfigurationResourceObserver observer : observersByResourceUri) {
-            observer.resourceResetted(requestUri);
+            observer.resourceRemoved(requestUri);
         }
     }
 
@@ -221,7 +221,7 @@ public class ConfigurationResourceManager {
     }
 
     private enum ConfigurationResourceChangeType {
-        CHANGE, RESET;
+        CHANGE, REMOVE;
 
         public static ConfigurationResourceChangeType fromString(String typeString) {
             for (ConfigurationResourceChangeType type : values()) {
