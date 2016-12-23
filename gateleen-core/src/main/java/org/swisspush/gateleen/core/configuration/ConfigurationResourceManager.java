@@ -71,9 +71,6 @@ public class ConfigurationResourceManager {
             log.warn("No registered resource with uri " + resourceUri + " found");
         }
         List<ConfigurationResourceObserver> observersByResourceUri = getObserversByResourceUri(resourceUri);
-        if (observersByResourceUri == null) {
-            observersByResourceUri = new ArrayList<>();
-        }
         observersByResourceUri.add(observer);
         observers.put(resourceUri, observersByResourceUri);
 
@@ -212,7 +209,7 @@ public class ConfigurationResourceManager {
         }
     }
 
-    public List<ConfigurationResourceObserver> getObserversByResourceUri(String resourceUri) {
+    private List<ConfigurationResourceObserver> getObserversByResourceUri(String resourceUri) {
         List<ConfigurationResourceObserver> resourceObservers = getObservers().get(resourceUri);
         if (resourceObservers == null) {
             resourceObservers = new ArrayList<>();
