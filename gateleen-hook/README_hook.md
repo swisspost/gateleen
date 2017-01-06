@@ -1,1 +1,137 @@
 # gateleen-hook
+
+This feature allows you to set either dynamical generated routes or listeners called hooks to a specific resource or a collection.
+ 
+Two types of this hooks exists:
+* routes
+* listeners
+
+## General configuration
+During the instantiation of the [HookHandler](src/main/java/org/swisspush/gateleen/hook/HookHandler.java) you have the possibility to specify the collection where your hooks will be saved in the storage. To do so, you have to set the parameter _hookRootUri_ in the constructor. 
+
+
+
+## Route - Hooks
+> <font color="orange">Attention: </font>A route directs all communication from a specific resource to another destination. Per resource may only exist one route a time.
+
+### Usage
+> <font color="skyblue">Information: </font>The suffix _**/_hooks/route**_ always indicates a route registration. The HookHandler will use this suffix to identify either a registration or an unregistration of a route hook.
+
+**Payload**
+
+| Property          | Required | Description                              | 
+|:----------------- | :------: | :--------------------------------------- | 
+| destination       | yes | A valid URL (absolute) where the requests should be redirected to. |
+| methods           | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
+| expireAfter       | no  | This property indicates how long a resource should live. After the given time, the resource will be removed from the storage. This property will only be used, if the incoming request does not have a 'X-Expire-After' header. If the given header exists, this property will be ignored for the given request!  |
+| staticHeaders     | no  | This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
+
+> <font color="orange">Attention: </font>A route has a default expiration time of **1 hour**. After this time the route will expire and be removed from the storage, as well as the HookHandler.<br />
+To update / refresh a route, simply perform another registration.<br />
+To change the expiration time of a route, just pass a _X-Expire-After_ header with the registration PUT request. 
+
+
+
+#### Add a route
+```json
+PUT /<url>/<resource>/_hooks/route
+{
+    "destination": "http://<url>/<target>",
+    "methods": []
+}
+```
+#### Remove a route
+```json
+DELETE /<url>/<resource>/_hooks/route
+```
+
+
+#### Example:
+The following example will show you, how to set a route for a specific resource / collection. 
+
+> <font color="green">Assumption: </font>We’d like to set a dynamic route for the resource _/gateleen/example/resource_. The target destination should be _/gateleen/example/othertarget_. 
+
+To do so, we have to perform the following steps:
+
+
+##### Register the route hook.
+```json
+PUT http://myserver:7012/gateleen/example/resource/_hooks/route
+{
+    "destination": "http://myserver:7012/gateleen/example/othertarget",
+    "methods": []
+}
+```
+ 
+
+##### Use the hook
+```json
+DELETE http://myserver:7012/gateleen/example/resource/anExample
+```
+
+This request will be rerouted to:
+```json
+DELETE http://myserver:7012/gateleen/example/othertarget/anExample
+```
+
+#####Deleting the hook
+```json
+PUT http://myserver:7012/gateleen/example/resource/_hooks/route
+{
+    "destination": "http://myserver:7012/gateleen/example/othertarget",
+    "methods": []
+}
+```
+## Listener - Hooks
+> <font color="orange">Attention: </font>A listener registers an additional destination for a resource, which also will get a copy of the original request. You may registers as many listeners per resource as you wish. Requests forwarded to a listener are always enqueued and delivered as soon as the target destination is available.  
+
+### Usage
+> <font color="skyblue">Information: </font>The suffix _**/_hooks/listeners/http/\<id\>**_ always indicates a route registration. The HookHandler will use this suffix to identify either a registration or an unregistration of a listener hook.
+
+**Payload**
+
+| Property          | Required | Description                              | 
+|:----------------- | :------: | :--------------------------------------- | 
+| destination       | yes | A valid URL (relative) where the requests should be redirected to. |
+| methods           | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
+| expireAfter       | no  | This property indicates how long a resource should live. After the given time, the resource will be removed from the storage. This property will only be used, if the incoming request does not have a 'X-Expire-After' header. If the given header exists, this property will be ignored for the given request!  |
+| queueExpireAfter  | no  | A copied and forwarded request to a listener is always putted into a queue. To ensure to have an expiration time for each request within the given listener queue, you can set a default value (in seconds) with this property. This way you can prevent a queue overflow. The property will only be used for requests, which doesn’t have a _x-queue-expire-after_ header. |
+| staticHeaders     | no  | This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
+| filter            | no  | This property allows you to refine the requests with a regular expression, which you want to receive for the given destination. |
+| type              | no  | Default: before <br> This property allows you to set, if the request to a listener will be sent before or after the original request was performed.<br /> <br /> The valid settings are: <br /> after => request will be forwarded to listener after the original request was performed <br /><br />before => (default) request will be forwarded to a listener before the original request was performed <br /> <br /> This can be useful if you want to use your listeners with the delegate feature and expect a request to be already executed as soon as you execute a delegate. |  
+                                                 
+> <font color="orange">Attention: </font>A listener has a default expiration time of **30 seconds**. After this time the listener will expire and be removed from the storage, as well as the HookHandler.<br />
+To update / refresh a listener, simply perform another registration.<br />
+To change the expiration time of a listener, just pass a _X-Expire-After_ header with the registration PUT request. 
+ 
+#### Add a listener
+```json
+PUT http://myserver7012/gateleen/everything/_hooks/listeners/http/myexample
+{
+    "methods": [
+        "PUT"
+    ],
+    "destination": "/gateleen/example/thePosition",
+    "filter": "/gateleen/everything/.*/position.*",
+    "staticHeaders": {
+        "X-Expire-After": "3600"
+    }    
+}
+```
+
+#### Remove a listener
+```json
+DELETE http://myserver7012/gateleen/everything/_hooks/listeners/http/myexample
+```
+
+
+
+
+
+
+
+
+
+
+
+

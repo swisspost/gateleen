@@ -88,6 +88,7 @@ If you want to use the StorageExpand feature, you can set the attribute:
 
 in the corresponding routing rule. The StorageExpand feature does expand directly in the storage, so it is faster than the "standard" expansion feature.
 > <font color="orange">Attention: </font> Be aware that the depth is limited to 1 by now.
+
 > <font color="orange">Attention: </font> You must allow the POST method (in the acls) for the urls you want to use with the StorageExpand feature!
 
 For more information about the StorageExpand feature see the [vertx-rest-storage](https://github.com/swisspush/vertx-rest-storage) project.
