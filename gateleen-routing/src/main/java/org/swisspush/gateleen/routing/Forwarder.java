@@ -171,7 +171,7 @@ public class Forwarder implements Handler<RoutingContext> {
         cReq.headers().remove("connection");
 
         if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
-            cReq.headers().set(SELF_REQUEST_HEADER, "");
+            cReq.headers().set(SELF_REQUEST_HEADER, "true");
         }
 
         if (uniqueId != null) {

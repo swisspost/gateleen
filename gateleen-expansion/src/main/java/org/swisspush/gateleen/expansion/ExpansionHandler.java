@@ -343,7 +343,7 @@ public class ExpansionHandler implements RuleChangesObserver{
         cReq.setTimeout(TIMEOUT);
         cReq.headers().setAll(req.headers());
         cReq.headers().set("Accept", "application/json");
-        cReq.headers().set(SELF_REQUEST_HEADER, "");
+        cReq.headers().set(SELF_REQUEST_HEADER, "true");
         cReq.setChunked(true);
 
         if (log.isTraceEnabled()) {
@@ -465,7 +465,7 @@ public class ExpansionHandler implements RuleChangesObserver{
 
         cReq.setTimeout(TIMEOUT);
         cReq.headers().setAll(req.headers());
-        cReq.headers().set(SELF_REQUEST_HEADER, "");
+        cReq.headers().set(SELF_REQUEST_HEADER, "true");
         cReq.headers().set("Content-Type", "application/json; charset=utf-8");
         cReq.headers().set("Content-Length", "" + payload.length());
         cReq.setChunked(false);
@@ -557,7 +557,7 @@ public class ExpansionHandler implements RuleChangesObserver{
         cReq.setTimeout(TIMEOUT);
         cReq.headers().setAll(req.headers());
         cReq.headers().set("Accept", "application/json");
-        cReq.headers().set(SELF_REQUEST_HEADER, "");
+        cReq.headers().set(SELF_REQUEST_HEADER, "true");
         cReq.setChunked(true);
 
         cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(req, targetUri, ExpansionHandler.class));
