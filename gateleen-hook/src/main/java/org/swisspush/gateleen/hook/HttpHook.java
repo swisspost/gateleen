@@ -22,6 +22,8 @@ public class HttpHook {
     private int queueExpireAfter;
     private Map<String, String> staticHeaders = null;
     private HookTriggerType hookTriggerType;
+    private boolean listable = false;
+    private boolean collection = true;
 
     /**
      * Creates a new hook.
@@ -209,5 +211,44 @@ public class HttpHook {
      */
     public void setHookTriggerType(HookTriggerType hookTriggerType) {
         this.hookTriggerType = hookTriggerType;
+    }
+
+    /**
+     * Indicates if a route hook should be listed
+     * for a GET request or not.
+     * @return true if the route hook should be listed
+     */
+    public boolean isListable() {
+        return listable;
+    }
+
+    /**
+     * Sets if a route hook should be listed
+     * for a GET request or not.
+     *
+     * @param listable true if the route hook should be listed
+     */
+    public void setListable(boolean listable) {
+        this.listable = listable;
+    }
+
+    /**
+     * Indicates if a hook points to a collection (default: true)
+     * or not.
+     *
+     * @return true (default) if hook points to collection.
+     */
+    public boolean isCollection() {
+        return collection;
+    }
+
+    /**
+     * Sets if a hook points to a collection (default: true)
+     * or not.
+     *
+     * @param collection true (default) if hook points to collection.
+     */
+    public void setCollection(boolean collection) {
+        this.collection = collection;
     }
 }
