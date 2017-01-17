@@ -78,11 +78,7 @@ DELETE http://myserver:7012/gateleen/example/othertarget/anExample
 
 #####Deleting the hook
 ```json
- PUT http://myserver:7012/gateleen/example/resource/_hooks/route
- {
-     "destination": "http://myserver:7012/gateleen/example/othertarget",
-     "methods": []
- }
+ DELETE http://myserver:7012/gateleen/example/resource/_hooks/route
 ```
 
 
