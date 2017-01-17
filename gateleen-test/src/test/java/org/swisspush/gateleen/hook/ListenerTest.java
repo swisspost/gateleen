@@ -83,8 +83,8 @@ public class ListenerTest extends AbstractTest {
         String target = targetUrlBase + "/" + listenerName;
         String[] methods = new String[]{"GET", "PUT", "DELETE", "POST"};
 
-        registerListener(requestUrl, target, methods, null);
-        unregisterListener(requestUrl);
+        TestUtils.registerListener(requestUrl, target, methods, null);
+        TestUtils.unregisterListener(requestUrl);
 
         async.complete();
     }
@@ -118,7 +118,7 @@ public class ListenerTest extends AbstractTest {
         delete(targetUrl);
 
         // register a listener
-        registerListener(registerUrl, target, methods, 4);
+        TestUtils.registerListener(registerUrl, target, methods, 4);
 
         // send request
         checkPUTStatusCode(requestUrl, body, 200);
@@ -138,7 +138,7 @@ public class ListenerTest extends AbstractTest {
         // check if request is processd (resource storage)
         checkGETStatusCodeWithAwait(targetUrl, 404);
 
-        unregisterListener(registerUrl);
+        TestUtils.unregisterListener(registerUrl);
 
         async.complete();
     }
@@ -194,7 +194,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, one listener hooked
          */
-        registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -204,13 +204,13 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(requestUrl, 404);
         checkGETStatusCodeWithAwait(targetUrlListener1, 404);
 
-        unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener1);
 
         /*
          * Sending request, both listener hooked
          */
-        registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
-        registerListener(registerUrlListener2, targetListener2, methodsListener2, 4);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 4);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -221,8 +221,8 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(targetUrlListener1, 404);
         checkGETStatusCodeWithAwait(targetUrlListener2, 404);
 
-        unregisterListener(registerUrlListener1);
-        unregisterListener(registerUrlListener2);
+        TestUtils.unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener2);
 
         async.complete();
     }
@@ -262,8 +262,8 @@ public class ListenerTest extends AbstractTest {
         // -------
 
         // just for security reasons
-        unregisterListener(registerUrlListener1);
-        unregisterListener(registerUrlListener2);
+        TestUtils.unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener2);
 
         final String requestUrlMaster = requestUrlBase + "/" + subresource + "/" + "test";
         final String requestUrlSlave = requestUrlBase + "/" + subresource + "/" + additionalSubResource + "/" + "test";
@@ -296,7 +296,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, master listener hooked
          */
-        registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
 
         checkPUTStatusCode(requestUrlMaster, body, 200);
         checkGETStatusCodeWithAwait(requestUrlMaster, 200);
@@ -314,13 +314,13 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(requestUrlSlave, 404);
         checkGETStatusCodeWithAwait(slaveTargetUrlListener1, 404);
 
-        unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener1);
 
         /*
          * Sending request, both listener hooked
          */
-        registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
-        registerListener(registerUrlListener2, targetListener2, methodsListener2, 4);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 4);
 
         checkPUTStatusCode(requestUrlMaster, body, 200);
         checkGETStatusCodeWithAwait(requestUrlMaster, 200);
@@ -340,13 +340,13 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(slaveTargetUrlListener1, 404);
         checkGETStatusCodeWithAwait(slaveTargetUrlListener2, 404);
 
-        unregisterListener(registerUrlListener1);
-        unregisterListener(registerUrlListener2);
+        TestUtils.unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener2);
 
         /*
          * Sending request, slave listener hooked
          */
-        registerListener(registerUrlListener2, targetListener2, methodsListener2, 4);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 4);
 
         checkPUTStatusCode(requestUrlMaster, body, 200);
         checkGETStatusCodeWithAwait(requestUrlMaster, 200);
@@ -363,7 +363,7 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(requestUrlSlave, 404);
         checkGETStatusCodeWithAwait(slaveTargetUrlListener2, 404);
 
-        unregisterListener(registerUrlListener2);
+        TestUtils.unregisterListener(registerUrlListener2);
 
         async.complete();
     }
@@ -392,8 +392,8 @@ public class ListenerTest extends AbstractTest {
         String target2 = target + "/r2";
 
         // register both listener
-        registerListener(registerUrlListener1, target, null, null);
-        registerListener(registerUrlListener2, target, null, null);
+        TestUtils.registerListener(registerUrlListener1, target, null, null);
+        TestUtils.registerListener(registerUrlListener2, target, null, null);
 
         // Put first on one listener ...
         checkPUTStatusCode(put1, body1, 200);
@@ -412,8 +412,8 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(target2, 404);
 
         // unregister everything
-        unregisterListener(registerUrlListener1);
-        unregisterListener(registerUrlListener2);
+        TestUtils.unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener2);
 
         async.complete();
     }
@@ -443,7 +443,7 @@ public class ListenerTest extends AbstractTest {
         String target2 = target + "/456/notfiltered/v1/body";
 
         // register listener
-        registerListener(registerUrlListener, target, null, null, pattern);
+        TestUtils.registerListener(registerUrlListener, target, null, null, pattern);
 
         // Put1
         checkPUTStatusCode(put1, body, 200);
@@ -454,7 +454,7 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(target2, 200);
         checkGETBodyWithAwait(target2, body);
 
-        unregisterListener(registerUrlListener);
+        TestUtils.unregisterListener(registerUrlListener);
 
         async.complete();
     }
@@ -486,7 +486,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, both listener hooked
          */
-        registerListener(registerUrlListener1, targetListener1, methodsListener1, 4, null, null, null, HookTriggerType.AFTER);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4, null, null, null, HookTriggerType.AFTER);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -496,7 +496,7 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(requestUrl, 404);
         checkGETStatusCodeWithAwait(targetUrlListener1, 404);
 
-        unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener1);
 
         async.complete();
     }
@@ -536,8 +536,8 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, both listener hooked
          */
-        registerListener(registerUrlListener1, targetListener1, methodsListener1, 4, null, null, null, HookTriggerType.AFTER);
-        registerListener(registerUrlListener2, targetListener2, methodsListener2, 4, null, null, null, HookTriggerType.BEFORE);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4, null, null, null, HookTriggerType.AFTER);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 4, null, null, null, HookTriggerType.BEFORE);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -549,8 +549,8 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(targetUrlListener1, 404);
         checkGETStatusCodeWithAwait(targetUrlListener2, 404);
 
-        unregisterListener(registerUrlListener1);
-        unregisterListener(registerUrlListener2);
+        TestUtils.unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener2);
 
         async.complete();
     }
@@ -568,7 +568,7 @@ public class ListenerTest extends AbstractTest {
         final String target = targetUrlBase + "/deadlock";
 
         // register listener
-        registerListener(registerUrlListener, target, null, null);
+        TestUtils.registerListener(registerUrlListener, target, null, null);
 
         String url = requestUrlBase + "/deadLockTest/atest";
         String body = "{ \"name\" : \"test\" }";
@@ -581,7 +581,7 @@ public class ListenerTest extends AbstractTest {
                     () -> RestAssured.get(target + "/atest").then().extract().jsonPath().getString("name"), is("test"));
         }
 
-        unregisterListener(registerUrlListener);
+        TestUtils.unregisterListener(registerUrlListener);
 
         async.complete();
     }
@@ -616,7 +616,7 @@ public class ListenerTest extends AbstractTest {
         // ----
 
         // register Listener
-        registerListener(requestUrl, targetUrl, null, 10, null, 5);
+        TestUtils.registerListener(requestUrl, targetUrl, null, 10, null, 5);
 
         // lock queue
         String lockRequestUrl = "queuing/locks/" + queueName;
@@ -684,7 +684,7 @@ public class ListenerTest extends AbstractTest {
         delete(targetUrl);
 
         // register a listener
-        registerListener(registerUrl, target, methods, null, null, null, staticHeaders);
+        TestUtils.registerListener(registerUrl, target, methods, null, null, null, staticHeaders);
 
         // prepare WireMock (stateful)
         WireMock.stubFor(WireMock.put(WireMock.urlEqualTo(targetUrlPart)).inScenario(scenario)
@@ -773,116 +773,5 @@ public class ListenerTest extends AbstractTest {
      */
     private void checkGETBodyWithAwait(final String requestUrl, final String body) {
         await().atMost(Duration.TEN_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
-    }
-
-    /**
-     * Registers a listener.
-     *
-     * @param requestUrl
-     * @param target
-     * @param methods
-     * @param expireTime
-     */
-    private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime) {
-        registerListener(requestUrl, target, methods, expireTime, null);
-    }
-
-    /**
-     * Registers a listener.
-     *
-     * @param requestUrl
-     * @param target
-     * @param methods
-     * @param expireTime
-     * @param filter
-     */
-    private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter) {
-        registerListener(requestUrl, target, methods, expireTime, filter, null);
-    }
-
-    /**
-     * Registers a listener with a filter.
-     *
-     * @param requestUrl
-     * @param target
-     * @param methods
-     * @param expireTime
-     * @param filter
-     * @param queueExpireTime
-     */
-    private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime) {
-        registerListener(requestUrl, target, methods, expireTime, filter, queueExpireTime, null);
-    }
-
-    /**
-     * Registers a listener with a filter and static headers.
-     *
-     * @param requestUrl
-     * @param target
-     * @param methods
-     * @param expireTime
-     * @param filter
-     * @param queueExpireTime
-     * @param staticHeaders
-     */
-    private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders) {
-        registerListener(requestUrl, target, methods, expireTime, filter, queueExpireTime, staticHeaders, null);
-    }
-
-    /**
-     * Registers a listener with a filter, static headers and a event trigger.
-     *
-     * @param requestUrl
-     * @param target
-     * @param methods
-     * @param expireTime
-     * @param filter
-     * @param queueExpireTime
-     * @param staticHeaders
-     */
-    private void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type) {
-        String body = "{ \"destination\":\"" + target + "\"";
-
-        String m = null;
-        if (methods != null) {
-            for (String method : methods) {
-                m += "\"" + method + "\", ";
-            }
-            m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
-            m = "\"methods\": [" + m + "]";
-        }
-        body += expireTime != null ? ", \""+ HookHandler.EXPIRE_AFTER + "\" : " + expireTime : "";
-        body += queueExpireTime != null ? ", \""+ HookHandler.QUEUE_EXPIRE_AFTER + "\" : " + queueExpireTime : "";
-        body += filter != null ? ", \"filter\" : \"" + filter + "\"" : "";
-        body += type != null ? ", \"type\" : \"" + type.text() + "\"" : "";
-
-
-        if ( staticHeaders != null && staticHeaders.size() > 0 ) {
-            body = body + ", \"staticHeaders\" : {";
-
-            boolean notFirst = false;
-            for (Map.Entry<String, String> entry : staticHeaders.entrySet() ) {
-                body = body + ( notFirst ? ", " : "" ) + "\"" + entry.getKey() + "\" : \"" + entry.getValue() + "\"";
-
-                if ( ! notFirst ) {
-                    notFirst = true;
-                }
-            }
-
-            body = body + "}";
-        }
-
-        body = body + "}";
-
-        with().body(body).put(requestUrl).then().assertThat().statusCode(200);
-    }
-
-    /**
-     * Unregisters a listener.
-     *
-     * @param request
-     */
-    private void unregisterListener(String request) {
-        delete(request).then().assertThat().statusCode(200);
     }
 }

@@ -25,6 +25,8 @@ During the instantiation of the [HookHandler](src/main/java/org/swisspush/gatele
 | methods           | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
 | expireAfter       | no  | This property indicates how long a resource should live. After the given time, the resource will be removed from the storage. This property will only be used, if the incoming request does not have a 'X-Expire-After' header. If the given header exists, this property will be ignored for the given request!  |
 | staticHeaders     | no  | This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
+| collection        | no  | This property specifies if the given URL is a resource or a collection. If this property is not set, the default is true (collection). |
+| listable          | no  | This property specifies if a route is listed if a GET is performed on its parent or not. The default is false or set by the value passed during the initialization. | 
 
 > <font color="orange">Attention: </font>A route has a default expiration time of **1 hour**. After this time the route will expire and be removed from the storage, as well as the HookHandler.<br />
 To update / refresh a route, simply perform another registration.<br />
@@ -76,12 +78,48 @@ DELETE http://myserver:7012/gateleen/example/othertarget/anExample
 
 #####Deleting the hook
 ```json
-PUT http://myserver:7012/gateleen/example/resource/_hooks/route
-{
-    "destination": "http://myserver:7012/gateleen/example/othertarget",
-    "methods": []
+ DELETE http://myserver:7012/gateleen/example/resource/_hooks/route
+```
+
+
+#### Create a listable route
+Normally a created rout will not be listed, if their parent collection is requested. 
+```json
+ PUT http://myserver:7012/gateleen/example/resource/_hooks/route
+ {
+     "destination": "http://myserver:7012/gateleen/example/othertarget"
 }
 ```
+The request will lead to a 404.
+```json
+GET http://myserver:7012/gateleen/example/
+```
+
+In order to be able to list one or more routes, we have to tell the HookHandler, that we wish the rout to be listable. 
+
+```json
+ PUT http://myserver:7012/gateleen/example/resource/_hooks/route
+ {
+     "destination": "http://myserver:7012/gateleen/example/othertarget",
+     "methods": [],
+     "listable" : true,
+     "collection" : true
+ }
+```
+Now the request will lead to:
+```json
+GET http://myserver:7012/gateleen/example/
+{
+    "example" : [
+	    "resource"
+    ]
+}
+```
+
+
+
+
+
 ## Listener - Hooks
 > <font color="orange">Attention: </font>A listener registers an additional destination for a resource, which also will get a copy of the original request. You may registers as many listeners per resource as you wish. Requests forwarded to a listener are always enqueued and delivered as soon as the target destination is available.  
 

@@ -6,13 +6,15 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.hook.HookHandler;
+import org.swisspush.gateleen.hook.HookTriggerType;
 
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
 import static com.jayway.awaitility.Awaitility.await;
-import static com.jayway.restassured.RestAssured.given;
-import static com.jayway.restassured.RestAssured.when;
+import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 public class TestUtils {
@@ -188,5 +190,183 @@ public class TestUtils {
      */
     public static void checkGETStatusCodeWithAwait(final String request, final Integer statusCode) {
         await().atMost(Duration.FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
+    }
+
+    /**
+     * Registers a route.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     */
+    public static void registerRoute(final String requestUrl, final String target, String[] methods) {
+        registerRoute(requestUrl, target, methods, null);
+    }
+    public static void registerRoute(final String requestUrl, final String target, String[] methods, Map<String, String> staticHeaders) {
+        registerRoute(requestUrl, target, methods, staticHeaders, true, false);
+    }
+
+        /**
+         * Registers a route.
+         *
+         * @param requestUrl
+         * @param target
+         * @param methods
+         * @param staticHeaders
+         */
+    public static void registerRoute(final String requestUrl, final String target, String[] methods, Map<String, String> staticHeaders, boolean collection, boolean listable) {
+        String body = "{ \"destination\":\"" + target + "\"";
+
+        String m = null;
+        if (methods != null) {
+            for (String method : methods) {
+                m += "\"" + method + "\", ";
+            }
+            m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
+            m = "\"methods\": [" + m + "]";
+        }
+
+        if ( staticHeaders != null && staticHeaders.size() > 0 ) {
+            body = body + ", \"staticHeaders\" : {";
+
+            boolean notFirst = false;
+            for (Map.Entry<String, String> entry : staticHeaders.entrySet() ) {
+                body = body + ( notFirst ? ", " : "" ) + "\"" + entry.getKey() + "\" : \"" + entry.getValue() + "\"";
+
+                if ( ! notFirst ) {
+                    notFirst = true;
+                }
+            }
+
+            body = body + "}";
+        }
+
+        body += ", " + "\"collection\":" + collection;
+        body += ", " + "\"listable\":" + listable;
+
+        body = body + "}";
+
+        with().body(body).put(requestUrl).then().assertThat().statusCode(200);
+    }
+
+    /**
+     * Unregisters a route.
+     *
+     * @param request
+     */
+    public static void unregisterRoute(String request) {
+        delete(request).then().assertThat().statusCode(200);
+    }
+
+
+    /**
+     * Registers a listener.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param expireTime
+     */
+    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime) {
+        registerListener(requestUrl, target, methods, expireTime, null);
+    }
+
+    /**
+     * Registers a listener.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param expireTime
+     * @param filter
+     */
+    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter) {
+        registerListener(requestUrl, target, methods, expireTime, filter, null);
+    }
+
+    /**
+     * Registers a listener with a filter.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param expireTime
+     * @param filter
+     * @param queueExpireTime
+     */
+    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime) {
+        registerListener(requestUrl, target, methods, expireTime, filter, queueExpireTime, null);
+    }
+
+    /**
+     * Registers a listener with a filter and static headers.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param expireTime
+     * @param filter
+     * @param queueExpireTime
+     * @param staticHeaders
+     */
+    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders) {
+        registerListener(requestUrl, target, methods, expireTime, filter, queueExpireTime, staticHeaders, null);
+    }
+
+    /**
+     * Registers a listener with a filter, static headers and a event trigger.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param expireTime
+     * @param filter
+     * @param queueExpireTime
+     * @param staticHeaders
+     */
+    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type) {
+        String body = "{ \"destination\":\"" + target + "\"";
+
+        String m = null;
+        if (methods != null) {
+            for (String method : methods) {
+                m += "\"" + method + "\", ";
+            }
+            m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
+            m = "\"methods\": [" + m + "]";
+        }
+        body += expireTime != null ? ", \""+ HookHandler.EXPIRE_AFTER + "\" : " + expireTime : "";
+        body += queueExpireTime != null ? ", \""+ HookHandler.QUEUE_EXPIRE_AFTER + "\" : " + queueExpireTime : "";
+        body += filter != null ? ", \"filter\" : \"" + filter + "\"" : "";
+        body += type != null ? ", \"type\" : \"" + type.text() + "\"" : "";
+
+
+        if ( staticHeaders != null && staticHeaders.size() > 0 ) {
+            body = body + ", \"staticHeaders\" : {";
+
+            boolean notFirst = false;
+            for (Map.Entry<String, String> entry : staticHeaders.entrySet() ) {
+                body = body + ( notFirst ? ", " : "" ) + "\"" + entry.getKey() + "\" : \"" + entry.getValue() + "\"";
+
+                if ( ! notFirst ) {
+                    notFirst = true;
+                }
+            }
+
+            body = body + "}";
+        }
+
+        body = body + "}";
+
+        with().body(body).put(requestUrl).then().assertThat().statusCode(200);
+    }
+
+    /**
+     * Unregisters a listener.
+     *
+     * @param request
+     */
+    public static void unregisterListener(String request) {
+        delete(request).then().assertThat().statusCode(200);
     }
 }

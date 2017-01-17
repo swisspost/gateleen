@@ -23,6 +23,7 @@ import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
  */
 public class HookHandler {
     public static final String HOOKED_HEADER = "x-hooked";
+    public static final String HOOK_ROUTES_LISTED = "x-hook-routes-listed";
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
     public static final String LISTENER_QUEUE_PREFIX = "listener-hook";
     private static final String LISTENER_HOOK_TARGET_PATH = "listeners/";
@@ -61,6 +63,8 @@ public class HookHandler {
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
     public static final String HOOK_TRIGGER_TYPE = "type";
+    public static final String LISTABLE = "listable";
+    public static final String COLLECTION = "collection";
 
     private Logger log = LoggerFactory.getLogger(HookHandler.class);
     private Vertx vertx;
@@ -70,7 +74,7 @@ public class HookHandler {
     private final HttpClient selfClient;
     private String userProfilePath;
     private String hookRootUri;
-
+    private boolean listableRoutes;
     private ListenerRepository listenerRepository;
     private RouteRepository routeRepository;
     private RequestQueue requestQueue;
@@ -90,7 +94,37 @@ public class HookHandler {
         this(vertx,selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, new QueueClient(vertx, monitoringHandler));
     }
 
+
+    /**
+     * Creates a new HookHandler.
+
+     * @param vertx vertx
+     * @param selfClient selfClient
+     * @param storage storage
+     * @param loggingResourceManager loggingResourceManager
+     * @param monitoringHandler monitoringHandler
+     * @param userProfilePath userProfilePath
+     * @param hookRootUri hookRootUri
+     * @param requestQueue requestQueue
+     */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
+        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, requestQueue, false);
+    }
+
+    /**
+     * Creates a new HookHandler.
+     *
+     * @param vertx vertx
+     * @param selfClient selfClient
+     * @param storage storage
+     * @param loggingResourceManager loggingResourceManager
+     * @param monitoringHandler monitoringHandler
+     * @param userProfilePath userProfilePath
+     * @param hookRootUri hookRootUri
+     * @param requestQueue requestQueue
+     * @param listableRoutes listableRoutes
+     */
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
         log.debug("Creating HookHandler ...");
         this.vertx = vertx;
         this.selfClient = selfClient;
@@ -100,7 +134,7 @@ public class HookHandler {
         this.userProfilePath = userProfilePath;
         this.hookRootUri = hookRootUri;
         this.requestQueue = requestQueue;
-
+        this.listableRoutes = listableRoutes;
         listenerRepository = new LocalListenerRepository();
         routeRepository = new LocalRouteRepository();
     }
@@ -372,10 +406,109 @@ public class HookHandler {
         }
 
         if (!consumed) {
-            return routeRequestIfNeeded(request);
+            consumed = routeRequestIfNeeded(request);
+
+            if (!consumed) {
+                return createListingIfRequested(request);
+            }
+
+            return consumed;
         } else {
             return true;
         }
+    }
+
+    /**
+     * Create a listing of routes in the given parent. This happens
+     * only if we have a GET request, the routes are listable and
+     * the request is not marked as already listed (x-hook-routes-listed:true).
+     *
+     * @param request request
+     * @return true if a listing was performed (consumed), otherwise false.
+     */
+    private boolean createListingIfRequested(final HttpServerRequest request) {
+        String routesListedHeader = request.headers().get(HOOK_ROUTES_LISTED);
+        boolean routesListed = routesListedHeader != null && routesListedHeader.equals("true");
+
+        // GET request / routes not yet listed
+        if ( request.method().equals(HttpMethod.GET) && ! routesListed ) {
+            // route collection available for parent?
+            final Set<String> collections = routeRepository.getCollections(request.uri());
+
+            if ( ! collections.isEmpty() ) {
+                String parentUri = request.uri().contains("?") ? request.uri().substring(0, request.uri().indexOf('?')) : request.uri();
+                final String parentCollection = parentUri.substring(parentUri.lastIndexOf('/') + 1);
+
+                HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
+                    request.response().setStatusCode(response.statusCode());
+                    request.response().setStatusMessage(response.statusMessage());
+                    request.response().setChunked(true);
+                    request.response().headers().addAll(response.headers());
+                    request.response().headers().remove("Content-Length");
+                    request.response().headers().remove(HOOK_ROUTES_LISTED);
+
+                    // if everything is fine, we add the listed collections to the given array
+                    if ( response.statusCode() == StatusCode.OK.getStatusCode() ) {
+                        response.handler(data -> {
+                            JsonObject responseObject = new JsonObject(data.toString());
+
+                            // we only got an array back, if we perform a simple request
+                            if (responseObject.getValue(parentCollection) instanceof JsonArray) {
+                                JsonArray parentCollectionArray = responseObject.getJsonArray(parentCollection);
+
+                                // add the listed routes
+                                collections.forEach(parentCollectionArray::add);
+                            }
+
+                            // write the response
+                            request.response().write(Buffer.buffer(responseObject.toString()));
+                        });
+                    }
+                    // if nothing is found, we create a new array
+                    else if ( response.statusCode() == StatusCode.NOT_FOUND.getStatusCode() ) {
+                        response.handler(data -> {
+                            // override status message and code
+                            request.response().setStatusCode(StatusCode.OK.getStatusCode());
+                            request.response().setStatusMessage(StatusCode.OK.getStatusMessage());
+
+                            JsonObject responseObject = new JsonObject();
+                            JsonArray parentCollectionArray = new JsonArray();
+                            responseObject.put(parentCollection, parentCollectionArray);
+
+                            // add the listed routes
+                            collections.forEach(parentCollectionArray::add);
+
+                            // write the response
+                            request.response().write(Buffer.buffer(responseObject.toString()));
+                        });
+                    }
+                    // something's wrong ...
+                    else {
+                        log.debug("createListingIfRequested - got response - ERROR");
+                        response.handler(data -> request.response().write(data));
+                    }
+
+                    response.endHandler(v -> request.response().end());
+                });
+
+                if (request.headers() != null && !request.headers().isEmpty()) {
+                    selfRequest.headers().setAll(request.headers());
+                }
+
+                // mark request as already listed
+                selfRequest.headers().add(HOOK_ROUTES_LISTED, "true");
+
+                selfRequest.exceptionHandler(exception -> log.warn("HookHandler: listing of collections (routes) failed: " + request.uri() + ": " + exception.getMessage()));
+                selfRequest.setTimeout(120000); // avoids blocking other requests
+                selfRequest.end();
+
+                // consumed
+                return true;
+            }
+        }
+
+        // not consumed
+        return false;
     }
 
     private boolean routeRequestIfNeeded(HttpServerRequest request) {
@@ -1062,6 +1195,17 @@ public class HookHandler {
 
         if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
             hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
+        }
+
+        if ( jsonHook.getBoolean(LISTABLE) != null ) {
+            hook.setListable(jsonHook.getBoolean(LISTABLE));
+        }
+        else {
+            hook.setListable(listableRoutes);
+        }
+
+        if ( jsonHook.getBoolean(COLLECTION) != null ) {
+            hook.setCollection(jsonHook.getBoolean(COLLECTION));
         }
 
         extractAndAddStaticHeadersToHook(jsonHook, hook);
