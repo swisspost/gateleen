@@ -78,12 +78,52 @@ DELETE http://myserver:7012/gateleen/example/othertarget/anExample
 
 #####Deleting the hook
 ```json
-PUT http://myserver:7012/gateleen/example/resource/_hooks/route
-{
-    "destination": "http://myserver:7012/gateleen/example/othertarget",
-    "methods": []
+ PUT http://myserver:7012/gateleen/example/resource/_hooks/route
+ {
+     "destination": "http://myserver:7012/gateleen/example/othertarget",
+     "methods": []
+ }
+```
+
+
+#### Create a listable route
+Normally a created rout will not be listed, if their parent collection is requested. 
+```json
+ PUT http://myserver:7012/gateleen/example/resource/_hooks/route
+ {
+     "destination": "http://myserver:7012/gateleen/example/othertarget"
 }
 ```
+The request will lead to a 404.
+```json
+GET http://myserver:7012/gateleen/example/
+```
+
+In order to be able to list one or more routes, we have to tell the HookHandler, that we wish the rout to be listable. 
+
+```json
+ PUT http://myserver:7012/gateleen/example/resource/_hooks/route
+ {
+     "destination": "http://myserver:7012/gateleen/example/othertarget",
+     "methods": [],
+     "listable" : true,
+     "collection" : true
+ }
+```
+Now the request will lead to:
+```json
+GET http://myserver:7012/gateleen/example/
+{
+    "example" : [
+	    "resource"
+    ]
+}
+```
+
+
+
+
+
 ## Listener - Hooks
 > <font color="orange">Attention: </font>A listener registers an additional destination for a resource, which also will get a copy of the original request. You may registers as many listeners per resource as you wish. Requests forwarded to a listener are always enqueued and delivered as soon as the target destination is available.  
 
