@@ -27,6 +27,7 @@ import org.swisspush.gateleen.expansion.ExpansionHandler;
 import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.merge.MergeHandler;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.packing.PackingHandler;
 import org.swisspush.gateleen.qos.QoSHandler;
@@ -98,6 +99,7 @@ public class RunConfig {
     private PropertyHandler propertyHandler;
     private ZipExtractHandler zipExtractHandler;
     private DelegateHandler delegateHandler;
+    private MergeHandler mergeHandler;
 
     public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
@@ -105,7 +107,7 @@ public class RunConfig {
                      EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
                      DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler,
-                     ZipExtractHandler zipExtractHandler, DelegateHandler delegateHandler) {
+                     ZipExtractHandler zipExtractHandler, DelegateHandler delegateHandler, MergeHandler mergeHandler) {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.verticleClass = verticleClass;
@@ -131,6 +133,7 @@ public class RunConfig {
         this.propertyHandler = propertyHandler;
         this.zipExtractHandler = zipExtractHandler;
         this.delegateHandler = delegateHandler;
+        this.mergeHandler = mergeHandler;
         init();
     }
 
@@ -159,7 +162,8 @@ public class RunConfig {
                 builder.qosHandler,
                 builder.propertyHandler,
                 builder.zipExtractHandler,
-                builder.delegateHandler);
+                builder.delegateHandler,
+                builder.mergeHandler);
     }
 
     private void init(){
@@ -211,6 +215,7 @@ public class RunConfig {
         public PropertyHandler propertyHandler;
         private ZipExtractHandler zipExtractHandler;
         private DelegateHandler delegateHandler;
+        private MergeHandler mergeHandler;
 
         public RunConfigBuilder(){}
 
@@ -306,6 +311,11 @@ public class RunConfig {
 
         public RunConfigBuilder delegateHandler(DelegateHandler delegateHandler) {
             this.delegateHandler = delegateHandler;
+            return this;
+        }
+
+        public RunConfigBuilder mergeHandler(MergeHandler mergeHandler) {
+            this.mergeHandler = mergeHandler;
             return this;
         }
 
@@ -560,9 +570,12 @@ public class RunConfig {
                             expansionHandler.handleZipRecursion(request);
                         } else if (expansionHandler != null && expansionHandler.isExpansionRequest(request)) {
                             expansionHandler.handleExpansionRecursion(request);
-                        } else if (deltaHandler != null && deltaHandler.isDeltaRequest(request)) {
+                        }
+                        else if (deltaHandler != null && deltaHandler.isDeltaRequest(request)) {
                             setISO8601Timestamps(request);
                             deltaHandler.handle(request, router);
+                        } else if ( mergeHandler != null && mergeHandler.handle(request) ) {
+                            return;
                         } else {
                             setISO8601Timestamps(request);
                             router.route(request);

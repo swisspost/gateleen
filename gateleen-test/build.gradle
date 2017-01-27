@@ -15,6 +15,7 @@ dependencies {
     compile project(':gateleen-security')
     compile project(':gateleen-qos')
     compile project(':gateleen-delegate')
+    compile project(':gateleen-merge')
     compile "org.swisspush:redisques:$redisquesVersion"
     compile "org.swisspush:rest-storage:$reststorageVersion"
     compile "org.swisspush:mod-metrics:$modmetricsVersion"

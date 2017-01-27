@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.CollectionContentComparator;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -20,10 +21,7 @@ import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -66,7 +64,9 @@ public class HookHandler {
     public static final String LISTABLE = "listable";
     public static final String COLLECTION = "collection";
 
+    private final Comparator<String> collectionContentComparator;
     private Logger log = LoggerFactory.getLogger(HookHandler.class);
+
     private Vertx vertx;
     private final ResourceStorage storage;
     private MonitoringHandler monitoringHandler;
@@ -137,6 +137,7 @@ public class HookHandler {
         this.listableRoutes = listableRoutes;
         listenerRepository = new LocalListenerRepository();
         routeRepository = new LocalRouteRepository();
+        collectionContentComparator = new CollectionContentComparator();
     }
 
     public void init() {
@@ -433,11 +434,18 @@ public class HookHandler {
         // GET request / routes not yet listed
         if ( request.method().equals(HttpMethod.GET) && ! routesListed ) {
             // route collection available for parent?
-            final Set<String> collections = routeRepository.getCollections(request.uri());
+            final List<String> collections = new ArrayList<String>(routeRepository.getCollections(request.uri()));
 
             if ( ! collections.isEmpty() ) {
                 String parentUri = request.uri().contains("?") ? request.uri().substring(0, request.uri().indexOf('?')) : request.uri();
-                final String parentCollection = parentUri.substring(parentUri.lastIndexOf('/') + 1);
+                final String parentCollection = getCollectionName(parentUri);
+
+                // sort the result array
+                collections.sort(collectionContentComparator);
+
+                if ( log.isTraceEnabled() ) {
+                    log.trace("createListingIfRequested > (parentUri) {}, (parentCollection) {}", parentUri, parentCollection);
+                }
 
                 HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
                     request.response().setStatusCode(response.statusCode());
@@ -449,6 +457,10 @@ public class HookHandler {
 
                     // if everything is fine, we add the listed collections to the given array
                     if ( response.statusCode() == StatusCode.OK.getStatusCode() ) {
+                        if ( log.isTraceEnabled() ) {
+                            log.trace("createListingIfRequested > use existing array");
+                        }
+
                         response.handler(data -> {
                             JsonObject responseObject = new JsonObject(data.toString());
 
@@ -460,12 +472,20 @@ public class HookHandler {
                                 collections.forEach(parentCollectionArray::add);
                             }
 
+                            if ( log.isTraceEnabled() ) {
+                                log.trace("createListingIfRequested > response: {}", responseObject.toString() );
+                            }
+
                             // write the response
                             request.response().write(Buffer.buffer(responseObject.toString()));
                         });
                     }
                     // if nothing is found, we create a new array
                     else if ( response.statusCode() == StatusCode.NOT_FOUND.getStatusCode() ) {
+                        if ( log.isTraceEnabled() ) {
+                            log.trace("createListingIfRequested > creating new array");
+                        }
+
                         response.handler(data -> {
                             // override status message and code
                             request.response().setStatusCode(StatusCode.OK.getStatusCode());
@@ -477,6 +497,10 @@ public class HookHandler {
 
                             // add the listed routes
                             collections.forEach(parentCollectionArray::add);
+
+                            if ( log.isTraceEnabled() ) {
+                                log.trace("createListingIfRequested > response: {}", responseObject.toString() );
+                            }
 
                             // write the response
                             request.response().write(Buffer.buffer(responseObject.toString()));
@@ -509,6 +533,14 @@ public class HookHandler {
 
         // not consumed
         return false;
+    }
+
+    private String getCollectionName(String url) {
+        if ( url.endsWith("/") ) {
+            url = url.substring(0, url.lastIndexOf("/"));
+        }
+
+        return url.substring(url.lastIndexOf("/") + 1, url.length());
     }
 
     private boolean routeRequestIfNeeded(HttpServerRequest request) {

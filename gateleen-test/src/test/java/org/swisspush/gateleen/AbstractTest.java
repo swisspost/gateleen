@@ -36,6 +36,7 @@ import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.merge.MergeHandler;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.monitoring.ResetMetricsController;
@@ -140,6 +141,7 @@ public abstract class AbstractTest {
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);
                 ZipExtractHandler zipExtractHandler = new ZipExtractHandler(selfClient);
                 DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, DELEGATE_ROOT, props);
+                MergeHandler mergeHandler = new MergeHandler(selfClient);
 
                 // ------
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
@@ -185,6 +187,7 @@ public abstract class AbstractTest {
                                 .propertyHandler(propertyHandler)
                                 .zipExtractHandler(zipExtractHandler)
                                 .delegateHandler(delegateHandler)
+                                .mergeHandler(mergeHandler)
                                 .build(vertx, redisClient, AbstractTest.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
