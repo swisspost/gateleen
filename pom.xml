@@ -22,6 +22,7 @@
 		<module>gateleen-hook</module>
 		<module>gateleen-qos</module>
 		<module>gateleen-delegate</module>
+		<module>gateleen-merge</module>
 		<module>gateleen-player</module>
 		<module>gateleen-test</module>
 		<module>gateleen-runconfig</module>
