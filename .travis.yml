@@ -1,2 +1,4 @@
 services:
    - redis-server
+script: 
+   - bundle exec gradle clean build 
