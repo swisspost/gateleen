@@ -5,3 +5,4 @@ services:
    - redis-server
 script: 
    - ./gradlew test
+   - ./gradlew :gateleen-test:test -PintegrationTests -q
