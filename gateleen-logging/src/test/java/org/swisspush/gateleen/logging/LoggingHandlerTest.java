@@ -18,12 +18,13 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.SortedMap;
 
 /**
  * Tests for the {@link LoggingHandler} class
  *
- * @author https://github.com/mcweba [Marc-Andre Weber]
+ * @author Dominik Erbsland
  */
 @RunWith(VertxUnitRunner.class)
 public class LoggingHandlerTest {
@@ -55,7 +56,7 @@ public class LoggingHandlerTest {
         LoggingResource loggingResource = manager.getLoggingResource();
 
         // PayloadFilters
-        List<SortedMap<String, String>> payloadFilterEntries = loggingResource.getPayloadFilters();
+        List<Map<String, String>> payloadFilterEntries = loggingResource.getPayloadFilters();
         context.assertEquals(2, payloadFilterEntries.size());
 
         // Check that the Resource has the correct sequence of the resource entries.
@@ -68,6 +69,14 @@ public class LoggingHandlerTest {
 
         // Check whether "active" is set to TRUE, which means the Logging for the GET Request
         // is happening and is not aborted (which was the case before the fix (NEMO-5551))
+        context.assertTrue(loggingHandler.isActive());
+
+        // Switch the entries. The test must also pass/true if correct.
+        Map<String, String> firstEntry = payloadFilterEntries.get(0);
+        Map<String, String> secondEntry = payloadFilterEntries.get(1);
+        payloadFilterEntries.set(0,secondEntry);
+        payloadFilterEntries.set(1,firstEntry);
+
         context.assertTrue(loggingHandler.isActive());
     }
 

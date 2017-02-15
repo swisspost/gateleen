@@ -18,6 +18,7 @@ import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -30,7 +31,7 @@ public class LoggingHandler {
     private MultiMap requestHeaders;
     private HttpClientResponse response;
     private boolean active = false;
-	
+
     private Buffer requestPayload;
     private Buffer responsePayload;
     private LoggingResource loggingResource;
@@ -77,21 +78,17 @@ public class LoggingHandler {
             }
 
             // NEMO-5551: Custom sorting. We have to make sure key "URL" comes first in the array.
-            ArrayList<Entry<String, String>> al = new ArrayList<>();
+            List<Entry<String, String>> payloadFilterEntrySetList = new ArrayList<>();
             for (Entry<String, String> filterEntry : payloadFilter.entrySet()) {
                 if (filterEntry.getKey().equalsIgnoreCase("url")) {
-                    al.add(filterEntry);
-                    break;
-                }
-            }
-            for (Entry<String, String> filterEntry : payloadFilter.entrySet()) {
-                if (!filterEntry.getKey().equalsIgnoreCase("url")) {
-                    al.add(filterEntry);
+                    payloadFilterEntrySetList.add(0, filterEntry);
+                } else {
+                    payloadFilterEntrySetList.add(filterEntry);
                 }
             }
 
             boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
-            for (Entry<String, String> filterEntry : al) {
+            for (Entry<String, String> filterEntry : payloadFilterEntrySetList) {
                 if (REJECT.equalsIgnoreCase(filterEntry.getKey())
                         || DESTINATION.equalsIgnoreCase(filterEntry.getKey())
                         || DESCRIPTION.equalsIgnoreCase(filterEntry.getKey())) {
@@ -112,6 +109,10 @@ public class LoggingHandler {
                 }
             }
         }
+    }
+
+    public boolean isActive() {
+        return this.active;
     }
 
     /**
