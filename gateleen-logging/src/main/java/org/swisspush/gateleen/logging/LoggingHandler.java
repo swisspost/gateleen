@@ -74,8 +74,22 @@ public class LoggingHandler {
                 break;
             }
 
-            boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
+            // NEMO-5551: Custom sorting. We have to make sure key "URL" comes first in the array.
+            ArrayList<Entry<String, String>> al = new ArrayList<>();
             for (Entry<String, String> filterEntry : payloadFilter.entrySet()) {
+                if (filterEntry.getKey().equalsIgnoreCase("url")) {
+                    al.add(filterEntry);
+                    break;
+                }
+            }
+            for (Entry<String, String> filterEntry : payloadFilter.entrySet()) {
+                if (!filterEntry.getKey().equalsIgnoreCase("url")) {
+                    al.add(filterEntry);
+                }
+            }
+
+            boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
+            for (Entry<String, String> filterEntry : al) {
                 if (REJECT.equalsIgnoreCase(filterEntry.getKey())
                         || DESTINATION.equalsIgnoreCase(filterEntry.getKey())
                         || DESCRIPTION.equalsIgnoreCase(filterEntry.getKey())) {
@@ -125,31 +139,28 @@ public class LoggingHandler {
             if (destinationOptions.containsKey(FILE)) {
                 log.debug("found destination entry with type 'file' for: " + filterDestination);
                 appender = getFileAppender(filterDestination, destinationOptions.get(FILE));
-            }
-            else if (destinationOptions.containsKey("address")) {
+            } else if (destinationOptions.containsKey("address")) {
                 log.debug("found destination entry with type 'eventBus' for: " + filterDestination);
                 appender = getEventBusAppender(filterDestination, destinationOptions);
-            }
-            else {
+            } else {
                 log.warn("Unknown typeLocation for destination: " + filterDestination);
             }
 
             if (appender != null) {
-                if(!loggers.containsKey(filterDestination)) {
+                if (!loggers.containsKey(filterDestination)) {
                     org.apache.log4j.Logger filterLogger = org.apache.log4j.Logger.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
                     filterLogger.removeAllAppenders();
                     filterLogger.addAppender(appender);
                     filterLogger.setAdditivity(false);
                     loggers.put(filterDestination, filterLogger);
                 }
-            }
-            else {
+            } else {
                 loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
             }
         }
         // ... or use the default logger
         else {
-            log.warn("no destination entry with name '"+filterDestination+"' found, using default logger instead");
+            log.warn("no destination entry with name '" + filterDestination + "' found, using default logger instead");
 
             // use default logger!
             loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
@@ -299,17 +310,17 @@ public class LoggingHandler {
             try {
                 aboutToLogRequest(currentDestination);
                 loggers.get(currentDestination).info(logEvent.encode());
-            } catch(Exception ex){
+            } catch (Exception ex) {
                 errorLogRequest(currentDestination, ex);
             }
         }
     }
 
-    private void aboutToLogRequest(String currentDestination){
+    private void aboutToLogRequest(String currentDestination) {
         log.info("About to log to destination " + currentDestination);
     }
 
-    private void errorLogRequest(String currentDestination, Exception ex){
+    private void errorLogRequest(String currentDestination, Exception ex) {
         log.error("Error logging to destination " + currentDestination + ". Cause: " + ex.toString());
     }
 
