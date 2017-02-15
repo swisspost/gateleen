@@ -74,6 +74,7 @@ public class LoggingHandlerTest {
         // Switch the entries. The test must also pass/true if correct.
         Map<String, String> firstEntry = payloadFilterEntries.get(0);
         Map<String, String> secondEntry = payloadFilterEntries.get(1);
+
         payloadFilterEntries.set(0,secondEntry);
         payloadFilterEntries.set(1,firstEntry);
 
