@@ -4,4 +4,4 @@ jdk:
 services:
    - redis-server
 script: 
-   - gradlew test
+   - ./gradlew test
