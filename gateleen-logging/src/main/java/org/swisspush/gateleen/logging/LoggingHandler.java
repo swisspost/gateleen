@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.swisspush.gateleen.core.event.EventBusWriter;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -28,7 +29,8 @@ public class LoggingHandler {
     private HttpServerRequest request;
     private MultiMap requestHeaders;
     private HttpClientResponse response;
-    private Boolean active = false;
+    private boolean active = false;
+	
     private Buffer requestPayload;
     private Buffer responsePayload;
     private LoggingResource loggingResource;
