@@ -1,6 +1,6 @@
 # [\_] Gateleen
 
-[![Build Status](https://drone.io/github.com/swisspush/gateleen/status.png)](https://drone.io/github.com/swisspush/gateleen/latest)
+[![Build Status](https://travis-ci.org/swisspush/gateleen.svg?branch=master)](https://travis-ci.org/swisspush/gateleen)
 [![Maven Central](https://img.shields.io/maven-central/v/org.swisspush.gateleen/gateleen-core.svg)](https://search.maven.org/#search|ga|1|g%3A%22org.swisspush.gateleen%22%20AND%20v%3A%221.0.4%22)
 
 Gateleen is a RESTFul middleware toolkit for building API gateways.
