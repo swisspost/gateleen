@@ -25,6 +25,7 @@ public class ZipExtractTest extends AbstractTest {
     private static final String TEST_RESOURCE_PATH = "ZipExtractHandlerTest/";
 
     @Test
+    @Ignore
     public void testExtractZipContentFound(TestContext context) {
         Async async = context.async();
         init();
