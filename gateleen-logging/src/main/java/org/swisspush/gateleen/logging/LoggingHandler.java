@@ -16,7 +16,9 @@ import org.slf4j.Logger;
 import org.swisspush.gateleen.core.event.EventBusWriter;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -28,7 +30,8 @@ public class LoggingHandler {
     private HttpServerRequest request;
     private MultiMap requestHeaders;
     private HttpClientResponse response;
-    private Boolean active = false;
+    private boolean active = false;
+
     private Buffer requestPayload;
     private Buffer responsePayload;
     private LoggingResource loggingResource;
@@ -74,8 +77,18 @@ public class LoggingHandler {
                 break;
             }
 
-            boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
+            // NEMO-5551: Custom sorting. We have to make sure key "URL" comes first in the array.
+            List<Entry<String, String>> payloadFilterEntrySetList = new ArrayList<>();
             for (Entry<String, String> filterEntry : payloadFilter.entrySet()) {
+                if (filterEntry.getKey().equalsIgnoreCase("url")) {
+                    payloadFilterEntrySetList.add(0, filterEntry);
+                } else {
+                    payloadFilterEntrySetList.add(filterEntry);
+                }
+            }
+
+            boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
+            for (Entry<String, String> filterEntry : payloadFilterEntrySetList) {
                 if (REJECT.equalsIgnoreCase(filterEntry.getKey())
                         || DESTINATION.equalsIgnoreCase(filterEntry.getKey())
                         || DESCRIPTION.equalsIgnoreCase(filterEntry.getKey())) {
@@ -96,6 +109,10 @@ public class LoggingHandler {
                 }
             }
         }
+    }
+
+    public boolean isActive() {
+        return this.active;
     }
 
     /**
@@ -125,31 +142,28 @@ public class LoggingHandler {
             if (destinationOptions.containsKey(FILE)) {
                 log.debug("found destination entry with type 'file' for: " + filterDestination);
                 appender = getFileAppender(filterDestination, destinationOptions.get(FILE));
-            }
-            else if (destinationOptions.containsKey("address")) {
+            } else if (destinationOptions.containsKey("address")) {
                 log.debug("found destination entry with type 'eventBus' for: " + filterDestination);
                 appender = getEventBusAppender(filterDestination, destinationOptions);
-            }
-            else {
+            } else {
                 log.warn("Unknown typeLocation for destination: " + filterDestination);
             }
 
             if (appender != null) {
-                if(!loggers.containsKey(filterDestination)) {
+                if (!loggers.containsKey(filterDestination)) {
                     org.apache.log4j.Logger filterLogger = org.apache.log4j.Logger.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
                     filterLogger.removeAllAppenders();
                     filterLogger.addAppender(appender);
                     filterLogger.setAdditivity(false);
                     loggers.put(filterDestination, filterLogger);
                 }
-            }
-            else {
+            } else {
                 loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
             }
         }
         // ... or use the default logger
         else {
-            log.warn("no destination entry with name '"+filterDestination+"' found, using default logger instead");
+            log.warn("no destination entry with name '" + filterDestination + "' found, using default logger instead");
 
             // use default logger!
             loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
@@ -299,17 +313,17 @@ public class LoggingHandler {
             try {
                 aboutToLogRequest(currentDestination);
                 loggers.get(currentDestination).info(logEvent.encode());
-            } catch(Exception ex){
+            } catch (Exception ex) {
                 errorLogRequest(currentDestination, ex);
             }
         }
     }
 
-    private void aboutToLogRequest(String currentDestination){
+    private void aboutToLogRequest(String currentDestination) {
         log.info("About to log to destination " + currentDestination);
     }
 
-    private void errorLogRequest(String currentDestination, Exception ex){
+    private void errorLogRequest(String currentDestination, Exception ex) {
         log.error("Error logging to destination " + currentDestination + ". Cause: " + ex.toString());
     }
 
