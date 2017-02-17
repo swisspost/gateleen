@@ -1,11 +1,9 @@
 package org.swisspush.gateleen.merge;
 
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -612,12 +610,22 @@ public class MergeHandler {
         sortedCollectionContent.sort(collectionContentComparator);
         responseData.put(collectionName, new JsonArray(sortedCollectionContent));
 
+
+        /**
+         * Because we create a new response (merged collection), we have
+         * to set the header to the expected content type.
+         */
+
+        final MultiMap headers = new CaseInsensitiveHeaders();
+        headers.add("Content-Type", "application/json");
+
         // create response
         createResponse(request,
                 StatusCode.OK.getStatusCode(),
                 StatusCode.OK.getStatusMessage(),
                 Buffer.buffer(responseData.toString()),
-                null);
+                null,
+                headers);
     }
 
     /**
@@ -663,14 +671,19 @@ public class MergeHandler {
      * @param statusMessage the resulting status message
      * @param data the data (may be null)
      * @param freetext  a freetext in case of an error (may be null)
+     * @param headers headers used for the response
      */
-    private void createResponse(final HttpServerRequest request, final int statusCode, final String statusMessage, final Buffer data, final String freetext) {
+    private void createResponse(final HttpServerRequest request, final int statusCode, final String statusMessage, final Buffer data, final String freetext, final MultiMap headers) {
         if ( log.isTraceEnabled() ) {
             log.trace("createResponse - for -> {} with statusCode {}.", request.uri(), statusCode);
         }
 
         request.response().setStatusCode(statusCode);
         request.response().setStatusMessage(statusMessage);
+
+        if ( headers != null ) {
+            request.response().headers().addAll(headers);
+        }
 
         if ( freetext != null ) {
             request.response().end(freetext);
@@ -681,6 +694,19 @@ public class MergeHandler {
         else {
             request.response().end();
         }
+    }
+
+    /**
+     * Creates the final response to the original request.
+     *
+     * @param request the original request
+     * @param statusCode the resulting status code
+     * @param statusMessage the resulting status message
+     * @param data the data (may be null)
+     * @param freetext  a freetext in case of an error (may be null)
+     */
+    private void createResponse(final HttpServerRequest request, final int statusCode, final String statusMessage, final Buffer data, final String freetext) {
+        createResponse(request, statusCode, statusMessage, data, freetext, null);
     }
 
     /**

@@ -248,6 +248,23 @@ public class TestMergeHandler extends AbstractTest {
     }
 
     @Test
+    public void testMergeRequest_Collection_Headers(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+        createTestData();
+
+
+        // request /data/tier1
+        // should return an array
+        Response r = given().get( "data/tier1");
+        Assert.assertEquals(r.header("Content-Type"), "application/json");
+
+        async.complete();
+    }
+
+
+    @Test
     public void testMergeRequest_Collection(TestContext context) {
         Async async = context.async();
         delete();
