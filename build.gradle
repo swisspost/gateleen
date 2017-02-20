@@ -28,6 +28,7 @@ allprojects {
     apply plugin: 'java'
     apply plugin: 'maven'
     apply plugin: 'signing'
+    apply plugin: 'jacoco'
 
     repositories {
 
@@ -46,6 +47,7 @@ subprojects{
     apply plugin: 'java'
     apply plugin: 'maven'
     apply plugin: 'signing'
+    apply plugin: 'jacoco'
 
     if (!project.hasProperty('repoUsername')) {
         ext.repoUsername = 'randomUsername'
@@ -145,6 +147,13 @@ subprojects{
                     println('\n' + ('-' * repeatLength) + '\n' + startItem + output + endItem + '\n' + ('-' * repeatLength))
                 }
             }
+        }
+    }
+
+    jacocoTestReport {
+        reports {
+            xml.enabled true
+            html.enabled false
         }
     }
 
