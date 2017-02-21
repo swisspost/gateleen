@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.CollectionContentComparator;
+import org.swisspush.gateleen.core.util.HttpRequestHeader;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -633,7 +634,9 @@ public class HookHandler {
             queueHeaders.add("x-translate-status-4xx", "200");
 
             if(listener.getHook().isDiscardPayload()){
-                queueHeaders.set(CONTENT_LENGTH.getName(), "0");
+                if(HttpRequestHeader.containsHeader(queueHeaders, CONTENT_LENGTH)) {
+                    queueHeaders.set(CONTENT_LENGTH.getName(), "0");
+                }
                 requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
             } else {
                 requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
