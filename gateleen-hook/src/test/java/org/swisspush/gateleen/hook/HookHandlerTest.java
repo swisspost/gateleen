@@ -17,7 +17,6 @@ import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
-import org.swisspush.gateleen.core.util.HttpRequestHeader;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
@@ -26,6 +25,7 @@ import java.util.Arrays;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
 
 /**
  * Tests for the {@link HookHandler} class
@@ -90,7 +90,9 @@ public class HookHandlerTest {
         // make a change to the hooked resource
         String uri = "/playground/server/tests/hooktest/abc123";
         String originalPayload = "{\"key\":123}";
-        hookHandler.handle(new PUTRequest(uri, originalPayload));
+        PUTRequest putRequest = new PUTRequest(uri, originalPayload);
+        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
+        hookHandler.handle(putRequest);
 
         // verify that enqueue has been called WITH the payload
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
@@ -99,7 +101,8 @@ public class HookHandlerTest {
                 HttpRequest req = (HttpRequest) argument;
                 return HttpMethod.PUT == req.getMethod()
                         && req.getUri().contains(uri)
-                        && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes());
+                        && new Integer(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
+                        && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
             }
         }), anyString(), any(Handler.class));
         async.complete();
@@ -118,19 +121,37 @@ public class HookHandlerTest {
         // make a change to the hooked resource
         String uri = "/playground/server/tests/hooktest/abc123";
         String originalPayload = "{\"key\":123}";
-        hookHandler.handle(new PUTRequest(uri, originalPayload));
+        PUTRequest putRequest = new PUTRequest(uri, originalPayload);
+        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
+        hookHandler.handle(putRequest);
 
-        // verify that enqueue has been called WITH the payload
+        // verify that enqueue has been called WITHOUT the payload but with 'Content-Length : 0' header
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
             @Override
             public boolean matches(Object argument) {
                 HttpRequest req = (HttpRequest) argument;
                 return HttpMethod.PUT == req.getMethod()
                         && req.getUri().contains(uri)
-                        && new Integer(0).equals(HttpRequestHeader.getInteger(req.getHeaders(), HttpRequestHeader.CONTENT_LENGTH))
+                        && new Integer(0).equals(getInteger(req.getHeaders(), CONTENT_LENGTH))
                         && Arrays.equals(req.getPayload(), new byte[0]); // should not be original payload anymore
             }
         }), anyString(), any(Handler.class));
+
+        PUTRequest putRequestWithoutContentLengthHeader = new PUTRequest(uri, originalPayload);
+        hookHandler.handle(putRequestWithoutContentLengthHeader);
+
+        // verify that enqueue has been called WITHOUT the payload and WITHOUT 'Content-Length' header
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
+            @Override
+            public boolean matches(Object argument) {
+                HttpRequest req = (HttpRequest) argument;
+                return HttpMethod.PUT == req.getMethod()
+                        && req.getUri().contains(uri)
+                        && !containsHeader(req.getHeaders(), CONTENT_LENGTH)
+                        && Arrays.equals(req.getPayload(), new byte[0]); // should not be original payload anymore
+            }
+        }), anyString(), any(Handler.class));
+
         async.complete();
     }
 
@@ -158,5 +179,7 @@ public class HookHandlerTest {
             bodyHandler.handle(Buffer.buffer(body));
             return this;
         }
+
+        public void addHeader(String headerName, String headerValue){ headers.add(headerName, headerValue); }
     }
 }
