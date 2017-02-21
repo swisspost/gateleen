@@ -9,13 +9,11 @@ Two types of this hooks exists:
 ## General configuration
 During the instantiation of the [HookHandler](src/main/java/org/swisspush/gateleen/hook/HookHandler.java) you have the possibility to specify the collection where your hooks will be saved in the storage. To do so, you have to set the parameter _hookRootUri_ in the constructor. 
 
-
-
 ## Route - Hooks
-> <font color="orange">Attention: </font>A route directs all communication from a specific resource to another destination. Per resource may only exist one route a time.
+> <font color="orange"><b>Attention:</b> </font>A route directs all communication from a specific resource to another destination. Per resource may only exist one route a time.
 
 ### Usage
-> <font color="skyblue">Information: </font>The suffix _**/_hooks/route**_ always indicates a route registration. The HookHandler will use this suffix to identify either a registration or an unregistration of a route hook.
+> <font color="skyblue"><b>Information:</b> </font>The suffix _**/_hooks/route**_ always indicates a route registration. The HookHandler will use this suffix to identify either a registration or an unregistration of a route hook.
 
 **Payload**
 
@@ -28,7 +26,7 @@ During the instantiation of the [HookHandler](src/main/java/org/swisspush/gatele
 | collection        | no  | This property specifies if the given URL is a resource or a collection. If this property is not set, the default is true (collection). |
 | listable          | no  | This property specifies if a route is listed if a GET is performed on its parent or not. The default is false or set by the value passed during the initialization. | 
 
-> <font color="orange">Attention: </font>A route has a default expiration time of **1 hour**. After this time the route will expire and be removed from the storage, as well as the HookHandler.<br />
+> <font color="orange"><b>Attention:</b> </font>A route has a default expiration time of **1 hour**. After this time the route will expire and be removed from the storage, as well as the HookHandler.<br />
 To update / refresh a route, simply perform another registration.<br />
 To change the expiration time of a route, just pass a _X-Expire-After_ header with the registration PUT request. 
 
@@ -51,7 +49,7 @@ DELETE /<url>/<resource>/_hooks/route
 #### Example:
 The following example will show you, how to set a route for a specific resource / collection. 
 
-> <font color="green">Assumption: </font>We’d like to set a dynamic route for the resource _/gateleen/example/resource_. The target destination should be _/gateleen/example/othertarget_. 
+> <font color="green"><b>Assumption:</b> </font>We’d like to set a dynamic route for the resource _/gateleen/example/resource_. The target destination should be _/gateleen/example/othertarget_. 
 
 To do so, we have to perform the following steps:
 
@@ -121,10 +119,10 @@ GET http://myserver:7012/gateleen/example/
 
 
 ## Listener - Hooks
-> <font color="orange">Attention: </font>A listener registers an additional destination for a resource, which also will get a copy of the original request. You may registers as many listeners per resource as you wish. Requests forwarded to a listener are always enqueued and delivered as soon as the target destination is available.  
+> <font color="orange"><b>Attention:</b> </font>A listener registers an additional destination for a resource, which also will get a copy of the original request. You may registers as many listeners per resource as you wish. Requests forwarded to a listener are always enqueued and delivered as soon as the target destination is available.  
 
 ### Usage
-> <font color="skyblue">Information: </font>The suffix _**/_hooks/listeners/http/\<id\>**_ always indicates a route registration. The HookHandler will use this suffix to identify either a registration or an unregistration of a listener hook.
+> <font color="skyblue"><b>Information:</b> </font>The suffix _**/_hooks/listeners/http/\<id\>**_ always indicates a route registration. The HookHandler will use this suffix to identify either a registration or an unregistration of a listener hook.
 
 **Payload**
 
@@ -137,8 +135,10 @@ GET http://myserver:7012/gateleen/example/
 | staticHeaders     | no  | This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
 | filter            | no  | This property allows you to refine the requests with a regular expression, which you want to receive for the given destination. |
 | type              | no  | Default: before <br> This property allows you to set, if the request to a listener will be sent before or after the original request was performed.<br /> <br /> The valid settings are: <br /> after => request will be forwarded to listener after the original request was performed <br /><br />before => (default) request will be forwarded to a listener before the original request was performed <br /> <br /> This can be useful if you want to use your listeners with the delegate feature and expect a request to be already executed as soon as you execute a delegate. |  
+| fullUrl           | no  | Default: false <br> <br /> Defines whether the hook forwards using the full initial url or only the appendix <br/><br/> Example: <br/><br/> hooked url = http://a/b/c <br/> request.uri() = http://a/b/c/d/e.x <br/> url appendix = /d/e.x |
+| discardPayload    | no  | Default: false <br> <br /> When set to _true_, the payload of changes to the hooked url will be removed before enqueuing and the _Content-Length_ header will be set to 0. |
                                                  
-> <font color="orange">Attention: </font>A listener has a default expiration time of **30 seconds**. After this time the listener will expire and be removed from the storage, as well as the HookHandler.<br />
+> <font color="orange"><b>Attention:</b> </font>A listener has a default expiration time of **30 seconds**. After this time the listener will expire and be removed from the storage, as well as the HookHandler.<br />
 To update / refresh a listener, simply perform another registration.<br />
 To change the expiration time of a listener, just pass a _X-Expire-After_ header with the registration PUT request. 
  
