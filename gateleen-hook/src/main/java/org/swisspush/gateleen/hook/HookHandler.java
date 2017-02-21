@@ -25,6 +25,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
+
 /**
  * The HookHandler is responsible for un- and registering hooks (listener, as well as routes). He also
  * handles forwarding requests to listeners / routes.
@@ -60,6 +62,7 @@ public class HookHandler {
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
+    public static final String DISCARD_PAYLOAD = "discardPayload";
     public static final String HOOK_TRIGGER_TYPE = "type";
     public static final String LISTABLE = "listable";
     public static final String COLLECTION = "collection";
@@ -452,7 +455,7 @@ public class HookHandler {
                     request.response().setStatusMessage(response.statusMessage());
                     request.response().setChunked(true);
                     request.response().headers().addAll(response.headers());
-                    request.response().headers().remove("Content-Length");
+                    request.response().headers().remove(CONTENT_LENGTH.getName());
                     request.response().headers().remove(HOOK_ROUTES_LISTED);
 
                     // if everything is fine, we add the listed collections to the given array
@@ -629,7 +632,12 @@ public class HookHandler {
             // Therefor we set the header x-translate-status-4xx
             queueHeaders.add("x-translate-status-4xx", "200");
 
-            requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
+            if(listener.getHook().isDiscardPayload()){
+                queueHeaders.set(CONTENT_LENGTH.getName(), "0");
+                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
+            } else {
+                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
+            }
         }
 
         // if for e.g. the beforListeners are empty,
@@ -965,7 +973,7 @@ public class HookHandler {
             request.response().setChunked(true);
 
             request.response().headers().addAll(response.headers());
-            request.response().headers().remove("Content-Length");
+            request.response().headers().remove(CONTENT_LENGTH.getName());
 
             response.handler(data -> request.response().write(data));
 
@@ -1122,8 +1130,8 @@ public class HookHandler {
 
         hook.setExpirationTime(expirationTime);
 
-        boolean fullUrl = jsonHook.getBoolean(FULL_URL, false);
-        hook.setFullUrl(fullUrl);
+        hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
+        hook.setDiscardPayload(jsonHook.getBoolean(DISCARD_PAYLOAD, false));
 
         // for internal use we don't need a forwarder
         if (hook.getDestination().startsWith("/")) {
@@ -1261,8 +1269,8 @@ public class HookHandler {
             return;
         }
 
-        boolean fullUrl = storageObject.getBoolean(FULL_URL, false);
-        hook.setFullUrl(fullUrl);
+        hook.setFullUrl(storageObject.getBoolean(FULL_URL, false));
+        hook.setDiscardPayload(storageObject.getBoolean(DISCARD_PAYLOAD, false));
 
         routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook));
     }

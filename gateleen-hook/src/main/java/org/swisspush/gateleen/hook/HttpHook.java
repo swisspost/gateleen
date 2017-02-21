@@ -18,6 +18,7 @@ public class HttpHook {
     private int expireAfter;
     private LocalDateTime expirationTime;
     private boolean fullUrl = false;
+    private boolean discardPayload = false;
     private Pattern filter = null;
     private int queueExpireAfter;
     private Map<String, String> staticHeaders = null;
@@ -128,6 +129,20 @@ public class HttpHook {
     public void setFullUrl(boolean fullUrl) {
         this.fullUrl = fullUrl;
     }
+
+    /**
+     * Returns whether the hook discards the request payload before enqueuing.
+     *
+     * @return discardPayload
+     */
+    public boolean isDiscardPayload() { return discardPayload; }
+
+    /**
+     * Sets whether the hook discards the request payload before enqueuing.
+     *
+     * @param discardPayload discardPayload
+     */
+    public void setDiscardPayload(boolean discardPayload) { this.discardPayload = discardPayload; }
 
     /**
      * Returns the precompiled pattern, to match
