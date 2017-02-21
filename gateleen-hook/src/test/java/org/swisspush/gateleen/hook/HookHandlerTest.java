@@ -127,7 +127,7 @@ public class HookHandlerTest {
                 HttpRequest req = (HttpRequest) argument;
                 return HttpMethod.PUT == req.getMethod()
                         && req.getUri().contains(uri)
-                        && new Integer(5).equals(HttpRequestHeader.getInteger(req.getHeaders(), HttpRequestHeader.CONTENT_LENGTH))
+                        && new Integer(0).equals(HttpRequestHeader.getInteger(req.getHeaders(), HttpRequestHeader.CONTENT_LENGTH))
                         && Arrays.equals(req.getPayload(), new byte[0]); // should not be original payload anymore
             }
         }), anyString(), any(Handler.class));
