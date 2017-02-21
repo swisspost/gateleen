@@ -2,6 +2,10 @@
 
 [![Build Status](https://travis-ci.org/swisspush/gateleen.svg?branch=master)](https://travis-ci.org/swisspush/gateleen)
 [![codecov](https://codecov.io/gh/swisspush/gateleen/branch/master/graph/badge.svg)](https://codecov.io/gh/swisspush/gateleen)
+[![](https://img.shields.io/github/issues-raw/swisspush/gateleen.svg)]()
+[![GitHub contributors](https://img.shields.io/github/contributors/swisspush/gateleen.svg)]()
+
+[![GitHub release](https://img.shields.io/github/release/swisspush/gateleen.svg)]()
 [![Maven Central](https://img.shields.io/maven-central/v/org.swisspush.gateleen/gateleen-core.svg)](https://search.maven.org/#search|ga|1|g%3A%22org.swisspush.gateleen%22%20AND%20v%3A%221.0.4%22)
 
 Gateleen is a RESTFul middleware toolkit for building API gateways.
