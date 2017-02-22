@@ -5,8 +5,9 @@ env:
   - GRADLE_OPTS="-Dorg.gradle.daemon=false"
 services:
    - redis-server
+install: echo "skip 'gradle assemble' step"
 script: 
-   - ./gradlew test
+   - ./gradlew build --continue
    - ./gradlew :gateleen-test:test -PintegrationTests -q
    - ./gradlew jacocoTestReport
 after_success:
