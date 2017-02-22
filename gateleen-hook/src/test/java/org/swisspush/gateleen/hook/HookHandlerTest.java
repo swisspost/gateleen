@@ -5,6 +5,8 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -59,30 +61,39 @@ public class HookHandlerTest {
         hookHandler.init();
     }
 
-    private void setListenerStorageEntryAndTriggerUpdate(boolean discardPayload){
-        storage.putMockData("pathToListenerResource", "{\n" +
-                "\t\"requesturl\": \"/playground/server/tests/hooktest/_hooks/listeners/http/push/test1\",\n" +
-                "\t\"expirationTime\": \"2017-02-20T15:51:11.018\",\n" +
-                "\t\"hook\": {\n" +
-                "\t\t\"destination\": \"/playground/server/event/v1/channels/test1\",\n" +
-                "\t\t\"methods\": [\"PUT\"],\n" +
-                "\t\t\"expireAfter\": 300,\n" +
-                "\t\t\"fullUrl\": true,\n" +
-                "\t\t\"discardPayload\": "+discardPayload+",\n" +
-                "\t\t\"staticHeaders\": {\n" +
-                "\t\t\t\"x-sync\": true\n" +
-                "\t\t}\n" +
-                "\t}\n" +
-                "}");
+    private void setListenerStorageEntryAndTriggerUpdate(JsonObject listenerConfig){
+        storage.putMockData("pathToListenerResource", listenerConfig.encode());
         vertx.eventBus().send("gateleen.hook-listener-insert", "pathToListenerResource");
     }
 
+    private JsonObject buildListenerConfig(JsonObject queueingStrategy){
+        JsonObject config = new JsonObject();
+        config.put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x99");
+        config.put("expirationTime", "2017-01-03T14:15:53.277");
+
+        JsonObject hook = new JsonObject();
+        hook.put("destination", "/playground/server/push/v1/devices/x99");
+        hook.put("methods", new JsonArray(Arrays.asList("PUT")));
+        hook.put("expireAfter", 300);
+        hook.put("fullUrl", true);
+        JsonObject staticHeaders = new JsonObject();
+        staticHeaders.put("x-sync", true);
+        hook.put("staticHeaders", staticHeaders);
+
+        if(queueingStrategy != null){
+            hook.put("queueingStrategy", queueingStrategy);
+        }
+
+        config.put("hook", hook);
+        return config;
+    }
+
     @Test
-    public void testListenerEnqueueWithOriginalPayload(TestContext context) throws InterruptedException {
+    public void testListenerEnqueueWithDefaultQueueingStrategy(TestContext context) throws InterruptedException {
         Async async = context.async();
 
         // trigger listener update via event bus
-        setListenerStorageEntryAndTriggerUpdate(false); // false = don't discard payload
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(null)); // listenerConfig without 'queueingStrategy' configuration
 
         // wait a moment to let the listener be registered
         Thread.sleep(1000);
@@ -109,11 +120,42 @@ public class HookHandlerTest {
     }
 
     @Test
-    public void testListenerEnqueueWithDiscardedPayload(TestContext context) throws InterruptedException {
+    public void testListenerEnqueueWithDefaultQueueingStrategyBecauseOfInvalidConfiguration(TestContext context) throws InterruptedException {
         Async async = context.async();
 
         // trigger listener update via event bus
-        setListenerStorageEntryAndTriggerUpdate(true); // true = discard payload
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "discardPayloadXXX"))); // invalid 'queueingStrategy' configuration results in a DefaultQueueingStrategy
+
+        // wait a moment to let the listener be registered
+        Thread.sleep(1000);
+
+        // make a change to the hooked resource
+        String uri = "/playground/server/tests/hooktest/abc123";
+        String originalPayload = "{\"key\":123}";
+        PUTRequest putRequest = new PUTRequest(uri, originalPayload);
+        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
+        hookHandler.handle(putRequest);
+
+        // verify that enqueue has been called WITH the payload
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
+            @Override
+            public boolean matches(Object argument) {
+                HttpRequest req = (HttpRequest) argument;
+                return HttpMethod.PUT == req.getMethod()
+                        && req.getUri().contains(uri)
+                        && new Integer(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
+                        && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
+            }
+        }), anyString(), any(Handler.class));
+        async.complete();
+    }
+
+    @Test
+    public void testListenerEnqueueWithDiscardPayloadQueueingStrategy(TestContext context) throws InterruptedException {
+        Async async = context.async();
+
+        // trigger listener update via event bus
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "discardPayload")));
 
         // wait a moment to let the listener be registered
         Thread.sleep(1000);

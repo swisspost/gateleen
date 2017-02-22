@@ -16,6 +16,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.CollectionContentComparator;
 import org.swisspush.gateleen.core.util.HttpRequestHeader;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.hook.queueingstrategy.*;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
@@ -633,13 +634,19 @@ public class HookHandler {
             // Therefor we set the header x-translate-status-4xx
             queueHeaders.add("x-translate-status-4xx", "200");
 
-            if(listener.getHook().isDiscardPayload()){
+            QueueingStrategy queueingStrategy = listener.getHook().getQueueingStrategy();
+
+            if(queueingStrategy instanceof DefaultQueueingStrategy){
+                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
+            } else if(queueingStrategy instanceof DiscardPayloadQueueingStrategy){
                 if(HttpRequestHeader.containsHeader(queueHeaders, CONTENT_LENGTH)) {
                     queueHeaders.set(CONTENT_LENGTH.getName(), "0");
                 }
                 requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
+            } else if(queueingStrategy instanceof ReducedPropagationQueueingStrategy){
+                // TODO implmement reduced propagation
             } else {
-                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
+                log.error("QueueingStrategy '"+queueingStrategy.getClass().getSimpleName()+"' is not handled. Could be an error, check the source code!");
             }
         }
 
@@ -1134,7 +1141,7 @@ public class HookHandler {
         hook.setExpirationTime(expirationTime);
 
         hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
-        hook.setDiscardPayload(jsonHook.getBoolean(DISCARD_PAYLOAD, false));
+        hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(jsonHook));
 
         // for internal use we don't need a forwarder
         if (hook.getDestination().startsWith("/")) {
@@ -1273,7 +1280,7 @@ public class HookHandler {
         }
 
         hook.setFullUrl(storageObject.getBoolean(FULL_URL, false));
-        hook.setDiscardPayload(storageObject.getBoolean(DISCARD_PAYLOAD, false));
+        hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(storageObject));
 
         routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook));
     }

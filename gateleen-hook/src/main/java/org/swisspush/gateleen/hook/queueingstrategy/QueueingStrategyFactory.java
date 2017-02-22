@@ -49,16 +49,17 @@ public class QueueingStrategyFactory {
      */
     public static QueueingStrategy buildQueueStrategy(JsonObject hookConfiguration) {
         QueueingStrategy queueingStrategy = new DefaultQueueingStrategy();
-        if(hookConfiguration == null){
+        if(hookConfiguration == null || !hookConfiguration.containsKey(QUEUEING_STRATEGY_PROPERTY)){
             return queueingStrategy;
         }
 
-        JsonObject hook = hookConfiguration.getJsonObject("hook");
-        if(hook == null || !hook.containsKey(QUEUEING_STRATEGY_PROPERTY)){
+        Object queueingStrategyConfigObj = hookConfiguration.getValue(QUEUEING_STRATEGY_PROPERTY);
+        if(!(queueingStrategyConfigObj instanceof JsonObject)){
+            LOG.warn("Invalid 'queueingStrategy' configuration found: " + queueingStrategyConfigObj + ". Using DefaultQueueingStrategy instead");
             return queueingStrategy;
         }
 
-        JsonObject queueingStrategyConfig = hook.getJsonObject(QUEUEING_STRATEGY_PROPERTY);
+        JsonObject queueingStrategyConfig = (JsonObject) queueingStrategyConfigObj;
         Strategy strategy = Strategy.fromString(queueingStrategyConfig.getString("type"));
 
         if(strategy == null){

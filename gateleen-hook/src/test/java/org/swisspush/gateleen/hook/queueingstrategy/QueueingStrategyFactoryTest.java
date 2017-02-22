@@ -25,6 +25,13 @@ public class QueueingStrategyFactoryTest {
         assertThat(QueueingStrategyFactory.buildQueueStrategy(null), instanceOf(DefaultQueueingStrategy.class));
         assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(null)), instanceOf(DefaultQueueingStrategy.class));
 
+        assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(null).put("queueingStrategy", "not_a_jsonobject")),
+                instanceOf(DefaultQueueingStrategy.class));
+        assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(null).put("queueingStrategy", new JsonArray())),
+                instanceOf(DefaultQueueingStrategy.class));
+        assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(null).put("queueingStrategy", 123)),
+                instanceOf(DefaultQueueingStrategy.class));
+
         assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(new JsonObject().put("type", "unknownType"))),
                 instanceOf(DefaultQueueingStrategy.class));
     }
@@ -85,24 +92,17 @@ public class QueueingStrategyFactoryTest {
     }
 
     private JsonObject buildHookConfig(JsonObject queueingStrategy){
-        JsonObject config = new JsonObject();
-        config.put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x99");
-        config.put("expirationTime", "2017-01-03T14:15:53.277");
-
-        JsonObject hook = new JsonObject();
-        hook.put("destination", "/playground/server/push/v1/devices/x99");
-        hook.put("methods", new JsonArray(Arrays.asList("PUT")));
-        hook.put("expireAfter", 300);
-        hook.put("fullUrl", true);
+        JsonObject hookConfig = new JsonObject();
+        hookConfig.put("destination", "/playground/server/push/v1/devices/x99");
+        hookConfig.put("methods", new JsonArray(Arrays.asList("PUT")));
+        hookConfig.put("expireAfter", 300);
+        hookConfig.put("fullUrl", true);
         JsonObject staticHeaders = new JsonObject();
         staticHeaders.put("x-sync", true);
-        hook.put("staticHeaders", staticHeaders);
-
+        hookConfig.put("staticHeaders", staticHeaders);
         if(queueingStrategy != null){
-            hook.put("queueingStrategy", queueingStrategy);
+            hookConfig.put("queueingStrategy", queueingStrategy);
         }
-
-        config.put("hook", hook);
-        return config;
+        return hookConfig;
     }
 }

@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.hook;
 
 import org.joda.time.LocalDateTime;
+import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
+import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +20,7 @@ public class HttpHook {
     private int expireAfter;
     private LocalDateTime expirationTime;
     private boolean fullUrl = false;
-    private boolean discardPayload = false;
+    private QueueingStrategy queueingStrategy = new DefaultQueueingStrategy();
     private Pattern filter = null;
     private int queueExpireAfter;
     private Map<String, String> staticHeaders = null;
@@ -131,18 +133,18 @@ public class HttpHook {
     }
 
     /**
-     * Returns whether the hook discards the request payload before enqueuing.
+     * Returns the queueing strategy for the hook
      *
-     * @return discardPayload
+     * @return queueingStrategy
      */
-    public boolean isDiscardPayload() { return discardPayload; }
+    public QueueingStrategy getQueueingStrategy() { return queueingStrategy; }
 
     /**
-     * Sets whether the hook discards the request payload before enqueuing.
+     * Sets the queueing strategy for the hook
      *
-     * @param discardPayload discardPayload
+     * @param queueingStrategy
      */
-    public void setDiscardPayload(boolean discardPayload) { this.discardPayload = discardPayload; }
+    public void setQueueingStrategy(QueueingStrategy queueingStrategy) { this.queueingStrategy = queueingStrategy; }
 
     /**
      * Returns the precompiled pattern, to match
