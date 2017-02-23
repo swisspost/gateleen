@@ -28,7 +28,7 @@ if (!project.hasProperty('targetHost')) {
 }
 
 if (!project.hasProperty('targetPort')) {
-    ext.targetPort = '7013'
+    ext.targetPort = '7012'
 } else {
     println 'got property targetPort: ' + targetPort
 }
