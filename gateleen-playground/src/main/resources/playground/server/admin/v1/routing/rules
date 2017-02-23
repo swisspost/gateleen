@@ -57,6 +57,8 @@
     "description": "Redisques API",
     "url": "http://localhost:7015/queuing/$1"
   },
+  "/null/(.*)": {
+  },
   "/(.*)": {
     "metricName": "resource_storage",
     "description": "Resource Storage",
