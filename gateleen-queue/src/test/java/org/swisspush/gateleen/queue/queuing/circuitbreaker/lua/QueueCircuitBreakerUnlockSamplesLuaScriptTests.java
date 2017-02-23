@@ -1,6 +1,9 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.swisspush.gateleen.core.lua.AbstractLuaScriptTest;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -11,8 +14,11 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
+ * Tests for the {@link QueueCircuitBreakerLuaScripts#UNLOCK_SAMPLES} lua script.
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
+@RunWith(VertxUnitRunner.class)
 public class QueueCircuitBreakerUnlockSamplesLuaScriptTests extends AbstractLuaScriptTest {
 
     private final String halfOpenCircuitsKey = "half_open_circuits";

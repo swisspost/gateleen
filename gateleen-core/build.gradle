@@ -13,4 +13,5 @@ dependencies {
     compile "junit:junit:$junitVersion"
     compile "org.mockito:mockito-core:$mockitoVersion"
     compile "com.jayway.awaitility:awaitility:$awaitilityVersion"
+    compile "redis.clients:jedis:$jedisVersion"
 }
