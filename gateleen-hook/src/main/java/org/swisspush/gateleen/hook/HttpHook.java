@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.hook;
 
 import org.joda.time.LocalDateTime;
+import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
+import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +20,7 @@ public class HttpHook {
     private int expireAfter;
     private LocalDateTime expirationTime;
     private boolean fullUrl = false;
+    private QueueingStrategy queueingStrategy = new DefaultQueueingStrategy();
     private Pattern filter = null;
     private int queueExpireAfter;
     private Map<String, String> staticHeaders = null;
@@ -128,6 +131,20 @@ public class HttpHook {
     public void setFullUrl(boolean fullUrl) {
         this.fullUrl = fullUrl;
     }
+
+    /**
+     * Returns the queueing strategy for the hook
+     *
+     * @return queueingStrategy
+     */
+    public QueueingStrategy getQueueingStrategy() { return queueingStrategy; }
+
+    /**
+     * Sets the queueing strategy for the hook
+     *
+     * @param queueingStrategy
+     */
+    public void setQueueingStrategy(QueueingStrategy queueingStrategy) { this.queueingStrategy = queueingStrategy; }
 
     /**
      * Returns the precompiled pattern, to match
