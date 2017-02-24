@@ -57,6 +57,9 @@
     "description": "Redisques API",
     "url": "http://localhost:7015/queuing/$1"
   },
+  "/null/(.*)": {
+    "description": "Default Nirvana path, any resource routed to this destination is discarded immediately after any registered listener hooks are notified"
+  },
   "/(.*)": {
     "metricName": "resource_storage",
     "description": "Resource Storage",
