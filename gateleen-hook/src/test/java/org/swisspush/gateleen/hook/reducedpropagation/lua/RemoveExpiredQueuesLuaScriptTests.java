@@ -13,28 +13,28 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the {@link ReducedPropagationLuaScripts#START_QUEUE_TIMER} lua script.
+ * Tests for the {@link ReducedPropagationLuaScripts#REMOVE_EXPIRED_QUEUES} lua script.
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 @RunWith(VertxUnitRunner.class)
-public class GetExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
+public class RemoveExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
 
     private final String queuesTimersSetKey = "q:queuesTimers";
 
     @Test
-    public void testGetExpiredQueuesEmptySet(){
+    public void testRemoveExpiredQueuesEmptySet(){
         assertThat(jedis.exists(queuesTimersSetKey), is(false));
-        assertResult(evalScriptGetExpiredQueues(0), Collections.emptyList());
-        assertResult(evalScriptGetExpiredQueues(5), Collections.emptyList());
-        assertResult(evalScriptGetExpiredQueues(10), Collections.emptyList());
+        assertResult(evalScriptRemoveExpiredQueues(0), Collections.emptyList());
+        assertResult(evalScriptRemoveExpiredQueues(5), Collections.emptyList());
+        assertResult(evalScriptRemoveExpiredQueues(10), Collections.emptyList());
         assertThat(jedis.exists(queuesTimersSetKey), is(false));
 
         assertRemainingQueues(Collections.emptySet(), 0);
     }
 
     @Test
-    public void testGetExpiredQueuesNoExpiredQueues(){
+    public void testRemoveExpiredQueuesNoExpiredQueues(){
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(0L));
 
         addQueues("queue_1", 10);
@@ -42,7 +42,7 @@ public class GetExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
         addQueues("queue_3", 30);
 
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(3L));
-        assertResult(evalScriptGetExpiredQueues(5), Collections.emptyList());
+        assertResult(evalScriptRemoveExpiredQueues(5), Collections.emptyList());
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(3L));
 
         Set<Tuple> expectedRemaining = new HashSet<>();
@@ -53,7 +53,7 @@ public class GetExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     @Test
-    public void testGetExpiredQueues(){
+    public void testRemoveExpiredQueues(){
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(0L));
 
         addQueues("queue_1", 10);
@@ -61,7 +61,7 @@ public class GetExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
         addQueues("queue_3", 30);
 
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(3L));
-        assertResult(evalScriptGetExpiredQueues(25), Arrays.asList("queue_1", "queue_2"));
+        assertResult(evalScriptRemoveExpiredQueues(25), Arrays.asList("queue_1", "queue_2"));
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(1L));
 
         Set<Tuple> expectedRemaining = new HashSet<>();
@@ -70,7 +70,7 @@ public class GetExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     @Test
-    public void testGetExpiredQueuesEdgeCase(){
+    public void testRemoveExpiredQueuesEdgeCase(){
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(0L));
 
         addQueues("queue_1", 9);
@@ -80,7 +80,7 @@ public class GetExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
         addQueues("queue_5", 30);
 
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(5L));
-        assertResult(evalScriptGetExpiredQueues(10), Arrays.asList("queue_1", "queue_2"));
+        assertResult(evalScriptRemoveExpiredQueues(10), Arrays.asList("queue_1", "queue_2"));
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(3L));
 
         Set<Tuple> expectedRemaining = new HashSet<>();
@@ -91,7 +91,7 @@ public class GetExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     @Test
-    public void testGetExpiredQueuesAllExpired(){
+    public void testRemoveExpiredQueuesAllExpired(){
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(0L));
 
         addQueues("queue_1", 10);
@@ -99,7 +99,7 @@ public class GetExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
         addQueues("queue_3", 30);
 
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(3L));
-        assertResult(evalScriptGetExpiredQueues(50), Arrays.asList("queue_1", "queue_2", "queue_3"));
+        assertResult(evalScriptRemoveExpiredQueues(50), Arrays.asList("queue_1", "queue_2", "queue_3"));
         assertThat(jedis.zcard(queuesTimersSetKey), equalTo(0L));
 
         assertRemainingQueues(Collections.emptySet(), 0);
@@ -121,8 +121,8 @@ public class GetExpiredQueuesLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(tuples, equalTo(expectedRemaining));
     }
 
-    private ArrayList evalScriptGetExpiredQueues(long currentTS){
-        String script = readScript(ReducedPropagationLuaScripts.GET_EXPIRED_QUEUES.getFilename());
+    private ArrayList evalScriptRemoveExpiredQueues(long currentTS){
+        String script = readScript(ReducedPropagationLuaScripts.REMOVE_EXPIRED_QUEUES.getFilename());
         List<String> keys = Collections.singletonList(queuesTimersSetKey);
         List<String> arguments = Collections.singletonList(String.valueOf(currentTS));
         return (ArrayList) jedis.eval(script, keys, arguments);

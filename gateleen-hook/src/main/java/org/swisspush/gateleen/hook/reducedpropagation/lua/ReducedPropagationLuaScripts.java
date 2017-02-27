@@ -10,7 +10,7 @@ import org.swisspush.gateleen.core.lua.LuaScript;
 public enum ReducedPropagationLuaScripts implements LuaScript {
 
     START_QUEUE_TIMER("start_queue_timer.lua"),
-    GET_EXPIRED_QUEUES("get_expired_queues.lua");
+    REMOVE_EXPIRED_QUEUES("remove_expired_queues.lua");
 
     private String file;
 
