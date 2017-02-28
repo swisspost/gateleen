@@ -149,18 +149,6 @@ public class RedisReducedPropagationStorageTest {
     }
 
     @Test
-    public void testRemoveExpiredQueuesEmpty(TestContext context) {
-        Async async = context.async();
-        context.assertFalse(jedis.exists(QUEUE_TIMERS));
-        storage.removeExpiredQueues(10).setHandler(event -> {
-            context.assertTrue(event.succeeded());
-            context.assertNotNull(event.result());
-            context.assertEquals(Collections.emptyList(), event.result());
-            async.complete();
-        });
-    }
-
-    @Test
     public void testRemoveExpiredQueuesNoExpiredQueuesFound(TestContext context) {
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_TIMERS));
