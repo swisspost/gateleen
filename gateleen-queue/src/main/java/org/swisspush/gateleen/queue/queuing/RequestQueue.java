@@ -17,4 +17,6 @@ public interface RequestQueue {
     void enqueue(HttpRequest request, String queue);
 
     void enqueue(HttpRequest request, String queue, Handler<Void> doneHandler);
+
+    void lockedEnqueue(HttpRequest request, String queue, String lockRequestedBy, Handler<Void> doneHandler);
 }

@@ -28,7 +28,7 @@ public class RedisReducedPropagationStorage implements ReducedPropagationStorage
     private LuaScriptState startQueueTimerLuaScriptState;
     private LuaScriptState removeExpiredQueuesRedisCommand;
 
-    RedisReducedPropagationStorage(RedisClient redisClient) {
+    public RedisReducedPropagationStorage(RedisClient redisClient) {
         this.redisClient = redisClient;
 
         startQueueTimerLuaScriptState = new LuaScriptState(ReducedPropagationLuaScripts.START_QUEUE_TIMER, redisClient, false);

@@ -17,6 +17,7 @@ import org.swisspush.gateleen.core.util.CollectionContentComparator;
 import org.swisspush.gateleen.core.util.HttpRequestHeader;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.hook.queueingstrategy.*;
+import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
@@ -84,6 +85,8 @@ public class HookHandler {
     private RouteRepository routeRepository;
     private RequestQueue requestQueue;
 
+    private ReducedPropagationManager reducedPropagationManager;
+
     /**
      * Creates a new HookHandler.
      * 
@@ -116,6 +119,10 @@ public class HookHandler {
         this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, requestQueue, false);
     }
 
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
+        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, requestQueue, false, null);
+    }
+
     /**
      * Creates a new HookHandler.
      *
@@ -128,8 +135,9 @@ public class HookHandler {
      * @param hookRootUri hookRootUri
      * @param requestQueue requestQueue
      * @param listableRoutes listableRoutes
+     * @param reducedPropagationManager reducedPropagationManager
      */
-    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes, ReducedPropagationManager reducedPropagationManager) {
         log.debug("Creating HookHandler ...");
         this.vertx = vertx;
         this.selfClient = selfClient;
@@ -140,6 +148,7 @@ public class HookHandler {
         this.hookRootUri = hookRootUri;
         this.requestQueue = requestQueue;
         this.listableRoutes = listableRoutes;
+        this.reducedPropagationManager = reducedPropagationManager;
         listenerRepository = new LocalListenerRepository();
         routeRepository = new LocalRouteRepository();
         collectionContentComparator = new CollectionContentComparator();
@@ -644,7 +653,13 @@ public class HookHandler {
                 }
                 requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
             } else if(queueingStrategy instanceof ReducedPropagationQueueingStrategy){
-                // TODO implmement reduced propagation
+                if(reducedPropagationManager != null) {
+                    log.info("Going to perform a lockedEnqueue for queue '"+queue+"' and starting a queue timer (when not already running).");
+                    requestQueue.lockedEnqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, "HookHandler", handler);
+                    reducedPropagationManager.addQueueTimer(queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationInterval());
+                } else {
+                    log.error("ReducedPropagationQueueingStrategy without configured ReducedPropagationManager. Not going to handle (enqueue) anything!");
+                }
             } else {
                 log.error("QueueingStrategy '"+queueingStrategy.getClass().getSimpleName()+"' is not handled. Could be an error, check the source code!");
             }

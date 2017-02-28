@@ -31,14 +31,14 @@ allprojects {
     apply plugin: 'jacoco'
 
     repositories {
-
-      try {
-        maven { url "$repository" }
-        println 'use custom repository: ' + "$repository"
-      } catch(Exception e) {
-        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-      }
-      mavenCentral()
+        mavenLocal()
+        try {
+            maven { url "$repository" }
+            println 'use custom repository: ' + "$repository"
+        } catch(Exception e) {
+            maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+        }
+        mavenCentral()
     }
 }
 

@@ -49,7 +49,7 @@
         $.ajax({
             url: '/playground/server/tests/hooktest/_hooks/listeners/http/push/' + eventId,
             type: 'PUT',
-            data: JSON.stringify({ "destination": "/playground/server/event/v1/channels/" + eventId, "methods": ["PUT"], "expireAfter": 300, "fullUrl": true, "staticHeaders": { "x-sync": true} }),
+            data: JSON.stringify({ "destination": "/playground/server/event/v1/channels/" + eventId, "methods": ["PUT"], "expireAfter": 300, "fullUrl": true, "queueingStrategy": {"type": "reducedPropagation", "interval": 120}, "staticHeaders": { "x-sync": true} }),
             success: function(result) {
                 // Do something with the result
                 $('#result-text').html(result);

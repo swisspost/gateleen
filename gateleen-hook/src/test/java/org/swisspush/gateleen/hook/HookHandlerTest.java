@@ -19,6 +19,7 @@ import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
+import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
@@ -27,6 +28,7 @@ import java.util.Arrays;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
 
 /**
@@ -43,6 +45,7 @@ public class HookHandlerTest {
     private LoggingResourceManager loggingResourceManager;
     private MonitoringHandler monitoringHandler;
     private RequestQueue requestQueue;
+    private ReducedPropagationManager reducedPropagationManager;
 
     private HookHandler hookHandler;
 
@@ -55,9 +58,11 @@ public class HookHandlerTest {
         loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
         requestQueue = Mockito.mock(RequestQueue.class);
+        reducedPropagationManager = Mockito.mock(ReducedPropagationManager.class);
+
 
         hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, monitoringHandler,
-                "userProfilePath", "hookRootUri", requestQueue, false);
+                "userProfilePath", "hookRootUri", requestQueue, false, reducedPropagationManager);
         hookHandler.init();
     }
 
@@ -66,13 +71,13 @@ public class HookHandlerTest {
         vertx.eventBus().send("gateleen.hook-listener-insert", "pathToListenerResource");
     }
 
-    private JsonObject buildListenerConfig(JsonObject queueingStrategy){
+    private JsonObject buildListenerConfig(JsonObject queueingStrategy, String deviceId){
         JsonObject config = new JsonObject();
-        config.put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x99");
+        config.put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/" + deviceId);
         config.put("expirationTime", "2017-01-03T14:15:53.277");
 
         JsonObject hook = new JsonObject();
-        hook.put("destination", "/playground/server/push/v1/devices/x99");
+        hook.put("destination", "/playground/server/push/v1/devices/" + deviceId);
         hook.put("methods", new JsonArray(Arrays.asList("PUT")));
         hook.put("expireAfter", 300);
         hook.put("fullUrl", true);
@@ -93,7 +98,7 @@ public class HookHandlerTest {
         Async async = context.async();
 
         // trigger listener update via event bus
-        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(null)); // listenerConfig without 'queueingStrategy' configuration
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(null, "x99")); // listenerConfig without 'queueingStrategy' configuration
 
         // wait a moment to let the listener be registered
         Thread.sleep(1000);
@@ -124,7 +129,7 @@ public class HookHandlerTest {
         Async async = context.async();
 
         // trigger listener update via event bus
-        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "discardPayloadXXX"))); // invalid 'queueingStrategy' configuration results in a DefaultQueueingStrategy
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "discardPayloadXXX"), "x99")); // invalid 'queueingStrategy' configuration results in a DefaultQueueingStrategy
 
         // wait a moment to let the listener be registered
         Thread.sleep(1000);
@@ -155,7 +160,7 @@ public class HookHandlerTest {
         Async async = context.async();
 
         // trigger listener update via event bus
-        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "discardPayload")));
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "discardPayload"), "x99"));
 
         // wait a moment to let the listener be registered
         Thread.sleep(1000);
@@ -196,6 +201,65 @@ public class HookHandlerTest {
 
         async.complete();
     }
+
+    @Test
+    public void testListenerEnqueueWithReducedPropagationQueueingStrategyButNoManager(TestContext context) throws InterruptedException {
+        Async async = context.async();
+
+        hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, monitoringHandler,
+                "userProfilePath", "hookRootUri", requestQueue, false, null);
+        hookHandler.init();
+
+        // trigger listener update via event bus
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("interval", 22), "x99"));
+
+        // wait a moment to let the listener be registered
+        Thread.sleep(1500);
+
+        // make a change to the hooked resource
+        String uri = "/playground/server/tests/hooktest/abc123";
+        String originalPayload = "{\"key\":123}";
+        PUTRequest putRequest = new PUTRequest(uri, originalPayload);
+        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
+        hookHandler.handle(putRequest);
+
+        // verify that no enqueue (or lockedEnqueue) has been called because no ReducedPropagationManager was configured
+        Mockito.verifyZeroInteractions(requestQueue);
+
+        async.complete();
+    }
+
+    @Test
+    public void testListenerEnqueueWithReducedPropagationQueueingStrategy(TestContext context) throws InterruptedException {
+        Async async = context.async();
+
+        String deviceId = "x99";
+        long interval = 22;
+        String queue = "listener-hook-http+push+"+deviceId+"+playground+server+tests+hooktest";
+
+        // trigger listener update via event bus
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("interval", interval), deviceId));
+
+        // wait a moment to let the listener be registered
+        Thread.sleep(1500);
+
+        // make a change to the hooked resource
+        String uri = "/playground/server/tests/hooktest/abc123";
+        String originalPayload = "{\"key\":123}";
+        PUTRequest putRequest = new PUTRequest(uri, originalPayload);
+        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
+        hookHandler.handle(putRequest);
+
+        // verify that lockedEnqueue and reducedPropagationManager.addQueueTimer has been called
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1))
+                .lockedEnqueue(any(HttpRequest.class), eq(queue), eq("HookHandler"), any(Handler.class));
+
+        Mockito.verify(reducedPropagationManager, Mockito.timeout(2000).times(1))
+                .addQueueTimer(eq(queue), eq(interval));
+
+        async.complete();
+    }
+
 
     class PUTRequest extends DummyHttpServerRequest {
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();

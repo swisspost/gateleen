@@ -27,8 +27,8 @@ public class QueueClient implements RequestQueue {
 
     /**
      * Creates a new instance of the QueueClient.
-     * 
-     * @param vertx vertx
+     *
+     * @param vertx             vertx
      * @param monitoringHandler monitoringHandler
      */
     public QueueClient(Vertx vertx, MonitoringHandler monitoringHandler) {
@@ -42,16 +42,16 @@ public class QueueClient implements RequestQueue {
      *
      * @return the event bus address of redisques
      */
-    protected String getRedisquesAddress(){
+    protected String getRedisquesAddress() {
         return Address.redisquesAddress();
     }
 
     /**
      * Enqueues the given request.
-     * 
+     *
      * @param request request
-     * @param buffer buffer
-     * @param queue queue
+     * @param buffer  buffer
+     * @param queue   queue
      */
     @Override
     public void enqueue(final HttpServerRequest request, Buffer buffer, final String queue) {
@@ -60,11 +60,11 @@ public class QueueClient implements RequestQueue {
 
     /**
      * Enqueues the given request.
-     * 
+     *
      * @param request request
      * @param headers headers
-     * @param buffer buffer
-     * @param queue queue
+     * @param buffer  buffer
+     * @param queue   queue
      */
     @Override
     public void enqueue(final HttpServerRequest request, MultiMap headers, Buffer buffer, final String queue) {
@@ -74,9 +74,9 @@ public class QueueClient implements RequestQueue {
 
     /**
      * Enqueues a disconnected request.
-     * 
+     *
      * @param request - selfmade request
-     * @param queue queue
+     * @param queue   queue
      */
     @Override
     public void enqueue(HttpRequest request, final String queue) {
@@ -85,9 +85,9 @@ public class QueueClient implements RequestQueue {
 
     /**
      * Enqueues a disconnected request.
-     * 
-     * @param request - selfmade request
-     * @param queue queue
+     *
+     * @param request     - selfmade request
+     * @param queue       queue
      * @param doneHandler a handler which is called as soon as the request is written into the queue.
      */
     @Override
@@ -96,14 +96,39 @@ public class QueueClient implements RequestQueue {
     }
 
     /**
+     * Enqueues a request into a locked queue.
+     *
+     * @param queuedRequest the request to enqueue
+     * @param queue queue
+     * @param lockRequestedBy the user requesting the lock
+     * @param doneHandler a handler which is called as soon as the request is written into the queue.
+     */
+    @Override
+    public void lockedEnqueue(HttpRequest queuedRequest, String queue, String lockRequestedBy, Handler<Void> doneHandler) {
+        vertx.eventBus().send(getRedisquesAddress(), buildLockedEnqueueOperation(queue,
+                queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode(), lockRequestedBy),
+                (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+                    if (OK.equals(event.result().body().getString(STATUS))) {
+                        monitoringHandler.updateLastUsedQueueSizeInformation(queue);
+                        monitoringHandler.updateEnqueue();
+                    }
+                    // call the done handler to tell,
+                    // that the request was written
+                    if (doneHandler != null) {
+                        doneHandler.handle(null);
+                    }
+                });
+    }
+
+    /**
      * Enques a request. <br />
      * If no X-Server-Timestamp and / or X-Expire-After headers
      * are set, the server sets the actual timestamp and a default
      * expiry time of 2 seconds.
-     * 
-     * @param request - a client made request, therefor connected, can take responses. The request can be null, if only a selfmade request is available.
+     *
+     * @param request       - a client made request, therefor connected, can take responses. The request can be null, if only a selfmade request is available.
      * @param queuedRequest - a selfmade request, not connected to a client, can't take responses!
-     * @param queue queue
+     * @param queue         queue
      */
     private void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue) {
         enqueue(request, queuedRequest, queue, null);
@@ -114,11 +139,11 @@ public class QueueClient implements RequestQueue {
      * If no X-Server-Timestamp and / or X-Expire-After headers
      * are set, the server sets the actual timestamp and a default
      * expiry time of 2 seconds.
-     * 
-     * @param request - a client made request, therefor connected, can take responses. The request can be null, if only a selfmade request is available.
+     *
+     * @param request       - a client made request, therefor connected, can take responses. The request can be null, if only a selfmade request is available.
      * @param queuedRequest - a selfmade request, not connected to a client, can't take responses!
-     * @param queue queue
-     * @param doneHandler a handler which is called as soon as the request is written into the queue.
+     * @param queue         queue
+     * @param doneHandler   a handler which is called as soon as the request is written into the queue.
      */
     private void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Void> doneHandler) {
         vertx.eventBus().send(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
