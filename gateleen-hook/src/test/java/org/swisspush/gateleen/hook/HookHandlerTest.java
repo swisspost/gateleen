@@ -260,6 +260,36 @@ public class HookHandlerTest {
         async.complete();
     }
 
+    @Test
+    public void testListenerEnqueueWithInvalidReducedPropagationQueueingStrategy(TestContext context) throws InterruptedException {
+        Async async = context.async();
+
+        // trigger listener update via event bus
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("interval", "not_a_number"), "x99")); // invalid 'queueingStrategy' configuration results in a DefaultQueueingStrategy
+
+        // wait a moment to let the listener be registered
+        Thread.sleep(1000);
+
+        // make a change to the hooked resource
+        String uri = "/playground/server/tests/hooktest/abc123";
+        String originalPayload = "{\"key\":123}";
+        PUTRequest putRequest = new PUTRequest(uri, originalPayload);
+        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
+        hookHandler.handle(putRequest);
+
+        // verify that enqueue has been called WITH the payload
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
+            @Override
+            public boolean matches(Object argument) {
+                HttpRequest req = (HttpRequest) argument;
+                return HttpMethod.PUT == req.getMethod()
+                        && req.getUri().contains(uri)
+                        && new Integer(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
+                        && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
+            }
+        }), anyString(), any(Handler.class));
+        async.complete();
+    }
 
     class PUTRequest extends DummyHttpServerRequest {
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();

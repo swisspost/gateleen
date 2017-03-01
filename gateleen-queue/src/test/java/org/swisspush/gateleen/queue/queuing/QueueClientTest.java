@@ -54,13 +54,7 @@ public class QueueClientTest {
          * reply with 'success' for enqueuing
          */
         vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) event -> {
-            String opString = event.body().getString(RedisquesAPI.OPERATION);
-            RedisquesAPI.QueueOperation operation = RedisquesAPI.QueueOperation.fromString(opString);
-            context.assertEquals(RedisquesAPI.QueueOperation.lockedEnqueue, operation);
-            JsonObject payload = event.body().getJsonObject(RedisquesAPI.PAYLOAD);
-            context.assertEquals("myQueue", payload.getString(RedisquesAPI.QUEUENAME));
-            context.assertEquals("LockRequester", payload.getString(RedisquesAPI.REQUESTED_BY));
-            context.assertNotNull(event.body().getString(RedisquesAPI.MESSAGE));
+            validateMessage(context, event, "myQueue", "LockRequester");
             event.reply(new JsonObject().put(STATUS, OK));
         });
 
@@ -79,12 +73,25 @@ public class QueueClientTest {
          * consume event bus messages directed to redisques and reply with 'failure' for enqueuing
          */
         vertx.eventBus().localConsumer(Address.redisquesAddress(),
-                (Handler<Message<JsonObject>>) event -> event.reply(new JsonObject().put(STATUS, ERROR)));
+                (Handler<Message<JsonObject>>) event -> {
+                    validateMessage(context, event, "myQueue", "LockRequester");
+                    event.reply(new JsonObject().put(STATUS, ERROR));
+                });
 
         HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", new CaseInsensitiveHeaders(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
         queueClient.lockedEnqueue(request, "myQueue", "LockRequester", event -> async.complete());
 
         // since redisques answered with a 'failure', the monitoringHandler should not be called
         Mockito.verifyZeroInteractions(monitoringHandler);
+    }
+
+    private void validateMessage(TestContext context, Message<JsonObject> message, String queue, String requestedBy){
+        String opString = message.body().getString(RedisquesAPI.OPERATION);
+        RedisquesAPI.QueueOperation operation = RedisquesAPI.QueueOperation.fromString(opString);
+        context.assertEquals(RedisquesAPI.QueueOperation.lockedEnqueue, operation);
+        JsonObject payload = message.body().getJsonObject(RedisquesAPI.PAYLOAD);
+        context.assertEquals(queue, payload.getString(RedisquesAPI.QUEUENAME));
+        context.assertEquals(requestedBy, payload.getString(RedisquesAPI.REQUESTED_BY));
+        context.assertNotNull(message.body().getString(RedisquesAPI.MESSAGE));
     }
 }
