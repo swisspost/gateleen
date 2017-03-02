@@ -654,9 +654,8 @@ public class HookHandler {
                 requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
             } else if(queueingStrategy instanceof ReducedPropagationQueueingStrategy){
                 if(reducedPropagationManager != null) {
-                    log.info("Going to perform a lockedEnqueue for queue '"+queue+"' and starting a queue timer (when not already running).");
-                    requestQueue.lockedEnqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, "HookHandler", handler);
-                    reducedPropagationManager.addQueueTimer(queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationInterval());
+                    reducedPropagationManager.processIncomingRequest(request.method(), targetUri, queueHeaders, buffer,
+                            queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationInterval(), handler);
                 } else {
                     log.error("ReducedPropagationQueueingStrategy without configured ReducedPropagationManager. Not going to handle (enqueue) anything!");
                 }

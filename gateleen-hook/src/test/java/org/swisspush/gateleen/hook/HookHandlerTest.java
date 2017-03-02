@@ -7,7 +7,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -26,9 +25,7 @@ import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
 import java.util.Arrays;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.*;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
 
 /**
@@ -95,7 +92,6 @@ public class HookHandlerTest {
 
     @Test
     public void testListenerEnqueueWithDefaultQueueingStrategy(TestContext context) throws InterruptedException {
-        Async async = context.async();
 
         // trigger listener update via event bus
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(null, "x99")); // listenerConfig without 'queueingStrategy' configuration
@@ -121,13 +117,10 @@ public class HookHandlerTest {
                         && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
             }
         }), anyString(), any(Handler.class));
-        async.complete();
     }
 
     @Test
     public void testListenerEnqueueWithDefaultQueueingStrategyBecauseOfInvalidConfiguration(TestContext context) throws InterruptedException {
-        Async async = context.async();
-
         // trigger listener update via event bus
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "discardPayloadXXX"), "x99")); // invalid 'queueingStrategy' configuration results in a DefaultQueueingStrategy
 
@@ -152,13 +145,10 @@ public class HookHandlerTest {
                         && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
             }
         }), anyString(), any(Handler.class));
-        async.complete();
     }
 
     @Test
     public void testListenerEnqueueWithDiscardPayloadQueueingStrategy(TestContext context) throws InterruptedException {
-        Async async = context.async();
-
         // trigger listener update via event bus
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "discardPayload"), "x99"));
 
@@ -198,14 +188,10 @@ public class HookHandlerTest {
                         && Arrays.equals(req.getPayload(), new byte[0]); // should not be original payload anymore
             }
         }), anyString(), any(Handler.class));
-
-        async.complete();
     }
 
     @Test
     public void testListenerEnqueueWithReducedPropagationQueueingStrategyButNoManager(TestContext context) throws InterruptedException {
-        Async async = context.async();
-
         hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, monitoringHandler,
                 "userProfilePath", "hookRootUri", requestQueue, false, null);
         hookHandler.init();
@@ -225,14 +211,11 @@ public class HookHandlerTest {
 
         // verify that no enqueue (or lockedEnqueue) has been called because no ReducedPropagationManager was configured
         Mockito.verifyZeroInteractions(requestQueue);
-
-        async.complete();
+        Mockito.verifyZeroInteractions(reducedPropagationManager);
     }
 
     @Test
     public void testListenerEnqueueWithReducedPropagationQueueingStrategy(TestContext context) throws InterruptedException {
-        Async async = context.async();
-
         String deviceId = "x99";
         long interval = 22;
         String queue = "listener-hook-http+push+"+deviceId+"+playground+server+tests+hooktest";
@@ -250,20 +233,13 @@ public class HookHandlerTest {
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
         hookHandler.handle(putRequest);
 
-        // verify that lockedEnqueue and reducedPropagationManager.addQueueTimer has been called
-        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1))
-                .lockedEnqueue(any(HttpRequest.class), eq(queue), eq("HookHandler"), any(Handler.class));
-
+        String targetUri = "/playground/server/push/v1/devices/"+deviceId+"/playground/server/tests/hooktest/abc123";
         Mockito.verify(reducedPropagationManager, Mockito.timeout(2000).times(1))
-                .addQueueTimer(eq(queue), eq(interval));
-
-        async.complete();
+                .processIncomingRequest(eq(HttpMethod.PUT), eq(targetUri), any(MultiMap.class), eq(Buffer.buffer(originalPayload)), eq(queue), eq(interval), any(Handler.class));
     }
 
     @Test
     public void testListenerEnqueueWithInvalidReducedPropagationQueueingStrategy(TestContext context) throws InterruptedException {
-        Async async = context.async();
-
         // trigger listener update via event bus
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("interval", "not_a_number"), "x99")); // invalid 'queueingStrategy' configuration results in a DefaultQueueingStrategy
 
@@ -288,7 +264,6 @@ public class HookHandlerTest {
                         && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
             }
         }), anyString(), any(Handler.class));
-        async.complete();
     }
 
     class PUTRequest extends DummyHttpServerRequest {

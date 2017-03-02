@@ -163,10 +163,10 @@ public class Server extends AbstractVerticle {
                     userProfileHandler = new UserProfileHandler(vertx, storage, loggingResourceManager, RunConfig.buildUserProfileConfiguration());
                     roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
 
-                    reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient), Address.redisquesAddress());
+                    QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
+                    reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient), queueClient, 2000);
                     hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
-                            SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/",
-                            new QueueClient(vertx, monitoringHandler), false, reducedPropagationManager);
+                            SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/", queueClient, false, reducedPropagationManager);
 
                     authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN);
                     validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
