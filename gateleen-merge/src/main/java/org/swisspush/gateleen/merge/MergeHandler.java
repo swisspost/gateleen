@@ -204,7 +204,7 @@ public class MergeHandler {
                 final String parentCollection = getCollectionName(parentUrl);
 
                 // do superfanzy things
-                collectionResponse.handler( data -> {
+                collectionResponse.bodyHandler( data -> {
                     String collectionName = parentCollection;
                     JsonObject dataObject = new JsonObject(data.toString());
 
