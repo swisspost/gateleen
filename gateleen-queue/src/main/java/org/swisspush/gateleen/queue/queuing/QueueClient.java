@@ -1,9 +1,6 @@
 package org.swisspush.gateleen.queue.queuing;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
@@ -98,10 +95,10 @@ public class QueueClient implements RequestQueue {
     /**
      * Enqueues a request into a locked queue.
      *
-     * @param queuedRequest the request to enqueue
-     * @param queue queue
+     * @param queuedRequest   the request to enqueue
+     * @param queue           queue
      * @param lockRequestedBy the user requesting the lock
-     * @param doneHandler a handler which is called as soon as the request is written into the queue.
+     * @param doneHandler     a handler which is called as soon as the request is written into the queue.
      */
     @Override
     public void lockedEnqueue(HttpRequest queuedRequest, String queue, String lockRequestedBy, Handler<Void> doneHandler) {
@@ -118,6 +115,53 @@ public class QueueClient implements RequestQueue {
                         doneHandler.handle(null);
                     }
                 });
+    }
+
+    /**
+     * Deletes the lock for the provided queue
+     *
+     * @param queue the queue to unlock
+     * @return a future which is completed when reply status from redisques was 'OK', fails otherwise
+     */
+    @Override
+    public Future<Void> deleteLock(String queue) {
+        Future<Void> future = Future.future();
+        vertx.eventBus().send(getRedisquesAddress(), buildDeleteLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+            if(event.failed()){
+                future.fail(event.cause());
+                return;
+            }
+            if (OK.equals(event.result().body().getString(STATUS))) {
+                future.complete();
+                return;
+            }
+            future.fail("Failed to delete lock for queue " + queue);
+        });
+        return future;
+    }
+
+
+    /**
+     * Deletes all queue items of the provided queue and eventually deletes the lock too.
+     * @param queue the queue to delete
+     * @param unlock delete the lock after the queue has been deleted
+     * @return a future which is completed when reply status from redisques was 'OK', fails otherwise
+     */
+    @Override
+    public Future<Void> deleteAllQueueItems(String queue, boolean unlock) {
+        Future<Void> future = Future.future();
+        vertx.eventBus().send(getRedisquesAddress(), buildDeleteAllQueueItemsOperation(queue, unlock), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+            if(event.failed()){
+                future.fail(event.cause());
+                return;
+            }
+            if (OK.equals(event.result().body().getString(STATUS))) {
+                future.complete();
+                return;
+            }
+            future.fail("Failed to delete all queue items for queue " + queue + " with unlock " + unlock);
+        });
+        return future;
     }
 
     /**

@@ -37,7 +37,11 @@
             if(dontRegister == null) {
                 eb.registerHandler('event-' + eventId,
                         function (message, reply) {
-                            $('#result-text').html(message.payload);
+                            if(message.hasOwnProperty("payload")) {
+                                $('#result-text').html(message.payload);
+                            } else {
+                                $('#result-text').html("push message with no Payload!");
+                            }
                             if (dontReply == null) {
                                 var replyObj = {};
                                 reply(replyObj, null);
@@ -49,12 +53,16 @@
         $.ajax({
             url: '/playground/server/tests/hooktest/_hooks/listeners/http/push/' + eventId,
             type: 'PUT',
-            data: JSON.stringify({ "destination": "/playground/server/event/v1/channels/" + eventId, "methods": ["PUT"], "expireAfter": 300, "fullUrl": true, "staticHeaders": { "x-sync": true} }),
+            data: JSON.stringify({ "destination": "/playground/server/event/v1/channels/" + eventId, "methods": ["PUT"], "expireAfter": 300, "queueingStrategy": {"type": "reducedPropagation", "interval": 30}, "fullUrl": true, "staticHeaders": { "x-sync": true} }),
             success: function(result) {
                 // Do something with the result
                 $('#result-text').html(result);
             }
         });
+    }
+
+    function clearLog() {
+        $('#result-text').html("");
     }
 
     var eventId = getParameterByName('eventId');
@@ -68,13 +76,10 @@
 
     <div class="row">
         <div class="panel panel-default">
-            <div class="panel-heading">hook to url</div>
-            <div class="panel-body">
-                <!--<button type="button" class="btn btn-primary" onclick="hookToUrl()">/playground/server/tests/hooktest/</button>-->
+            <div class="panel-heading">
+                received push message
+                <a class="pull-right" href="#" onclick="clearLog();"><i class="fa fa-trash-o fa-lg"></i></a>
             </div>
-        </div>
-        <div class="panel panel-default">
-            <div class="panel-heading">received push message</div>
             <div class="panel-body">
                 <div id="result-text"></div>
             </div>

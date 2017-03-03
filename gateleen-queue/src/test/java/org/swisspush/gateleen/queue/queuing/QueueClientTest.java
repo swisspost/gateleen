@@ -46,6 +46,103 @@ public class QueueClientTest {
     }
 
     @Test
+    public void testDeletelock(TestContext context){
+        Async async = context.async();
+
+        /*
+         * consume event bus messages directed to redisques and verify message content.
+         * reply with 'success' for unlock
+         */
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.deleteLock, "myQueueToUnlock");
+            message.reply(new JsonObject().put(STATUS, OK));
+        });
+
+        queueClient.deleteLock("myQueueToUnlock").setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testDeleteLockWithRedisquesFail(TestContext context){
+        Async async = context.async();
+
+        /*
+         * consume event bus messages directed to redisques and verify message content.
+         * reply with 'failed' for unlock
+         */
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.deleteLock, "myQueueToUnlock");
+            message.reply(new JsonObject().put(STATUS, ERROR));
+        });
+
+        queueClient.deleteLock("myQueueToUnlock").setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause().getMessage().contains("Failed to delete lock for queue myQueueToUnlock"));
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testDeleteAllQueueItemsDoUnlock(TestContext context){
+        Async async = context.async();
+
+        /*
+         * consume event bus messages directed to redisques and verify message content.
+         * reply with 'success' for unlock
+         */
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.deleteAllQueueItems, "myQueueToDeleteAndUnlock", true);
+            message.reply(new JsonObject().put(STATUS, OK));
+        });
+
+        queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testDeleteAllQueueItemsDoNotUnlock(TestContext context){
+        Async async = context.async();
+
+        /*
+         * consume event bus messages directed to redisques and verify message content.
+         * reply with 'success' for unlock
+         */
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.deleteAllQueueItems, "myQueueToDelete", false);
+            message.reply(new JsonObject().put(STATUS, OK));
+        });
+
+        queueClient.deleteAllQueueItems("myQueueToDelete", false).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testDeleteAllQueueItemsWithRedisquesFail(TestContext context){
+        Async async = context.async();
+
+        /*
+         * consume event bus messages directed to redisques and verify message content.
+         * reply with 'failed' for unlock
+         */
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.deleteAllQueueItems, "myQueueToDeleteAndUnlock", true);
+            message.reply(new JsonObject().put(STATUS, ERROR));
+        });
+
+        queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause().getMessage().contains("Failed to delete all queue items for queue myQueueToDeleteAndUnlock with unlock true"));
+            async.complete();
+        });
+    }
+
+    @Test
     public void testLockedEnqueue(TestContext context){
         Async async = context.async();
 
@@ -53,9 +150,9 @@ public class QueueClientTest {
          * consume event bus messages directed to redisques and verify message content.
          * reply with 'success' for enqueuing
          */
-        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) event -> {
-            validateMessage(context, event, "myQueue", "LockRequester");
-            event.reply(new JsonObject().put(STATUS, OK));
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.lockedEnqueue, "myQueue", "LockRequester");
+            message.reply(new JsonObject().put(STATUS, OK));
         });
 
         HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", new CaseInsensitiveHeaders(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
@@ -73,9 +170,9 @@ public class QueueClientTest {
          * consume event bus messages directed to redisques and reply with 'failure' for enqueuing
          */
         vertx.eventBus().localConsumer(Address.redisquesAddress(),
-                (Handler<Message<JsonObject>>) event -> {
-                    validateMessage(context, event, "myQueue", "LockRequester");
-                    event.reply(new JsonObject().put(STATUS, ERROR));
+                (Handler<Message<JsonObject>>) message -> {
+                    validateMessage(context, message, QueueOperation.lockedEnqueue, "myQueue", "LockRequester");
+                    message.reply(new JsonObject().put(STATUS, ERROR));
                 });
 
         HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", new CaseInsensitiveHeaders(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
@@ -85,10 +182,24 @@ public class QueueClientTest {
         Mockito.verifyZeroInteractions(monitoringHandler);
     }
 
-    private void validateMessage(TestContext context, Message<JsonObject> message, String queue, String requestedBy){
+    private void validateMessage(TestContext context, Message<JsonObject> message, RedisquesAPI.QueueOperation expectedOperation, String queue){
         String opString = message.body().getString(RedisquesAPI.OPERATION);
-        RedisquesAPI.QueueOperation operation = RedisquesAPI.QueueOperation.fromString(opString);
-        context.assertEquals(RedisquesAPI.QueueOperation.lockedEnqueue, operation);
+        context.assertEquals(expectedOperation, RedisquesAPI.QueueOperation.fromString(opString));
+        JsonObject payload = message.body().getJsonObject(RedisquesAPI.PAYLOAD);
+        context.assertEquals(queue, payload.getString(RedisquesAPI.QUEUENAME));
+    }
+
+    private void validateMessage(TestContext context, Message<JsonObject> message, RedisquesAPI.QueueOperation expectedOperation, String queue, boolean unlock){
+        String opString = message.body().getString(RedisquesAPI.OPERATION);
+        context.assertEquals(expectedOperation, RedisquesAPI.QueueOperation.fromString(opString));
+        JsonObject payload = message.body().getJsonObject(RedisquesAPI.PAYLOAD);
+        context.assertEquals(queue, payload.getString(RedisquesAPI.QUEUENAME));
+        context.assertEquals(unlock, payload.getBoolean(RedisquesAPI.UNLOCK));
+    }
+
+    private void validateMessage(TestContext context, Message<JsonObject> message, RedisquesAPI.QueueOperation expectedOperation, String queue, String requestedBy){
+        String opString = message.body().getString(RedisquesAPI.OPERATION);
+        context.assertEquals(expectedOperation, RedisquesAPI.QueueOperation.fromString(opString));
         JsonObject payload = message.body().getJsonObject(RedisquesAPI.PAYLOAD);
         context.assertEquals(queue, payload.getString(RedisquesAPI.QUEUENAME));
         context.assertEquals(requestedBy, payload.getString(RedisquesAPI.REQUESTED_BY));

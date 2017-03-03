@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.queue.queuing;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
@@ -19,4 +20,8 @@ public interface RequestQueue {
     void enqueue(HttpRequest request, String queue, Handler<Void> doneHandler);
 
     void lockedEnqueue(HttpRequest request, String queue, String lockRequestedBy, Handler<Void> doneHandler);
+
+    Future<Void> deleteLock(String queue);
+
+    Future<Void> deleteAllQueueItems(String queue, boolean unlock);
 }
