@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.hook.reducedpropagation;
 
 import io.vertx.core.Future;
+import io.vertx.core.json.JsonObject;
 
 import java.util.List;
 
@@ -14,4 +15,10 @@ public interface ReducedPropagationStorage {
     Future<List<String>> removeExpiredQueues(long currentTS);
 
     Future<Boolean> addQueue(String queue, long expireTS);
+
+    Future<Void> storeQueueRequest(String queue, JsonObject queueRequest);
+
+    Future<Void> removeQueueRequest(String queue);
+
+    Future<JsonObject> getQueueRequest(String queue);
 }
