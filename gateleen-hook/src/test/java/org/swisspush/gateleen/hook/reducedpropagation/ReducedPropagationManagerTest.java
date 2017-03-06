@@ -1,12 +1,13 @@
 package org.swisspush.gateleen.hook.reducedpropagation;
 
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -15,6 +16,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.AdditionalMatchers;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
@@ -24,12 +26,11 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.getInteger;
-import static org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager.LOCK_REQUESTER;
-import static org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager.MANAGER_QUEUE_PREFIX;
+import static org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager.*;
+import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
  * Tests for the {@link ReducedPropagationManager} class
@@ -46,13 +47,15 @@ public class ReducedPropagationManagerTest {
     private ReducedPropagationStorage reducedPropagationStorage;
     private ReducedPropagationManager manager;
     private RequestQueue requestQueue;
+    private InOrder requestQueueInOrder;
 
     @Before
     public void setUp(){
         vertx = Vertx.vertx();
         reducedPropagationStorage = Mockito.mock(ReducedPropagationStorage.class);
         requestQueue = Mockito.mock(RequestQueue.class);
-        manager = new ReducedPropagationManager(vertx, reducedPropagationStorage, requestQueue, 100);
+        requestQueueInOrder = Mockito.inOrder(requestQueue);
+        manager = new ReducedPropagationManager(vertx, reducedPropagationStorage, requestQueue);
     }
 
     @Test
@@ -202,6 +205,54 @@ public class ReducedPropagationManagerTest {
 
             context.assertEquals(1, queuesCaptor.getAllValues().size());
             context.assertEquals(queue, queuesCaptor.getValue());
+        });
+    }
+
+    @Test
+    public void testExpiredQueueProcessingSuccess(TestContext context){
+        Mockito.when(requestQueue.deleteLock(anyString())).thenReturn(Future.succeededFuture());
+        Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.succeededFuture());
+
+        String expiredQueue = "myExpiredQueue";
+        String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
+        vertx.eventBus().send(PROCESSOR_ADDRESS, new JsonObject().put(QUEUE, expiredQueue).put(MANAGER_QUEUE, managerQueue), (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {
+            context.assertEquals(OK, event1.result().body().getString(STATUS));
+            context.assertEquals("Successfully unlocked manager queue manager_myExpiredQueue and deleted all queue items of queue myExpiredQueue", event1.result().body().getString(MESSAGE));
+
+            requestQueueInOrder.verify(requestQueue, times(1)).deleteLock(eq(managerQueue));
+            requestQueueInOrder.verify(requestQueue, times(1)).deleteAllQueueItems(eq(expiredQueue), eq(Boolean.TRUE));
+        });
+    }
+
+    @Test
+    public void testExpiredQueueProcessingFailedToDeleteLockOfManagerQueue(TestContext context){
+        Mockito.when(requestQueue.deleteLock(anyString())).thenReturn(Future.failedFuture("boom"));
+        Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.succeededFuture());
+
+        String expiredQueue = "myExpiredQueue";
+        String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
+        vertx.eventBus().send(PROCESSOR_ADDRESS, new JsonObject().put(QUEUE, expiredQueue).put(MANAGER_QUEUE, managerQueue), (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {
+            context.assertEquals(ERROR, event1.result().body().getString(STATUS));
+            context.assertEquals("boom", event1.result().body().getString(MESSAGE));
+
+            requestQueueInOrder.verify(requestQueue, times(1)).deleteLock(eq(managerQueue));
+            requestQueueInOrder.verify(requestQueue, never()).deleteAllQueueItems(eq(expiredQueue), eq(Boolean.TRUE));
+        });
+    }
+
+    @Test
+    public void testExpiredQueueProcessingFailedToDeleteAllQueueItems(TestContext context){
+        Mockito.when(requestQueue.deleteLock(anyString())).thenReturn(Future.succeededFuture());
+        Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.failedFuture("deleteAllQueueItems boom"));
+
+        String expiredQueue = "myExpiredQueue";
+        String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
+        vertx.eventBus().send(PROCESSOR_ADDRESS, new JsonObject().put(QUEUE, expiredQueue).put(MANAGER_QUEUE, managerQueue), (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {
+            context.assertEquals(ERROR, event1.result().body().getString(STATUS));
+            context.assertEquals("deleteAllQueueItems boom", event1.result().body().getString(MESSAGE));
+
+            requestQueueInOrder.verify(requestQueue, times(1)).deleteLock(eq(managerQueue));
+            requestQueueInOrder.verify(requestQueue, times(1)).deleteAllQueueItems(eq(expiredQueue), eq(Boolean.TRUE));
         });
     }
 }
