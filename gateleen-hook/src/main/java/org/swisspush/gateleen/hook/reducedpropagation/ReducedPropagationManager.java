@@ -93,24 +93,40 @@ public class ReducedPropagationManager {
             }
             if (event.result()) {
                 log.info("Timer for queue '" + queue + "' with expiration at '" + expireTS + "' started.");
-                enqueueManagerQueue(queue, method, targetUri, queueHeaders);
+                storeQueueRequest(queue, method, targetUri, queueHeaders).setHandler(storeResult -> {
+                    if(storeResult.failed()){
+                        future.fail(storeResult.cause());
+                    } else {
+                        future.complete();
+                    }
+                });
             } else {
                 log.info("Timer for queue '" + queue + "' is already running.");
+                future.complete();
             }
-            future.complete();
         });
-
         return future;
     }
 
-    private void enqueueManagerQueue(String queue, HttpMethod method, String targetUri, MultiMap queueHeaders) {
+    private Future<Void> storeQueueRequest(String queue, HttpMethod method, String targetUri, MultiMap queueHeaders){
+        log.info("Going to write the queue request for queue '"+queue+"' to the storage");
+        Future<Void> future = Future.future();
+
         MultiMap queueHeadersCopy = new CaseInsensitiveHeaders().addAll(queueHeaders);
-        String managerQueue = MANAGER_QUEUE_PREFIX + queue;
-        log.info("Going to perform a lockedEnqueue with a manager queue called '" + managerQueue + "' for (original) queue '" + queue + "'");
         if (HttpRequestHeader.containsHeader(queueHeadersCopy, CONTENT_LENGTH)) {
             queueHeadersCopy.set(CONTENT_LENGTH.getName(), "0");
         }
-        requestQueue.lockedEnqueue(new HttpRequest(method, targetUri, queueHeadersCopy, null), managerQueue, LOCK_REQUESTER, null);
+        HttpRequest request = new HttpRequest(method, targetUri, queueHeadersCopy, null);
+        storage.storeQueueRequest(queue, request.toJsonObject()).setHandler(storeResult -> {
+            if(storeResult.failed()){
+                log.error("Storing the queue request for queue '" + queue + "' failed. Cause: " + storeResult.cause());
+                future.fail(storeResult.cause());
+            } else {
+                log.info("Successfully stored the queue request for queue '"+queue+"'");
+                future.complete();
+            }
+        });
+        return future;
     }
 
     private void processExpiredQueues() {

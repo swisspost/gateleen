@@ -74,7 +74,7 @@ public class ReducedPropagationManagerTest {
     }
 
     @Test
-    public void testProcessIncomingRequestWithStorageError(TestContext context){
+    public void testProcessIncomingRequestWithAddQueueStorageError(TestContext context){
 
         String queue = "queue_boom";
 
@@ -112,15 +112,20 @@ public class ReducedPropagationManagerTest {
 
             context.assertEquals(1,queuesCaptor.getAllValues().size());
             context.assertEquals(queue, queuesCaptor.getValue());
+
+            //verify queue request has not been stored to storage
+            verify(reducedPropagationStorage, timeout(1000).never()).storeQueueRequest(anyString(), any(JsonObject.class));
         });
 
     }
 
     @Test
-    public void testProcessIncomingRequestStartingNewTimer(TestContext context){
+    public void testProcessIncomingRequestStartingNewTimerAndSuccessfulStoreQueueRequest(TestContext context){
         String queue = "queue_1";
         Mockito.when(reducedPropagationStorage.addQueue(eq(queue), anyLong()))
                 .thenReturn(Future.succeededFuture(Boolean.TRUE)); // TRUE => timer started
+        Mockito.when(reducedPropagationStorage.storeQueueRequest(eq(queue), any(JsonObject.class)))
+                .thenReturn(Future.succeededFuture());
 
         long propagationInterval = 500;
         long expectedExpireTS = System.currentTimeMillis() + propagationInterval;
@@ -141,14 +146,14 @@ public class ReducedPropagationManagerTest {
             ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
             ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
 
-            verify(requestQueue, timeout(1000).times(2)).lockedEnqueue(requestCaptor.capture(),
+            verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
                     queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
 
             List<HttpRequest> requests = requestCaptor.getAllValues();
             List<String> queues = queuesCaptor.getAllValues();
 
-            context.assertEquals(2, requests.size());
-            context.assertEquals(2, queues.size());
+            context.assertEquals(1, requests.size());
+            context.assertEquals(1, queues.size());
 
             // verify that request has been locked-enqueued in original queue
             HttpRequest originalEnqueue = requests.get(0);
@@ -158,13 +163,64 @@ public class ReducedPropagationManagerTest {
             context.assertTrue(Arrays.equals(originalEnqueue.getPayload(), Buffer.buffer(originalPayload).getBytes())); // payload should not have changed
             context.assertEquals(queue, queues.get(0));
 
-            // verify that the request has been locked-enqueued in the manager queue and without payload
-            HttpRequest managerEnqueue = requests.get(1);
-            context.assertEquals(HttpMethod.PUT, managerEnqueue.getMethod());
-            context.assertEquals(targetUri, managerEnqueue.getUri());
-            context.assertEquals(0, getInteger(managerEnqueue.getHeaders(), CONTENT_LENGTH)); // Content-Length header should have changed
-            context.assertTrue(Arrays.equals(managerEnqueue.getPayload(), new byte[0])); // should not be original payload anymore
-            context.assertEquals(MANAGER_QUEUE_PREFIX + queue, queues.get(1));
+            //verify queue request (without payload) has been stored to storage
+            MultiMap headersCopy = new CaseInsensitiveHeaders().addAll(headers);
+            headersCopy.set(CONTENT_LENGTH.getName(), "0");
+            HttpRequest expectedRequest = new HttpRequest(HttpMethod.PUT, targetUri, headersCopy, null);
+            verify(reducedPropagationStorage, timeout(1000).times(1)).storeQueueRequest(eq(queue), eq(expectedRequest.toJsonObject()));
+        });
+    }
+
+    @Test
+    public void testProcessIncomingRequestStartingNewTimerAndFailingStoreQueueRequest(TestContext context){
+        String queue = "queue_1";
+        Mockito.when(reducedPropagationStorage.addQueue(eq(queue), anyLong()))
+                .thenReturn(Future.succeededFuture(Boolean.TRUE)); // TRUE => timer started
+        Mockito.when(reducedPropagationStorage.storeQueueRequest(eq(queue), any(JsonObject.class)))
+                .thenReturn(Future.failedFuture("Boom"));
+
+        long propagationInterval = 500;
+        long expectedExpireTS = System.currentTimeMillis() + propagationInterval;
+
+        String targetUri = "/the/target/uri";
+        String originalPayload = "{\"key\":123}";
+        MultiMap headers = new CaseInsensitiveHeaders();
+        headers.add(CONTENT_LENGTH.getName(), "99");
+
+        manager.processIncomingRequest(HttpMethod.PUT, targetUri, headers,
+                Buffer.buffer(originalPayload), queue, propagationInterval, null).setHandler(event -> {
+            context.assertTrue(event.failed());
+            context.assertEquals("Boom", event.cause().getMessage());
+
+            // verify that the storage has been called with the original queue name and the correct expiration timestamp
+            Mockito.verify(reducedPropagationStorage, timeout(1000).times(1)).addQueue(
+                    eq(queue), AdditionalMatchers.geq(expectedExpireTS));
+
+            ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+            ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
+
+            verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
+                    queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
+
+            List<HttpRequest> requests = requestCaptor.getAllValues();
+            List<String> queues = queuesCaptor.getAllValues();
+
+            context.assertEquals(1, requests.size());
+            context.assertEquals(1, queues.size());
+
+            // verify that request has been locked-enqueued in original queue
+            HttpRequest originalEnqueue = requests.get(0);
+            context.assertEquals(HttpMethod.PUT, originalEnqueue.getMethod());
+            context.assertEquals(targetUri, originalEnqueue.getUri());
+            context.assertEquals(99, getInteger(originalEnqueue.getHeaders(), CONTENT_LENGTH)); // Content-Length header should not have changed
+            context.assertTrue(Arrays.equals(originalEnqueue.getPayload(), Buffer.buffer(originalPayload).getBytes())); // payload should not have changed
+            context.assertEquals(queue, queues.get(0));
+
+            //verify queue request (without payload) has been stored to storage
+            MultiMap headersCopy = new CaseInsensitiveHeaders().addAll(headers);
+            headersCopy.set(CONTENT_LENGTH.getName(), "0");
+            HttpRequest expectedRequest = new HttpRequest(HttpMethod.PUT, targetUri, headersCopy, null);
+            verify(reducedPropagationStorage, timeout(1000).times(1)).storeQueueRequest(eq(queue), eq(expectedRequest.toJsonObject()));
         });
     }
 
@@ -205,6 +261,9 @@ public class ReducedPropagationManagerTest {
 
             context.assertEquals(1, queuesCaptor.getAllValues().size());
             context.assertEquals(queue, queuesCaptor.getValue());
+
+            //verify queue request has not been stored to storage
+            verify(reducedPropagationStorage, timeout(1000).never()).storeQueueRequest(anyString(), any(JsonObject.class));
         });
     }
 
