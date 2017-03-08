@@ -183,6 +183,9 @@ subprojects{
                 else {
                     repository(url: relRepository) {
                         authentication(userName: repoUsername, password: repoPassword)
+                        if (project.hasProperty('proxyHost')) {
+                            proxy(host: project.property('proxyHost'), port: Integer.valueOf(project.property('proxyPort')), type: 'https')
+                        }
                     }
 
                     snapshotRepository(url: snapRepository) {
