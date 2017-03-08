@@ -197,7 +197,7 @@ subprojects{
                 }
 
 				println " > should I sign poms?"
-                if(project.getProperties().get('uploadToMavenCentral')) {
+                if(uploadToMavenCentral) {
 					println " > signing poms ..."
                     beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
                 }
