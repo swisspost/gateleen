@@ -196,8 +196,8 @@ subprojects{
                     }
                 }
 
-				println " > should I sign poms?" + uploadToMavenCentral + " | " + ext.uploadToMavenCentral + " | " + project.property('uploadToMavenCentral') + " | " + "$uploadToMavenCentral"
-                if(ext.uploadToMavenCentral) {
+				println " > should I sign poms ..."
+				if (relRepository.toLowerCase().contains("sonatype") && snapRepository.toLowerCase().contains("sonatype")) {
 					println " > signing poms ..."
                     beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
                 }
