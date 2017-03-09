@@ -232,6 +232,9 @@ release {
 beforeReleaseBuild.dependsOn subprojects.build, subprojects.test
 afterReleaseBuild.dependsOn subprojects.uploadArchives
 
+nexusStaging {
+    packageGroup = "org.swisspush.gateleen"
+}
 
 def configurePom(def pom) {
     pom.project {
@@ -254,7 +257,7 @@ def configurePom(def pom) {
             }
             developer {
                 id 'ljucam'
-                name 'Mario Ljuca'
+                name 'Mario Aerni'
                 url 'https://github.com/ljucam'
             }
         }
