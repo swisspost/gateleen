@@ -234,9 +234,6 @@ beforeReleaseBuild.dependsOn subprojects.build, subprojects.test
 afterReleaseBuild.dependsOn subprojects.uploadArchives
 
 nexusStaging {
-	if (project.hasProperty('proxyHost')) {
-		proxy(host: project.property('proxyHost'), port: Integer.valueOf(project.property('proxyPort')), type: 'https')
-	}
     packageGroup = "org.swisspush.gateleen"
 }
 
