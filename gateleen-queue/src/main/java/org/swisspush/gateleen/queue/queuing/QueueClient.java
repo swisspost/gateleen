@@ -127,7 +127,7 @@ public class QueueClient implements RequestQueue {
     public Future<Void> deleteLock(String queue) {
         Future<Void> future = Future.future();
         vertx.eventBus().send(getRedisquesAddress(), buildDeleteLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
-            if(event.failed()){
+            if (event.failed()) {
                 future.fail(event.cause());
                 return;
             }
@@ -143,7 +143,8 @@ public class QueueClient implements RequestQueue {
 
     /**
      * Deletes all queue items of the provided queue and eventually deletes the lock too.
-     * @param queue the queue to delete
+     *
+     * @param queue  the queue to delete
      * @param unlock delete the lock after the queue has been deleted
      * @return a future which is completed when reply status from redisques was 'OK', fails otherwise
      */
@@ -151,7 +152,7 @@ public class QueueClient implements RequestQueue {
     public Future<Void> deleteAllQueueItems(String queue, boolean unlock) {
         Future<Void> future = Future.future();
         vertx.eventBus().send(getRedisquesAddress(), buildDeleteAllQueueItemsOperation(queue, unlock), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
-            if(event.failed()){
+            if (event.failed()) {
                 future.fail(event.cause());
                 return;
             }
@@ -161,6 +162,23 @@ public class QueueClient implements RequestQueue {
             }
             future.fail("Failed to delete all queue items for queue " + queue + " with unlock " + unlock);
         });
+        return future;
+    }
+
+    @Override
+    public Future<Void> enqueueFuture(HttpRequest queuedRequest, String queue) {
+        Future<Void> future = Future.future();
+        vertx.eventBus().send(getRedisquesAddress(), buildEnqueueOperation(queue,
+                queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
+                (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+                    if (OK.equals(event.result().body().getString(STATUS))) {
+                        monitoringHandler.updateLastUsedQueueSizeInformation(queue);
+                        monitoringHandler.updateEnqueue();
+                        future.complete();
+                    } else {
+                        future.fail(event.result().body().getString(MESSAGE));
+                    }
+                });
         return future;
     }
 

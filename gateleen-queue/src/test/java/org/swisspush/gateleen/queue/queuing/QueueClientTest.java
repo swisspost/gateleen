@@ -46,6 +46,53 @@ public class QueueClientTest {
     }
 
     @Test
+    public void testEnqueueFuture(TestContext context){
+        Async async = context.async();
+
+        /*
+         * consume event bus messages directed to redisques and verify message content.
+         * reply with 'success' for enqueuing
+         */
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.enqueue, "myQueue");
+            message.reply(new JsonObject().put(STATUS, OK));
+        });
+
+        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", new CaseInsensitiveHeaders(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        queueClient.enqueueFuture(request, "myQueue").setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            async.complete();
+        });
+
+        Mockito.verify(monitoringHandler, Mockito.timeout(1000).times(1)).updateLastUsedQueueSizeInformation(eq("myQueue"));
+        Mockito.verify(monitoringHandler, Mockito.timeout(1000).times(1)).updateEnqueue();
+    }
+
+    @Test
+    public void testEnqueueFutureNotUpdatingMonitoringHandlerOnRedisquesFail(TestContext context){
+        Async async = context.async();
+
+        /*
+         * consume event bus messages directed to redisques and verify message content.
+         * reply with 'failure' for enqueuing
+         */
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.enqueue, "myQueue");
+            message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, "enqueue:boom"));
+        });
+
+        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", new CaseInsensitiveHeaders(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        queueClient.enqueueFuture(request, "myQueue").setHandler(event -> {
+            context.assertFalse(event.succeeded());
+            context.assertEquals("enqueue:boom", event.cause().getMessage());
+            async.complete();
+        });
+
+        // since redisques answered with a 'failure', the monitoringHandler should not be called
+        Mockito.verifyZeroInteractions(monitoringHandler);
+    }
+
+    @Test
     public void testDeletelock(TestContext context){
         Async async = context.async();
 

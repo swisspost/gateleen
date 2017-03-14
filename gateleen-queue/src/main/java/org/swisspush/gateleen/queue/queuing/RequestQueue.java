@@ -24,4 +24,6 @@ public interface RequestQueue {
     Future<Void> deleteLock(String queue);
 
     Future<Void> deleteAllQueueItems(String queue, boolean unlock);
+
+    Future<Void> enqueueFuture(HttpRequest queuedRequest, String queue);
 }
