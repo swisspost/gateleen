@@ -153,7 +153,7 @@ public class QueueClient implements RequestQueue {
         Future<Void> future = Future.future();
         vertx.eventBus().send(getRedisquesAddress(), buildDeleteAllQueueItemsOperation(queue, unlock), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             if (event.failed()) {
-                future.fail(event.cause());
+                future.fail("Failed to delete all queue items for queue " + queue + " with unlock " + unlock + ". Cause: " + event.cause());
                 return;
             }
             if (OK.equals(event.result().body().getString(STATUS))) {

@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.hook.reducedpropagation;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
@@ -25,7 +24,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.getInteger;
@@ -41,7 +44,7 @@ import static org.swisspush.redisques.util.RedisquesAPI.*;
 public class ReducedPropagationManagerTest {
 
     @org.junit.Rule
-    public Timeout rule = Timeout.seconds(5);
+    public Timeout rule = Timeout.seconds(50);
 
     private Vertx vertx;
     private ReducedPropagationStorage reducedPropagationStorage;
@@ -50,7 +53,7 @@ public class ReducedPropagationManagerTest {
     private InOrder requestQueueInOrder;
 
     @Before
-    public void setUp(){
+    public void setUp() {
         vertx = Vertx.vertx();
         reducedPropagationStorage = Mockito.mock(ReducedPropagationStorage.class);
         requestQueue = Mockito.mock(RequestQueue.class);
@@ -59,14 +62,14 @@ public class ReducedPropagationManagerTest {
     }
 
     @Test
-    public void testStartExpiredQueueProcessingInitiallyDisabled(TestContext context){
+    public void testStartExpiredQueueProcessingInitiallyDisabled(TestContext context) {
         Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
                 .thenReturn(Future.succeededFuture(new ArrayList<>()));
         verify(reducedPropagationStorage, timeout(1000).never()).removeExpiredQueues(anyLong());
     }
 
     @Test
-    public void testStartExpiredQueueProcessing(TestContext context){
+    public void testStartExpiredQueueProcessing(TestContext context) {
         Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
                 .thenReturn(Future.succeededFuture(new ArrayList<>()));
         manager.startExpiredQueueProcessing(10);
@@ -74,7 +77,7 @@ public class ReducedPropagationManagerTest {
     }
 
     @Test
-    public void testProcessIncomingRequestWithAddQueueStorageError(TestContext context){
+    public void testProcessIncomingRequestWithAddQueueStorageError(TestContext context) {
 
         String queue = "queue_boom";
 
@@ -110,7 +113,7 @@ public class ReducedPropagationManagerTest {
             context.assertEquals(99, getInteger(originalEnqueue.getHeaders(), CONTENT_LENGTH)); // Content-Length header should not have changed
             context.assertTrue(Arrays.equals(originalEnqueue.getPayload(), Buffer.buffer(originalPayload).getBytes())); // payload should not have changed
 
-            context.assertEquals(1,queuesCaptor.getAllValues().size());
+            context.assertEquals(1, queuesCaptor.getAllValues().size());
             context.assertEquals(queue, queuesCaptor.getValue());
 
             //verify queue request has not been stored to storage
@@ -120,7 +123,7 @@ public class ReducedPropagationManagerTest {
     }
 
     @Test
-    public void testProcessIncomingRequestStartingNewTimerAndSuccessfulStoreQueueRequest(TestContext context){
+    public void testProcessIncomingRequestStartingNewTimerAndSuccessfulStoreQueueRequest(TestContext context) {
         String queue = "queue_1";
         Mockito.when(reducedPropagationStorage.addQueue(eq(queue), anyLong()))
                 .thenReturn(Future.succeededFuture(Boolean.TRUE)); // TRUE => timer started
@@ -172,7 +175,7 @@ public class ReducedPropagationManagerTest {
     }
 
     @Test
-    public void testProcessIncomingRequestStartingNewTimerAndFailingStoreQueueRequest(TestContext context){
+    public void testProcessIncomingRequestStartingNewTimerAndFailingStoreQueueRequest(TestContext context) {
         String queue = "queue_1";
         Mockito.when(reducedPropagationStorage.addQueue(eq(queue), anyLong()))
                 .thenReturn(Future.succeededFuture(Boolean.TRUE)); // TRUE => timer started
@@ -225,7 +228,7 @@ public class ReducedPropagationManagerTest {
     }
 
     @Test
-    public void testProcessIncomingRequestStartingExistingTimer(TestContext context){
+    public void testProcessIncomingRequestStartingExistingTimer(TestContext context) {
         String queue = "queue_1";
         Mockito.when(reducedPropagationStorage.addQueue(eq(queue), anyLong()))
                 .thenReturn(Future.succeededFuture(Boolean.FALSE)); // FALSE => timer already exists
@@ -268,50 +271,200 @@ public class ReducedPropagationManagerTest {
     }
 
     @Test
-    public void testExpiredQueueProcessingSuccess(TestContext context){
-        Mockito.when(requestQueue.deleteLock(anyString())).thenReturn(Future.succeededFuture());
-        Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.succeededFuture());
+    public void testExpiredQueueProcessingInvalidQueue(TestContext context) {
+        Async async = context.async();
 
-        String expiredQueue = "myExpiredQueue";
-        String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
-        vertx.eventBus().send(PROCESSOR_ADDRESS, new JsonObject().put(QUEUE, expiredQueue).put(MANAGER_QUEUE, managerQueue), (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {
-            context.assertEquals(OK, event1.result().body().getString(STATUS));
-            context.assertEquals("Successfully unlocked manager queue manager_myExpiredQueue and deleted all queue items of queue myExpiredQueue", event1.result().body().getString(MESSAGE));
+        String expectedErrorMessage = "Tried to process an expired queue without a valid queue name. Going to stop here";
 
-            requestQueueInOrder.verify(requestQueue, times(1)).deleteLock(eq(managerQueue));
-            requestQueueInOrder.verify(requestQueue, times(1)).deleteAllQueueItems(eq(expiredQueue), eq(Boolean.TRUE));
+        // send event bus message with 'null' as queue name
+        vertx.eventBus().send(PROCESSOR_ADDRESS, null, (Handler<AsyncResult<Message<JsonObject>>>) nullQueueEvent -> {
+            context.assertEquals(ERROR, nullQueueEvent.result().body().getString(STATUS));
+            context.assertEquals(expectedErrorMessage, nullQueueEvent.result().body().getString(MESSAGE));
+
+            // send event bus message with an empty string as queue name
+            vertx.eventBus().send(PROCESSOR_ADDRESS, "", (Handler<AsyncResult<Message<JsonObject>>>) emptyQueueEvent -> {
+                context.assertEquals(ERROR, emptyQueueEvent.result().body().getString(STATUS));
+                context.assertEquals(expectedErrorMessage, emptyQueueEvent.result().body().getString(MESSAGE));
+                async.complete();
+            });
         });
     }
 
     @Test
-    public void testExpiredQueueProcessingFailedToDeleteLockOfManagerQueue(TestContext context){
-        Mockito.when(requestQueue.deleteLock(anyString())).thenReturn(Future.failedFuture("boom"));
-        Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.succeededFuture());
+    public void testExpiredQueueProcessingGetQueueRequestFailure(TestContext context){
+        Async async = context.async();
+        Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.failedFuture("boom: getQueueRequest failed"));
 
         String expiredQueue = "myExpiredQueue";
-        String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
-        vertx.eventBus().send(PROCESSOR_ADDRESS, new JsonObject().put(QUEUE, expiredQueue).put(MANAGER_QUEUE, managerQueue), (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {
-            context.assertEquals(ERROR, event1.result().body().getString(STATUS));
-            context.assertEquals("boom", event1.result().body().getString(MESSAGE));
+        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals(ERROR, event.result().body().getString(STATUS));
+            context.assertEquals("boom: getQueueRequest failed", event.result().body().getString(MESSAGE));
 
-            requestQueueInOrder.verify(requestQueue, times(1)).deleteLock(eq(managerQueue));
-            requestQueueInOrder.verify(requestQueue, never()).deleteAllQueueItems(eq(expiredQueue), eq(Boolean.TRUE));
+            verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
+            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
+            verifyZeroInteractions(requestQueue);
+
+            async.complete();
         });
     }
 
     @Test
-    public void testExpiredQueueProcessingFailedToDeleteAllQueueItems(TestContext context){
-        Mockito.when(requestQueue.deleteLock(anyString())).thenReturn(Future.succeededFuture());
-        Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.failedFuture("deleteAllQueueItems boom"));
+    public void testExpiredQueueProcessingGetQueueRequestReturnsNull(TestContext context){
+        Async async = context.async();
+        Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.succeededFuture(null));
+
+        String expiredQueue = "myExpiredQueue";
+        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals(ERROR, event.result().body().getString(STATUS));
+            context.assertEquals("stored queue request for queue 'myExpiredQueue' is null", event.result().body().getString(MESSAGE));
+
+            verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
+            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
+            verifyZeroInteractions(requestQueue);
+
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testExpiredQueueProcessingDeleteAllQueueItemsOfManagerQueueFailure(TestContext context){
+        Async async = context.async();
+        Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.succeededFuture(new JsonObject()));
+        Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.failedFuture("boom: deleteAllQueueItems failed"));
 
         String expiredQueue = "myExpiredQueue";
         String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
-        vertx.eventBus().send(PROCESSOR_ADDRESS, new JsonObject().put(QUEUE, expiredQueue).put(MANAGER_QUEUE, managerQueue), (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {
-            context.assertEquals(ERROR, event1.result().body().getString(STATUS));
-            context.assertEquals("deleteAllQueueItems boom", event1.result().body().getString(MESSAGE));
 
-            requestQueueInOrder.verify(requestQueue, times(1)).deleteLock(eq(managerQueue));
-            requestQueueInOrder.verify(requestQueue, times(1)).deleteAllQueueItems(eq(expiredQueue), eq(Boolean.TRUE));
+        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals(ERROR, event.result().body().getString(STATUS));
+            context.assertEquals("boom: deleteAllQueueItems failed", event.result().body().getString(MESSAGE));
+
+            verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
+            verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(managerQueue), eq(false));
+
+            verify(requestQueue, timeout(1000).never()).enqueueFuture(any(), any());
+            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
+            verify(requestQueue, timeout(1000).never()).deleteAllQueueItems(eq(expiredQueue), eq(true));
+
+            async.complete();
         });
     }
+
+    @Test
+    public void testExpiredQueueProcessingInvalidStoredQueueRequest(TestContext context){
+        Async async = context.async();
+        Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.succeededFuture(new JsonObject().put("method", "PUT")));
+        Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.succeededFuture());
+
+        String expiredQueue = "myExpiredQueue";
+        String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
+
+        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals(ERROR, event.result().body().getString(STATUS));
+            context.assertEquals("Request fields 'uri' and 'method' must be set", event.result().body().getString(MESSAGE));
+
+            verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
+            verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(managerQueue), eq(false));
+
+            verify(requestQueue, timeout(1000).never()).enqueueFuture(any(), any());
+            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
+            verify(requestQueue, timeout(1000).never()).deleteAllQueueItems(eq(expiredQueue), eq(true));
+
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testExpiredQueueProcessingEnqueueIntoManagerQueueFailure(TestContext context){
+        Async async = context.async();
+
+        JsonObject requestJsonObject = new HttpRequest(HttpMethod.PUT, "/my/uri", new CaseInsensitiveHeaders(), null).toJsonObject();
+
+        Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.succeededFuture(requestJsonObject));
+        Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.succeededFuture());
+        Mockito.when(requestQueue.enqueueFuture(any(), anyString())).thenReturn(Future.failedFuture("boom: enqueueFuture failed"));
+
+        String expiredQueue = "myExpiredQueue";
+        String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
+
+        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals(ERROR, event.result().body().getString(STATUS));
+            context.assertEquals("boom: enqueueFuture failed", event.result().body().getString(MESSAGE));
+
+            verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
+            verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(managerQueue), eq(false));
+            verify(requestQueue, timeout(1000).times(1)).enqueueFuture(any(), eq(managerQueue));
+
+            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
+            verify(requestQueue, timeout(1000).never()).deleteAllQueueItems(eq(expiredQueue), eq(true));
+
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testExpiredQueueProcessingDeleteAllQueueItemsAndDeleteLockOfQueueFailure(TestContext context){
+        Async async = context.async();
+
+        JsonObject requestJsonObject = new HttpRequest(HttpMethod.PUT, "/my/uri", new CaseInsensitiveHeaders(), null).toJsonObject();
+
+        String expiredQueue = "myExpiredQueue";
+        String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
+
+        Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.succeededFuture(requestJsonObject));
+        Mockito.when(requestQueue.deleteAllQueueItems(eq(managerQueue), anyBoolean())).thenReturn(Future.succeededFuture());
+        Mockito.when(requestQueue.enqueueFuture(any(), anyString())).thenReturn(Future.succeededFuture());
+        Mockito.when(reducedPropagationStorage.removeQueueRequest(eq(expiredQueue))).thenReturn(Future.succeededFuture());
+        Mockito.when(requestQueue.deleteAllQueueItems(eq(expiredQueue), anyBoolean())).thenReturn(Future.failedFuture("boom: deleteAllQueueItems failed"));
+
+        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals(ERROR, event.result().body().getString(STATUS));
+            context.assertEquals("boom: deleteAllQueueItems failed", event.result().body().getString(MESSAGE));
+
+            verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
+            verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(managerQueue), eq(false));
+            verify(requestQueue, timeout(1000).times(1)).enqueueFuture(any(), eq(managerQueue));
+            verify(reducedPropagationStorage, timeout(1000).times(1)).removeQueueRequest(eq(expiredQueue));
+            verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(expiredQueue), eq(true));
+
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testExpiredQueueProcessingDeleteAllQueueItemsAndDeleteLockOfQueueSuccess(TestContext context){
+        Async async = context.async();
+
+        JsonObject requestJsonObject = new HttpRequest(HttpMethod.PUT, "/my/uri", new CaseInsensitiveHeaders(), null).toJsonObject();
+
+        String expiredQueue = "myExpiredQueue";
+        String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
+
+        Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.succeededFuture(requestJsonObject));
+        Mockito.when(requestQueue.deleteAllQueueItems(eq(managerQueue), anyBoolean())).thenReturn(Future.succeededFuture());
+        Mockito.when(requestQueue.enqueueFuture(any(), anyString())).thenReturn(Future.succeededFuture());
+        Mockito.when(reducedPropagationStorage.removeQueueRequest(eq(expiredQueue))).thenReturn(Future.succeededFuture());
+        Mockito.when(requestQueue.deleteAllQueueItems(eq(expiredQueue), anyBoolean())).thenReturn(Future.succeededFuture());
+
+        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals(OK, event.result().body().getString(STATUS));
+            context.assertEquals("Successfully deleted lock and all queue items of queue myExpiredQueue", event.result().body().getString(MESSAGE));
+
+            verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
+            verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(managerQueue), eq(false));
+            verify(requestQueue, timeout(1000).times(1)).enqueueFuture(any(), eq(managerQueue));
+            verify(reducedPropagationStorage, timeout(1000).times(1)).removeQueueRequest(eq(expiredQueue));
+            verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(expiredQueue), eq(true));
+
+            async.complete();
+        });
+    }
+
 }
