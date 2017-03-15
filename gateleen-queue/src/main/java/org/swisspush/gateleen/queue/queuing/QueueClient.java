@@ -146,21 +146,17 @@ public class QueueClient implements RequestQueue {
      *
      * @param queue  the queue to delete
      * @param unlock delete the lock after the queue has been deleted
-     * @return a future which is completed when reply status from redisques was 'OK', fails otherwise
+     * @return a future which is completed when reply from redisques succeeded, fails otherwise
      */
     @Override
     public Future<Void> deleteAllQueueItems(String queue, boolean unlock) {
         Future<Void> future = Future.future();
         vertx.eventBus().send(getRedisquesAddress(), buildDeleteAllQueueItemsOperation(queue, unlock), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
-            if (event.failed()) {
-                future.fail("Failed to delete all queue items for queue " + queue + " with unlock " + unlock + ". Cause: " + event.cause());
-                return;
-            }
-            if (OK.equals(event.result().body().getString(STATUS))) {
+            if (event.succeeded()) {
                 future.complete();
-                return;
+            } else {
+                future.fail("Failed to delete all queue items for queue " + queue + " with unlock " + unlock + ". Cause: " + event.cause());
             }
-            future.fail("Failed to delete all queue items for queue " + queue + " with unlock " + unlock);
         });
         return future;
     }

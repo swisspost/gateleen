@@ -137,7 +137,7 @@ public class QueueClientTest {
 
         /*
          * consume event bus messages directed to redisques and verify message content.
-         * reply with 'success' for unlock
+         * reply with 'success' for deleteAllQueueItems
          */
         vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
             validateMessage(context, message, QueueOperation.deleteAllQueueItems, "myQueueToDeleteAndUnlock", true);
@@ -156,7 +156,7 @@ public class QueueClientTest {
 
         /*
          * consume event bus messages directed to redisques and verify message content.
-         * reply with 'success' for unlock
+         * reply with 'success' for deleteAllQueueItems
          */
         vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
             validateMessage(context, message, QueueOperation.deleteAllQueueItems, "myQueueToDelete", false);
@@ -169,17 +169,42 @@ public class QueueClientTest {
         });
     }
 
+    /**
+     * Redisques returns a status 'ERROR' when nothing could be found to delete. However the result is the same,
+     * the resource to delete is gone.
+     *
+     * @param context
+     */
+    @Test
+    public void testDeleteAllQueueItemsWithRedisquesReturningError(TestContext context){
+        Async async = context.async();
+
+        /*
+         * consume event bus messages directed to redisques and verify message content.
+         * reply with 'Error' for deleteAllQueueItems
+         */
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.deleteAllQueueItems, "myQueueToDeleteAndUnlock", true);
+            message.reply(new JsonObject().put(STATUS, ERROR));
+        });
+
+        queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            async.complete();
+        });
+    }
+
     @Test
     public void testDeleteAllQueueItemsWithRedisquesFail(TestContext context){
         Async async = context.async();
 
         /*
          * consume event bus messages directed to redisques and verify message content.
-         * reply with 'failed' for unlock
+         * reply with 'failed' for deleteAllQueueItems
          */
         vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
             validateMessage(context, message, QueueOperation.deleteAllQueueItems, "myQueueToDeleteAndUnlock", true);
-            message.reply(new JsonObject().put(STATUS, ERROR));
+            message.fail(0, "boom");
         });
 
         queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).setHandler(event -> {
