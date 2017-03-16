@@ -136,7 +136,7 @@ GET http://myserver:7012/gateleen/example/
 | filter            | no  | This property allows you to refine the requests with a regular expression, which you want to receive for the given destination. |
 | type              | no  | Default: before <br> This property allows you to set, if the request to a listener will be sent before or after the original request was performed.<br /> <br /> The valid settings are: <br /> after => request will be forwarded to listener after the original request was performed <br /><br />before => (default) request will be forwarded to a listener before the original request was performed <br /> <br /> This can be useful if you want to use your listeners with the delegate feature and expect a request to be already executed as soon as you execute a delegate. |  
 | fullUrl           | no  | Default: false <br> <br /> Defines whether the hook forwards using the full initial url or only the appendix <br/><br/> Example: <br/><br/> hooked url = http://a/b/c <br/> request.uri() = http://a/b/c/d/e.x <br/> url appendix = /d/e.x |
-| discardPayload    | no  | Default: false <br> <br /> When set to _true_, the payload of changes to the hooked url will be removed before enqueuing and the _Content-Length_ header will be set to 0. |
+| queueingStrategy  | no  | Default: DefaultQueueingStrategy <br> <br /> Configures the 'queueing' behaviour of the HookHandler. See chapter _QueueingStrategy_ for detailed information. |
                                                  
 > <font color="orange"><b>Attention:</b> </font>A listener has a default expiration time of **30 seconds**. After this time the listener will expire and be removed from the storage, as well as the HookHandler.<br />
 To update / refresh a listener, simply perform another registration.<br />
@@ -162,8 +162,39 @@ PUT http://myserver7012/gateleen/everything/_hooks/listeners/http/myexample
 DELETE http://myserver7012/gateleen/everything/_hooks/listeners/http/myexample
 ```
 
+#### QueueingStrategy
+The _QueueingStrategy_ can be configured for listeners only and defines the 'queueing' behaviour. The following strategies are available.
 
+##### DefaultQueueingStrategy
+The _DefaultQueueingStrategy_ does not change anything in the 'queueing' behaviour. Requests are enqueued without any modification. This strategy is used when no (or no valid) QueueingStrategy is configured.
 
+##### DiscardPayloadQueueingStrategy
+The _DiscardPayloadQueueingStrategy_ removes the payload from the request before enqueueing. When a _Content-Length_ header is provided, the value will be changed to 0.
+ 
+To activate this strategy, the following configuration has to be added when adding a listener:
+```json
+{
+    "queueingStrategy": {
+        "type": "discardPayload"
+    }    
+}
+```
+
+##### ReducedPropagationQueueingStrategy
+The _ReducedPropagationQueueingStrategy_ is used to reduce the amount of hooked resource changes by only propagating 1
+resource change over a configurable amount of time (_interval_). Typically this strategy is used to not overwhelm a client with
+thousands of hooked resource changes. As in the _DiscardPayloadQueueingStrategy_, the payload will be removed before enqueueing.
+
+To activate this strategy, the following configuration has to be added when adding a listener:
+```json
+{
+    "queueingStrategy": {
+        "type": "reducedPropagation",
+        "interval": 120
+    }    
+}
+```
+The _interval_ defines the amount of time in seconds to wait before propagate a single resource change.
 
 
 
