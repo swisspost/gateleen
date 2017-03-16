@@ -11,6 +11,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
@@ -51,7 +52,7 @@ import java.util.regex.Pattern;
  *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class DelegateHandler {
+public class DelegateHandler implements Refreshable {
     private static final String DEFINITION_RESOURCE = "definition";
     private static final String EXECUTION_RESOURCE = "execution";
     private static final String SAVE_DELEGATE_ADDRESS = "gateleen.delegate-insert";
@@ -364,4 +365,8 @@ public class DelegateHandler {
         delegate.handle(request);
     }
 
+    @Override
+    public void refresh() {
+        loadStoredDelegates();
+    }
 }

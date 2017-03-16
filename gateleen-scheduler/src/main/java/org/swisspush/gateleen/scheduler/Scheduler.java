@@ -10,7 +10,6 @@ import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 
@@ -38,12 +37,13 @@ public class Scheduler {
     private long timer;
     private MonitoringHandler monitoringHandler;
     private long randomOffset = 0L;
-    private boolean executeOnStartup=false;
+    private boolean executeOnStartup = false;
+    private boolean executeOnReload = false;
     private boolean executed = false;
 
     private Logger log;
 
-    public Scheduler(Vertx vertx, String redisquesAddress, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset, boolean executeOnStartup) throws ParseException {
+    public Scheduler(Vertx vertx, String redisquesAddress, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset, boolean executeOnStartup, boolean executeOnReload) throws ParseException {
         this.vertx = vertx;
         this.redisquesAddress = redisquesAddress;
         this.redisClient = redisClient;
@@ -53,7 +53,8 @@ public class Scheduler {
         this.log = LoggerFactory.getLogger(Scheduler.class.getName()+".scheduler-"+name);
         this.monitoringHandler = monitoringHandler;
         calcRandomOffset(maxRandomOffset);
-        this.executeOnStartup=executeOnStartup;
+        this.executeOnStartup = executeOnStartup;
+        this.executeOnReload = executeOnReload;
     }
 
     /**
@@ -98,7 +99,7 @@ public class Scheduler {
                 });
             }
         }));
-        if(!executed && executeOnStartup ){
+        if( ( !executed && executeOnStartup ) || executeOnReload ){
             executed = true;
             trigger();
         }
