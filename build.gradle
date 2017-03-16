@@ -17,11 +17,16 @@ buildscript {
             maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
         }
     }
+    dependencies{
+        classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.5.3"
+    }
 }
+
 
 plugins {
     id 'net.researchgate.release' version '2.4.0'
 }
+apply plugin: 'io.codearte.nexus-staging'
 
 allprojects {
     apply plugin: 'idea'
@@ -31,7 +36,7 @@ allprojects {
     apply plugin: 'jacoco'
 
     repositories {
-        mavenLocal()
+
         try {
             maven { url "$repository" }
             println 'use custom repository: ' + "$repository"
@@ -68,7 +73,8 @@ subprojects{
     }
 
     if(!project.hasProperty('snapshotRepository')) {
-        ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+        ext.snapshotRepository = 'https://oss.sonatype.org/content/repositories/snapshots/'
+//        ext.snapshotRepository = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
     } else {
         println 'found custom snapshotRepository: ' + snapshotRepository
     }
@@ -173,20 +179,27 @@ subprojects{
 
                 if ( repoUsername == null || repoPassword == null || repoUsername == 'randomUsername' || repoPassword == 'randomPassword') {
                     repository(url: relRepository)
-
                     snapshotRepository(url: snapRepository)
                 }
                 else {
                     repository(url: relRepository) {
                         authentication(userName: repoUsername, password: repoPassword)
+                        if (project.hasProperty('proxyHost')) {
+                            proxy(host: project.property('proxyHost'), port: Integer.valueOf(project.property('proxyPort')), type: 'https')
+                        }
                     }
 
                     snapshotRepository(url: snapRepository) {
                         authentication(userName: repoUsername, password: repoPassword)
+                        if (project.hasProperty('proxyHost')) {
+                            proxy(host: project.property('proxyHost'), port: Integer.valueOf(project.property('proxyPort')), type: 'https')
+                        }
                     }
                 }
 
-                if(uploadToMavenCentral) {
+                println " > should I sign poms ..."
+                if (relRepository.toLowerCase().contains("sonatype") && snapRepository.toLowerCase().contains("sonatype")) {
+                    println " > signing poms ..."
                     beforeDeployment { org.gradle.api.artifacts.maven.MavenDeployment deployment -> signing.signPom(deployment) }
                 }
 
@@ -220,6 +233,9 @@ release {
 beforeReleaseBuild.dependsOn subprojects.build, subprojects.test
 afterReleaseBuild.dependsOn subprojects.uploadArchives
 
+nexusStaging {
+    packageGroup = "org.swisspush.gateleen"
+}
 
 def configurePom(def pom) {
     pom.project {
@@ -242,7 +258,7 @@ def configurePom(def pom) {
             }
             developer {
                 id 'ljucam'
-                name 'Mario Ljuca'
+                name 'Mario Aerni'
                 url 'https://github.com/ljucam'
             }
         }
