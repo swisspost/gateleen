@@ -146,8 +146,8 @@ public class UserProfileTest extends AbstractTest {
     }
 
     /**
-     * Issue: STARG-66
-     * <p/>
+     * <p>Issue: STARG-66</p>
+     *
      * Makes sure that values are always updated from headers (even on GET) if the value in the
      * header is 'valid' and the value in the provide is invalid. ...and that valid values in the
      * profile are not updated if the header value is invalid.
