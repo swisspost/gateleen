@@ -1,7 +1,10 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.swisspush.gateleen.core.lua.AbstractLuaScriptTest;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 
 import java.util.Arrays;
@@ -15,8 +18,11 @@ import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCirc
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage.*;
 
 /**
+ * Tests for the {@link QueueCircuitBreakerLuaScripts#ALL_CIRCUITS} lua script.
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
+@RunWith(VertxUnitRunner.class)
 public class QueueCircuitBreakerGetAllCircuitsLuaScriptTests extends AbstractLuaScriptTest {
 
     private final String circuitInfoKeyPrefix = "q:";

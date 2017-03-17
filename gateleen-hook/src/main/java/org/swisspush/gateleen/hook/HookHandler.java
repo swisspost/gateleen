@@ -14,7 +14,10 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.CollectionContentComparator;
+import org.swisspush.gateleen.core.util.HttpRequestHeader;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.hook.queueingstrategy.*;
+import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
@@ -24,6 +27,8 @@ import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 
 /**
  * The HookHandler is responsible for un- and registering hooks (listener, as well as routes). He also
@@ -60,6 +65,7 @@ public class HookHandler {
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
+    public static final String DISCARD_PAYLOAD = "discardPayload";
     public static final String HOOK_TRIGGER_TYPE = "type";
     public static final String LISTABLE = "listable";
     public static final String COLLECTION = "collection";
@@ -78,6 +84,8 @@ public class HookHandler {
     private ListenerRepository listenerRepository;
     private RouteRepository routeRepository;
     private RequestQueue requestQueue;
+
+    private ReducedPropagationManager reducedPropagationManager;
 
     /**
      * Creates a new HookHandler.
@@ -111,6 +119,10 @@ public class HookHandler {
         this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, requestQueue, false);
     }
 
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
+        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, requestQueue, false, null);
+    }
+
     /**
      * Creates a new HookHandler.
      *
@@ -123,8 +135,9 @@ public class HookHandler {
      * @param hookRootUri hookRootUri
      * @param requestQueue requestQueue
      * @param listableRoutes listableRoutes
+     * @param reducedPropagationManager reducedPropagationManager
      */
-    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes, ReducedPropagationManager reducedPropagationManager) {
         log.debug("Creating HookHandler ...");
         this.vertx = vertx;
         this.selfClient = selfClient;
@@ -135,6 +148,7 @@ public class HookHandler {
         this.hookRootUri = hookRootUri;
         this.requestQueue = requestQueue;
         this.listableRoutes = listableRoutes;
+        this.reducedPropagationManager = reducedPropagationManager;
         listenerRepository = new LocalListenerRepository();
         routeRepository = new LocalRouteRepository();
         collectionContentComparator = new CollectionContentComparator();
@@ -452,7 +466,7 @@ public class HookHandler {
                     request.response().setStatusMessage(response.statusMessage());
                     request.response().setChunked(true);
                     request.response().headers().addAll(response.headers());
-                    request.response().headers().remove("Content-Length");
+                    request.response().headers().remove(CONTENT_LENGTH.getName());
                     request.response().headers().remove(HOOK_ROUTES_LISTED);
 
                     // if everything is fine, we add the listed collections to the given array
@@ -629,7 +643,25 @@ public class HookHandler {
             // Therefor we set the header x-translate-status-4xx
             queueHeaders.add("x-translate-status-4xx", "200");
 
-            requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
+            QueueingStrategy queueingStrategy = listener.getHook().getQueueingStrategy();
+
+            if(queueingStrategy instanceof DefaultQueueingStrategy){
+                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
+            } else if(queueingStrategy instanceof DiscardPayloadQueueingStrategy){
+                if(HttpRequestHeader.containsHeader(queueHeaders, CONTENT_LENGTH)) {
+                    queueHeaders.set(CONTENT_LENGTH.getName(), "0");
+                }
+                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
+            } else if(queueingStrategy instanceof ReducedPropagationQueueingStrategy){
+                if(reducedPropagationManager != null) {
+                    reducedPropagationManager.processIncomingRequest(request.method(), targetUri, queueHeaders, buffer,
+                            queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationInterval(), handler);
+                } else {
+                    log.error("ReducedPropagationQueueingStrategy without configured ReducedPropagationManager. Not going to handle (enqueue) anything!");
+                }
+            } else {
+                log.error("QueueingStrategy '"+queueingStrategy.getClass().getSimpleName()+"' is not handled. Could be an error, check the source code!");
+            }
         }
 
         // if for e.g. the beforListeners are empty,
@@ -965,7 +997,7 @@ public class HookHandler {
             request.response().setChunked(true);
 
             request.response().headers().addAll(response.headers());
-            request.response().headers().remove("Content-Length");
+            request.response().headers().remove(CONTENT_LENGTH.getName());
 
             response.handler(data -> request.response().write(data));
 
@@ -1122,8 +1154,8 @@ public class HookHandler {
 
         hook.setExpirationTime(expirationTime);
 
-        boolean fullUrl = jsonHook.getBoolean(FULL_URL, false);
-        hook.setFullUrl(fullUrl);
+        hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
+        hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(jsonHook));
 
         // for internal use we don't need a forwarder
         if (hook.getDestination().startsWith("/")) {
@@ -1261,8 +1293,8 @@ public class HookHandler {
             return;
         }
 
-        boolean fullUrl = storageObject.getBoolean(FULL_URL, false);
-        hook.setFullUrl(fullUrl);
+        hook.setFullUrl(storageObject.getBoolean(FULL_URL, false));
+        hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(storageObject));
 
         routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook));
     }

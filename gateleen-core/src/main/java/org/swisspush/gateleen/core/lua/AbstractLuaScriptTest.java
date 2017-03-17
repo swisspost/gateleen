@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
+package org.swisspush.gateleen.core.lua;
 
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.After;
@@ -17,10 +17,9 @@ import java.io.InputStreamReader;
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-@RunWith(VertxUnitRunner.class)
 public abstract class AbstractLuaScriptTest {
 
-    Jedis jedis = null;
+    protected Jedis jedis = null;
 
     @BeforeClass
     public static void checkRedisAvailable(){

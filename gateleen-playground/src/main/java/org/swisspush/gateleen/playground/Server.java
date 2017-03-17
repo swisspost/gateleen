@@ -28,6 +28,8 @@ import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
 import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
+import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
+import org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
@@ -35,6 +37,7 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.monitoring.ResetMetricsController;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
+import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.*;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerHttpRequestHandler;
@@ -98,6 +101,7 @@ public class Server extends AbstractVerticle {
     private ValidationHandler validationHandler;
     private QoSHandler qosHandler;
     private HookHandler hookHandler;
+    private ReducedPropagationManager reducedPropagationManager;
     private ZipExtractHandler zipExtractHandler;
     private DelegateHandler delegateHandler;
 
@@ -138,94 +142,97 @@ public class Server extends AbstractVerticle {
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
 
-        RunConfig.deployModules(vertx, Server.class, props, new Handler<Boolean>() {
-            @Override
-            public void handle(Boolean success) {
-                if (success) {
-                    redisClient = RedisClient.create(vertx, new RedisOptions().setHost(redisHost).setPort(redisPort));
-                    new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
-                    storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
-                    corsHandler = new CORSHandler();
-                    deltaHandler = new DeltaHandler(redisClient, selfClient);
-                    expansionHandler = new ExpansionHandler(vertx, storage, selfClientExpansionHandler, props, ROOT, RULES_ROOT);
-                    copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
-                    monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
-                    qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
-                    configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
-                    String eventBusConfigurationResource = SERVER_ROOT + "/admin/v1/hookconfig";
-                    eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event-", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
-                    eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
-                    loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
-                    userProfileHandler = new UserProfileHandler(vertx, storage, loggingResourceManager, RunConfig.buildUserProfileConfiguration());
-                    roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
-                    hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/");
-                    authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN);
-                    validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
-                    validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
-                    schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
-                    zipExtractHandler = new ZipExtractHandler(selfClient);
-                    delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/delegate/v1/delegates/", props);
-                    router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
-                            (Handler<Void>) aVoid -> {
-                                hookHandler.init();
-                                delegateHandler.init();
-                            });
+        RunConfig.deployModules(vertx, Server.class, props, success -> {
+            if (success) {
+                redisClient = RedisClient.create(vertx, new RedisOptions().setHost(redisHost).setPort(redisPort));
+                new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
+                storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
+                corsHandler = new CORSHandler();
+                deltaHandler = new DeltaHandler(redisClient, selfClient);
+                expansionHandler = new ExpansionHandler(vertx, storage, selfClientExpansionHandler, props, ROOT, RULES_ROOT);
+                copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
+                monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
+                qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
+                configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+                String eventBusConfigurationResource = SERVER_ROOT + "/admin/v1/hookconfig";
+                eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event-", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
+                eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
+                loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
+                userProfileHandler = new UserProfileHandler(vertx, storage, loggingResourceManager, RunConfig.buildUserProfileConfiguration());
+                roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
 
-                    RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
-                    QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
+                QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
+                reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient), queueClient);
+                reducedPropagationManager.startExpiredQueueProcessing(5000);
+                hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
+                        SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/", queueClient, false, reducedPropagationManager);
 
-                    queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
-                    QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
-                    QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
-                            SERVER_ROOT + "/queuecircuitbreaker/circuit");
+                authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN);
+                validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
+                validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
+                schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
+                zipExtractHandler = new ZipExtractHandler(selfClient);
+                delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/delegate/v1/delegates/", props);
+                router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
+                        (Handler<Void>) aVoid -> {
+                            hookHandler.init();
+                            delegateHandler.init();
+                        });
 
-                    QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage,
-                            ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);
+                RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
+                QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
-                    new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
-                    final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
+                queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
+                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
+                QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
+                        SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
-                    LogController logController = new LogController();
-                    logController.registerLogConfiguratorMBean(JMX_DOMAIN);
+                QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage,
+                        ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);
 
-                    ResetMetricsController resetMetricsController = new ResetMetricsController(vertx);
-                    resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
+                new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
+                final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
 
-                    RunConfig runConfig = RunConfig.with()
-                            .authorizer(authorizer)
-                            .validationResourceManager(validationResourceManager)
-                            .validationHandler(validationHandler)
-                            .corsHandler(corsHandler)
-                            .deltaHandler(deltaHandler)
-                            .expansionHandler(expansionHandler)
-                            .hookHandler(hookHandler)
-                            .qosHandler(qosHandler)
-                            .copyResourceHandler(copyResourceHandler)
-                            .eventBusHandler(eventBusHandler)
-                            .roleProfileHandler(roleProfileHandler)
-                            .userProfileHandler(userProfileHandler)
-                            .loggingResourceManager(loggingResourceManager)
-                            .configurationResourceManager(configurationResourceManager)
-                            .queueCircuitBreakerConfigurationResourceManager(queueCircuitBreakerConfigurationResourceManager)
-                            .schedulerResourceManager(schedulerResourceManager)
-                            .zipExtractHandler(zipExtractHandler)
-                            .delegateHandler(delegateHandler)
-                            .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
-                    Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
-                    selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
+                LogController logController = new LogController();
+                logController.registerLogConfiguratorMBean(JMX_DOMAIN);
 
-                    HttpServerOptions options = new HttpServerOptions();
-                    // till vertx2 100-continues was performed automatically (per default),
-                    // since vertx3 it is off per default.
-                    options.setHandle100ContinueAutomatically(true);
+                ResetMetricsController resetMetricsController = new ResetMetricsController(vertx);
+                resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
 
-                    mainServer = vertx.createHttpServer(options);
-                    io.vertx.ext.web.Router vertxRouter = io.vertx.ext.web.Router.router(vertx);
-                    eventBusHandler.install(vertxRouter);
-                    vertxRouter.route().handler(routingContextHandlerrNew);
-                    mainServer.requestHandler(vertxRouter::accept);
-                    mainServer.listen(mainPort);
-                }
+                RunConfig runConfig = RunConfig.with()
+                        .authorizer(authorizer)
+                        .validationResourceManager(validationResourceManager)
+                        .validationHandler(validationHandler)
+                        .corsHandler(corsHandler)
+                        .deltaHandler(deltaHandler)
+                        .expansionHandler(expansionHandler)
+                        .hookHandler(hookHandler)
+                        .qosHandler(qosHandler)
+                        .copyResourceHandler(copyResourceHandler)
+                        .eventBusHandler(eventBusHandler)
+                        .roleProfileHandler(roleProfileHandler)
+                        .userProfileHandler(userProfileHandler)
+                        .loggingResourceManager(loggingResourceManager)
+                        .configurationResourceManager(configurationResourceManager)
+                        .queueCircuitBreakerConfigurationResourceManager(queueCircuitBreakerConfigurationResourceManager)
+                        .schedulerResourceManager(schedulerResourceManager)
+                        .zipExtractHandler(zipExtractHandler)
+                        .delegateHandler(delegateHandler)
+                        .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
+                Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
+                selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
+
+                HttpServerOptions options = new HttpServerOptions();
+                // till vertx2 100-continues was performed automatically (per default),
+                // since vertx3 it is off per default.
+                options.setHandle100ContinueAutomatically(true);
+
+                mainServer = vertx.createHttpServer(options);
+                io.vertx.ext.web.Router vertxRouter = io.vertx.ext.web.Router.router(vertx);
+                eventBusHandler.install(vertxRouter);
+                vertxRouter.route().handler(routingContextHandlerrNew);
+                mainServer.requestHandler(vertxRouter::accept);
+                mainServer.listen(mainPort);
             }
         });
     }
