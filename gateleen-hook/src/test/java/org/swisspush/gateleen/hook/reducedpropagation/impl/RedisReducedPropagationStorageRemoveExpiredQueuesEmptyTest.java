@@ -9,6 +9,7 @@ import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import redis.clients.jedis.Jedis;
@@ -28,6 +29,7 @@ import static org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPr
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 @RunWith(VertxUnitRunner.class)
+@Ignore
 public class RedisReducedPropagationStorageRemoveExpiredQueuesEmptyTest {
 
     private static Vertx vertx;
