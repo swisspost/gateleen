@@ -6,6 +6,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.*;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.joda.time.LocalDateTime;
@@ -853,8 +854,24 @@ public class HookHandler {
             JsonObject storageObject = new JsonObject();
             storageObject.put(REQUESTURL, request.uri());
             storageObject.put(EXPIRATION_TIME, ExpiryCheckHandler.printDateTime(expirationTime));
-            storageObject.put(HOOK, new JsonObject(hookData.toString()));
-
+            JsonObject hook;
+            try {
+                hook = new JsonObject(hookData.toString());
+            } catch (DecodeException e) {
+                request.response().setStatusCode(400);
+                final String msg = "Cannot decode JSON";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
+            if(hook.getString("destination")==null) {
+                request.response().setStatusCode(400);
+                final String msg = "Property 'destination' must be set";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
+            storageObject.put(HOOK, hook);
             storage.put(routeStorageUri, request.headers(), Buffer.buffer(storageObject.toString()), status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
                     vertx.eventBus().publish(SAVE_ROUTE_ADDRESS, routeStorageUri);
@@ -925,8 +942,24 @@ public class HookHandler {
         log.debug("handleListenerRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
-            JsonObject hook = new JsonObject(hookData.toString());
+            JsonObject hook;
+            try {
+                hook = new JsonObject(hookData.toString());
+            } catch (DecodeException e) {
+                request.response().setStatusCode(400);
+                final String msg = "Cannot decode JSON";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
             String destination = hook.getString("destination");
+            if(destination==null) {
+                request.response().setStatusCode(400);
+                final String msg = "Property 'destination' must be set";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
             String hookOnUri = getMonitoredUrlSegment(request.uri());
             if (destination.startsWith(hookOnUri)) {
                 request.response().setStatusCode(400);

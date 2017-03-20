@@ -16,6 +16,7 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
+import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
@@ -24,7 +25,9 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.*;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
 
@@ -264,6 +267,41 @@ public class HookHandlerTest {
                         && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
             }
         }), anyString(), any(Handler.class));
+    }
+
+    @Test
+    public void testInvalidJsonInListener(TestContext context) throws InterruptedException {
+        String uri = "/playground/server/tests/_hooks/listeners/test";
+        assert400(uri, "{\"key\":123}");
+        assert400(uri, "{");
+    }
+
+    @Test
+    public void testInvalidJsonInRoute(TestContext context) throws InterruptedException {
+        String uri = "/playground/server/tests/_hooks/route";
+        assert400(uri, "{\"key\":123}");
+        assert400(uri, "{");
+    }
+
+    private void assert400(final String uri, final String payload) throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        DummyHttpServerResponse response = new DummyHttpServerResponse() {
+            @Override
+            public void end(String chunk) {
+                super.end(chunk);
+                latch.countDown();
+            }
+        };
+        PUTRequest putRequest = new PUTRequest(uri, payload) {
+            @Override
+            public HttpServerResponse response() {
+                return response;
+            }
+        };
+        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
+        hookHandler.handle(putRequest);
+        latch.await();
+        assertEquals(400, response.getStatusCode());
     }
 
     class PUTRequest extends DummyHttpServerRequest {
