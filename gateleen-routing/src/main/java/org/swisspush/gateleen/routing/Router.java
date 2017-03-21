@@ -13,6 +13,7 @@ import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
@@ -226,6 +227,7 @@ public class Router implements Refreshable {
                 }
                 storage.put(rulesUri, buffer, status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
+                        RequestLogger.logRequest(vertx, request, StatusCode.OK.getStatusCode(), buffer, null);
                         vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
                         resetRouterBrokenState();
                     } else {

@@ -32,6 +32,7 @@ import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.RequestLoggingConsumer;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.monitoring.ResetMetricsController;
@@ -78,6 +79,7 @@ public class Server extends AbstractVerticle {
     private Authorizer authorizer;
     private Router router;
     private LoggingResourceManager loggingResourceManager;
+    private RequestLoggingConsumer requestLoggingConsumer;
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
     private SchedulerResourceManager schedulerResourceManager;
@@ -158,6 +160,9 @@ public class Server extends AbstractVerticle {
                 eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event-", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
+
+                requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
+
                 userProfileHandler = new UserProfileHandler(vertx, storage, loggingResourceManager, RunConfig.buildUserProfileConfiguration());
                 roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
 
