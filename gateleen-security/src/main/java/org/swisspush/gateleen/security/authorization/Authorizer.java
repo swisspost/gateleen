@@ -12,6 +12,8 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.RoleExtractor;
@@ -26,7 +28,7 @@ import java.util.regex.Pattern;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class Authorizer {
+public class Authorizer implements LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.authorization-updated";
 
@@ -47,6 +49,7 @@ public class Authorizer {
     private Vertx vertx;
     private EventBus eb;
 
+    private boolean logACLChanges = false;
     private ResourceStorage storage;
     private RoleExtractor roleExtractor;
     private Map<PatternHolder, Map<String, Set<String>>> initialGrantedRoles;
@@ -82,6 +85,11 @@ public class Authorizer {
 
         // Receive update notifications
         eb.consumer(UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateAllAcls());
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logACLChanges = resourceLoggingEnabled;
     }
 
     public void authorize(final HttpServerRequest request, final Handler<Void> handler) {
@@ -140,6 +148,9 @@ public class Authorizer {
                     }
                     storage.put(request.uri(), buffer, status -> {
                         if (status == StatusCode.OK.getStatusCode()) {
+                            if(logACLChanges){
+                                RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                            }
                             scheduleUpdate();
                         } else {
                             request.response().setStatusCode(status);

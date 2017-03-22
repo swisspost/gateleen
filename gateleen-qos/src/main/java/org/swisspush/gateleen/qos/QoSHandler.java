@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.qos;
 
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StatusCode;
 import com.floreysoft.jmte.DefaultModelAdaptor;
@@ -78,7 +80,7 @@ import java.util.regex.Pattern;
  * 
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class QoSHandler {
+public class QoSHandler implements LoggableResource {
     private static final Logger log = LoggerFactory.getLogger(QoSHandler.class);
     private static final String UPDATE_ADDRESS = "gateleen.qos-settings-updated";
 
@@ -103,6 +105,8 @@ public class QoSHandler {
     private QoSConfig globalQoSConfig;
     private List<QoSRule> qosRules;
     private List<QoSSentinel> qosSentinels;
+
+    private boolean logQosConfigurationChanges = false;
 
     /**
      * Creates a new instance of the QoSHandler.
@@ -130,6 +134,11 @@ public class QoSHandler {
 
         // register an update handler for further updates
         registerUpdateHandler();
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logQosConfigurationChanges = resourceLoggingEnabled;
     }
 
     /**
@@ -276,6 +285,9 @@ public class QoSHandler {
 
                 storage.put(qosSettingsUri, buffer, status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
+                        if(logQosConfigurationChanges){
+                            RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                        }
                         vertx.eventBus().publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);

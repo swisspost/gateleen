@@ -49,7 +49,7 @@ Putting or updating an delegate definition requires a validation against the del
     "requests": [
         {
             "method": "POST",
-            "url": "/gateleen/server/v1/copy",
+            "uri": "/gateleen/server/v1/copy",
             "payload": {
                 "source": "/gateleen/$1?expand=100&zip=true",
                 "destination": "/gateleen/zips/users/$1.zip"
