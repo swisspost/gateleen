@@ -227,7 +227,7 @@ public class Router implements Refreshable {
                 }
                 storage.put(rulesUri, buffer, status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
-                        RequestLogger.logRequest(vertx, request, StatusCode.OK.getStatusCode(), buffer, null);
+                        RequestLogger.logRequest(vertx.eventBus(), request, StatusCode.OK.getStatusCode(), buffer);
                         vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
                         resetRouterBrokenState();
                     } else {

@@ -5,18 +5,21 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.JsonObjectUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 
-import java.util.Map;
+import static org.swisspush.gateleen.core.logging.RequestLogger.*;
 
 /**
- * Created by webermarca on 21.03.2017.
+ * Consumes log messages from {@link org.swisspush.gateleen.core.logging.RequestLogger} and logs them through
+ * the logging mechanism using the {@link LoggingResourceManager} and the {@link LoggingHandler}.
+ *
+ * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class RequestLoggingConsumer {
     private final Vertx vertx;
@@ -27,32 +30,30 @@ public class RequestLoggingConsumer {
         this.loggingResourceManager = loggingResourceManager;
 
         vertx.eventBus().localConsumer(Address.requestLoggingConsumerAddress(), (Handler<Message<JsonObject>>) event -> {
-            JsonObject body = event.body();
+            try {
+                JsonObject body = event.body();
 
-            String uri = body.getString("request_uri");
-            String method = body.getString("request_method");
-            HttpMethod httpMethod = HttpMethod.valueOf(method);
-            JsonObject requestHeaders = body.getJsonObject("request_headers");
-            JsonObject responseHeaders = body.getJsonObject("response_headers");
+                String uri = body.getString(REQUEST_URI);
+                String method = body.getString(REQUEST_METHOD);
+                HttpMethod httpMethod = HttpMethod.valueOf(method);
+                JsonObject requestHeaders = body.getJsonObject(REQUEST_HEADERS);
+                JsonObject responseHeaders = body.getJsonObject(RESPONSE_HEADERS);
 
-            MultiMap requestHeadersMap = getHeadersFromJsonObject(requestHeaders);
-            MultiMap responseHeadersMap = getHeadersFromJsonObject(responseHeaders);
+                MultiMap requestHeadersMap = JsonObjectUtils.jsonObjectToMultiMap(requestHeaders);
+                MultiMap responseHeadersMap = JsonObjectUtils.jsonObjectToMultiMap(responseHeaders);
 
-            Integer status = body.getInteger("status");
-            JsonObject payload = body.getJsonObject("payload");
-            Buffer payloadBuffer = Buffer.buffer(payload.encode());
+                Integer status = body.getInteger(REQUEST_STATUS);
+                String payloadStr = body.getString(BODY);
+                JsonObject payloadObject = new JsonObject(payloadStr);
+                Buffer payloadBuffer = Buffer.buffer(payloadObject.encode());
 
-            RequestLoggingRequest req = new RequestLoggingRequest(uri, httpMethod, requestHeadersMap);
-            logRequest(req, status, payloadBuffer, responseHeadersMap);
+                RequestLoggingRequest req = new RequestLoggingRequest(uri, httpMethod, requestHeadersMap);
+                logRequest(req, status, payloadBuffer, responseHeadersMap);
+                event.reply(new JsonObject().put(STATUS, OK));
+            } catch (Exception ex){
+                event.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, ex.getMessage()));
+            }
         });
-    }
-
-    private MultiMap getHeadersFromJsonObject(JsonObject headers){
-        CaseInsensitiveHeaders headersMap = new CaseInsensitiveHeaders();
-        for (Map.Entry<String, Object> stringObjectEntry : headers.getMap().entrySet()) {
-            headersMap.add(stringObjectEntry.getKey(), (String) stringObjectEntry.getValue());
-        }
-        return headersMap;
     }
 
     /**
@@ -64,7 +65,7 @@ public class RequestLoggingConsumer {
      * @param data the payload of the request to log
      * @param responseHeaders the response headers
      */
-    public void logRequest(final HttpServerRequest request, final int status, Buffer data, final MultiMap responseHeaders) {
+    private void logRequest(final HttpServerRequest request, final int status, Buffer data, final MultiMap responseHeaders) {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, request, vertx.eventBus());
         if (HttpMethod.PUT == request.method() || HttpMethod.POST == request.method()) {
             loggingHandler.appendRequestPayload(data);
@@ -76,7 +77,7 @@ public class RequestLoggingConsumer {
         vertx.runOnContext(event -> loggingHandler.log(request.uri(), request.method(), status, statusMessage, request.headers(), responseHeaders));
     }
 
-    class RequestLoggingRequest extends DummyHttpServerRequest {
+    private class RequestLoggingRequest extends DummyHttpServerRequest {
 
         private String uri;
         private HttpMethod method;

@@ -89,6 +89,9 @@
     <logger name="org.swisspush.gateleen.validation">
         <level value="INFO" />
     </logger>
+    <logger name="org.swisspush.gateleen.logging">
+        <level value="DEBUG" />
+    </logger>
     <logger name="org.swisspush.gateleen.integrationtest">
         <level value="DEBUG" />
     </logger>

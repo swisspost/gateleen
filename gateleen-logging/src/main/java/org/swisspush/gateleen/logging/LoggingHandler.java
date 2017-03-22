@@ -284,6 +284,7 @@ public class LoggingHandler {
 
     public void log(String uri, HttpMethod method, int statusCode, String statusMessage, MultiMap requestHeaders, MultiMap responseHeaders) {
         if (active) {
+            log.info("request is going to be logged");
             JsonObject logEvent = new JsonObject().
                     put(URL, uri).
                     put(METHOD, method.name()).
@@ -316,6 +317,8 @@ public class LoggingHandler {
             } catch (Exception ex) {
                 errorLogRequest(currentDestination, ex);
             }
+        } else {
+            log.info("request will not be logged");
         }
     }
 

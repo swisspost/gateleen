@@ -9,6 +9,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -98,6 +99,7 @@ public class SchedulerResourceManager implements Refreshable {
                 }
                 storage.put(schedulersUri, buffer, status -> {
                     if (status == 200) {
+                        RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                         vertx.eventBus().publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);
