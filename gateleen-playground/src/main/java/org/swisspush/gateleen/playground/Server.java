@@ -163,7 +163,8 @@ public class Server extends AbstractVerticle {
 
                 requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
 
-                userProfileHandler = new UserProfileHandler(vertx, storage, loggingResourceManager, RunConfig.buildUserProfileConfiguration());
+                userProfileHandler = new UserProfileHandler(vertx, storage, RunConfig.buildUserProfileConfiguration());
+                userProfileHandler.enableResourceLogging(true);
                 roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
@@ -183,11 +184,13 @@ public class Server extends AbstractVerticle {
                             hookHandler.init();
                             delegateHandler.init();
                         });
+                router.enableResourceLogging(true);
 
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
                 queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
+                queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
                 QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");
