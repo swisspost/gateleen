@@ -156,10 +156,12 @@ public class Server extends AbstractVerticle {
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+                configurationResourceManager.enableResourceLogging(true);
                 String eventBusConfigurationResource = SERVER_ROOT + "/admin/v1/hookconfig";
                 eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event-", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
+                loggingResourceManager.enableResourceLogging(true);
 
                 requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
 
@@ -175,8 +177,10 @@ public class Server extends AbstractVerticle {
 
                 authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN);
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
+                validationResourceManager.enableResourceLogging(true);
                 validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
+                schedulerResourceManager.enableResourceLogging(true);
                 zipExtractHandler = new ZipExtractHandler(selfClient);
                 delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/delegate/v1/delegates/", props);
                 router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,

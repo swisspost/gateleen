@@ -10,6 +10,8 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
@@ -25,7 +27,7 @@ import java.util.Map;
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class LoggingResourceManager {
+public class LoggingResourceManager implements LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.logging-updated";
 
@@ -35,6 +37,7 @@ public class LoggingResourceManager {
     private final Vertx vertx;
     private LoggingResource loggingResource;
     private final String loggingResourceSchema;
+    private boolean logConfigurationResourceChanges = false;
 
     public LoggingResource getLoggingResource() {
         if (loggingResource == null) {
@@ -54,6 +57,11 @@ public class LoggingResourceManager {
 
         // Receive update notifications
         vertx.eventBus().consumer(UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> updateLoggingResources());
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logConfigurationResourceChanges = resourceLoggingEnabled;
     }
 
     private void updateLoggingResources() {
@@ -108,6 +116,9 @@ public class LoggingResourceManager {
                 }
                 storage.put(loggingUri, loggingResourceBuffer, status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
+                        if(logConfigurationResourceChanges){
+                            RequestLogger.logRequest(vertx.eventBus(), request, status, loggingResourceBuffer);
+                        }
                         vertx.eventBus().publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);

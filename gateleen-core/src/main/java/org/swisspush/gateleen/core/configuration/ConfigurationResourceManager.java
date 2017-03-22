@@ -9,6 +9,8 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StatusCode;
 
@@ -22,7 +24,7 @@ import java.util.Map;
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class ConfigurationResourceManager {
+public class ConfigurationResourceManager implements LoggableResource {
 
     private Logger log = LoggerFactory.getLogger(ConfigurationResourceManager.class);
 
@@ -31,6 +33,7 @@ public class ConfigurationResourceManager {
     private Map<String, String> registeredResources;
     private Map<String, List<ConfigurationResourceObserver>> observers;
     private ConfigurationResourceValidator configurationResourceValidator;
+    private boolean logConfigurationResourceChanges = false;
 
     public static final String CONFIG_RESOURCE_CHANGED_ADDRESS = "gateleen.configuration-resource-changed";
     private static final String MESSAGE_REQUEST_URI = "requestUri";
@@ -77,6 +80,11 @@ public class ConfigurationResourceManager {
         notifyObserverAboutResourceChange(resourceUri, observer);
     }
 
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logConfigurationResourceChanges = resourceLoggingEnabled;
+    }
+
     public boolean handleConfigurationResource(final HttpServerRequest request) {
         final Logger requestLog = RequestLoggerFactory.getLogger(ConfigurationResourceManager.class, request);
 
@@ -104,6 +112,9 @@ public class ConfigurationResourceManager {
                     } else {
                         storage.put(resourceUri, buffer, status -> {
                             if (status == StatusCode.OK.getStatusCode()) {
+                                if(logConfigurationResourceChanges){
+                                    RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                                }
                                 JsonObject object = new JsonObject();
                                 object.put("requestUri", resourceUri);
                                 object.put("type", ConfigurationResourceChangeType.CHANGE);
