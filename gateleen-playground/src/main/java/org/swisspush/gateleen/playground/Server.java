@@ -176,6 +176,7 @@ public class Server extends AbstractVerticle {
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
                 hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
                         SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/", queueClient, false, reducedPropagationManager);
+                hookHandler.enableResourceLogging(true);
 
                 authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN);
                 authorizer.enableResourceLogging(true);

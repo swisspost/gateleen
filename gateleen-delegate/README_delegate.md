@@ -78,3 +78,33 @@ The executed request will be:
 }
 ```
 
+### Log delegate definition changes
+To log the payload of changes to the delegate definitions, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.
+
+Make sure to instantiate the [RequestLoggingConsumer](../gateleen-logging/src/main/java/org/swisspush/gateleen/logging/RequestLoggingConsumer.java) by calling
+                                                                                                  
+```java
+RequestLoggingConsumer requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
+```
+
+To enable the logging of the delegate definitions, make sure the url to the delegate definitions is enabled in the logging resource.
+
+Example:
+
+```json
+{
+  "headers": [],
+  "payload": {
+    "filters": [
+      {
+        "url": "/playground/server/delegate/v1/delegates/.*",
+        "method": "PUT"
+      }
+    ]
+  }
+}
+```
+Also you have to enable the logging on the [DelegateHandler](src/main/java/org/swisspush/gateleen/delegate/DelegateHandler.java) by calling
+```java
+delegateHandler.enableResourceLogging(true);
+```

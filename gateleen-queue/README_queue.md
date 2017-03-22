@@ -429,3 +429,34 @@ Based on these calculations, the following configuration values are arguable:
 80% This value can be chosen as wished. In this case the Queue Circuit Breaker should not act too agressive.
 
 The other configuration values are not very critical and therefore not mentioned here.
+
+### Log Queue Circuit Breaker configuration changes
+To log the payload of changes to the Queue Circuit Breaker configuration, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.
+
+Make sure to instantiate the [RequestLoggingConsumer](../gateleen-logging/src/main/java/org/swisspush/gateleen/logging/RequestLoggingConsumer.java) by calling
+                                                                                                  
+```java
+RequestLoggingConsumer requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
+```
+
+To enable the logging of the Queue Circuit Breaker configuration changes, make sure the url to the routing rules is enabled in the logging resource.
+
+Example:
+
+```json
+{
+  "headers": [],
+  "payload": {
+    "filters": [
+      {
+        "url": "/playground/server/admin/v1/circuitbreaker",
+        "method": "PUT"
+      }
+    ]
+  }
+}
+```
+Also you have to enable the logging on the [QueueCircuitBreakerConfigurationResource](src/main/java/org/swisspush/gateleen/queue/queuing/circuitbreaker/configuration/QueueCircuitBreakerConfigurationResource.java) by calling
+```java
+queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
+```

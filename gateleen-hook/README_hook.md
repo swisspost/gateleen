@@ -196,6 +196,37 @@ To activate this strategy, the following configuration has to be added when addi
 ```
 The _interval_ defines the amount of time in seconds to wait before propagate a single resource change.
 
+## Log hook registration changes
+To log the payload of changes to the hook registrations, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.
+
+Make sure to instantiate the [RequestLoggingConsumer](../gateleen-logging/src/main/java/org/swisspush/gateleen/logging/RequestLoggingConsumer.java) by calling
+                                                                                                  
+```java
+RequestLoggingConsumer requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
+```
+
+To enable the logging of the hook registration changes, make sure the url to the hook registrations is enabled in the logging resource.
+
+Example:
+
+```json
+{
+  "headers": [],
+  "payload": {
+    "filters": [
+      {
+        "url": "/playground/server/.*/_hooks/.*",
+        "method": "PUT"
+      }
+    ]
+  }
+}
+```
+Also you have to enable the logging on the [HookHandler](src/main/java/org/swisspush/gateleen/hook/HookHandler.java) by calling
+```java
+hookHandler.enableResourceLogging(true);
+```
+
 
 
 

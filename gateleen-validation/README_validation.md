@@ -41,3 +41,34 @@ When a json resource is configured to be validated, requests are handled by the 
 3. If the resource is not a proper json resource, reject the request
 
 Rejected requests will be answered with status code **400 Bad Request**
+
+#### Log validation configuration changes
+To log the payload of changes to the validation configuration, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.
+
+Make sure to instantiate the [RequestLoggingConsumer](../gateleen-logging/src/main/java/org/swisspush/gateleen/logging/RequestLoggingConsumer.java) by calling
+                                                                                                  
+```java
+RequestLoggingConsumer requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
+```
+
+To enable the logging of the validation configuration, make sure the url to the validation configuration is enabled in the logging resource.
+
+Example:
+
+```json
+{
+  "headers": [],
+  "payload": {
+    "filters": [
+      {
+        "url": "/playground/server/admin/v1/validation",
+        "method": "PUT"
+      }
+    ]
+  }
+}
+```
+Also you have to enable the logging on the [ValidationResourceManager](src/main/java/org/swisspush/gateleen/validation/ValidationResourceManager.java) by calling
+```java
+validationResourceManager.enableResourceLogging(true);
+```
