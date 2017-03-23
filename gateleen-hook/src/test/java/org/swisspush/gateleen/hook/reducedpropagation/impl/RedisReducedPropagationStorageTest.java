@@ -39,7 +39,7 @@ public class RedisReducedPropagationStorageTest {
     private static RedisReducedPropagationStorage storage;
 
     @org.junit.Rule
-    public Timeout rule = Timeout.seconds(5);
+    public Timeout rule = Timeout.seconds(10);
 
     @BeforeClass
     public static void setupStorage() {
