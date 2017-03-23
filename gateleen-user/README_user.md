@@ -54,3 +54,39 @@ new UserProfileHandler(vertx, storage, SERVER_ROOT + "/users/v1/([^/]+)/profile"
 
 You can also define the default allowed properties using this constructor. Default allowed properties can not be removed from the profile when forgotten to add to the allowedProfileProperties resource.
 So these properties are more "secured" when defining as default.
+
+### Log user profile and role profile changes
+To log the payload of changes to the user profiles and role profiles, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.
+
+Make sure to instantiate the [RequestLoggingConsumer](../gateleen-logging/src/main/java/org/swisspush/gateleen/logging/RequestLoggingConsumer.java) by calling
+                                                                                                  
+```java
+RequestLoggingConsumer requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
+```
+
+To enable the logging of the user profiles and role profiles, make sure the url to these profiles is enabled in the logging resource.
+
+Example:
+
+```json
+{
+  "headers": [],
+  "payload": {
+    "filters": [
+      {
+        "url": "/playground/server/users/v1/.*",
+        "method": "PUT"
+      },
+      {
+        "url": "/playground/server/roles/v1/.*",
+        "method": "PUT"
+      }      
+    ]
+  }
+}
+```
+Also you have to enable the logging on the [UserProfileHandler](src/main/java/org/swisspush/gateleen/user/UserProfileHandler.java) and the [RoleProfileHandler](src/main/java/org/swisspush/gateleen/user/RoleProfileHandler.java) by calling
+```java
+userProfileHandler.enableResourceLogging(true);
+roleProfileHandler.enableResourceLogging(true);
+```

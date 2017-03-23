@@ -11,6 +11,8 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
@@ -52,7 +54,7 @@ import java.util.regex.Pattern;
  *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class DelegateHandler implements Refreshable {
+public class DelegateHandler implements Refreshable, LoggableResource {
     private static final String DEFINITION_RESOURCE = "definition";
     private static final String EXECUTION_RESOURCE = "execution";
     private static final String SAVE_DELEGATE_ADDRESS = "gateleen.delegate-insert";
@@ -71,6 +73,7 @@ public class DelegateHandler implements Refreshable {
     private final Map<String, Delegate> delegateMap;
 
     private boolean initialized;
+    private boolean logDelegateChanges = false;
 
 
     /**
@@ -259,6 +262,9 @@ public class DelegateHandler implements Refreshable {
             // if everything is fine, put it to the storage
             storage.put(request.uri(),request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode() ) {
+                    if(logDelegateChanges){
+                        RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                    }
                     vertx.eventBus().publish(SAVE_DELEGATE_ADDRESS, delegateName + ";" +request.uri());
                 } else {
                     request.response().setStatusCode(status);
@@ -368,5 +374,10 @@ public class DelegateHandler implements Refreshable {
     @Override
     public void refresh() {
         loadStoredDelegates();
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logDelegateChanges = resourceLoggingEnabled;
     }
 }

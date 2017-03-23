@@ -9,6 +9,8 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
@@ -20,23 +22,23 @@ import org.swisspush.gateleen.validation.Validator;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.swisspush.gateleen.core.util.StatusCode.OK;
+
 /**
  * Manager class for the {@link QueueCircuitBreakerConfigurationResource}.
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class QueueCircuitBreakerConfigurationResourceManager {
+public class QueueCircuitBreakerConfigurationResourceManager implements LoggableResource {
     private static final String UPDATE_ADDRESS = "gateleen.queue-circuit-breaker.config-updated";
 
+    private boolean logConfigurationResourceChanges = false;
     private final String circuitBreakerConfigUri;
     private final ResourceStorage storage;
     private final Logger log = LoggerFactory.getLogger(QueueCircuitBreakerConfigurationResourceManager.class);
     private final Vertx vertx;
-
     private QueueCircuitBreakerConfigurationResource configurationResource;
-
     private final List<Refreshable> refreshables;
-
     private final String configResourceSchema;
 
     public QueueCircuitBreakerConfigurationResourceManager(Vertx vertx, ResourceStorage storage, String circuitBreakerConfigUri) {
@@ -65,6 +67,11 @@ public class QueueCircuitBreakerConfigurationResourceManager {
             configurationResource = new QueueCircuitBreakerConfigurationResource();
         }
         return configurationResource;
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logConfigurationResourceChanges = resourceLoggingEnabled;
     }
 
     /**
@@ -105,7 +112,10 @@ public class QueueCircuitBreakerConfigurationResourceManager {
                     return;
                 }
                 storage.put(circuitBreakerConfigUri, configResourceBuffer, status -> {
-                    if (status == StatusCode.OK.getStatusCode()) {
+                    if (status == OK.getStatusCode()) {
+                        if(logConfigurationResourceChanges){
+                            RequestLogger.logRequest(vertx.eventBus(), request, OK.getStatusCode(), configResourceBuffer);
+                        }
                         vertx.eventBus().publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);

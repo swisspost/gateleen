@@ -59,3 +59,33 @@ The possible attributes are:
 
 > <font color="orange">Attention: </font> Be aware that a metric is only available (in JMX) after a HTTP request (PUT/GET/...) was performed. Therefore it’s correct if the log shows something like **_MBean X for sentinel Y is not ready yet ..._** The QoS feature considers only available metrics (from the sentinels) for its calculation.
  
+## Log Qos ruleset changes
+To log the payload of changes to the Qos ruleset, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.
+
+Make sure to instantiate the [RequestLoggingConsumer](../gateleen-logging/src/main/java/org/swisspush/gateleen/logging/RequestLoggingConsumer.java) by calling
+                                                                                                  
+```java
+RequestLoggingConsumer requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
+```
+
+To enable the logging of the Qos ruleset, make sure the url to the ruleset is enabled in the logging resource.
+
+Example:
+
+```json
+{
+  "headers": [],
+  "payload": {
+    "filters": [
+      {
+        "url": "/playground/server/admin/v1/.*",
+        "method": "PUT"
+      }
+    ]
+  }
+}
+```
+Also you have to enable the logging on the [QoSHandler](src/main/java/org/swisspush/gateleen/qos/QoSHandler.java) by calling
+```java
+qosHandler.enableResourceLogging(true);
+```

@@ -9,6 +9,8 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -23,7 +25,7 @@ import java.util.Map;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class SchedulerResourceManager implements Refreshable {
+public class SchedulerResourceManager implements Refreshable, LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.schedulers-updated";
     private String schedulersUri;
@@ -34,6 +36,7 @@ public class SchedulerResourceManager implements Refreshable {
     private Map<String, Object> properties;
     private SchedulerFactory schedulerFactory;
     private String schedulersSchema;
+    private boolean logConfigurationResourceChanges = false;
 
     public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, MonitoringHandler monitoringHandler, String schedulersUri) {
         this(vertx, redisClient, storage, monitoringHandler, schedulersUri, null);
@@ -98,6 +101,9 @@ public class SchedulerResourceManager implements Refreshable {
                 }
                 storage.put(schedulersUri, buffer, status -> {
                     if (status == 200) {
+                        if(logConfigurationResourceChanges) {
+                            RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                        }
                         vertx.eventBus().publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);
@@ -138,5 +144,10 @@ public class SchedulerResourceManager implements Refreshable {
     @Override
     public void refresh() {
         updateSchedulers();
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logConfigurationResourceChanges = resourceLoggingEnabled;
     }
 }

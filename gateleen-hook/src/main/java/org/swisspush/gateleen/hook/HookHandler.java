@@ -13,6 +13,8 @@ import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.CollectionContentComparator;
 import org.swisspush.gateleen.core.util.HttpRequestHeader;
@@ -37,7 +39,7 @@ import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
  *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class HookHandler {
+public class HookHandler implements LoggableResource {
     public static final String HOOKED_HEADER = "x-hooked";
     public static final String HOOK_ROUTES_LISTED = "x-hook-routes-listed";
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
@@ -87,6 +89,8 @@ public class HookHandler {
     private RequestQueue requestQueue;
 
     private ReducedPropagationManager reducedPropagationManager;
+
+    private boolean logHookConfigurationResourceChanges = false;
 
     /**
      * Creates a new HookHandler.
@@ -163,6 +167,11 @@ public class HookHandler {
         loadStoredRoutes();
 
         registerCleanupHandler();
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logHookConfigurationResourceChanges = resourceLoggingEnabled;
     }
 
     /**
@@ -872,8 +881,12 @@ public class HookHandler {
                 return;
             }
             storageObject.put(HOOK, hook);
-            storage.put(routeStorageUri, request.headers(), Buffer.buffer(storageObject.toString()), status -> {
+            Buffer buffer = Buffer.buffer(storageObject.toString());
+            storage.put(routeStorageUri, request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
+                    if(logHookConfigurationResourceChanges){
+                        RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                    }
                     vertx.eventBus().publish(SAVE_ROUTE_ADDRESS, routeStorageUri);
                 } else {
                     request.response().setStatusCode(status);
@@ -998,8 +1011,12 @@ public class HookHandler {
             storageObject.put(EXPIRATION_TIME, ExpiryCheckHandler.printDateTime(expirationTime));
             storageObject.put(HOOK, hook);
 
-            storage.put(listenerStorageUri, request.headers(), Buffer.buffer(storageObject.toString()), status -> {
+            Buffer buffer = Buffer.buffer(storageObject.toString());
+            storage.put(listenerStorageUri, request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
+                    if(logHookConfigurationResourceChanges){
+                        RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                    }
                     vertx.eventBus().publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
                 } else {
                     request.response().setStatusCode(status);

@@ -18,6 +18,8 @@ public final class Address {
 
     public static String redisquesAddress() { return "redisques-address-"+ID; }
 
+    public static String requestLoggingConsumerAddress() { return "request-logging-consumer-address-"+ID; }
+
     public static String customRedisquesAddress(String redisquesAddress) {
         return redisquesAddress + "-" + ID;
     }

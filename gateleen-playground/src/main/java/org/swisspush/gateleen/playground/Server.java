@@ -32,6 +32,7 @@ import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.RequestLoggingConsumer;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.monitoring.ResetMetricsController;
@@ -78,6 +79,7 @@ public class Server extends AbstractVerticle {
     private Authorizer authorizer;
     private Router router;
     private LoggingResourceManager loggingResourceManager;
+    private RequestLoggingConsumer requestLoggingConsumer;
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
     private SchedulerResourceManager schedulerResourceManager;
@@ -153,36 +155,51 @@ public class Server extends AbstractVerticle {
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
+                qosHandler.enableResourceLogging(true);
                 configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+                configurationResourceManager.enableResourceLogging(true);
                 String eventBusConfigurationResource = SERVER_ROOT + "/admin/v1/hookconfig";
                 eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event-", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
-                userProfileHandler = new UserProfileHandler(vertx, storage, loggingResourceManager, RunConfig.buildUserProfileConfiguration());
+                loggingResourceManager.enableResourceLogging(true);
+
+                requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
+
+                userProfileHandler = new UserProfileHandler(vertx, storage, RunConfig.buildUserProfileConfiguration());
+                userProfileHandler.enableResourceLogging(true);
                 roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
+                roleProfileHandler.enableResourceLogging(true);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
                 reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient), queueClient);
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
                 hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
                         SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/", queueClient, false, reducedPropagationManager);
+                hookHandler.enableResourceLogging(true);
 
                 authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN);
+                authorizer.enableResourceLogging(true);
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
+                validationResourceManager.enableResourceLogging(true);
                 validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
+                schedulerResourceManager.enableResourceLogging(true);
                 zipExtractHandler = new ZipExtractHandler(selfClient);
                 delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/delegate/v1/delegates/", props);
+                delegateHandler.enableResourceLogging(true);
                 router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
                         (Handler<Void>) aVoid -> {
                             hookHandler.init();
                             delegateHandler.init();
                         });
+                router.enableResourceLogging(true);
 
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
                 queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
+                queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
                 QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");

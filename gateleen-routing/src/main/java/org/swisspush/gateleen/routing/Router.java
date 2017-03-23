@@ -13,6 +13,8 @@ import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
@@ -29,7 +31,7 @@ import java.util.*;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class Router implements Refreshable {
+public class Router implements Refreshable, LoggableResource {
 
     /**
      * How long to let the http clients live before closing them after a re-configuration
@@ -55,6 +57,8 @@ public class Router implements Refreshable {
     private int storagePort;
     private boolean initialized = false;
     private String routingRulesSchema;
+
+    private boolean logRoutingRuleChanges = false;
 
     public Router(Vertx vertx,
                   LocalMap<String, Object> sharedData,
@@ -226,6 +230,9 @@ public class Router implements Refreshable {
                 }
                 storage.put(rulesUri, buffer, status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
+                        if(logRoutingRuleChanges) {
+                            RequestLogger.logRequest(vertx.eventBus(), request, StatusCode.OK.getStatusCode(), buffer);
+                        }
                         vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
                         resetRouterBrokenState();
                     } else {
@@ -467,5 +474,10 @@ public class Router implements Refreshable {
     public void refresh() {
         vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
         resetRouterBrokenState();
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logRoutingRuleChanges = resourceLoggingEnabled;
     }
 }
