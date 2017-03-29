@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
+import org.swisspush.gateleen.queue.queuing.QueueClient;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -130,7 +131,7 @@ public class Scheduler {
 
             ExpiryCheckHandler.updateServerTimestampHeader(request);
 
-            vertx.eventBus().send(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
+            vertx.eventBus().send(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
                 @Override
                 public void handle(AsyncResult<Message<JsonObject>> event) {
                     if (!OK.equals(event.result().body().getString(STATUS))) {
