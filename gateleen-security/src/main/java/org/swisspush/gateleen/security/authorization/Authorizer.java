@@ -159,7 +159,7 @@ public class Authorizer implements LoggableResource {
 
     private void handleIsAuthorized(final HttpServerRequest request, Future<Boolean> future){
         if (!isAuthorized(request)) {
-            RequestLoggerFactory.getLogger(Authorizer.class, request).info("403 Forbidden");
+            RequestLoggerFactory.getLogger(Authorizer.class, request).info(StatusCode.FORBIDDEN.toString());
             request.response().setStatusCode(StatusCode.FORBIDDEN.getStatusCode());
             request.response().setStatusMessage(StatusCode.FORBIDDEN.getStatusMessage());
             request.response().end(StatusCode.FORBIDDEN.getStatusMessage());
@@ -185,7 +185,6 @@ public class Authorizer implements LoggableResource {
                         } else {
                             request.response().end(validationException.getMessage());
                         }
-                        future.complete(Boolean.FALSE);
                         return;
                     }
                     storage.put(request.uri(), buffer, status -> {
