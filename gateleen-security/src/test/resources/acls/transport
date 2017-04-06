@@ -1,0 +1,38 @@
+{
+  "transport.menu.display": {},
+  "ui.transport.context": {},
+  "pam.readonly": {},
+  "zzz.pl": {},
+  "zzz.transport": {},
+  "tls.all": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/tls/.*"
+  },
+  "tlsmobile.all": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/tls/.*"
+  },
+  "scan.zips.edit": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/scan/v1/zips.*"
+  },
+  "zzzl.all": {
+     "methods": [
+       "GET",
+       "PUT"
+     ],
+     "path": "/gateleen/zzzl/v1/zips.*"
+  }
+}

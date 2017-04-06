@@ -1,0 +1,18 @@
+{
+  "delivery.menu.display": {},
+  "ui.delivery.context": {},
+  "zzzl.all": {
+     "methods": [
+       "GET",
+       "PUT"
+     ],
+     "path": "/gateleen/zzzl/v1/zips.*"
+  },
+  "scan.zips.read": {
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "path": "/gateleen/scan/v1/zips.*"
+  }
+}

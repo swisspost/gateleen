@@ -1,0 +1,16 @@
+{
+  "external.menu.display": {},
+  "ui.external.context": {},
+  "zzz.pm": {},
+  "zzz.pm-external": {},
+  "abc.fullaccess": {},
+  "scan.zips.edit": {
+      "methods": [
+        "GET",
+        "PUT",
+        "POST",
+        "DELETE"
+      ],
+      "path": "/gateleen/scan/v1/zips.*"
+    }
+}

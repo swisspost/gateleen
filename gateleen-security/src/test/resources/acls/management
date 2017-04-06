@@ -1,0 +1,11 @@
+{
+  "management.menu.display": {},
+  "ui.management.context": {},
+  "zzzl.all": {
+     "methods": [
+       "GET",
+       "PUT"
+     ],
+     "path": "/gateleen/zzzl/v1/zips.*"
+  }
+}

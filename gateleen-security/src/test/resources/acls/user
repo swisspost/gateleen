@@ -1,0 +1,635 @@
+{
+	"ui.admin.menu": {},
+	"pref.application.version": {},
+	"pref.employee.number": {},
+	"pref.features": {},
+	"pref.language": {},
+	"pref.context": {},
+	"pref.scanner": {},
+	"pref.screen.orientation": {},
+	"pref.torch.mode": {},
+	"pref.tour": {},
+	"pref.user.name": {},
+	"pref.volume.beep": {},
+	"pref.volume.beep.failure": {},
+	"pref.volume.beep.success": {},
+    "hooks.edit": {
+        "methods": [
+          "PUT",
+          "DELETE"
+        ],
+        "path": "/gateleen/.*/_hooks/listeners/http/push/.*"
+    },    
+	"edddata.get": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/server/xcamp/.*"
+	},
+	"zzzl.all": {
+		"methods": [
+			"GET",
+			"PUT"
+		],
+		"path": "/gateleen/fari/.*"
+	},
+	"page.read": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen(/(.*\\.html|css/.*|js/.*|img/.*|server/pages/.*)?)?"
+	},
+	"info.read": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/(.+/)*info(\\?.*)?"
+	},
+	"tomcat.apps": {
+		"methods": [
+			"GET",
+			"POST"
+		],
+		"path": "/gateleen/apps/.*"
+	},
+	"android.apps.crash": {
+		"methods": [
+			"GET",
+			"POST",
+			"PUT"
+		],
+		"path": "/gateleen/server/apps/.*"
+	},
+	"android.apps.factory": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/factory/.*"
+	},
+	"android.apps.archive": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/archive/.*"
+	},
+	"ui.problem.reports": {
+		"methods": [
+			"PUT"
+		],
+		"path": "/gateleen/ui/problem-reports/.*"
+	},
+	"ui.read": {
+		"methods": [
+			"GET",
+			"POST"
+		],
+		"path": "/gateleen/ui/.*"
+	},
+	"zlpe.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/zlpe/.*"
+	},
+	"edds.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/edds/.*"
+	},
+	"ilo.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/ilodge/.*"
+	},
+	"ppp.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/ppp/.*"
+	},
+	"pes.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/pes/.*"
+	},
+	"corx.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/corx/.*"
+	},
+	"abba.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/(abba|qwertz)/.*"
+	},
+	"anz.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/anz/.*"
+	},
+	"back.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/back/.*"
+	},
+	"xxmp.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/xxmp/.*"
+	},
+	"pam.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/(sc)?pam/.*"
+	},
+	"ampplus.all": {
+		"methods": [
+			"GET",
+			"POST",
+            "DELETE"
+		],
+		"path": "/gateleen/ampplus/.*"
+	},
+	"hse.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/hse/.*"
+	},
+	"prop.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/prop/.*"
+	},
+	"zzz.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/zzz/.*"
+	},
+	"zzz.myp24.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/myp24/.*"
+	},
+	"azb.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/azb/.*"
+	},
+	"tck.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/tck/.*"
+	},
+	"tckslave.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/tckslave/.*"
+	},
+	"zgas.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/zgas/.*"
+	},
+	"taxi.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/taxi/.*"
+	},
+	"tdl.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/tdl/.*"
+	},
+	"geo.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/geo/.*"
+	},
+	"tls.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/tls/.*"
+	},
+	"tlsmobile.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/tls/.*"
+	},
+	"nsa.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/nsa/.*"
+	},
+	"brel.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/brel/.*"
+	},
+	"vora.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/vora/.*"
+	},
+	"qslep.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/qslep/.*"
+	},
+	"easyavis.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/easyavis/.*"
+	},
+	"test.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/server/tests/.*"
+	},
+	"acl.read": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/server/security/v1/acls/.*"
+	},
+	"wificonfig.read": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/server/security/v1/wifi_configuration"
+	},
+	"credentials.read": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/server/security/v1/credentials"
+	},
+	"productcatalog.read": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/dry/business/product/.*"
+	},
+	"appicons.read": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/dry/business/appicons/.*"
+	},
+	"menuicons.read": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/dry/business/menuicons/.*"
+	},
+    "dry.runtimeconfiguration.read": {
+      "methods": [
+        "GET"
+      ],
+      "path": "/gateleen/dry/runtimeConfiguration"
+    },
+	"profile": {
+		"methods": [
+			"GET",
+			"PUT"
+		],
+		"path": "/gateleen/server/users/v1/.*/profile(\\?.*)?"
+	},
+	"settings": {
+		"methods": [
+			"GET",
+			"PUT"
+		],
+		"path": "/gateleen/server/users/v1/.*/settings"
+	},
+	"usersettings": {
+		"methods": [
+			"GET",
+			"PUT"
+		],
+		"path": "/gateleen/server/users/v1/.*/userSettings"
+	},
+    "appconfig": {
+        "methods": [
+            "GET",
+            "PUT"
+        ],
+        "path": "/gateleen/server/users/v1/.*/appconfig/.*"
+    },
+	"loginfo": {
+		"methods": [
+			"GET",
+			"PUT"
+		],
+		"path": "/gateleen/mmm/v1/devices/.*"
+	},
+	"loginfo.old": {
+		"methods": [
+			"GET",
+			"PUT"
+		],
+		"path": "/gateleen/mmm/v1/users/.*/logininfo(\\?.*)?"
+	},
+	"passkey.set": {
+		"methods": [
+			"PUT"
+		],
+		"path": "/gateleen/adam/.*"
+	},
+	"user.edd": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/edd/.*"
+	},
+	"user.eddtrash": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/eddtrash/.*"
+	},
+	"user.eddtest": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/eddtest/.*"
+	},
+	"user.eddtesttrash": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/eddtesttrash/.*"
+	},
+	"user.showQueues": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/server/queues/.*"
+	},
+	"user.queueing": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/server/queuing/.*"
+	},
+	"user.seeb": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/seeb/.*"
+	},
+	"mbk.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/mbk/.*"
+	},
+	"mbk.internal.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/mbk-internal/.*"
+	},
+	"visa.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/(server/visa|visa|visaedds|visafari)/.*"
+	},
+	"tools.read": {
+		"methods": [
+			"GET"
+		],
+		"path": "/gateleen/tools/.*"
+	},
+	"sales.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/factory/.*"
+	},
+	"user.masterdata": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST"
+		],
+		"path": "/gateleen/masterdata/.*"
+	},
+	"pkp.all": {
+		"methods": [
+			"GET",
+			"PUT",
+			"POST",
+			"DELETE"
+		],
+		"path": "/gateleen/pickpost/.*"
+	},
+	"prop.edit": {
+		"methods": [
+			"GET",
+			"PUT"
+		],
+		"path": "/gateleen/prop/v1/.*"
+	},
+	"sisy.put": {
+		"methods": [
+			"PUT"
+		],
+		"path": "/gateleen/sisy/v1/.*"
+	},
+	"shiftinfo.put": {
+		"methods": [
+			"PUT"
+		],
+		"path": "/gateleen/shiftinfo/v1/.*"
+	},
+	"taskexecution.event.write": {
+		"methods": [
+			"PUT"
+		],
+		"path": "/gateleen/taskexecution/.*"
+	},
+	"syslog.event.write": {
+		"methods": [
+			"PUT"
+		],
+		"path": "/gateleen/syslog/.*"
+	},
+	"push.event": {
+		"methods": [
+			"GET",
+			"PUT"
+		],
+		"path": "/gateleen/server/push/.*"
+	},
+	"ggux.storage.zips.read": {
+		"path": "/gateleen/ggux/v1/contacts/zips/.*",
+		"methods": [
+			"GET"
+		]
+	},
+	"ggux.storage.departments.read": {
+		"path": "/gateleen/ggux/v1/contacts/departments/.*",
+		"methods": [
+			"GET", "GET", "HEAD"
+		]
+	},
+	"ggux.server.devices": {
+		"path": "/gateleen/ggux/v1/devices/.*",
+		"methods": [
+			"PUT", "GET", "HEAD"
+		]
+	},
+	"ggux.server.contacts.upload": {
+		"path": "/gateleen/ggux/v1/contacts/misc/upload.*",
+		"methods": [
+			"PUT", "POST", "HEAD", "GET"
+		]
+	},
+	"ggux.server.user.login": {
+		"path": "/gateleen/ggux/v1/users/.*",
+		"methods": [
+			"PUT", "DELETE", "HEAD", "GET"
+		]
+	},
+	"ggux.server.info.about": {
+		"path": "/gateleen/ggux/v1/about",
+		"methods": [
+			"HEAD", "GET"
+		]
+	},
+	"ggux.server.info.configuration": {
+		"path": "/gateleen/ggux/v1/configuration",
+		"methods": [
+			"HEAD", "GET"
+		]
+	},
+	"ggux.server.assets": {
+		"path": "/gateleen/ggux/v1/assets/.*",
+		"methods": [
+			"HEAD", "GET"
+		]
+	},
+	"ggux.server.pages": {
+		"path": "/gateleen/ggux/v1/pages/.*",
+		"methods": [
+			"HEAD", "GET"
+		]
+	}
+}

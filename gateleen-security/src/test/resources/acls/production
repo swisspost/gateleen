@@ -1,0 +1,45 @@
+{
+  "production.menu.display": {},
+  "ui.production.context": {},
+  "pam.readonly": {},
+  "zzz.pl": {},
+  "zzz.pl-production": {},
+  "tls.all": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/tls/.*"
+  },
+  "mobile.all": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/mobile/.*"
+  },
+  "scan.zips.read": {
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "path": "/gateleen/scan/v1/zips.*"
+  },
+  "scan.zips.edit": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/scan/v1/zips.*"
+  },
+  "zzzl.all": {
+    "methods": [
+      "GET",
+      "PUT"
+    ],
+    "path": "/gateleen/zzzl/v1/zips.*"
+  }
+}

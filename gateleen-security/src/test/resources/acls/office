@@ -1,0 +1,17 @@
+{
+  "office.menu.display": {},
+  "ui.office.context": {},
+  "zzz.pm": {},
+  "zzz.pm-briefbote_gem": {},
+  "zzz.office": {},
+  "zzz.office-briefbote_gem": {},
+  "pam.fullaccess": {},
+  "scan.zips.edit": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/scan/v1/zips.*"
+  }
+}

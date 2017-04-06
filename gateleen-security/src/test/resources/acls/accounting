@@ -1,0 +1,21 @@
+{
+  "accounting.menu.display": {},
+  "ui.accounting.context": {},
+  "pam.readonly": {},
+  "zzz.accounting": {},
+  "scan.zips.read": {
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "path": "/gateleen/scan/v1/zips.*"
+  },
+  "scan.zips.edit": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/scan/v1/zips.*"
+  }
+}

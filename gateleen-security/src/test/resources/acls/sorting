@@ -1,0 +1,11 @@
+{
+  "sorting.menu.display": {},
+  "ui.sorting.context": {},
+  "scan.zips.read": {
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "path": "/gateleen/scan/v1/zips.*"
+  }
+}

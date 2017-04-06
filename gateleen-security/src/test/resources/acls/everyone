@@ -1,0 +1,23 @@
+{
+  "debug.read": {
+    "methods": [
+      "GET"
+    ],
+    "path": "/[^/]+/debug"
+  },
+  "pes.all": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/pes/.*"
+  },
+  "profile": {
+    "methods": [
+      "GET",
+      "PUT"
+    ],
+    "path": "/gateleen/server/users/v1/.*/profile(\\?.*)?"
+  }
+}
