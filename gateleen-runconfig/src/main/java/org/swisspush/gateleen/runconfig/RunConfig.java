@@ -21,6 +21,8 @@ import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.property.PropertyHandler;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
@@ -503,17 +505,16 @@ public class RunConfig {
                 }
 
                 if(authorizer != null){
-//                    authorizer.authorize(request).setHandler(event -> {
-//                        if(event.succeeded() && event.result()){
-//                            handleRequest(request);
-//                        } else if(event.failed()){
-//                            ResponseStatusCodeLogUtil.debug(request, StatusCode.INTERNAL_SERVER_ERROR, RunConfig.class);
-//                            request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-//                            request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
-//                            request.response().end(event.cause().getMessage());
-//                        }
-//                    });
-                    authorizer.authorize(request, event -> handleRequest(request));
+                    authorizer.authorize(request).setHandler(event -> {
+                        if(event.succeeded() && event.result()){
+                            handleRequest(request);
+                        } else if(event.failed()){
+                            ResponseStatusCodeLogUtil.debug(request, StatusCode.INTERNAL_SERVER_ERROR, RunConfig.class);
+                            request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                            request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+                            request.response().end(event.cause().getMessage());
+                        }
+                    });
                 } else {
                     handleRequest(request);
                 }
