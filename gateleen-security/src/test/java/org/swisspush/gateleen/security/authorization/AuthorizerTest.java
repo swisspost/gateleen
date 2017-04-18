@@ -10,6 +10,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -25,6 +26,8 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.Arrays;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.timeout;
@@ -240,7 +243,65 @@ public class AuthorizerTest {
         Mockito.verify(response, timeout(1000).times(1)).end(eq(StatusCode.FORBIDDEN.getStatusMessage()));
     }
 
+    @Test
+    public void testPattern(){
+//        Pattern pattern = Pattern.compile("/gateleen/(.+/)*info(\\\\?.*)?");
+        Pattern pattern = Pattern.compile("/nemo/[^/]+/info");
+//        String uri = "/gateleen/zzz/v1/scans/zips/601060/types/470/test/modes/TestMode/messages/_hooks/listeners/http/push/dx1489066323470-zzz_/gateleen/zzz/v1/scans/zips/601060/types/470/test/modes/TestMode/messages/";
+//        String uri = "/gateleen/zzz/v1/scans/zips/601060/types/470/test/modes/TestMode/messages/_hooks/listeners/http/push/dx1489066323470-zzz_/gateleen/zzz/v1/scans/zips/601060/adfasdgasdgas/dgs/adg/asldg/sdgsadg/asdgasdgasdgasdg";
+        String uri = "/nemo/abc/dse/info";
 
+        long start = System.currentTimeMillis();
+        Matcher matcher = pattern.matcher(uri);
+        long end;
+        if(matcher.matches()){
+            end = System.currentTimeMillis();
+            System.out.println("Matched: " + (end - start) + " ms");
+        } else {
+            end = System.currentTimeMillis();
+            System.out.println("No Match: " + (end - start) + " ms");
+        }
+
+    }
+
+    @Test
+    public void testPerformanceOfAuthorize(TestContext context) {
+        Async async = context.async();
+        String requestUri = "/gateleen/zzz/v1/scans/zips/601060/types/470/test/modes/TestMode/messages/_hooks/listeners/http/push/dx1489066323470-zzz_/gateleen/zzz/v1/scans/zips/601060/types/470/test/modes/TestMode/messages/";
+
+        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+//        headers.add("x-rp-grp", "z-gateleen-admin");
+
+        headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated,z-gateleen-developer,z-gateleen-device," +
+                "z-gateleen-everyone,z-gateleen-sales,z-gateleen-factory,z-gateleen-guest,z-gateleen-office," +
+                "z-gateleen-transport,z-gateleen-accounting,z-gateleen-management,z-gateleen-production,z-gateleen-partner," +
+                "z-gateleen-support,z-gateleen-medical,z-gateleen-resources,z-gateleen-external,z-gateleen-federal," +
+                "z-gateleen-internal,z-gateleen-sorting,z-gateleen-delivery,z-gateleen-agency,z-gateleen-security," +
+                "z-gateleen-technical_support,z-gateleen-offshore,z-gateleen-user");
+
+//        headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated,z-gateleen-developer,z-gateleen-device," +
+//                "z-gateleen-everyone,z-gateleen-sales,z-gateleen-factory,z-gateleen-guest,z-gateleen-office," +
+//                "z-gateleen-transport,z-gateleen-accounting,z-gateleen-management,z-gateleen-production,z-gateleen-partner," +
+//                "z-gateleen-support,z-gateleen-medical,z-gateleen-resources,z-gateleen-external,z-gateleen-federal," +
+//                "z-gateleen-internal,z-gateleen-sorting,z-gateleen-delivery,z-gateleen-agency,z-gateleen-security," +
+//                "z-gateleen-technical_support,z-gateleen-offshore");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.DELETE, requestUri, headers, response);
+
+//        authorizer.authorize(req, event -> {
+//            context.assertTrue(true);
+//            async.complete();
+//        });
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+            async.complete();
+        });
+
+//        Mockito.verify(response, Mockito.timeout(1000).times(1)).setStatusCode(eq(StatusCode.OK.getStatusCode()));
+    }
 
     private void setupAcls(){
         JsonObject acls = new JsonObject();
@@ -312,5 +373,4 @@ public class AuthorizerTest {
             return this;
         }
     }
-
 }
