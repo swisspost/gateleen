@@ -50,6 +50,7 @@ This calculated ratio is later used to check if a rule needs some actions or not
 The **rules** section defines the rules for the QoS. Each rule is based on a pattern like the routing rules. 
 The possible attributes are:
  
+| Attribute  | Description                              |
 |:-----------| ---------------------------------------- |
 | **reject** | The ratio (eg. 1.3 means that *`<quorum>`* % of all sentinels must have an even or greater current ratio) which defines when a rule rejects the given request.  |
 | **warn**   | The ratio which defines when a rule writes a warning in the log without rejecting the given request  |
