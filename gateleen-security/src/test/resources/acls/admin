@@ -1,0 +1,136 @@
+{
+  "ui.admin.menu": {},
+  "ui.admin.context": {},
+  "all.edit": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/.*"
+  },
+  "ui.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/ui/.*"
+  },
+  "dry.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/dry/.*"
+  },
+  "azb.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/azb/.*"
+  },
+  "queues.edit": {
+    "methods": [
+      "GET",
+      "PUT",
+      "DELETE"
+    ],
+    "path": "/gateleen/server/queuing/.*"
+  },
+  "pushnotification.queues.edit": {
+    "methods": [
+      "GET",
+      "PUT",
+      "DELETE"
+    ],
+    "path": "/gateleen/server/pushnotification/queuing/.*"
+  },
+  "eddtrash.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/eddtrash/.*"
+  },
+  "mmmtrash.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/mmmtrash/.*"
+  },
+  "mmm.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/mmm/.*"
+  },
+  "scan.zips.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/scan/v1/zips.*"
+  },
+  "zzz.zips.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/zzz/v1/(scan/)?zips/999899/.*"
+  },
+  "apps.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/server/apps/.*"
+  },
+  "eddpv.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/server/eddpv/.*"
+  },
+  "pages.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/server/pages/.*"
+  },
+  "acls.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/server/security/v1/acls/.*"
+  },
+  "xcamp.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/server/xcamp/.*"
+  },
+  "test1.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/server/test1/.*"
+  },
+  "tests.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/server/tests/.*"
+  },
+  "schemas.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/schemas/.*"
+  },
+  "device.logs.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/device/logs/.*"
+  },
+  "xxmp.test.delete": {
+    "methods": [
+      "DELETE"
+    ],
+    "path": "/gateleen/xxmp/.*"
+  }
+}

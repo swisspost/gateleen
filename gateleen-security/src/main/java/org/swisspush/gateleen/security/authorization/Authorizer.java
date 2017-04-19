@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.security.authorization;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -92,8 +93,45 @@ public class Authorizer implements LoggableResource {
         this.logACLChanges = resourceLoggingEnabled;
     }
 
-    public void authorize(final HttpServerRequest request, final Handler<Void> handler) {
+    public Future<Boolean> authorize(final HttpServerRequest request){
+        Future<Boolean> future = Future.future();
 
+        handleUserUriRequest(request, future);
+
+        if(!future.isComplete()){
+            handleIsAuthorized(request, future);
+        }
+
+        if(!future.isComplete()){
+            handleAclUriRequest(request, future);
+        }
+
+        if(!future.isComplete()) {
+            future.complete(Boolean.TRUE);
+        }
+
+        return future;
+    }
+
+    public void authorize(final HttpServerRequest request, final Handler<Void> handler) {
+        Future<Boolean> future = Future.future();
+
+        handleUserUriRequest(request, future);
+
+        if(!future.isComplete()){
+            handleIsAuthorized(request, future);
+        }
+
+        if(!future.isComplete()){
+            handleAclUriRequest(request, future);
+        }
+
+        if(!future.isComplete()) {
+            handler.handle(null);
+        }
+    }
+
+    private void handleUserUriRequest(final HttpServerRequest request, Future<Boolean> future){
         if (userUriPattern.matcher(request.uri()).matches()) {
             if (HttpMethod.GET == request.method()) {
                 String userId = request.headers().get("x-rp-usr");
@@ -110,23 +148,26 @@ public class Authorizer implements LoggableResource {
                     user.put("roles", new JsonArray(new ArrayList<>(roles)));
                 }
                 request.response().end(user.toString());
-                return;
             } else {
                 request.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
                 request.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
                 request.response().end();
-                return;
             }
+            future.complete(Boolean.FALSE);
         }
+    }
 
+    private void handleIsAuthorized(final HttpServerRequest request, Future<Boolean> future){
         if (!isAuthorized(request)) {
-            RequestLoggerFactory.getLogger(Authorizer.class, request).info("403 Forbidden");
+            RequestLoggerFactory.getLogger(Authorizer.class, request).info(StatusCode.FORBIDDEN.toString());
             request.response().setStatusCode(StatusCode.FORBIDDEN.getStatusCode());
             request.response().setStatusMessage(StatusCode.FORBIDDEN.getStatusMessage());
             request.response().end(StatusCode.FORBIDDEN.getStatusMessage());
-            return;
+            future.complete(Boolean.FALSE);
         }
+    }
 
+    private void handleAclUriRequest(final HttpServerRequest request, Future<Boolean> future){
         // Intercept configuration
         final Matcher matcher = aclUriPattern.getPattern().matcher(request.uri());
         if (matcher.matches()) {
@@ -158,9 +199,8 @@ public class Authorizer implements LoggableResource {
                         request.response().end();
                     });
                 });
-                return;
-            }
-            if (HttpMethod.DELETE == request.method()) {
+                future.complete(Boolean.FALSE);
+            } else if (HttpMethod.DELETE == request.method()) {
                 storage.delete(request.uri(), status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
                         eb.publish(UPDATE_ADDRESS, "*");
@@ -170,11 +210,9 @@ public class Authorizer implements LoggableResource {
                     }
                     request.response().end();
                 });
-                return;
+                future.complete(Boolean.FALSE);
             }
         }
-
-        handler.handle(null);
     }
 
     private long updateTimerId = -1;

@@ -1,0 +1,29 @@
+{
+  "profile": {
+    "methods": [
+      "GET",
+      "PUT"
+    ],
+    "path": "/gateleen/server/users/v1/.*/profile(\\?.*)?"
+  },
+  "acl.read": {
+    "methods": [
+      "GET"
+    ],
+    "path": "/gateleen/server/security/v1/acls/.*"
+  },
+  "credentials.read": {
+    "methods": [
+      "GET"
+    ],
+    "path": "/gateleen/server/security/v1/credentials"
+  },
+  "pes.all": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST"
+    ],
+    "path": "/gateleen/pes/.*"
+  }
+}
