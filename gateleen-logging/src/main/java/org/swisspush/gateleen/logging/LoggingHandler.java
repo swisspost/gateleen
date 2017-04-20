@@ -59,6 +59,7 @@ public class LoggingHandler {
     private static final String BODY = "body";
     private static final String FILE = "file";
     private static final String ADDRESS = "address";
+    private static final String DEFAULT = "default";
 
     private Map<String, org.apache.log4j.Logger> loggers = new HashMap<>();
     private Map<String, Appender> appenders = new HashMap<>();
@@ -131,7 +132,7 @@ public class LoggingHandler {
         // if not available set to 'default'
         if (filterDestination == null) {
             log.debug("no filterDestination set");
-            filterDestination = "default";
+            filterDestination = DEFAULT;
         }
 
         // if the key is found, create a logger for the given file ...
@@ -163,7 +164,9 @@ public class LoggingHandler {
         }
         // ... or use the default logger
         else {
-            log.warn("no destination entry with name '" + filterDestination + "' found, using default logger instead");
+            if (!filterDestination.equals(DEFAULT)) {
+                log.warn("no destination entry with name '" + filterDestination + "' found, using default logger instead");
+            }
 
             // use default logger!
             loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
