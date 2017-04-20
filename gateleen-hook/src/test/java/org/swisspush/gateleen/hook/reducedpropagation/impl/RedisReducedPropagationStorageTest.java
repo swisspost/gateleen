@@ -8,10 +8,7 @@ import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Tuple;
@@ -36,7 +33,7 @@ import static org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPr
 public class RedisReducedPropagationStorageTest {
 
     private static Vertx vertx;
-    private Jedis jedis;
+    private static Jedis jedis;
     private static RedisReducedPropagationStorage storage;
 
     @org.junit.Rule
@@ -46,13 +43,18 @@ public class RedisReducedPropagationStorageTest {
     public static void setupStorage() {
         vertx = Vertx.vertx();
         storage = new RedisReducedPropagationStorage(RedisClient.create(vertx, new RedisOptions()));
+        jedis = new Jedis("localhost");
+    }
+
+    @AfterClass
+    public static void disconnectJedis(){
+        jedis.disconnect();
     }
 
     @Before
     public void setUp() {
-        jedis = new Jedis("localhost");
         try {
-            jedis.flushAll();
+            jedis.flushDB();
         } catch (JedisConnectionException e) {
             org.junit.Assume.assumeNoException("Ignoring this test because no running redis is available. This is the case during release", e);
         }
