@@ -18,4 +18,15 @@ public class HttpServerRequestUtil {
         }
         return host.startsWith("127") || host.equalsIgnoreCase("localhost");
     }
+
+    /**
+     * Increases the value of the {@link HttpRequestHeader#X_HOPS} header. Adds the header when not already present.
+     *
+     * @param request the request to increase the header value
+     */
+    public static void increaseRequestHops(HttpServerRequest request){
+        Integer hops = HttpRequestHeader.getInteger(request.headers(), HttpRequestHeader.X_HOPS, 0);
+        hops = hops + 1;
+        request.headers().set(HttpRequestHeader.X_HOPS.getName(), String.valueOf(hops));
+    }
 }
