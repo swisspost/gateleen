@@ -239,6 +239,7 @@ public class RedisReducedPropagationStorageTest {
     @Test
     public void testAddQueueMultipleQueues(TestContext context) {
         Async async = context.async();
+        jedis.flushDB();
         context.assertFalse(jedis.exists(QUEUE_TIMERS));
         storage.addQueue("queue_1", 10).setHandler(event -> {
             context.assertTrue(event.succeeded());
