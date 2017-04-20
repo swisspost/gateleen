@@ -33,7 +33,6 @@ import static org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPr
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 @RunWith(VertxUnitRunner.class)
-@Ignore
 public class RedisReducedPropagationStorageAddQueueMultipleQueuesTest {
 
     private static Vertx vertx;

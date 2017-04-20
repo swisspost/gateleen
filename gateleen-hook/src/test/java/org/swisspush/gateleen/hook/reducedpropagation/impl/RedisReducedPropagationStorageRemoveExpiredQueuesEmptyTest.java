@@ -29,6 +29,7 @@ import static org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPr
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 @RunWith(VertxUnitRunner.class)
+@Ignore
 public class RedisReducedPropagationStorageRemoveExpiredQueuesEmptyTest {
 
     private static Vertx vertx;
