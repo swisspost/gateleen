@@ -49,6 +49,30 @@ public class HttpServerRequestUtilTest {
         context.assertEquals(502, HttpRequestHeader.getInteger(request.headers(), HttpRequestHeader.X_HOPS));
     }
 
+    @Test
+    public void testIsRequestHopsLimitExceeded(TestContext context){
+        IncreaseHopsRequest request = new IncreaseHopsRequest(new CaseInsensitiveHeaders());
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 0));
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 1));
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 20));
+
+        request = new IncreaseHopsRequest(new CaseInsensitiveHeaders().set(HttpRequestHeader.X_HOPS.getName(), "25"));
+        context.assertTrue(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 0));
+        context.assertTrue(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 1));
+        context.assertTrue(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 15));
+        context.assertTrue(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 24));
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 25));
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 26));
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 50));
+
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, null));
+
+        request = new IncreaseHopsRequest(new CaseInsensitiveHeaders().set(HttpRequestHeader.X_HOPS.getName(), "booom"));
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 0));
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 1));
+        context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 10));
+    }
+
     class IncreaseHopsRequest extends DummyHttpServerRequest {
 
         private MultiMap headers;

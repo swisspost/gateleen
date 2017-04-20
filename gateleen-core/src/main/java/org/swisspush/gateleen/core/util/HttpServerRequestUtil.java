@@ -29,4 +29,19 @@ public class HttpServerRequestUtil {
         hops = hops + 1;
         request.headers().set(HttpRequestHeader.X_HOPS.getName(), String.valueOf(hops));
     }
+
+    /**
+     * Checks whether the request hops limit is reached based on the {@link HttpRequestHeader#X_HOPS} header.
+     *
+     * @param request the request to check
+     * @param hopsLimit the request hops limit
+     * @return returns true when the {@link HttpRequestHeader#X_HOPS} header value is greater than the hopsLimit parameter
+     */
+    public static boolean isRequestHopsLimitExceeded(HttpServerRequest request, Integer hopsLimit){
+        if(hopsLimit == null){
+            return false;
+        }
+        Integer hops = HttpRequestHeader.getInteger(request.headers(), HttpRequestHeader.X_HOPS, 0);
+        return hops > hopsLimit;
+    }
 }

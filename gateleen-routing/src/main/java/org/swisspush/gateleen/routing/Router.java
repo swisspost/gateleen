@@ -15,18 +15,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.core.util.ResourcesUtils;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 
 import java.net.HttpCookie;
 import java.util.*;
+
+import static org.swisspush.gateleen.core.util.HttpServerRequestUtil.increaseRequestHops;
+import static org.swisspush.gateleen.core.util.HttpServerRequestUtil.isRequestHopsLimitExceeded;
 
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
@@ -258,7 +258,14 @@ public class Router implements Refreshable, LoggableResource {
                 }
             } else {
                 if (router!= null) {
-                    router.accept(request);
+                    increaseRequestHops(request);
+                    if(!isRequestHopsLimitExceeded(request, 3)){
+                        router.accept(request);
+                    } else {
+                        request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                        request.response().setStatusMessage("Loop detected");
+                        request.response().end(request.response().getStatusMessage());
+                    }
                 } else {
                     request.response().setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
                     request.response().setStatusMessage("Server not yet ready");
@@ -349,18 +356,18 @@ public class Router implements Refreshable, LoggableResource {
         for (String method : rule.getMethods()) {
             log.info("Installing " + rule.getScheme().toUpperCase() + " forwarder for methods " + method + " to " + rule.getUrlPattern());
             switch (method) {
-            case "GET":
-                newRouter.getWithRegex(rule.getUrlPattern()).handler(forwarder);
-                break;
-            case "PUT":
-                newRouter.putWithRegex(rule.getUrlPattern()).handler(forwarder);
-                break;
-            case "POST":
-                newRouter.postWithRegex(rule.getUrlPattern()).handler(forwarder);
-                break;
-            case "DELETE":
-                newRouter.deleteWithRegex(rule.getUrlPattern()).handler(forwarder);
-                break;
+                case "GET":
+                    newRouter.getWithRegex(rule.getUrlPattern()).handler(forwarder);
+                    break;
+                case "PUT":
+                    newRouter.putWithRegex(rule.getUrlPattern()).handler(forwarder);
+                    break;
+                case "POST":
+                    newRouter.postWithRegex(rule.getUrlPattern()).handler(forwarder);
+                    break;
+                case "DELETE":
+                    newRouter.deleteWithRegex(rule.getUrlPattern()).handler(forwarder);
+                    break;
             }
         }
     }
