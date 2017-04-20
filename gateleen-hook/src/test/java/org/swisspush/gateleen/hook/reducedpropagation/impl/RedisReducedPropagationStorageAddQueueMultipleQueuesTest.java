@@ -27,7 +27,7 @@ import static org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPr
  * Testing the {@link RedisReducedPropagationStorage#addQueue(String, long)} method with multiple queues.
  * This showes a very (very) strange behaviour when running in the same test class as the other {@link RedisReducedPropagationStorage} tests.
  *
- * Instead of returning an empty <code>JsonArray</code>, the test sometimes returnes a <code>JsonArray</code> with a single entry of 1 or 0.
+ * When executing this test locally, it succeeds every time. When running on travis-ci, it seems like it cannot be written to redis.
  * No idea why!
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
