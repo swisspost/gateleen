@@ -239,50 +239,52 @@ public class RedisReducedPropagationStorageTest {
     @Test
     public void testAddQueueMultipleQueues(TestContext context) {
         Async async = context.async();
-        jedis.flushDB();
+        String queue_1 = "queue_1_" + System.currentTimeMillis();
+        String queue_2 = "queue_2_" + System.currentTimeMillis();
+        String queue_3 = "queue_3_" + System.currentTimeMillis();
         context.assertFalse(jedis.exists(QUEUE_TIMERS));
-        storage.addQueue("queue_1", 10).setHandler(event -> {
+        storage.addQueue(queue_1, 10).setHandler(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
             context.assertTrue(jedis.exists(QUEUE_TIMERS));
 
             Set<Tuple> expected_1 = new HashSet<>();
-            expected_1.add(new Tuple("queue_1", 10.0));
+            expected_1.add(new Tuple(queue_1, 10.0));
             assertQueuesTimersSetContent(1, expected_1);
 
             // add a new (other) queue. This should be added
-            storage.addQueue("queue_2", 20).setHandler(event2 -> {
+            storage.addQueue(queue_2, 20).setHandler(event2 -> {
                 context.assertTrue(event2.succeeded());
                 context.assertTrue(event2.result());
                 context.assertTrue(jedis.exists(QUEUE_TIMERS));
 
                 Set<Tuple> expected_2 = new HashSet<>();
-                expected_2.add(new Tuple("queue_1", 10.0));
-                expected_2.add(new Tuple("queue_2", 20.0));
+                expected_2.add(new Tuple(queue_1, 10.0));
+                expected_2.add(new Tuple(queue_2, 20.0));
                 assertQueuesTimersSetContent(2, expected_2);
 
                 // add a new (other) queue. This should be added
-                storage.addQueue("queue_3", 5).setHandler(event3 -> {
+                storage.addQueue(queue_3, 5).setHandler(event3 -> {
                     context.assertTrue(event3.succeeded());
                     context.assertTrue(event3.result());
                     context.assertTrue(jedis.exists(QUEUE_TIMERS));
 
                     Set<Tuple> expected_3 = new HashSet<>();
-                    expected_3.add(new Tuple("queue_1", 10.0));
-                    expected_3.add(new Tuple("queue_2", 20.0));
-                    expected_3.add(new Tuple("queue_3", 5.0));
+                    expected_3.add(new Tuple(queue_1, 10.0));
+                    expected_3.add(new Tuple(queue_2, 20.0));
+                    expected_3.add(new Tuple(queue_3, 5.0));
                     assertQueuesTimersSetContent(3, expected_3);
 
                     // add an already existing queue. This should NOT be added
-                    storage.addQueue("queue_1", 50).setHandler(event4 -> {
+                    storage.addQueue(queue_1, 50).setHandler(event4 -> {
                         context.assertTrue(event4.succeeded());
                         context.assertFalse(event4.result());
                         context.assertTrue(jedis.exists(QUEUE_TIMERS));
 
                         Set<Tuple> expected_4 = new HashSet<>();
-                        expected_4.add(new Tuple("queue_1", 10.0));
-                        expected_4.add(new Tuple("queue_2", 20.0));
-                        expected_4.add(new Tuple("queue_3", 5.0));
+                        expected_4.add(new Tuple(queue_1, 10.0));
+                        expected_4.add(new Tuple(queue_2, 20.0));
+                        expected_4.add(new Tuple(queue_3, 5.0));
                         assertQueuesTimersSetContent(3, expected_4);
                         async.complete();
                     });
