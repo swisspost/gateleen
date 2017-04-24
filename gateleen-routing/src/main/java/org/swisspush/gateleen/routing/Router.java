@@ -46,6 +46,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private static final int GRACE_PERIOD = 30000;
     public static final String ROUTER_STATE_MAP = "router_state_map";
     public static final String ROUTER_BROKEN_KEY = "router_broken";
+    public static final String REQUEST_HOPS_LIMIT_PROPERTY = "request.hops.limit";
     private String rulesUri;
     private String userProfileUri;
     private String serverUri;
@@ -511,16 +512,17 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             log.info("Got notified about configuration resource update for " + resourceUri + " with new data: " + resource);
             try {
                 JsonObject obj = new JsonObject(resource);
-                Integer requestHopsLimitValue = obj.getInteger("request.hops.limit");
+                Integer requestHopsLimitValue = obj.getInteger(REQUEST_HOPS_LIMIT_PROPERTY);
                 if (requestHopsLimitValue != null) {
-                    log.info("Got value '" + requestHopsLimitValue + "' for property 'request.hops.limit' found. Request hop validation is now activated");
+                    log.info("Got value '" + requestHopsLimitValue + "' for property '"+ REQUEST_HOPS_LIMIT_PROPERTY +"'. Request hop validation is now activated");
                     requestHopsLimit = requestHopsLimitValue;
                 } else {
-                    log.warn("No value for property 'request.hops.limit' found. Request hop validation will not be activated");
+                    log.warn("No value for property '"+ REQUEST_HOPS_LIMIT_PROPERTY +"' found. Request hop validation will not be activated");
                     requestHopsLimit = null;
                 }
             } catch (DecodeException ex) {
                 log.warn("Unable to decode configuration resource for " + resourceUri + " with data: " + resource + " Reason: " + ex.getMessage());
+                requestHopsLimit = null;
             }
         }
     }
