@@ -194,6 +194,8 @@ public class Server extends AbstractVerticle {
                             delegateHandler.init();
                         });
                 router.enableResourceLogging(true);
+                String routerConfigurationResource = SERVER_ROOT + "/admin/v1/routing/config";
+                router.enableRoutingConfiguration(configurationResourceManager, routerConfigurationResource);
 
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();

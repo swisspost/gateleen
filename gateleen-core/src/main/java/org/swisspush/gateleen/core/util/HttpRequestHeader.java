@@ -8,7 +8,8 @@ import io.vertx.core.MultiMap;
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public enum HttpRequestHeader {
-    CONTENT_LENGTH("Content-Length");
+    CONTENT_LENGTH("Content-Length"),
+    X_HOPS("x-hops");
 
     private final String name;
 
@@ -42,6 +43,25 @@ public enum HttpRequestHeader {
      * @return an Integer representing the value of the httpRequestHeader or null
      */
     public static Integer getInteger(MultiMap headers, HttpRequestHeader httpRequestHeader) {
+        return getInteger(headers, httpRequestHeader, null);
+    }
+
+    /**
+     * Get the value of the provided {@link HttpRequestHeader} or a default value as Integer.
+     * <p>Returns the default value in the following cases:</p>
+     *
+     * <ul>
+     *     <li>headers are <code>null</code></li>
+     *     <li>headers does not contain httpRequestHeader</li>
+     *     <li>httpRequestHeader is no parsable Integer i.e. empty string, non-digit characters, numbers to bigger than Integer allows</li>
+     * </ul>
+     *
+     * @param headers the http request headers
+     * @param httpRequestHeader the http request header to get the value from
+     * @param defaultValue the default value to return when no value from httpRequestHeader is extractable
+     * @return an Integer representing the value of the httpRequestHeader or the default value
+     */
+    public static Integer getInteger(MultiMap headers, HttpRequestHeader httpRequestHeader, Integer defaultValue) {
         String headerValue = null;
         if(headers != null) {
             headerValue = headers.get(httpRequestHeader.getName());
@@ -50,7 +70,7 @@ public enum HttpRequestHeader {
         try {
             return Integer.parseInt(headerValue);
         } catch (Exception e) {
-            return null;
+            return defaultValue;
         }
     }
 

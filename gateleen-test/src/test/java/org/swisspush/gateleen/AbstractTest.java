@@ -175,6 +175,7 @@ public abstract class AbstractTest {
                             delegateHandler.init();
                         }
                 );
+                router.enableRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config");
 
                 System.setProperty("org.swisspush.gateleen.addcorsheaders", "true");
 

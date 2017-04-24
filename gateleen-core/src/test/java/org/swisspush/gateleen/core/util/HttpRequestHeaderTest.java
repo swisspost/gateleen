@@ -75,6 +75,35 @@ public class HttpRequestHeaderTest {
     }
 
     @Test
+    public void testGetIntegerWithDefaultValue(TestContext context){
+
+        Integer defaultValue = 1;
+
+        headers.set("x-hops", "99");
+        context.assertEquals(99, getInteger(headers, HttpRequestHeader.X_HOPS, defaultValue));
+
+        headers.set("x-hops", "444");
+        context.assertEquals(444, getInteger(headers, HttpRequestHeader.X_HOPS, defaultValue));
+
+        headers.set("x-hops", "0");
+        context.assertEquals(0, getInteger(headers, HttpRequestHeader.X_HOPS, defaultValue));
+
+        headers.set("x-hops", "9999999999999999999");
+        context.assertEquals(1, getInteger(headers, HttpRequestHeader.X_HOPS, defaultValue));
+
+        headers.set("x-hops", "");
+        context.assertEquals(1, getInteger(headers, HttpRequestHeader.X_HOPS, defaultValue));
+
+        headers.set("x-hops", "xyz");
+        context.assertEquals(1, getInteger(headers, HttpRequestHeader.X_HOPS, defaultValue));
+
+        headers.clear();
+        context.assertEquals(1, getInteger(headers, HttpRequestHeader.X_HOPS, defaultValue));
+
+        context.assertEquals(1, getInteger(null, HttpRequestHeader.X_HOPS, defaultValue));
+    }
+
+    @Test
     public void testGetString(TestContext context){
         headers.set("Content-Length", "99");
         context.assertEquals("99", getString(headers, HttpRequestHeader.CONTENT_LENGTH));
