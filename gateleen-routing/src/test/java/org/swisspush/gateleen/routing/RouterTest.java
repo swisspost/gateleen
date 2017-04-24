@@ -16,6 +16,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -74,6 +75,36 @@ public class RouterTest {
             + "  }\n"
             + "}";
 
+    private final String RULES_WITH_HOPS = "{\n" +
+            "  \"/gateleen/server/loop/1/(.*)\": {\n" +
+            "    \"description\": \"looping Test\",\n" +
+            "    \"metricName\": \"loop_1\",\n" +
+            "    \"path\": \"/gateleen/server/loop/2/$1\"\n" +
+            "  },\n" +
+            "  \"/gateleen/server/loop/2/(.*)\": {\n" +
+            "    \"description\": \"looping Test\",\n" +
+            "    \"metricName\": \"loop_2\",\n" +
+            "    \"path\": \"/gateleen/server/loop/3/$1\"\n" +
+            "  },\n" +
+            "  \"/gateleen/server/loop/3/(.*)\": {\n" +
+            "    \"description\": \"looping Test\",\n" +
+            "    \"metricName\": \"loop_3\",\n" +
+            "    \"path\": \"/gateleen/server/loop/4/$1\"\n" +
+            "  },\n" +
+            "  \"/gateleen/server/loop/4/(.*)\": {\n" +
+            "    \"description\": \"looping Test\",\n" +
+            "    \"metricName\": \"loop_4\",\n" +
+            "    \"path\": \"/gatelee/servern/loop/4/$1\",\n" +
+            "    \"storage\": \"main\"\n" +
+            "  },\n" +
+            "  \"/gateleen/server/looping/(.*)\": {\n" +
+            "    \"description\": \"looping Test\",\n" +
+            "    \"metricName\": \"looperRule\",\n" +
+            "    \"path\": \"/gateleen/server/looping/$1\"\n" +
+            "\n" +
+            "  }\n" +
+            "}";
+
     private final String RANDOM_RESOURCE = "{\n"
             + "  \"randomkey1\": 123,\n"
             + "  \"randomkey2\": 456\n"
@@ -104,6 +135,275 @@ public class RouterTest {
 
         routerStateMap = new DummyLocalMap<>();
     }
+
+    @Test
+    public void testRequestHopValidationLimitNotYetReached(TestContext context){
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+
+        ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
+        router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        // change the hops limit to 5
+        router.resourceChanged(serverUrl + "/admin/v1/routing/config", "{\"request.hops.limit\":5}");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+        class GETRandomResourceRequest extends DummyHttpServerRequest{
+
+            MultiMap headers = new CaseInsensitiveHeaders();
+
+            @Override public HttpMethod method() {
+                return HttpMethod.GET;
+            }
+
+            @Override public String uri() {
+                return "/gateleen/server/loop/4/resource";
+            }
+
+            @Override public String path() { return "/gateleen/server/loop/4/resource"; }
+
+            @Override public MultiMap headers() { return headers; }
+
+            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+
+            @Override
+            public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+                bodyHandler.handle(Buffer.buffer(RANDOM_RESOURCE));
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest handler(Handler<Buffer> handler) {
+                handler.handle(Buffer.buffer(RANDOM_RESOURCE));
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest endHandler(Handler<Void> endHandler) {
+                endHandler.handle(null);
+                return this;
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        }
+        GETRandomResourceRequest request = new GETRandomResourceRequest();
+        router.route(request);
+
+        context.assertEquals("1", request.headers().get("x-hops"), "x-hops header should have value 1");
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        context.assertEquals(StatusCode.OK.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be OK");
+    }
+
+    @Test
+    public void testRequestHopValidationWithLimitZero(TestContext context){
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+
+        ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
+        router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        // change the hops limit to 0, so no re-routing is allowed
+        router.resourceChanged(serverUrl + "/admin/v1/routing/config", "{\"request.hops.limit\":0}");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+        class GETRandomResourceRequest extends DummyHttpServerRequest{
+
+            MultiMap headers = new CaseInsensitiveHeaders();
+
+            @Override public HttpMethod method() {
+                return HttpMethod.GET;
+            }
+
+            @Override public String uri() {
+                return "/gateleen/server/loop/4/resource";
+            }
+
+            @Override public String path() { return "/gateleen/server/loop/4/resource"; }
+
+            @Override public MultiMap headers() { return headers; }
+
+            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+
+            @Override
+            public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+                bodyHandler.handle(Buffer.buffer(RANDOM_RESOURCE));
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest handler(Handler<Buffer> handler) {
+                handler.handle(Buffer.buffer(RANDOM_RESOURCE));
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest endHandler(Handler<Void> endHandler) {
+                endHandler.handle(null);
+                return this;
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        }
+        GETRandomResourceRequest request = new GETRandomResourceRequest();
+        router.route(request);
+
+        context.assertEquals("1", request.headers().get("x-hops"), "x-hops header should have value 1");
+        context.assertEquals(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 500");
+        context.assertEquals("Request hops limit exceeded", request.response().getStatusMessage(), "StatusMessage should be 'Request hops limit exceeded'");
+    }
+
+    @Test
+    public void testRequestHopValidationWithLimit5(TestContext context){
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+
+        ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
+        router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        // change the hops limit to 5
+        router.resourceChanged(serverUrl + "/admin/v1/routing/config", "{\"request.hops.limit\":5}");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+        class GETRandomResourceRequest extends DummyHttpServerRequest{
+
+            MultiMap headers = new CaseInsensitiveHeaders();
+
+            @Override public HttpMethod method() {
+                return HttpMethod.GET;
+            }
+
+            @Override public String uri() {
+                return "/gateleen/server/loop/4/resource";
+            }
+
+            @Override public String path() { return "/gateleen/server/loop/4/resource"; }
+
+            @Override public MultiMap headers() { return headers; }
+
+            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+
+            @Override
+            public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+                bodyHandler.handle(Buffer.buffer(RANDOM_RESOURCE));
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest handler(Handler<Buffer> handler) {
+                handler.handle(Buffer.buffer(RANDOM_RESOURCE));
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest endHandler(Handler<Void> endHandler) {
+                endHandler.handle(null);
+                return this;
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        }
+        GETRandomResourceRequest request = new GETRandomResourceRequest();
+
+        for (int i = 0; i < 5; i++) {
+            router.route(request);
+        }
+        context.assertEquals("5", request.headers().get("x-hops"), "x-hops header should have value 5");
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        context.assertEquals(StatusCode.OK.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be OK");
+
+        router.route(request);
+        context.assertEquals("6", request.headers().get("x-hops"), "x-hops header should have value 6");
+        context.assertEquals(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 500");
+        context.assertEquals("Request hops limit exceeded", request.response().getStatusMessage(), "StatusMessage should be 'Request hops limit exceeded'");
+    }
+
+    @Test
+    public void testRequestHopValidationNoLimitConfiguration(TestContext context){
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
+        Router router = new Router(vertx, routerStateMap, storage, properties, loggingResourceManager, monitoringHandler, httpClient, serverUrl, rulesPath, userProfilePath, info);
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+        class GETRandomResourceRequest extends DummyHttpServerRequest{
+
+            MultiMap headers = new CaseInsensitiveHeaders();
+
+            @Override public HttpMethod method() {
+                return HttpMethod.GET;
+            }
+
+            @Override public String uri() {
+                return "/gateleen/server/loop/4/resource";
+            }
+
+            @Override public String path() { return "/gateleen/server/loop/4/resource"; }
+
+            @Override public MultiMap headers() { return headers; }
+
+            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+
+            @Override
+            public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+                bodyHandler.handle(Buffer.buffer(RANDOM_RESOURCE));
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest handler(Handler<Buffer> handler) {
+                handler.handle(Buffer.buffer(RANDOM_RESOURCE));
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest endHandler(Handler<Void> endHandler) {
+                endHandler.handle(null);
+                return this;
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        }
+        GETRandomResourceRequest request = new GETRandomResourceRequest();
+
+        for (int i = 0; i < 20; i++) {
+            router.route(request);
+        }
+
+        context.assertNull(request.headers().get("x-hops"), "No x-hops header should be present");
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        context.assertEquals(StatusCode.OK.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be OK");
+    }
+
 
     @Test
     public void testRouterConstructionValidConfiguration(TestContext context){
