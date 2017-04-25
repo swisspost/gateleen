@@ -74,7 +74,7 @@ This request will be rerouted to:
 DELETE http://myserver:7012/gateleen/example/othertarget/anExample
 ```
 
-#####Deleting the hook
+##### Deleting the hook
 ```json
  DELETE http://myserver:7012/gateleen/example/resource/_hooks/route
 ```
