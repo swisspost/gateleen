@@ -128,7 +128,7 @@ public class HookQueueingStrategiesTest extends AbstractTest {
         String managerQueue = "manager_" + queueName;
 
         // register hook
-        String body = "{\"destination\":\"/playground/server/event/v1/channels/super3\",\"methods\":[\"PUT\"],\"expireAfter\":300,\"queueingStrategy\":{\"type\":\"reducedPropagation\",\"interval\":5},\"fullUrl\":true,\"staticHeaders\":{\"x-sync\":true}}";
+        String body = "{\"destination\":\"/playground/server/event/v1/channels/super3\",\"methods\":[\"PUT\"],\"expireAfter\":300,\"queueingStrategy\":{\"type\":\"reducedPropagation\",\"intervalMs\":5},\"fullUrl\":true,\"staticHeaders\":{\"x-sync\":true}}";
         with().body(body).put("tests/hooktest/_hooks/listeners/http/push/super3");
 
         // check if hook has been created
