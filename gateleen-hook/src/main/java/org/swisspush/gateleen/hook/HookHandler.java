@@ -665,7 +665,7 @@ public class HookHandler implements LoggableResource {
             } else if(queueingStrategy instanceof ReducedPropagationQueueingStrategy){
                 if(reducedPropagationManager != null) {
                     reducedPropagationManager.processIncomingRequest(request.method(), targetUri, queueHeaders, buffer,
-                            queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationInterval(), handler);
+                            queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationIntervalMs(), handler);
                 } else {
                     log.error("ReducedPropagationQueueingStrategy without configured ReducedPropagationManager. Not going to handle (enqueue) anything!");
                 }

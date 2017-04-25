@@ -55,39 +55,39 @@ public class QueueingStrategyFactoryTest {
     public void testReducedPropagationQueueingStrategy(){
         // valid ReducedPropagationQueueingStrategy config
         QueueingStrategy queueingStrategy = QueueingStrategyFactory.buildQueueStrategy(
-                buildHookConfig(new JsonObject().put("type", "reducedPropagation").put("interval", 22)));
+                buildHookConfig(new JsonObject().put("type", "reducedPropagation").put("intervalMs", 22)));
         assertThat(queueingStrategy, instanceOf(ReducedPropagationQueueingStrategy.class));
-        assertEquals(22, ((ReducedPropagationQueueingStrategy)queueingStrategy).getPropagationInterval());
+        assertEquals(22, ((ReducedPropagationQueueingStrategy)queueingStrategy).getPropagationIntervalMs());
 
         queueingStrategy = QueueingStrategyFactory.buildQueueStrategy(
-                buildHookConfig(new JsonObject().put("type", "reducedpropagation").put("interval", 888)));
+                buildHookConfig(new JsonObject().put("type", "reducedpropagation").put("intervalMs", 888)));
         assertThat(queueingStrategy, instanceOf(ReducedPropagationQueueingStrategy.class));
-        assertEquals(888, ((ReducedPropagationQueueingStrategy)queueingStrategy).getPropagationInterval());
+        assertEquals(888, ((ReducedPropagationQueueingStrategy)queueingStrategy).getPropagationIntervalMs());
 
         queueingStrategy = QueueingStrategyFactory.buildQueueStrategy(
-                buildHookConfig(new JsonObject().put("type", "REDUCEDPROPAGATION").put("interval", 999)));
+                buildHookConfig(new JsonObject().put("type", "REDUCEDPROPAGATION").put("intervalMs", 999)));
         assertThat(queueingStrategy, instanceOf(ReducedPropagationQueueingStrategy.class));
-        assertEquals(999, ((ReducedPropagationQueueingStrategy)queueingStrategy).getPropagationInterval());
+        assertEquals(999, ((ReducedPropagationQueueingStrategy)queueingStrategy).getPropagationIntervalMs());
 
         queueingStrategy = QueueingStrategyFactory.buildQueueStrategy(
-                buildHookConfig(new JsonObject().put("type", "REDUCEDPROPAGATION").put("interval", 999999999999999999L)));
+                buildHookConfig(new JsonObject().put("type", "REDUCEDPROPAGATION").put("intervalMs", 999999999999999999L)));
         assertThat(queueingStrategy, instanceOf(ReducedPropagationQueueingStrategy.class));
-        assertEquals(999999999999999999L, ((ReducedPropagationQueueingStrategy)queueingStrategy).getPropagationInterval());
+        assertEquals(999999999999999999L, ((ReducedPropagationQueueingStrategy)queueingStrategy).getPropagationIntervalMs());
 
         // invalid ReducedPropagationQueueingStrategy config
         assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(new JsonObject().put("type", "reducedPropagation"))),
                 instanceOf(DefaultQueueingStrategy.class));
 
-        assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(new JsonObject().put("typeXX", "reducedPropagation").put("interval", 123))),
+        assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(new JsonObject().put("typeXX", "reducedPropagation").put("intervalMs", 123))),
                 instanceOf(DefaultQueueingStrategy.class));
 
-        assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(new JsonObject().put("type", "reducedPropagation").put("interval", "234"))),
+        assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(new JsonObject().put("type", "reducedPropagation").put("intervalMs", "234"))),
                 instanceOf(DefaultQueueingStrategy.class));
 
         assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(new JsonObject().put("type", "reducedPropagation").put("intervalXX", 234))),
                 instanceOf(DefaultQueueingStrategy.class));
 
-        assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(new JsonObject().put("type", "reducedPropagation").put("interval", new JsonObject()))),
+        assertThat(QueueingStrategyFactory.buildQueueStrategy(buildHookConfig(new JsonObject().put("type", "reducedPropagation").put("intervalMs", new JsonObject()))),
                 instanceOf(DefaultQueueingStrategy.class));
     }
 

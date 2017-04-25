@@ -182,7 +182,7 @@ To activate this strategy, the following configuration has to be added when addi
 
 ##### ReducedPropagationQueueingStrategy
 The _ReducedPropagationQueueingStrategy_ is used to reduce the amount of hooked resource changes by only propagating 1
-resource change over a configurable amount of time (_interval_). Typically this strategy is used to not overwhelm a client with
+resource change over a configurable amount of time (_intervalMs_). Typically this strategy is used to not overwhelm a client with
 thousands of hooked resource changes. As in the _DiscardPayloadQueueingStrategy_, the payload will be removed before enqueueing.
 
 To activate this strategy, the following configuration has to be added when adding a listener:
@@ -190,11 +190,11 @@ To activate this strategy, the following configuration has to be added when addi
 {
     "queueingStrategy": {
         "type": "reducedPropagation",
-        "interval": 120
+        "intervalMs": 60000
     }    
 }
 ```
-The _interval_ defines the amount of time in seconds to wait before propagate a single resource change.
+The _intervalMs_ defines the amount of time in milliseconds to wait before propagate a single resource change.
 
 ## Log hook registration changes
 To log the payload of changes to the hook registrations, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.

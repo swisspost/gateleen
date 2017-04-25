@@ -48,19 +48,19 @@ public class ReducedPropagationManager {
     /**
      * Start the periodic check to process expired queues.
      *
-     * @param interval interval in milliseconds
+     * @param intervalMs interval in milliseconds
      */
-    public void startExpiredQueueProcessing(long interval) {
-        log.info("About to start periodic processing of expired queues with an interval of " + interval + " ms");
+    public void startExpiredQueueProcessing(long intervalMs) {
+        log.info("About to start periodic processing of expired queues with an interval of " + intervalMs + " ms");
         vertx.cancelTimer(processExpiredQueuesTimerId);
-        processExpiredQueuesTimerId = vertx.setPeriodic(interval, event -> processExpiredQueues());
+        processExpiredQueuesTimerId = vertx.setPeriodic(intervalMs, event -> processExpiredQueues());
     }
 
     /**
      * The processing of incoming requests contains the following steps:
      * <ul>
      * <li>Lock the originally defined queue and enqueue the request</li>
-     * <li>Add the queue name to the storage with an expiration value based on the propagationInterval parameter</li>
+     * <li>Add the queue name to the storage with an expiration value based on the propagationIntervalMs parameter</li>
      * <li>When the queue name is already in the storage, a running timer exists. Nothing more to do</li>
      * <li>When the queue name not exists in the storage, a new timer was started. Enqueue the request without payload into an additional locked 'manager' queue</li>
      * </ul>
@@ -70,21 +70,21 @@ public class ReducedPropagationManager {
      * @param queueHeaders        headers of the queued request
      * @param payload             payload of the queued request
      * @param queue               the queue name
-     * @param propagationInterval the propagation interval in seconds defining how long to prevent from propagating changes to the resource
+     * @param propagationIntervalMs the propagation interval in milliseconds defining how long to prevent from propagating changes to the resource
      * @param doneHandler         a handler which is called as soon as the request is written into the queue.
      * @return a future when the processing is done
      */
-    public Future<Void> processIncomingRequest(HttpMethod method, String targetUri, MultiMap queueHeaders, Buffer payload, String queue, long propagationInterval, Handler<Void> doneHandler) {
+    public Future<Void> processIncomingRequest(HttpMethod method, String targetUri, MultiMap queueHeaders, Buffer payload, String queue, long propagationIntervalMs, Handler<Void> doneHandler) {
         Future<Void> future = Future.future();
 
-        long expireTS = System.currentTimeMillis() + (propagationInterval * 1000);
+        long expireTS = System.currentTimeMillis() + propagationIntervalMs;
 
         log.info("Going to perform a lockedEnqueue for (original) queue '" + queue + "' and eventually starting a new timer");
         requestQueue.lockedEnqueue(new HttpRequest(method, targetUri, queueHeaders, payload.getBytes()), queue, LOCK_REQUESTER, doneHandler);
 
         storage.addQueue(queue, expireTS).setHandler(event -> {
             if (event.failed()) {
-                log.error("starting a new timer for queue '" + queue + "' and propagationInterval '" + propagationInterval + "' failed. Cause: " + event.cause());
+                log.error("starting a new timer for queue '" + queue + "' and propagationIntervalMs '" + propagationIntervalMs + "' failed. Cause: " + event.cause());
                 future.fail(event.cause());
                 return;
             }
