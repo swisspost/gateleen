@@ -200,7 +200,7 @@ public class HookHandlerTest {
         hookHandler.init();
 
         // trigger listener update via event bus
-        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("interval", 22), "x99"));
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("intervalMs", 22), "x99"));
 
         // wait a moment to let the listener be registered
         Thread.sleep(1500);
@@ -224,7 +224,7 @@ public class HookHandlerTest {
         String queue = "listener-hook-http+push+"+deviceId+"+playground+server+tests+hooktest";
 
         // trigger listener update via event bus
-        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("interval", interval), deviceId));
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("intervalMs", interval), deviceId));
 
         // wait a moment to let the listener be registered
         Thread.sleep(1500);
@@ -244,7 +244,7 @@ public class HookHandlerTest {
     @Test
     public void testListenerEnqueueWithInvalidReducedPropagationQueueingStrategy(TestContext context) throws InterruptedException {
         // trigger listener update via event bus
-        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("interval", "not_a_number"), "x99")); // invalid 'queueingStrategy' configuration results in a DefaultQueueingStrategy
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("intervalMs", "not_a_number"), "x99")); // invalid 'queueingStrategy' configuration results in a DefaultQueueingStrategy
 
         // wait a moment to let the listener be registered
         Thread.sleep(1000);

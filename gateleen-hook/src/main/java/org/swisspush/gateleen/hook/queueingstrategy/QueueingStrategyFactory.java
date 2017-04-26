@@ -12,6 +12,7 @@ import io.vertx.core.logging.LoggerFactory;
 public class QueueingStrategyFactory {
 
     private static final String QUEUEING_STRATEGY_PROPERTY = "queueingStrategy";
+    private static final String INTERVAL_PROPERTY = "intervalMs";
 
     private static Logger LOG = LoggerFactory.getLogger(QueueingStrategyFactory.class);
 
@@ -83,9 +84,9 @@ public class QueueingStrategyFactory {
 
     private static QueueingStrategy buildReducedPropagationQueueingStrategy(JsonObject queueingStrategyConfig){
         try{
-            Long interval = queueingStrategyConfig.getLong("interval");
-            if(interval != null){
-                return new ReducedPropagationQueueingStrategy(interval);
+            Long intervalMs = queueingStrategyConfig.getLong(INTERVAL_PROPERTY);
+            if(intervalMs != null){
+                return new ReducedPropagationQueueingStrategy(intervalMs);
             } else {
                 LOG.warn("Got a 'ReducedPropagationQueueingStrategy' configuration with an invalid interval value: " + queueingStrategyConfig.encode());
                 return new DefaultQueueingStrategy();

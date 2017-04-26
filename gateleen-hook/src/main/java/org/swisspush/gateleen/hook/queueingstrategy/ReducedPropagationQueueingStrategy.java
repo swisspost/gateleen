@@ -2,7 +2,7 @@ package org.swisspush.gateleen.hook.queueingstrategy;
 
 /**
  * {@link QueueingStrategy} implementation used when the propagation of changes to the hooked resource should be reduced.
- * Per configured 'interval' (in seconds) only 1 change to the hooked resource (without payload) will be propagated.
+ * Per configured 'intervalMs' (in milliseconds) only 1 change to the hooked resource (without payload) will be propagated.
  *
  * <p>
  * This strategy is used when the hook configuration contains the following properties:
@@ -10,8 +10,8 @@ package org.swisspush.gateleen.hook.queueingstrategy;
  *
  * <pre><code>
  * "queueingStrategy": {
- *      "type": "discardPayload",
- *      "interval": 120
+ *      "type": "reducedPropagation",
+ *      "intervalMs": 60000
  * }
  * </code></pre>
  *
@@ -19,19 +19,19 @@ package org.swisspush.gateleen.hook.queueingstrategy;
  */
 public class ReducedPropagationQueueingStrategy extends QueueingStrategy {
 
-    private final long propagationInterval;
+    private final long propagationIntervalMs;
 
-    protected ReducedPropagationQueueingStrategy(long propagationInterval) {
+    protected ReducedPropagationQueueingStrategy(long propagationIntervalMs) {
         super();
-        this.propagationInterval = propagationInterval;
+        this.propagationIntervalMs = propagationIntervalMs;
     }
 
     /**
-     * The propagation interval in seconds
+     * The propagation interval in milliseconds
      * 
-     * @return interval in seconds
+     * @return interval in milliseconds
      */
-    public long getPropagationInterval() {
-        return propagationInterval;
+    public long getPropagationIntervalMs() {
+        return propagationIntervalMs;
     }
 }
