@@ -85,6 +85,8 @@ public class ExpansionHandler implements RuleChangesObserver{
     private static final String MAX_RECURSION_DEPTH_PROPERTY = "max.recursion.depth";
     private static final int RECURSION_DEPTH_DEFAULT = 2000;
 
+    private static final String MAX_EXPANSION_LEVEL_SOFT_PROPERTY = "max.expansion.level.soft";
+    private static final String MAX_EXPANSION_LEVEL_HARD_PROPERTY = "max.expansion.level.hard";
     private static final String MAX_SUBREQUEST_PROPERTY = "max.expansion.subrequests";
     private static final int MAX_SUBREQUEST_COUNT_DEFAULT = 20000;
 
@@ -92,7 +94,10 @@ public class ExpansionHandler implements RuleChangesObserver{
     private static final String SELF_REQUEST_HEADER = "x-self-request";
 
     private int maxRecursionDepth;
-    private int maxSubrequestCount;
+    private int maxSubRequestCount;
+
+    private int maxExpansionLevelSoft = Integer.MAX_VALUE;
+    private int maxExpansionLevelHard = Integer.MAX_VALUE;
 
     private HttpClient httpClient;
     private Map<String, Object> properties;
@@ -141,6 +146,18 @@ public class ExpansionHandler implements RuleChangesObserver{
         ruleFeaturesProvider = new RuleFeaturesProvider(rules);
     }
 
+    public int getMaxExpansionLevelSoft() {
+        return maxExpansionLevelSoft;
+    }
+
+    public int getMaxExpansionLevelHard() {
+        return maxExpansionLevelHard;
+    }
+
+    public int getMaxSubRequestCount() {
+        return maxSubRequestCount;
+    }
+
     /**
      * Initialize the lists which defines, when which parameter
      * is removed (if any).
@@ -174,15 +191,37 @@ public class ExpansionHandler implements RuleChangesObserver{
     private void initConfigurationValues() {
         if (properties != null && properties.containsKey(MAX_SUBREQUEST_PROPERTY)) {
             try {
-                maxSubrequestCount = Integer.parseInt((String) properties.get(MAX_SUBREQUEST_PROPERTY));
-                log.info("Setting maximum allowed subrequest count to " + maxSubrequestCount + " from properties");
+                maxSubRequestCount = Integer.parseInt((String) properties.get(MAX_SUBREQUEST_PROPERTY));
+                log.info("Setting maximum allowed subrequest count to " + maxSubRequestCount + " from properties");
             } catch (Exception e) {
-                maxSubrequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
-                log.warn("Setting maximum allowed subrequest count to a default of " + maxSubrequestCount + ", since defined value for " + MAX_SUBREQUEST_PROPERTY + " in properties is not a number");
+                maxSubRequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
+                log.warn("Setting maximum allowed subrequest count to a default of " + maxSubRequestCount + ", since defined value for " + MAX_SUBREQUEST_PROPERTY + " in properties is not a number");
             }
         } else {
-            maxSubrequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
-            log.warn("Setting maximum allowed subrequest count to a default of " + maxSubrequestCount + ", since no property " + MAX_SUBREQUEST_PROPERTY + " is defined!");
+            maxSubRequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
+            log.warn("Setting maximum allowed subrequest count to a default of " + maxSubRequestCount + ", since no property " + MAX_SUBREQUEST_PROPERTY + " is defined!");
+        }
+
+        if (properties != null && properties.containsKey(MAX_EXPANSION_LEVEL_SOFT_PROPERTY)) {
+            try {
+                maxExpansionLevelSoft = Integer.parseInt((String) properties.get(MAX_EXPANSION_LEVEL_SOFT_PROPERTY));
+                log.info("Setting maximum expansion level soft value to " + maxExpansionLevelSoft + " from properties");
+            } catch (Exception e) {
+                log.warn("Setting maximum expansion level soft value to a default of " + maxExpansionLevelSoft + ", since defined value for " + MAX_EXPANSION_LEVEL_SOFT_PROPERTY + " in properties is not a number");
+            }
+        } else {
+            log.info("Setting maximum expansion level soft value to a default of " + maxExpansionLevelSoft + ", since no property " + MAX_EXPANSION_LEVEL_SOFT_PROPERTY + " is defined!");
+        }
+
+        if (properties != null && properties.containsKey(MAX_EXPANSION_LEVEL_HARD_PROPERTY)) {
+            try {
+                maxExpansionLevelHard = Integer.parseInt((String) properties.get(MAX_EXPANSION_LEVEL_HARD_PROPERTY));
+                log.info("Setting maximum expansion level hard value to " + maxExpansionLevelHard + " from properties");
+            } catch (Exception e) {
+                log.warn("Setting maximum expansion level hard value to a default of " + maxExpansionLevelHard + ", since defined value for " + MAX_EXPANSION_LEVEL_HARD_PROPERTY + " in properties is not a number");
+            }
+        } else {
+            log.info("Setting maximum expansion level soft hard to a default of " + maxExpansionLevelHard + ", since no property " + MAX_EXPANSION_LEVEL_HARD_PROPERTY + " is defined!");
         }
 
         if (properties != null && properties.containsKey(MAX_RECURSION_DEPTH_PROPERTY)) {
@@ -496,8 +535,8 @@ public class ExpansionHandler implements RuleChangesObserver{
          * If the subRequestCounter reaches maxSubrequestCount, an exception is
          * created and the recursive get process is canceld.
          */
-        if (subRequestCounter.get() > maxSubrequestCount) {
-            handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException("Number of allowed sub requests exceeded. Limit is " + maxSubrequestCount + " requests", StatusCode.BAD_REQUEST)));
+        if (subRequestCounter.get() > maxSubRequestCount) {
+            handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException("Number of allowed sub requests exceeded. Limit is " + maxSubRequestCount + " requests", StatusCode.BAD_REQUEST)));
             return;
         }
 

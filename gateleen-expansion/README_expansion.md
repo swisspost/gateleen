@@ -9,7 +9,7 @@ x can be a value from 1 to infinity. It represents the maximum recursion level a
 Besides, the expansion is also limited by the property "max.expansion.subrequests" which sets the maximum count of requests created by one recursive GET request.
 
 The RecursiveExpansionHandler allows you to send GET requests to the server which are resolved recursively. 
-What does that actually mean? Let’s have a look to an example:
+What does that actually mean? Let’s have a look at an example:
 
 > GET http://localhost:7012/gateleen/some_resources
 ```json
