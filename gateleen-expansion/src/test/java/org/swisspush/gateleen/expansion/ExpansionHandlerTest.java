@@ -3,7 +3,6 @@ package org.swisspush.gateleen.expansion;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -14,6 +13,7 @@ import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.routing.Rule;
 
 import java.util.ArrayList;
@@ -23,6 +23,7 @@ import java.util.Map;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.expansion.ExpansionHandler.EXPAND_PARAM;
 import static org.swisspush.gateleen.expansion.ExpansionHandler.ZIP_PARAM;
 
@@ -213,15 +214,82 @@ public class ExpansionHandlerTest {
         context.assertTrue(expansionHandler.isCollection("/some/collection/"));
     }
 
+    @Test
+    public void testStorageExpandRequestWithExpandLevelLimitExceeded(TestContext context) {
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+        List<Rule> rules = new ArrayList<>();
+        Rule rule1 = new Rule();
+        rule1.setUrlPattern("/test/rules/rule/storageExpand");
+        rule1.setStorageExpand(true);
+        rules.add(rule1);
+        expansionHandler.rulesChanged(rules);
+
+        CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
+        params.set(EXPAND_PARAM, "2");
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        Request request = new Request(HttpMethod.GET, "/test/rules/rule/storageExpand", params, response);
+
+        expansionHandler.handleExpansionRecursion(request);
+
+        verify(response, times(1)).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+        verify(response, times(1)).end("Expand values higher than 1 are not supported for storageExpand requests");
+    }
+
+    @Test
+    public void testBadRequestResponseForInvalidExpandParameterRequests(TestContext context) {
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+        CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
+        params.set(EXPAND_PARAM, "foo");
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        Request request = new Request(HttpMethod.GET, "/some/expandRequest/uri", params, response);
+
+        expansionHandler.handleExpansionRecursion(request);
+
+        verify(response, times(1)).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+        verify(response, times(1)).end("Expand parameter is not valid. Must be a number");
+
+        verifyZeroInteractions(httpClient);
+    }
+
+    @Test
+    public void testBadRequestResponseForExceedingMaxExpansionLevelHard(TestContext context) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("max.expansion.level.hard", "10");
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, properties, ROOT, RULES_ROOT);
+
+        CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
+        params.set(EXPAND_PARAM, "15");
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        Request request = new Request(HttpMethod.GET, "/some/expandRequest/uri", params, response);
+
+        expansionHandler.handleExpansionRecursion(request);
+
+        verify(response, times(1)).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+        verify(response, times(1)).end("Expand level '15' is greater than the maximum expand level '10'");
+
+        verifyZeroInteractions(httpClient);
+    }
+
     private class Request extends DummyHttpServerRequest {
         private CaseInsensitiveHeaders params;
         private HttpMethod httpMethod;
         private String uri;
+        private HttpServerResponse response;
 
         public Request(HttpMethod httpMethod, String uri, CaseInsensitiveHeaders params) {
+            this(httpMethod, uri, params, null);
+        }
+
+        public Request(HttpMethod httpMethod, String uri, CaseInsensitiveHeaders params, HttpServerResponse response) {
             this.httpMethod = httpMethod;
             this.uri = uri;
             this.params = params;
+            this.response = response;
         }
 
         @Override public HttpMethod method() {
@@ -231,5 +299,16 @@ public class ExpansionHandlerTest {
             return uri;
         }
         @Override public MultiMap params() { return params; }
+
+        @Override public HttpServerResponse response() {return response; }
+
+        @Override
+        public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+
+        @Override
+        public HttpServerRequest pause() { return this; }
+
+        @Override
+        public HttpServerRequest resume() { return this; }
     }
 }

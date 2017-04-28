@@ -120,6 +120,8 @@ public abstract class AbstractTest {
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
 
+        props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_HARD_PROPERTY, "100");
+
         RunConfig.deployModules(vertx, AbstractTest.class, props, success -> {
             if(success){
                 RedisClient redisClient = RedisClient.create(vertx, new RedisOptions().setHost(redisHost).setPort(redisPort));

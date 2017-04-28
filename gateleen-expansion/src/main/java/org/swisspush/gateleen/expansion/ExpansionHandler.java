@@ -85,9 +85,9 @@ public class ExpansionHandler implements RuleChangesObserver{
     private static final String MAX_RECURSION_DEPTH_PROPERTY = "max.recursion.depth";
     private static final int RECURSION_DEPTH_DEFAULT = 2000;
 
-    private static final String MAX_EXPANSION_LEVEL_SOFT_PROPERTY = "max.expansion.level.soft";
-    private static final String MAX_EXPANSION_LEVEL_HARD_PROPERTY = "max.expansion.level.hard";
-    private static final String MAX_SUBREQUEST_PROPERTY = "max.expansion.subrequests";
+    public static final String MAX_EXPANSION_LEVEL_SOFT_PROPERTY = "max.expansion.level.soft";
+    public static final String MAX_EXPANSION_LEVEL_HARD_PROPERTY = "max.expansion.level.hard";
+    public static final String MAX_SUBREQUEST_PROPERTY = "max.expansion.subrequests";
     private static final int MAX_SUBREQUEST_COUNT_DEFAULT = 20000;
 
     private static final String ETAG_HEADER = "Etag";
@@ -304,11 +304,22 @@ public class ExpansionHandler implements RuleChangesObserver{
      */
     private void handleExpansionRequest(final HttpServerRequest req, final RecursiveHandlerFactory.RecursiveHandlerTypes recursiveHandlerType) {
         req.pause();
-
         Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
 
+        Integer expandLevel = extractExpandParamValue(req, log);
+        if(expandLevel == null){
+            respondRequest(req, StatusCode.BAD_REQUEST, "Expand parameter is not valid. Must be a number");
+            return;
+        }
+
+        if(expandLevel > maxExpansionLevelHard){
+            String message = "Expand level '"+expandLevel+"' is greater than the maximum expand level '" + maxExpansionLevelHard + "'";
+            log.info(message);
+            respondRequest(req, StatusCode.BAD_REQUEST, message);
+            return;
+        }
+
         // store the parameters for later use
-        // ----
         Set<String> originalParams = null;
         if (req.params() != null) {
             originalParams = req.params().names();
@@ -329,10 +340,7 @@ public class ExpansionHandler implements RuleChangesObserver{
         final int recursionDepth = getRecursionDepth(req, log);
 
         if(isStorageExpand(req.uri()) && recursionDepth > 1){
-            req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-            req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-            req.response().end("Expand values higher than 1 are not supported for storageExpand requests");
-            req.resume();
+            respondRequest(req, StatusCode.BAD_REQUEST, "Expand values higher than 1 are not supported for storageExpand requests");
             return;
         }
 
@@ -430,6 +438,18 @@ public class ExpansionHandler implements RuleChangesObserver{
         }
 
         return depth;
+    }
+
+    private Integer extractExpandParamValue(final HttpServerRequest request, final Logger log){
+        String expandValue = request.params().get(EXPAND_PARAM);
+        log.debug("got expand parameter value " + expandValue);
+
+        try {
+            return Integer.valueOf(expandValue);
+        } catch (NumberFormatException ex){
+            log.warn("expand parameter value '"+expandValue+"' is not a valid number");
+            return null;
+        }
     }
 
     /**
@@ -638,6 +658,20 @@ public class ExpansionHandler implements RuleChangesObserver{
         }
 
         return targetUri;
+    }
+
+    /**
+     * Respond the request with the provided statuscode and body.
+     *
+     * @param request the request to respond to
+     * @param statusCode the statuscode to respond
+     * @param body the body to respond
+     */
+    private void respondRequest(final HttpServerRequest request, StatusCode statusCode, String body){
+        request.response().setStatusCode(statusCode.getStatusCode());
+        request.response().setStatusMessage(statusCode.getStatusMessage());
+        request.response().end(body);
+        request.resume();
     }
 
     /**
