@@ -4,9 +4,29 @@
 #### Usage
 > http://<url>/collection?expand=x
 
-x can be a value from 1 to infinity. It represents the maximum recursion level and is only limited by the property "max.recursion.depth".
+x can be a value from 1 to infinity. It represents the maximum recursion level and is limited by the following properties:
+* max.expansion.level.soft
+* max.expansion.level.hard
+* max.expansion.subrequests
 
-Besides, the expansion is also limited by the property "max.expansion.subrequests" which sets the maximum count of requests created by one recursive GET request.
+##### max.expansion.level.soft
+The _max.expansion.level.soft_ property (default value = _Integer.MAX_VALUE_) defines a soft limit for the maximum expansion level. A soft limit means that the expand request will only be expanded
+to the _max.expansion.level.soft_ value.
+
+Example: _max.expansion.level.soft_ is configured to value 3. When making the request
+
+> GET http://localhost:7012/gateleen/some_resources?expand=4
+
+the data are only expanded until level 3. An additional warning will be logged, that the maximum expansion level has been exceeded.
+
+##### max.expansion.level.hard
+The _max.expansion.level.hard_ property (default value = _Integer.MAX_VALUE_) defines the hard limit for the maximum expansion level. This means that expand requests with an expand parameter higher
+than _max.expansion.level.hard_ value are responded with
+
+> 400 Bad Request
+
+##### max.expansion.subrequests
+The expansion is also limited by the property _max.expansion.subrequests_ which sets the maximum count of requests created by one recursive GET request.
 
 The RecursiveExpansionHandler allows you to send GET requests to the server which are resolved recursively. 
 What does that actually mean? Let’s have a look at an example:
@@ -87,7 +107,7 @@ If you want to use the StorageExpand feature, you can set the attribute:
 > storageExpand=true
 
 in the corresponding routing rule. The StorageExpand feature does expand directly in the storage, so it is faster than the "standard" expansion feature.
-> <font color="orange">Attention: </font> Be aware that the depth is limited to 1 by now.
+> <font color="orange">Attention: </font> Be aware that the depth is limited to 1 by now, regardless of the _max.expansion.level.hard_ value.
 
 > <font color="orange">Attention: </font> You must allow the POST method (in the acls) for the urls you want to use with the StorageExpand feature!
 
