@@ -18,6 +18,7 @@ import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
 import org.swisspush.gateleen.core.util.ResourceCollectionException;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleFeaturesProvider;
@@ -82,8 +83,6 @@ public class ExpansionHandler implements RuleChangesObserver{
 
     private static final int DECREMENT_BY_ONE = 1;
     private static final int MAX_RECURSION_LEVEL = 0;
-    private static final String MAX_RECURSION_DEPTH_PROPERTY = "max.recursion.depth";
-    private static final int RECURSION_DEPTH_DEFAULT = 2000;
 
     public static final String MAX_EXPANSION_LEVEL_SOFT_PROPERTY = "max.expansion.level.soft";
     public static final String MAX_EXPANSION_LEVEL_HARD_PROPERTY = "max.expansion.level.hard";
@@ -93,7 +92,6 @@ public class ExpansionHandler implements RuleChangesObserver{
     private static final String ETAG_HEADER = "Etag";
     private static final String SELF_REQUEST_HEADER = "x-self-request";
 
-    private int maxRecursionDepth;
     private int maxSubRequestCount;
 
     private int maxExpansionLevelSoft = Integer.MAX_VALUE;
@@ -223,19 +221,6 @@ public class ExpansionHandler implements RuleChangesObserver{
         } else {
             log.info("Setting maximum expansion level soft hard to a default of " + maxExpansionLevelHard + ", since no property " + MAX_EXPANSION_LEVEL_HARD_PROPERTY + " is defined!");
         }
-
-        if (properties != null && properties.containsKey(MAX_RECURSION_DEPTH_PROPERTY)) {
-            try {
-                maxRecursionDepth = Integer.parseInt((String) properties.get(MAX_RECURSION_DEPTH_PROPERTY));
-                log.info("Setting default recursion depth to " + maxRecursionDepth + " from properties");
-            } catch (Exception e) {
-                maxRecursionDepth = RECURSION_DEPTH_DEFAULT;
-                log.warn("Setting default recursion depth to a default of " + maxRecursionDepth + ", since defined value for " + MAX_RECURSION_DEPTH_PROPERTY + " in properties is not a number");
-            }
-        } else {
-            maxRecursionDepth = RECURSION_DEPTH_DEFAULT;
-            log.warn("Setting default recursion depth to a default of " + maxRecursionDepth + ", since no property " + MAX_RECURSION_DEPTH_PROPERTY + " is defined!");
-        }
     }
 
     /**
@@ -306,27 +291,6 @@ public class ExpansionHandler implements RuleChangesObserver{
         req.pause();
         Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
 
-        Integer expandLevel = extractExpandParamValue(req, log);
-        if(expandLevel == null){
-            respondRequest(req, StatusCode.BAD_REQUEST, "Expand parameter is not valid. Must be a number");
-            return;
-        }
-
-        if(expandLevel > maxExpansionLevelHard){
-            String message = "Expand level '"+expandLevel+"' is greater than the maximum expand level '" + maxExpansionLevelHard + "'";
-            log.info(message);
-            respondRequest(req, StatusCode.BAD_REQUEST, message);
-            return;
-        }
-
-        // store the parameters for later use
-        Set<String> originalParams = null;
-        if (req.params() != null) {
-            originalParams = req.params().names();
-        }
-        final Set<String> finalOriginalParams = originalParams;
-        // ----
-
         /*
          * in order to get the recursion level,
          * we need to call getRecursionDepth before
@@ -336,17 +300,43 @@ public class ExpansionHandler implements RuleChangesObserver{
          * the multimap and therefore we don't have
          * the possibility anymore to get the wished
          * parameter!
-         */
-        final int recursionDepth = getRecursionDepth(req, log);
+        */
+        Integer expandLevel = extractExpandParamValue(req, log);
 
-        if(isStorageExpand(req.uri()) && recursionDepth > 1){
-            respondRequest(req, StatusCode.BAD_REQUEST, "Expand values higher than 1 are not supported for storageExpand requests");
+        if(expandLevel == null){
+            respondBadRequest(req,"Expand parameter is not valid. Must be a positive number");
             return;
         }
+
+        if(expandLevel > maxExpansionLevelHard){
+            String message = "Expand level '"+expandLevel+"' is greater than the maximum expand level '" + maxExpansionLevelHard + "'";
+            log.info(message);
+            respondBadRequest(req, message);
+            return;
+        }
+
+        if(expandLevel > maxExpansionLevelSoft){
+            log.warn("Expand level '"+expandLevel+"' is greater than the maximum soft expand level '" +
+                    maxExpansionLevelSoft + "'. Using '"+maxExpansionLevelSoft+"' instead");
+            expandLevel = maxExpansionLevelSoft;
+        }
+
+        if(isStorageExpand(req.uri()) && expandLevel > 1){
+            respondBadRequest(req, "Expand values higher than 1 are not supported for storageExpand requests");
+            return;
+        }
+
+        // store the parameters for later use
+        Set<String> originalParams = null;
+        if (req.params() != null) {
+            originalParams = req.params().names();
+        }
+        final Set<String> finalOriginalParams = originalParams;
 
         final String targetUri = ExpansionDeltaUtil.constructRequestUri(req.path(), req.params(), parameter_to_remove_for_all_request, null, SlashHandling.END_WITH_SLASH);
         log.debug("constructed uri for request: " + targetUri);
 
+        Integer finalExpandLevel = expandLevel;
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
             req.response().setStatusCode(cRes.statusCode());
             req.response().setStatusMessage(cRes.statusMessage());
@@ -377,7 +367,7 @@ public class ExpansionHandler implements RuleChangesObserver{
                      * an exception is thrown and handled
                      * by the handler right away.
                      */
-                makeResourceSubRequest(targetUri, req, recursionDepth, new AtomicInteger(),
+                makeResourceSubRequest(targetUri, req, finalExpandLevel, new AtomicInteger(),
                         recursiveHandlerType,
                         RecursiveHandlerFactory.createRootHandler(recursiveHandlerType, req, serverRoot, data, finalOriginalParams), true);
             });
@@ -418,34 +408,17 @@ public class ExpansionHandler implements RuleChangesObserver{
         req.resume();
     }
 
-    /**
-     * Tries to extract the recursion depth from the
-     * request parameter 'expand'. If the value cannot
-     * be extracted a default value is returned.
-     *
-     * @param req req
-     * @return int
-     */
-    private int getRecursionDepth(final HttpServerRequest req, final Logger log) {
-        String expandValue = req.params().get(EXPAND_PARAM);
-        log.debug("expandValue = " + expandValue);
-        int depth;
-
-        try {
-            depth = Integer.valueOf(expandValue);
-        } catch (Exception e) {
-            depth = maxRecursionDepth;
-        }
-
-        return depth;
-    }
-
     private Integer extractExpandParamValue(final HttpServerRequest request, final Logger log){
         String expandValue = request.params().get(EXPAND_PARAM);
         log.debug("got expand parameter value " + expandValue);
 
         try {
-            return Integer.valueOf(expandValue);
+            Integer value = Integer.valueOf(expandValue);
+            if(value < 0){
+                log.warn("expand parameter value '"+expandValue+"' is not a positive number");
+                return null;
+            }
+            return value;
         } catch (NumberFormatException ex){
             log.warn("expand parameter value '"+expandValue+"' is not a valid number");
             return null;
@@ -487,7 +460,7 @@ public class ExpansionHandler implements RuleChangesObserver{
     }
 
     /**
-     * Removes the zip parametet, it's only needed by the check
+     * Removes the zip parameter, it's only needed by the check
      * method <code>isZipRequest(...)</code>.
      *
      * @param request request
@@ -553,7 +526,7 @@ public class ExpansionHandler implements RuleChangesObserver{
          * In order not to exceed the limit of allowed
          * subrequests, every call increments the subRequestCounter.
          * If the subRequestCounter reaches maxSubrequestCount, an exception is
-         * created and the recursive get process is canceld.
+         * created and the recursive get process is canceled.
          */
         if (subRequestCounter.get() > maxSubRequestCount) {
             handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException("Number of allowed sub requests exceeded. Limit is " + maxSubRequestCount + " requests", StatusCode.BAD_REQUEST)));
@@ -661,15 +634,15 @@ public class ExpansionHandler implements RuleChangesObserver{
     }
 
     /**
-     * Respond the request with the provided statuscode and body.
+     * Respond the request with a statuscode {@link StatusCode#BAD_REQUEST} and body.
      *
      * @param request the request to respond to
-     * @param statusCode the statuscode to respond
      * @param body the body to respond
      */
-    private void respondRequest(final HttpServerRequest request, StatusCode statusCode, String body){
-        request.response().setStatusCode(statusCode.getStatusCode());
-        request.response().setStatusMessage(statusCode.getStatusMessage());
+    private void respondBadRequest(final HttpServerRequest request, String body){
+        ResponseStatusCodeLogUtil.debug(request, StatusCode.BAD_REQUEST, ExpansionHandler.class);
+        request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
         request.response().end(body);
         request.resume();
     }

@@ -25,7 +25,11 @@ public class ExpandParameterTest extends AbstractTest {
 
         given().param("expand", "foo").when().get("resources/").then().assertThat()
                 .statusCode(StatusCode.BAD_REQUEST.getStatusCode())
-                .body(containsString("Expand parameter is not valid. Must be a number"));
+                .body(containsString("Expand parameter is not valid. Must be a positive number"));
+
+        given().param("expand", -1).when().get("resources/").then().assertThat()
+                .statusCode(StatusCode.BAD_REQUEST.getStatusCode())
+                .body(containsString("Expand parameter is not valid. Must be a positive number"));
 
         async.complete();
     }
