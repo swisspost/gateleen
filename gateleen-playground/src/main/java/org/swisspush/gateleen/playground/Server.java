@@ -144,6 +144,9 @@ public class Server extends AbstractVerticle {
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
 
+        props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_HARD_PROPERTY, "100");
+        props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_SOFT_PROPERTY, "50");
+
         RunConfig.deployModules(vertx, Server.class, props, success -> {
             if (success) {
                 redisClient = RedisClient.create(vertx, new RedisOptions().setHost(redisHost).setPort(redisPort));
