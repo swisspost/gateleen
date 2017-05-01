@@ -250,7 +250,7 @@ public class ExpansionHandlerTest {
 
         verify(response, times(1)).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
         verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-        verify(response, times(1)).end("Expand parameter is not valid. Must be a number");
+        verify(response, times(1)).end("Expand parameter is not valid. Must be a positive number");
 
         verifyZeroInteractions(httpClient);
     }

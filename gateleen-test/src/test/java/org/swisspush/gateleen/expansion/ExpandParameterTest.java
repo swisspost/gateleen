@@ -8,8 +8,10 @@ import org.junit.runner.RunWith;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.core.util.StatusCode;
 
-import static com.jayway.restassured.RestAssured.given;
+import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItems;
 
 /**
  * Tests the expand feature with focus to the expand parameter values.
@@ -35,12 +37,12 @@ public class ExpandParameterTest extends AbstractTest {
     }
 
     /**
-     * the maximum expand level is configured in the {@link AbstractTest} class to a value of 100
+     * the maximum expand level hard is configured in the {@link AbstractTest} class to a value of 100
      *
      * @param context test context
      */
     @Test
-    public void testMaximumExpandLevelExceeded(TestContext context) {
+    public void testMaximumExpandLevelHardExceeded(TestContext context) {
         Async async = context.async();
 
         given().param("expand", 100).when().get("resources/").then().assertThat()
@@ -57,4 +59,79 @@ public class ExpandParameterTest extends AbstractTest {
         async.complete();
     }
 
+    /**
+     * the maximum expand level soft is configured in the {@link AbstractTest} class to a value of 4
+     *
+     * @param context test context
+     */
+    @Test
+    public void testMaximumExpandLevelSoftExceeded(TestContext context) {
+        Async async = context.async();
+        delete();
+        with().body("{ \"foo\": \"r_1\" }").put("resources/level1/level2/level3/level4/level5/level6/res_1");
+        with().body("{ \"foo\": \"r_2\" }").put("resources/level1/level2/level3/level4/level5/level6/res_2");
+        with().body("{ \"foo\": \"r_3\" }").put("resources/level1/level2/level3/level4/level5/level6/res_3");
+        with().body("{ \"foo\": \"r_4\" }").put("resources/level1/level2/level3/level4/level5/level6/res_4");
+
+        given().param("expand", 1).when().get("resources/").then().assertThat()
+                .statusCode(200)
+                .body("resources.level1", hasItems("level2/"));
+
+        given().param("expand", 2).when().get("resources/").then().assertThat()
+                .statusCode(200)
+                .body("resources.level1.level2", hasItems("level3/"));
+
+        given().param("expand", 3).when().get("resources/").then().assertThat()
+                .statusCode(200)
+                .body("resources.level1.level2.level3", hasItems("level4/"));
+
+        given().param("expand", 4).when().get("resources/").then().assertThat()
+                .statusCode(200)
+                .body("resources.level1.level2.level3.level4", hasItems("level5/"));
+
+        /*
+         * All expand values above 4 will return expanded data to level 4 only
+         */
+
+        given().param("expand", 5).when().get("resources/").then().assertThat()
+                .statusCode(200)
+                .body("resources.level1.level2.level3.level4", hasItems("level5/"));
+
+        given().param("expand", 10).when().get("resources/").then().assertThat()
+                .statusCode(200)
+                .body("resources.level1.level2.level3.level4", hasItems("level5/"));
+
+        given().param("expand", 100).when().get("resources/").then().assertThat()
+                .statusCode(200)
+                .body("resources.level1.level2.level3.level4", hasItems("level5/"));
+
+        /*
+         * move some levels deeper and test again
+         */
+
+        given().param("expand", 5).when().get("resources/level1/").then().assertThat()
+                .statusCode(200)
+                .body("level1.level2.level3.level4.level5", hasItems("level6/"));
+
+        given().param("expand", 5).when().get("resources/level1/level2/").then().assertThat()
+                .statusCode(200)
+                .body("level2.level3.level4.level5.level6", hasItems("res_1", "res_2", "res_3", "res_4"));
+
+        given().param("expand", 4).when().get("resources/level1/level2/").then().assertThat()
+                .statusCode(200)
+                .body("level2.level3.level4.level5.level6", hasItems("res_1", "res_2", "res_3", "res_4"));
+
+        given().param("expand", 3).when().get("resources/level1/level2/").then().assertThat()
+                .statusCode(200)
+                .body("level2.level3.level4.level5", hasItems("level6/"));
+
+        given().param("expand", 4).when().get("resources/level1/level2/level3/").then().assertThat()
+                .statusCode(200)
+                .body("level3.level4.level5.level6.res_1.foo", equalTo("r_1"))
+                .body("level3.level4.level5.level6.res_2.foo", equalTo("r_2"))
+                .body("level3.level4.level5.level6.res_3.foo", equalTo("r_3"))
+                .body("level3.level4.level5.level6.res_4.foo", equalTo("r_4"));
+
+        async.complete();
+    }
 }

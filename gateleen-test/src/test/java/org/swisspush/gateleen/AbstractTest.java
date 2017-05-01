@@ -121,6 +121,7 @@ public abstract class AbstractTest {
         Integer redisPort = (Integer) props.get("redis.port");
 
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_HARD_PROPERTY, "100");
+        props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_SOFT_PROPERTY, "4");
 
         RunConfig.deployModules(vertx, AbstractTest.class, props, success -> {
             if(success){
