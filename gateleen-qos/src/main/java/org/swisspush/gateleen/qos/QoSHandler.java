@@ -611,7 +611,7 @@ public class QoSHandler implements LoggableResource {
                 // is sentinel registred and if so,
                 // is the sample count even or greater then the given one?
                 if (mbeanServer.isRegistered(beanName)) {
-                    int currentSampleCount = (Integer) mbeanServer.getAttribute(beanName, "Count");
+                    long currentSampleCount = (Long) mbeanServer.getAttribute(beanName, "Count");
                     if (currentSampleCount >= globalQoSConfig.getMinSampleCount()) {
 
                         double currentResponseTime = 0.0;

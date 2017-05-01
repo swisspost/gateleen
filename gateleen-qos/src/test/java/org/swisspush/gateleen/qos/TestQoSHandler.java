@@ -85,11 +85,11 @@ public class TestQoSHandler {
         when(mbeanServer.getAttribute(sentinel4, "75thPercentile")).thenReturn(1.5);
         when(mbeanServer.getAttribute(sentinel5, "75thPercentile")).thenReturn(1.5);
 
-        when(mbeanServer.getAttribute(sentinel1, "Count")).thenReturn(1);
-        when(mbeanServer.getAttribute(sentinel2, "Count")).thenReturn(1);
-        when(mbeanServer.getAttribute(sentinel3, "Count")).thenReturn(1);
-        when(mbeanServer.getAttribute(sentinel4, "Count")).thenReturn(1);
-        when(mbeanServer.getAttribute(sentinel5, "Count")).thenReturn(1);
+        when(mbeanServer.getAttribute(sentinel1, "Count")).thenReturn(1L);
+        when(mbeanServer.getAttribute(sentinel2, "Count")).thenReturn(1L);
+        when(mbeanServer.getAttribute(sentinel3, "Count")).thenReturn(1L);
+        when(mbeanServer.getAttribute(sentinel4, "Count")).thenReturn(1L);
+        when(mbeanServer.getAttribute(sentinel5, "Count")).thenReturn(1L);
 
         QoSConfig config = new QoSConfig(75, 40, 5, 0, 0);
         qosHandler.setGlobalQoSConfig(config);
@@ -218,11 +218,11 @@ public class TestQoSHandler {
         when(mbeanServer.getAttribute(sentinel4, "75thPercentile")).thenReturn(1.5);
         when(mbeanServer.getAttribute(sentinel5, "75thPercentile")).thenReturn(2.5);
 
-        when(mbeanServer.getAttribute(sentinel1, "Count")).thenReturn(1);
-        when(mbeanServer.getAttribute(sentinel2, "Count")).thenReturn(1);
-        when(mbeanServer.getAttribute(sentinel3, "Count")).thenReturn(1);
-        when(mbeanServer.getAttribute(sentinel4, "Count")).thenReturn(1);
-        when(mbeanServer.getAttribute(sentinel5, "Count")).thenReturn(1);
+        when(mbeanServer.getAttribute(sentinel1, "Count")).thenReturn(1L);
+        when(mbeanServer.getAttribute(sentinel2, "Count")).thenReturn(1L);
+        when(mbeanServer.getAttribute(sentinel3, "Count")).thenReturn(1L);
+        when(mbeanServer.getAttribute(sentinel4, "Count")).thenReturn(1L);
+        when(mbeanServer.getAttribute(sentinel5, "Count")).thenReturn(1L);
 
         // => average response time = 1.3, 40% index = 2 (value = 1.5)
         QoSConfig config = new QoSConfig(75, 40, 5, 0, 0);
