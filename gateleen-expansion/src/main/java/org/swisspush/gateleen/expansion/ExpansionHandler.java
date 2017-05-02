@@ -640,7 +640,7 @@ public class ExpansionHandler implements RuleChangesObserver{
      * @param body the body to respond
      */
     private void respondBadRequest(final HttpServerRequest request, String body){
-        ResponseStatusCodeLogUtil.debug(request, StatusCode.BAD_REQUEST, ExpansionHandler.class);
+        ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, ExpansionHandler.class);
         request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
         request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
         request.response().end(body);

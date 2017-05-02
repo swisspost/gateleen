@@ -143,7 +143,7 @@ public class RecursiveZipRootHandler extends RecursiveRootHandlerBase {
      * @param exception exception
      */
     private void createErrorResponse(Exception exception) {
-        ResponseStatusCodeLogUtil.debug(req, StatusCode.INTERNAL_SERVER_ERROR, RecursiveZipRootHandler.class);
+        ResponseStatusCodeLogUtil.info(req, StatusCode.INTERNAL_SERVER_ERROR, RecursiveZipRootHandler.class);
         req.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
         req.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
         req.response().end(exception.getMessage());

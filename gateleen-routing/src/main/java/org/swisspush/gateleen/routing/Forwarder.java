@@ -245,7 +245,7 @@ public class Forwarder implements Handler<RoutingContext> {
                 req.response().setStatusCode(StatusCode.TIMEOUT.getStatusCode());
                 req.response().setStatusMessage(StatusCode.TIMEOUT.getStatusMessage());
                 try {
-                    ResponseStatusCodeLogUtil.debug(req, StatusCode.TIMEOUT, Forwarder.class);
+                    ResponseStatusCodeLogUtil.info(req, StatusCode.TIMEOUT, Forwarder.class);
                     req.response().end(req.response().getStatusMessage());
                 } catch (IllegalStateException e) {
                     // ignore because maybe already closed
@@ -255,7 +255,7 @@ public class Forwarder implements Handler<RoutingContext> {
                 req.response().setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
                 req.response().setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
                 try {
-                    ResponseStatusCodeLogUtil.debug(req, StatusCode.SERVICE_UNAVAILABLE, Forwarder.class);
+                    ResponseStatusCodeLogUtil.info(req, StatusCode.SERVICE_UNAVAILABLE, Forwarder.class);
                     req.response().end(req.response().getStatusMessage());
                 } catch (IllegalStateException e) {
                     // ignore because maybe already closed
@@ -334,7 +334,7 @@ public class Forwarder implements Handler<RoutingContext> {
                 req.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                 req.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
                 try {
-                    ResponseStatusCodeLogUtil.debug(req, StatusCode.INTERNAL_SERVER_ERROR, Forwarder.class);
+                    ResponseStatusCodeLogUtil.info(req, StatusCode.INTERNAL_SERVER_ERROR, Forwarder.class);
                     req.response().end(req.response().getStatusMessage());
                 } catch (IllegalStateException e) {
                     // ignore because maybe already closed

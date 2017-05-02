@@ -509,7 +509,7 @@ public class RunConfig {
                         if(event.succeeded() && event.result()){
                             handleRequest(request);
                         } else if(event.failed()){
-                            ResponseStatusCodeLogUtil.debug(request, StatusCode.INTERNAL_SERVER_ERROR, RunConfig.class);
+                            ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, RunConfig.class);
                             request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                             request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
                             request.response().end(event.cause().getMessage());

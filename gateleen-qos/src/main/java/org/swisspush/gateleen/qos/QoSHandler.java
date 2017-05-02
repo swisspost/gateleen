@@ -1,8 +1,10 @@
 package org.swisspush.gateleen.qos;
 
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import com.floreysoft.jmte.DefaultModelAdaptor;
 import com.floreysoft.jmte.Engine;
@@ -227,7 +229,9 @@ public class QoSHandler implements LoggableResource {
                         requestHandled = true;
                         break;
                     case WARN_ACTION:
-                        log.warn("QoS Warning: Heavy load detected for rule {}, concerning the request {}", rule.getUrlPattern(), request.uri());
+                        RequestLoggerFactory.getLogger(QoSHandler.class, request)
+                                .warn("QoS Warning: Heavy load detected for rule {}, concerning the request {}",
+                                        rule.getUrlPattern(), request.uri());
                         break;
                     }
                 }
@@ -246,6 +250,7 @@ public class QoSHandler implements LoggableResource {
      * @param request the original request.
      */
     private void handleReject(final HttpServerRequest request) {
+        ResponseStatusCodeLogUtil.info(request, StatusCode.SERVICE_UNAVAILABLE, QoSHandler.class);
         request.response().setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
         request.response().setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
         request.response().end();
