@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
         "config":{
             "percentile":75,
             "quorum":40,
-            "period":5, 
+            "period":5,
             "minSampleCount" : 1000,
             "minSentinelCount" : 5
         },
@@ -56,30 +56,30 @@ import java.util.regex.Pattern;
     }
  * </pre>
  * <p>
- * The <b><code>config</code></b> section defines the global settings of the QoS. <br> 
+ * The <b><code>config</code></b> section defines the global settings of the QoS. <br>
  * <b><code>percentile</code></b>: Indicates which percentile value from the metrics will be used (eg. 50, 75, 95, 98, 999 or 99)<br>
  * <b><code>quorum</code></b>: Percentage of the the sentinels which have to be over the calculated threshold to trigger the given rule. <br>
- * <b><code>period</code></b>: The period (in seconds) after which a new calculation is triggered. If a rule is set to reject requests, 
+ * <b><code>period</code></b>: The period (in seconds) after which a new calculation is triggered. If a rule is set to reject requests,
  * it will reject requests until the next period. <br>
  * <b><code>minSampleCount</code></b>: The min. count of the samples a sentinel has to provide to be regarded for the QoS calculation. <br>
  * <b><code>minSentinelCount</code></b>:The min count of sentinels which have to be available to perform a QoS calculation. A sentinel is only available
  * if it corresponds to the minSampleCount rule. <br>
  * </p>
  * <p>
- * The <b><code>sentinels</code></b> section defines which metrics (defined in the routing rules) will be used as sentinels. To determine 
- * the load, the lowest measured percentile value will be preserved for each sentinel and put in relation to the current percentile value. 
- * This calculated ratio is later used to check if a rule needs some actions or not. You can override 
- * the taken percentile value for a specific sentinel by setting the attribute <code>percentile</code>.  
+ * The <b><code>sentinels</code></b> section defines which metrics (defined in the routing rules) will be used as sentinels. To determine
+ * the load, the lowest measured percentile value will be preserved for each sentinel and put in relation to the current percentile value.
+ * This calculated ratio is later used to check if a rule needs some actions or not. You can override
+ * the taken percentile value for a specific sentinel by setting the attribute <code>percentile</code>.
  * </p>
  * <p>
  * The <b><code>rules</code></b> section defines the rules for the QoS. Each rule is based on a pattern like the routing rules. <br>
  * The possible attributes are: <br>
- * <b><code>reject</code></b>: The ratio (eg. 1.3 means that *quorum* % of all sentinels must have an even or greater current ratio) 
+ * <b><code>reject</code></b>: The ratio (eg. 1.3 means that *quorum* % of all sentinels must have an even or greater current ratio)
  * which defines when a rule rejects the given request. <br>
- * <b><code>warn</code></b>: The ratio which defines when a rule writes a warning in the log without rejecting the given request. <br>  
+ * <b><code>warn</code></b>: The ratio which defines when a rule writes a warning in the log without rejecting the given request. <br>
  * </p>
  * <p>You can combine warn and reject
- * 
+ *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 public class QoSHandler implements LoggableResource {
@@ -112,12 +112,12 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * Creates a new instance of the QoSHandler.
-     * 
-     * @param vertx vertx reference
-     * @param storage storage reference
+     *
+     * @param vertx           vertx reference
+     * @param storage         storage reference
      * @param qosSettingsPath the url path to the QoS rules
-     * @param properties the properties
-     * @param prefix the prefix for the server
+     * @param properties      the properties
+     * @param prefix          the prefix for the server
      */
     public QoSHandler(final Vertx vertx, final ResourceStorage storage, final String qosSettingsPath, final Map<String, Object> properties, String prefix) {
         this.vertx = vertx;
@@ -146,7 +146,7 @@ public class QoSHandler implements LoggableResource {
     /**
      * Sets the mbean server. This method is usefull for
      * mocking in tests.
-     * 
+     *
      * @param mbeanServer a mbean server
      */
     protected void setMBeanServer(MBeanServer mbeanServer) {
@@ -184,7 +184,7 @@ public class QoSHandler implements LoggableResource {
      * the updates of the QoS settings or if it’s a request
      * affected by the QoS rules. In either case the return
      * value will be <code>true</code> otherwise <code>false</code>.
-     * 
+     *
      * @param request
      * @return true if request is QoS update or affected by the
      * rules, otherwise false.
@@ -207,7 +207,7 @@ public class QoSHandler implements LoggableResource {
      * Depending on the action (if any), the return result can be
      * true (already handled the request) or false (not yet handled).
      * If no matching rule is found false is returned.
-     * 
+     *
      * @param request the given request
      * @return returning true means that the request has already been handled, otherwise false is returned.
      */
@@ -222,17 +222,16 @@ public class QoSHandler implements LoggableResource {
 
                 // perform the action
                 for (String action : rule.getActions()) {
-
                     switch (action) {
-                    case REJECT_ACTION:
-                        handleReject(request);
-                        requestHandled = true;
-                        break;
-                    case WARN_ACTION:
-                        RequestLoggerFactory.getLogger(QoSHandler.class, request)
-                                .warn("QoS Warning: Heavy load detected for rule {}, concerning the request {}",
-                                        rule.getUrlPattern(), request.uri());
-                        break;
+                        case REJECT_ACTION:
+                            handleReject(request);
+                            requestHandled = true;
+                            break;
+                        case WARN_ACTION:
+                            RequestLoggerFactory.getLogger(QoSHandler.class, request)
+                                    .warn("QoS Warning: Heavy load detected for rule {}, concerning the request {}",
+                                            rule.getUrlPattern(), request.uri());
+                            break;
                     }
                 }
 
@@ -240,13 +239,12 @@ public class QoSHandler implements LoggableResource {
                 return requestHandled;
             }
         }
-
         return false;
     }
 
     /**
      * The given request will directly be rejected.
-     * 
+     *
      * @param request the original request.
      */
     private void handleReject(final HttpServerRequest request) {
@@ -259,7 +257,7 @@ public class QoSHandler implements LoggableResource {
     /**
      * Stores the QoS settings in the storage (or deletes them) and
      * calls the update of the QoS Settings.
-     * 
+     *
      * @param request the original request
      */
     private void handleQoSSettingsUpdate(final HttpServerRequest request) {
@@ -290,7 +288,7 @@ public class QoSHandler implements LoggableResource {
 
                 storage.put(qosSettingsUri, buffer, status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
-                        if(logQosConfigurationChanges){
+                        if (logQosConfigurationChanges) {
                             RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                         }
                         vertx.eventBus().publish(UPDATE_ADDRESS, true);
@@ -317,7 +315,7 @@ public class QoSHandler implements LoggableResource {
     /**
      * Creates the QoS config object from the given JsonObject
      * and returns it.
-     * 
+     *
      * @param qosSettings json object
      * @return the global QoS config object, null if the config section
      * is not present.
@@ -351,7 +349,7 @@ public class QoSHandler implements LoggableResource {
     /**
      * Creates the QoS sentinel objects from the given JsonObject
      * and returns them in a list.
-     * 
+     *
      * @param qosSettings json object
      * @return a list with the QoSSentinel objects, empty if the sentinel section
      * is not present or empty.
@@ -397,7 +395,7 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * We try to retrive the old sentinel (if available).
-     * 
+     *
      * @param sentinelName the name of the sentinel.
      * @return old sentinel object or null if no sentinel was found
      */
@@ -418,7 +416,7 @@ public class QoSHandler implements LoggableResource {
     /**
      * Creates the QoS rule objects from the given JsonObject
      * and returns them in a list.
-     * 
+     *
      * @param qosSettings json object
      * @return a list with the QoSRule objects, empty if the rules section
      * is not present or empty.
@@ -480,7 +478,7 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * Tries to parse the QoS settings.
-     * 
+     *
      * @param buffer buffer from the request
      * @return a JsonObject containing the settings.
      */
@@ -494,7 +492,7 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * Replace - if there are any - configuration wildcards.
-     * 
+     *
      * @param configWithWildcards the content of the rule buffer
      * @return the adapted content of the rule buffer
      */
@@ -530,7 +528,7 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * Indicates if the request is an update of the QoS Settings.
-     * 
+     *
      * @param request the request.
      * @return true if its an update of the settings, otherwise false.
      */
@@ -541,7 +539,7 @@ public class QoSHandler implements LoggableResource {
     /**
      * Updates the QoS Settings and reinitialitze the
      * timer, as well as the calculation.
-     * 
+     *
      * @param buffer buffer of the settings
      */
     private void updateQoSSettings(final Buffer buffer) {
@@ -638,7 +636,13 @@ public class QoSHandler implements LoggableResource {
                         }
 
                         // calculate the current ratio compared to the reference percentile value
-                        currentSentinelRatios.add(currentResponseTime / sentinel.getLowestPercentileValue());
+                        double currentRatio = currentResponseTime / sentinel.getLowestPercentileValue();
+                        currentSentinelRatios.add(currentRatio);
+
+                        log.debug("sentinel '" + sentinel.getName() + "': percentile="+sentinel.getPercentile()+", lowestPercentileValue=" + sentinel.getLowestPercentileValue()
+                                + ", currentSampleCount=" + currentSampleCount
+                                + ", currentResponseTime=" + currentResponseTime
+                                + ", currentRatio=" + currentRatio);
 
                         // increment valid counter
                         validSentinels++;
@@ -672,7 +676,8 @@ public class QoSHandler implements LoggableResource {
                 }
             }
 
-            log.debug("Successfully read sentinels: {}", validSentinels);
+            log.debug("Sentinels count: {}", validSentinels);
+            log.debug("Sentinels ratios: {}", currentSentinelRatios);
             log.debug("Threshold index: {}", threshold);
             log.debug("Threshold ratio: {}", currentSentinelRatios.get(threshold));
 
@@ -714,7 +719,7 @@ public class QoSHandler implements LoggableResource {
      * the calculated sentinel ratio from the desc. sorted
      * list at the index coresponding to the percentual
      * value (quorum) of all sentinel api's is lower or even.
-     * 
+     *
      * @param ratio
      * @param thresholdSentinelRatio
      * @return true if any action must be applied, otherwise false
@@ -725,7 +730,7 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * Sets the global configuration for the QoS.
-     * 
+     *
      * @param globalQoSConfig the config object for QoS.
      */
     protected void setGlobalQoSConfig(QoSConfig globalQoSConfig) {
@@ -734,7 +739,7 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * Returns a list of the QoS rules.
-     * 
+     *
      * @return list of QoS rules.
      */
     protected List<QoSRule> getQosRules() {
@@ -743,7 +748,7 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * Sets the QoS rules.
-     * 
+     *
      * @param qosRules a list of the QoS rule objects
      */
     protected void setQosRules(List<QoSRule> qosRules) {
@@ -752,7 +757,7 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * Sets a list of all sentinels.
-     * 
+     *
      * @param qosSentinels list with sentinel objects
      */
     protected void setQosSentinels(List<QoSSentinel> qosSentinels) {
@@ -761,7 +766,7 @@ public class QoSHandler implements LoggableResource {
 
     /**
      * Gets a list of all sentinels.
-     * 
+     *
      * @return list with sentinel objects
      */
     protected List<QoSSentinel> getQosSentinels() {
