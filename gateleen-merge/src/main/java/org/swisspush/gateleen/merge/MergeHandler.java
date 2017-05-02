@@ -648,10 +648,8 @@ public class MergeHandler {
             request.response().setStatusMessage(res.statusMessage());
             request.response().setChunked(true);
 
-            res.bodyHandler(data -> {
-                request.response().write(data);
-                request.response().end();
-            });
+            res.handler( data -> request.response().write(data));
+            res.endHandler( data -> request.response().end());
         });
 
         directRequest.setTimeout(TIMEOUT);
