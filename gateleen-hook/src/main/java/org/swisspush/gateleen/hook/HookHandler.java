@@ -1357,7 +1357,7 @@ public class HookHandler implements LoggableResource {
      * @return Route
      */
     private Route createRoute(String urlPattern, HttpHook hook) {
-        return new Route(vertx, storage, loggingResourceManager, monitoringHandler, userProfilePath, hook, urlPattern);
+        return new Route(vertx, storage, loggingResourceManager, monitoringHandler, userProfilePath, hook, urlPattern, selfClient);
     }
 
     /**

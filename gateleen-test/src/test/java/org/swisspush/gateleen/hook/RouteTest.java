@@ -113,7 +113,38 @@ public class RouteTest extends AbstractTest {
         async.complete();
     }
 
+    @Test
+    public void testRouteWithValidPath(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
 
+        // Settings
+        String subresource = "routePathTest";
+        String routeName = "routePathTest";
+        // -------
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = SERVER_ROOT + "/tests/gateleen/routetarget/" + routeName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        // just for security reasons (unregister route)
+        delete(requestUrl);
+
+        // -------
+
+        final String routedResource = requestUrlBase + "/" + subresource + "/test";
+        final String checkTarget = targetUrlBase + "/" + routeName + "/test";
+
+        TestUtils.registerRoute(requestUrl, target, methods);
+
+        String body2 = "{ \"name\" : \"routePathTest\"}";
+        given().body(body2).put(routedResource).then().assertThat().statusCode(200);
+        when().get(routedResource).then().assertThat().body(containsString(body2));
+        when().get(checkTarget).then().assertThat().body(containsString(body2));
+
+        async.complete();
+    }
 
     /**
      * Test for create a route, and testing if requests
