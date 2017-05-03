@@ -59,8 +59,11 @@ The possible attributes are:
 > <font color="blue">Information: </font> You can combine warn and reject.
 
 > <font color="orange">Attention: </font> Be aware that a metric is only available (in JMX) after a HTTP request (PUT/GET/...) was performed. Therefore it’s correct if the log shows something like **_MBean X for sentinel Y is not ready yet ..._** The QoS feature considers only available metrics (from the sentinels) for its calculation.
+
+## Schema validation
+Updating the QoS configuration resource requires a validation against a schema to be positive. Check the schema [gateleen_qos_schema_config](src/main/resources/gateleen_qos_schema_config)
  
-## Log Qos ruleset changes
+## Log QoS ruleset changes
 To log the payload of changes to the Qos ruleset, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.
 
 Make sure to instantiate the [RequestLoggingConsumer](../gateleen-logging/src/main/java/org/swisspush/gateleen/logging/RequestLoggingConsumer.java) by calling
