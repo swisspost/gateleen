@@ -1,11 +1,25 @@
 package org.swisspush.gateleen.qos;
 
-import org.swisspush.gateleen.core.storage.ResourceStorage;
+import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.http.CaseInsensitiveHeaders;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
+import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
+import org.swisspush.gateleen.core.storage.MockResourceStorage;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.StatusCode;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -18,23 +32,26 @@ import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /**
- * Test class for the QoSHandler.
+ * Tests for the {@link QoSHandler} class
  * 
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class TestQoSHandler {
+@RunWith(VertxUnitRunner.class)
+public class QoSHandlerTest {
     private Vertx vertx;
     private String prefix;
     private String qosSettingsPath;
     private ResourceStorage storage;
     private MBeanServer mbeanServer;
 
+    private final String QOS_URI = "/test/server/admin/v1/qos";
+
     @Before
     public void init() {
-        storage = Mockito.mock(ResourceStorage.class);
+        storage = new MockResourceStorage();
         vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
 
@@ -43,6 +60,174 @@ public class TestQoSHandler {
 
         prefix = "test";
         qosSettingsPath = "/test/server/admin/v1/qos";
+    }
+
+    @Test
+    public void testQoSSettingsUpdateWithValidConfigurations(TestContext context){
+        QoSHandler qosHandler = new QoSHandler(vertx, storage, qosSettingsPath, new HashMap<>(), prefix);
+        HttpServerResponse response = mock(HttpServerResponse.class);
+
+        String validMinimalConfig = "{" +
+                "  \"config\":{" +
+                "    \"percentile\":75," +
+                "    \"quorum\":40," +
+                "    \"period\":5," +
+                "    \"minSampleCount\" : 1000," +
+                "    \"minSentinelCount\" : 5" +
+                "  }" +
+                "}";
+
+        CustomHttpServerRequest request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, validMinimalConfig, new CaseInsensitiveHeaders(), response);
+        qosHandler.handle(request);
+
+        verify(response, times(1)).end();
+        
+        String validFullConfig = "{" +
+                "  \"config\":{" +
+                "    \"percentile\":75," +
+                "    \"quorum\":40," +
+                "    \"period\":5," +
+                "    \"minSampleCount\" : 1000," +
+                "    \"minSentinelCount\" : 5" +
+                "  }," +
+                "  \"sentinels\":{" +
+                "    \"sentinelA\":{" +
+                "      \"percentile\":50" +
+                "    }," +
+                "    \"sentinelB\":{}," +
+                "    \"sentinelC\":{}," +
+                "    \"sentinelD\":{}" +
+                "  }," +
+                "  \"rules\":{" +
+                "    \"/test/myapi1/v1/.*\":{" +
+                "      \"reject\":1.2," +
+                "      \"warn\":0.5" +
+                "    }," +
+                "    \"/test/myapi2/v1/.*\":{" +
+                "      \"reject\":0.3" +
+                "    }" +
+                "  }" +
+                "}";
+
+        response = mock(HttpServerResponse.class);
+        request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, validFullConfig, new CaseInsensitiveHeaders(), response);
+        qosHandler.handle(request);
+
+        verify(response, times(1)).end();
+    }
+
+    @Test
+    public void testQoSSettingsUpdateWithInvalidPercentileValues(TestContext context){
+        QoSHandler qosHandler = new QoSHandler(vertx, storage, qosSettingsPath, new HashMap<>(), prefix);
+        HttpServerResponse response = spy(new CustomHttpServerResponse(new CaseInsensitiveHeaders()));
+
+        String percentileNotAnyOfExpectedNumber = "{" +
+                "  \"config\":{" +
+                "    \"percentile\":11," +
+                "    \"quorum\":40," +
+                "    \"period\":5," +
+                "    \"minSampleCount\" : 1000," +
+                "    \"minSentinelCount\" : 5" +
+                "  }" +
+                "}";
+
+        CustomHttpServerRequest request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, percentileNotAnyOfExpectedNumber, new CaseInsensitiveHeaders(), response);
+        qosHandler.handle(request);
+
+        verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq("Bad Request Validation failed"));
+
+        String percentileNotANumber = "{" +
+                "  \"config\":{" +
+                "    \"percentile\": \"boom\"," +
+                "    \"quorum\":40," +
+                "    \"period\":5," +
+                "    \"minSampleCount\" : 1000," +
+                "    \"minSentinelCount\" : 5" +
+                "  }" +
+                "}";
+
+        response = spy(new CustomHttpServerResponse(new CaseInsensitiveHeaders()));
+        request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, percentileNotANumber, new CaseInsensitiveHeaders(), response);
+        qosHandler.handle(request);
+
+        verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq("Bad Request Validation failed"));
+    }
+
+    @Test
+    public void testQoSSettingsUpdateWithRulesButNoSentinels(TestContext context){
+        QoSHandler qosHandler = new QoSHandler(vertx, storage, qosSettingsPath, new HashMap<>(), prefix);
+        HttpServerResponse response = spy(new CustomHttpServerResponse(new CaseInsensitiveHeaders()));
+
+        String rulesWithoutSentinelsConfig = "{" +
+                "  \"config\":{" +
+                "    \"percentile\":75," +
+                "    \"quorum\":40," +
+                "    \"period\":5," +
+                "    \"minSampleCount\" : 1000," +
+                "    \"minSentinelCount\" : 5" +
+                "  }," +
+                "  \"rules\":{" +
+                "    \"/test/myapi1/v1/.*\":{" +
+                "      \"reject\":1.2," +
+                "      \"warn\":0.5" +
+                "    }," +
+                "    \"/test/myapi2/v1/.*\":{" +
+                "      \"reject\":0.3" +
+                "    }" +
+                "  }" +
+                "}";
+
+        CustomHttpServerRequest request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, rulesWithoutSentinelsConfig, new CaseInsensitiveHeaders(), response);
+        qosHandler.handle(request);
+
+        verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq("Bad Request ValidationException: QoS settings contain rules without sentinels"));
+    }
+
+    private class CustomHttpServerRequest extends DummyHttpServerRequest {
+
+        private String uri;
+        private HttpMethod method;
+        private String body;
+        private MultiMap headers;
+        private HttpServerResponse response;
+
+        public CustomHttpServerRequest(String uri, HttpMethod method, String body, MultiMap headers, HttpServerResponse response) {
+            this.uri = uri;
+            this.method = method;
+            this.body = body;
+            this.headers = headers;
+            this.response = response;
+        }
+
+        @Override public HttpMethod method() {
+            return method;
+        }
+        @Override public String uri() {
+            return uri;
+        }
+        @Override public MultiMap headers() { return headers; }
+
+        @Override
+        public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+            bodyHandler.handle(Buffer.buffer(body));
+            return this;
+        }
+
+        @Override public HttpServerResponse response() { return response; }
+    }
+
+    class CustomHttpServerResponse extends DummyHttpServerResponse {
+
+        private MultiMap headers;
+
+        public CustomHttpServerResponse(MultiMap headers){
+            this.headers = headers;
+        }
+
+        @Override public MultiMap headers() { return headers; }
     }
 
     /**

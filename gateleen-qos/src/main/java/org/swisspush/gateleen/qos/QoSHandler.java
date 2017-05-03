@@ -4,6 +4,7 @@ import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import com.floreysoft.jmte.DefaultModelAdaptor;
@@ -19,6 +20,9 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.validation.ValidationResult;
+import org.swisspush.gateleen.validation.ValidationException;
+import org.swisspush.gateleen.validation.Validator;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
@@ -100,6 +104,7 @@ public class QoSHandler implements LoggableResource {
     private final String qosSettingsUri;
     private final Map<String, Object> properties;
     private final String prefix;
+    private final String qosSettingsSchema;
 
     private MBeanServer mbeanServer;
     private long timerId = -1;
@@ -130,6 +135,8 @@ public class QoSHandler implements LoggableResource {
 
         // get the MBeanServer
         setMBeanServer(ManagementFactory.getPlatformMBeanServer());
+
+        qosSettingsSchema = ResourcesUtils.loadResource("gateleen_qos_schema_config", true);
 
         // loading stored QoS settings
         loadQoSSettings();
@@ -254,6 +261,34 @@ public class QoSHandler implements LoggableResource {
         request.response().end();
     }
 
+    private void validateConfigurationValues(Buffer qosSettingsBuffer) throws ValidationException {
+        ValidationResult validationResult = Validator.validateStatic(qosSettingsBuffer, qosSettingsSchema, log);
+        if(!validationResult.isSuccess()){
+            throw new ValidationException(validationResult);
+        }
+
+        try{
+            JsonObject qosSettings = parseQoSSettings(qosSettingsBuffer);
+            QoSConfig config = createQoSConfig(qosSettings);
+            List<QoSSentinel> sentinels = createQoSSentinels(qosSettings);
+            List<QoSRule> rules = createQoSRules(qosSettings);
+            extendedValidation(config, sentinels, rules);
+        } catch(Exception ex){
+            throw new ValidationException(ex);
+        }
+    }
+
+    private void extendedValidation(QoSConfig config, List<QoSSentinel> sentinels, List<QoSRule> rules) throws ValidationException {
+        // rules or sentinel without config
+        if (config == null && (!sentinels.isEmpty() || !rules.isEmpty())) {
+            throw new ValidationException("QoS setting contains rules or sentinels without global config!");
+        }
+        // rules without sentinels
+        else if (sentinels.isEmpty() && !rules.isEmpty()) {
+            throw new ValidationException("QoS settings contain rules without sentinels");
+        }
+    }
+
     /**
      * Stores the QoS settings in the storage (or deletes them) and
      * calls the update of the QoS Settings.
@@ -265,24 +300,17 @@ public class QoSHandler implements LoggableResource {
         if (HttpMethod.PUT == request.method()) {
             request.bodyHandler(buffer -> {
                 try {
-                    JsonObject qosSettings = parseQoSSettings(buffer);
-                    QoSConfig config = createQoSConfig(qosSettings);
-                    List<QoSSentinel> sentinels = createQoSSentinels(qosSettings);
-                    List<QoSRule> rules = createQoSRules(qosSettings);
-
-                    // rules or sentinel without config
-                    if (config == null && (!sentinels.isEmpty() || !rules.isEmpty())) {
-                        throw new IllegalArgumentException("QoS setting contains rules or sentinels without global config!");
-                    }
-                    // rules without sentinels
-                    else if (sentinels.isEmpty() && !rules.isEmpty()) {
-                        throw new IllegalArgumentException("QoS setting contains rules without sentinels!!");
-                    }
-                } catch (IllegalArgumentException e) {
-                    log.error("Could not parse QoS settings", e);
+                    validateConfigurationValues(buffer);
+                } catch (ValidationException validationException) {
+                    log.error("Could not parse QoS config resource: " + validationException.toString());
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                    request.response().end(e.getMessage());
+                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
+                    if(validationException.getValidationDetails() != null){
+                        request.response().headers().add("content-type", "application/json");
+                        request.response().end(validationException.getValidationDetails().encode());
+                    } else {
+                        request.response().end(validationException.getMessage());
+                    }
                     return;
                 }
 
@@ -543,28 +571,41 @@ public class QoSHandler implements LoggableResource {
      * @param buffer buffer of the settings
      */
     private void updateQoSSettings(final Buffer buffer) {
-        log.info("QoS Content: {}", buffer.toString());
+        log.info("About to update QoS settings with content: {}", buffer.toString());
+
+        ValidationResult validationResult = Validator.validateStatic(buffer, qosSettingsSchema, log);
+        if(!validationResult.isSuccess()){
+            log.error("QoS is disabled now. Got invalid QoS settings from storage");
+            return;
+        }
 
         // cancel the old timer (if any)
         cancelTimer();
 
         // after timer cancelation we are save to change the current setting
-        // ----
-
         JsonObject qosSettings = parseQoSSettings(buffer);
-        setGlobalQoSConfig(createQoSConfig(qosSettings));
-        setQosSentinels(createQoSSentinels(qosSettings));
-        setQosRules(createQoSRules(qosSettings));
+        QoSConfig config = createQoSConfig(qosSettings);
+        List<QoSSentinel> sentinels = createQoSSentinels(qosSettings);
+        List<QoSRule> rules = createQoSRules(qosSettings);
 
-        // ----
+        try {
+            extendedValidation(config, sentinels, rules);
+        } catch (ValidationException e) {
+            log.error("QoS is disabled now. Message: " + e.getMessage());
+            return;
+        }
+
+        setGlobalQoSConfig(config);
+        setQosSentinels(sentinels);
+        setQosRules(rules);
 
         // create a new timer ...
         // ... only if we have sentinels AND rules
         if (!qosSentinels.isEmpty() && !qosRules.isEmpty()) {
-
+            log.debug("Start periodic timer every " + globalQoSConfig.getPeriod() + "s");
             // evaluation timer
             timerId = vertx.setPeriodic(globalQoSConfig.getPeriod() * 1000, event -> {
-                log.debug("Timer fired");
+                log.debug("Timer fired: executing evaluateQoSActions");
                 evaluateQoSActions();
             });
         } else {
@@ -579,6 +620,7 @@ public class QoSHandler implements LoggableResource {
      * the evaluation.
      */
     protected void cancelTimer() {
+        log.debug("About to cancel timer");
         vertx.cancelTimer(timerId);
     }
 
@@ -668,7 +710,7 @@ public class QoSHandler implements LoggableResource {
             // index which should still be even or greater then the calc. ratio in a desc. sorted list
             // we have to subtract 1 to get the index in the list
             int threshold = (int) Math.ceil(validSentinels / 100.0 * globalQoSConfig.getQuorum()) - 1;
-            Collections.sort(currentSentinelRatios, Collections.reverseOrder());
+            currentSentinelRatios.sort(Collections.reverseOrder());
 
             if (log.isTraceEnabled()) {
                 for (double sentinelRatio : currentSentinelRatios) {
