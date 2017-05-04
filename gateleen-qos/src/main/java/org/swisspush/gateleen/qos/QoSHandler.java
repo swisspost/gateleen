@@ -674,7 +674,11 @@ public class QoSHandler implements LoggableResource {
                         // has to be the lowest measured percentile value
                         // over all readings
                         if (sentinel.getLowestPercentileValue() > currentResponseTime) {
-                            sentinel.setLowestPercentileValue(currentResponseTime);
+                            if(currentResponseTime > 0.0) {
+                                sentinel.setLowestPercentileValue(currentResponseTime);
+                            } else {
+                                log.debug("ignoring response time of 0.0, because the metric is probably not yet fully initalized");
+                            }
                         }
 
                         // calculate the current ratio compared to the reference percentile value

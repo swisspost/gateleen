@@ -465,6 +465,81 @@ public class QoSHandlerTest {
     }
 
     /**
+     * Test that the lowestPercentileValue will never be set to 0.0
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testSetLowestPercentileValue(TestContext context) throws Exception {
+        QoSHandler qosHandler = new QoSHandler(vertx, storage, qosSettingsPath, new HashMap<>(), prefix);
+        qosHandler.setMBeanServer(mbeanServer);
+
+        ObjectName sentinel1 = new ObjectName(getObjectName("sentinel1"));
+
+        when(mbeanServer.getAttribute(sentinel1, "75thPercentile")).thenReturn(
+                0.0,    //1st
+                0.5, //2nd
+                0.3,          //3rd
+                0.6,          //4th
+                0.0,          //5th
+                0.2,          //6th
+                0.05,         //7th
+                0.09,         //8th
+                0.00001,      //9th
+                0.0           //10th
+        );
+
+        when(mbeanServer.getAttribute(sentinel1, "Count")).thenReturn(100L);
+
+        // => average response time = 1.3, 40% index = 2 (value = 1.5)
+        QoSConfig config = new QoSConfig(75, 40, 5, 0, 0);
+        qosHandler.setGlobalQoSConfig(config);
+
+        List<QoSSentinel> sentinels = new ArrayList<>();
+        sentinels.add(new QoSSentinel("sentinel1"));
+        qosHandler.setQosSentinels(sentinels);
+
+        List<QoSRule> rules = new ArrayList<>();
+        QoSRule rule1 = new QoSRule(Pattern.compile("/test1/*"));
+        rule1.setReject(0.9);
+        rules.add(rule1);
+        qosHandler.setQosRules(rules);
+
+        QoSSentinel sentinel = sentinels.get(0);
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(Double.MAX_VALUE, sentinel.getLowestPercentileValue(), "the 1st response time is 0.0 and therefore should be ignored");
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(0.5, sentinel.getLowestPercentileValue(), "the 2nd response time is lower than Double.MAX_VALUE and should be used");
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(0.3, sentinel.getLowestPercentileValue(), "the 3rd response time is lower than 0.5 and should be used");
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(0.3, sentinel.getLowestPercentileValue(), "the 4th response time is higher than 0.3 and should be ignored");
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(0.3, sentinel.getLowestPercentileValue(), "the 5th response time is 0.0 and therefore should be ignored");
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(0.2, sentinel.getLowestPercentileValue(), "the 6th response time is lower than 0.3 and should be used");
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(0.05, sentinel.getLowestPercentileValue(), "the 7th response time is lower than 0.2 and should be used");
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(0.05, sentinel.getLowestPercentileValue(), "the 8th response time is higher than 0.05 and should be ignored");
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(0.00001, sentinel.getLowestPercentileValue(), "the 9th response time is lower than 0.05 and should be used");
+
+        qosHandler.evaluateQoSActions();
+        context.assertEquals(0.00001, sentinel.getLowestPercentileValue(), "the 10th response time is 0.0 and therefore should be ignored");
+    }
+
+
+    /**
      * Returns the correct jmx name for the ObjectName
      * object.
      * 
