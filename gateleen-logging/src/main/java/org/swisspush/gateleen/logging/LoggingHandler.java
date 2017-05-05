@@ -2,6 +2,8 @@ package org.swisspush.gateleen.logging;
 
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -11,9 +13,12 @@ import org.apache.log4j.Appender;
 import org.apache.log4j.DailyRollingFileAppender;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.event.EventBusWriter;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -25,10 +30,12 @@ public class LoggingHandler {
     private HttpServerRequest request;
     private MultiMap requestHeaders;
     private HttpClientResponse response;
-    private Boolean active = false;
+    private boolean active = false;
+
     private Buffer requestPayload;
     private Buffer responsePayload;
     private LoggingResource loggingResource;
+    private EventBus eventBus;
 
     private String currentDestination;
 
@@ -39,6 +46,9 @@ public class LoggingHandler {
     private static final String DEFAULT_LOGGER = "RequestLog";
     private static final String REJECT = "reject";
     private static final String DESTINATION = "destination";
+    private static final String DESCRIPTION = "description";
+    private static final String META_DATA = "metadata";
+    private static final String TRANSMISSION = "transmission";
     private static final String URL = "url";
     private static final String METHOD = "method";
     private static final String STATUS_CODE = "statusCode";
@@ -49,14 +59,16 @@ public class LoggingHandler {
     private static final String BODY = "body";
     private static final String FILE = "file";
     private static final String ADDRESS = "address";
+    private static final String DEFAULT = "default";
 
     private Map<String, org.apache.log4j.Logger> loggers = new HashMap<>();
     private Map<String, Appender> appenders = new HashMap<>();
 
     private Logger log;
 
-    public LoggingHandler(LoggingResourceManager loggingResourceManager, HttpServerRequest request) {
+    public LoggingHandler(LoggingResourceManager loggingResourceManager, HttpServerRequest request, EventBus eventBus) {
         this.request = request;
+        this.eventBus = eventBus;
         this.loggingResource = loggingResourceManager.getLoggingResource();
         this.log = RequestLoggerFactory.getLogger(LoggingHandler.class, request);
 
@@ -66,9 +78,21 @@ public class LoggingHandler {
                 break;
             }
 
-            boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
+            // NEMO-5551: Custom sorting. We have to make sure key "URL" comes first in the array.
+            List<Entry<String, String>> payloadFilterEntrySetList = new ArrayList<>();
             for (Entry<String, String> filterEntry : payloadFilter.entrySet()) {
-                if (REJECT.equalsIgnoreCase(filterEntry.getKey()) || DESTINATION.equalsIgnoreCase(filterEntry.getKey())) {
+                if (filterEntry.getKey().equalsIgnoreCase("url")) {
+                    payloadFilterEntrySetList.add(0, filterEntry);
+                } else {
+                    payloadFilterEntrySetList.add(filterEntry);
+                }
+            }
+
+            boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
+            for (Entry<String, String> filterEntry : payloadFilterEntrySetList) {
+                if (REJECT.equalsIgnoreCase(filterEntry.getKey())
+                        || DESTINATION.equalsIgnoreCase(filterEntry.getKey())
+                        || DESCRIPTION.equalsIgnoreCase(filterEntry.getKey())) {
                     continue;
                 }
 
@@ -88,6 +112,10 @@ public class LoggingHandler {
         }
     }
 
+    public boolean isActive() {
+        return this.active;
+    }
+
     /**
      * Returns the destination key for the given filterProperty. If no destination is
      * set the default key is used instead. <br />
@@ -104,7 +132,7 @@ public class LoggingHandler {
         // if not available set to 'default'
         if (filterDestination == null) {
             log.debug("no filterDestination set");
-            filterDestination = "default";
+            filterDestination = DEFAULT;
         }
 
         // if the key is found, create a logger for the given file ...
@@ -115,31 +143,30 @@ public class LoggingHandler {
             if (destinationOptions.containsKey(FILE)) {
                 log.debug("found destination entry with type 'file' for: " + filterDestination);
                 appender = getFileAppender(filterDestination, destinationOptions.get(FILE));
-            }
-            else if (destinationOptions.containsKey("address")) {
+            } else if (destinationOptions.containsKey("address")) {
                 log.debug("found destination entry with type 'eventBus' for: " + filterDestination);
-                appender = getEventBusAppender(filterDestination, destinationOptions.get(ADDRESS));
-            }
-            else {
+                appender = getEventBusAppender(filterDestination, destinationOptions);
+            } else {
                 log.warn("Unknown typeLocation for destination: " + filterDestination);
             }
 
             if (appender != null) {
-                if(!loggers.containsKey(filterDestination)) {
+                if (!loggers.containsKey(filterDestination)) {
                     org.apache.log4j.Logger filterLogger = org.apache.log4j.Logger.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
                     filterLogger.removeAllAppenders();
                     filterLogger.addAppender(appender);
                     filterLogger.setAdditivity(false);
                     loggers.put(filterDestination, filterLogger);
                 }
-            }
-            else {
+            } else {
                 loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
             }
         }
         // ... or use the default logger
         else {
-            log.warn("no destination entry with name '"+filterDestination+"' found, using default logger instead");
+            if (!filterDestination.equals(DEFAULT)) {
+                log.warn("no destination entry with name '" + filterDestination + "' found, using default logger instead");
+            }
 
             // use default logger!
             loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
@@ -155,10 +182,10 @@ public class LoggingHandler {
      * returned.
      *
      * @param filterDestination
-     * @param address
+     * @param destinationOptions
      * @return
      */
-    private Appender getEventBusAppender(String filterDestination, String address) {
+    private Appender getEventBusAppender(String filterDestination, Map<String, String> destinationOptions) {
         if (!appenders.containsKey(filterDestination)) {
 
             /*
@@ -171,8 +198,11 @@ public class LoggingHandler {
              */
 
             EventBusAppender appender = new EventBusAppender();
+            EventBusAppender.setEventBus(eventBus);
             appender.setName(filterDestination);
-            appender.setAddress(address);
+            appender.setAddress(destinationOptions.get(ADDRESS));
+            appender.setDeliveryOptionsHeaders(new CaseInsensitiveHeaders().add(META_DATA, destinationOptions.get(META_DATA)));
+            appender.setTransmissionMode(EventBusWriter.TransmissionMode.fromString(destinationOptions.get(TRANSMISSION)));
             EnhancedPatternLayout layout = new EnhancedPatternLayout();
             layout.setConversionPattern("%m%n");
             appender.setLayout(layout);
@@ -257,6 +287,7 @@ public class LoggingHandler {
 
     public void log(String uri, HttpMethod method, int statusCode, String statusMessage, MultiMap requestHeaders, MultiMap responseHeaders) {
         if (active) {
+            log.info("request is going to be logged");
             JsonObject logEvent = new JsonObject().
                     put(URL, uri).
                     put(METHOD, method.name()).
@@ -286,17 +317,19 @@ public class LoggingHandler {
             try {
                 aboutToLogRequest(currentDestination);
                 loggers.get(currentDestination).info(logEvent.encode());
-            } catch(Exception ex){
+            } catch (Exception ex) {
                 errorLogRequest(currentDestination, ex);
             }
+        } else {
+            log.info("request will not be logged");
         }
     }
 
-    private void aboutToLogRequest(String currentDestination){
+    private void aboutToLogRequest(String currentDestination) {
         log.info("About to log to destination " + currentDestination);
     }
 
-    private void errorLogRequest(String currentDestination, Exception ex){
+    private void errorLogRequest(String currentDestination, Exception ex) {
         log.error("Error logging to destination " + currentDestination + ". Cause: " + ex.toString());
     }
 

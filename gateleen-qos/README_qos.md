@@ -50,6 +50,7 @@ This calculated ratio is later used to check if a rule needs some actions or not
 The **rules** section defines the rules for the QoS. Each rule is based on a pattern like the routing rules. 
 The possible attributes are:
  
+| Attribute  | Description                              |
 |:-----------| ---------------------------------------- |
 | **reject** | The ratio (eg. 1.3 means that *`<quorum>`* % of all sentinels must have an even or greater current ratio) which defines when a rule rejects the given request.  |
 | **warn**   | The ratio which defines when a rule writes a warning in the log without rejecting the given request  |
@@ -58,4 +59,37 @@ The possible attributes are:
 > <font color="blue">Information: </font> You can combine warn and reject.
 
 > <font color="orange">Attention: </font> Be aware that a metric is only available (in JMX) after a HTTP request (PUT/GET/...) was performed. Therefore it’s correct if the log shows something like **_MBean X for sentinel Y is not ready yet ..._** The QoS feature considers only available metrics (from the sentinels) for its calculation.
+
+## Schema validation
+Updating the QoS configuration resource requires a validation against a schema to be positive. Check the schema [gateleen_qos_schema_config](src/main/resources/gateleen_qos_schema_config)
  
+## Log QoS ruleset changes
+To log the payload of changes to the Qos ruleset, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.
+
+Make sure to instantiate the [RequestLoggingConsumer](../gateleen-logging/src/main/java/org/swisspush/gateleen/logging/RequestLoggingConsumer.java) by calling
+                                                                                                  
+```java
+RequestLoggingConsumer requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
+```
+
+To enable the logging of the Qos ruleset, make sure the url to the ruleset is enabled in the logging resource.
+
+Example:
+
+```json
+{
+  "headers": [],
+  "payload": {
+    "filters": [
+      {
+        "url": "/playground/server/admin/v1/.*",
+        "method": "PUT"
+      }
+    ]
+  }
+}
+```
+Also you have to enable the logging on the [QoSHandler](src/main/java/org/swisspush/gateleen/qos/QoSHandler.java) by calling
+```java
+qosHandler.enableResourceLogging(true);
+```

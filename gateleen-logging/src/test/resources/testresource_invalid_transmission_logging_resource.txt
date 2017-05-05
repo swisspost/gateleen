@@ -1,0 +1,23 @@
+{
+  "payload": {
+    "destinations": [
+      {
+        "name" : "eventBusLog",
+        "type" : "eventBus",
+        "address" : "some_eventbus_address",
+        "metadata" : "meta 1",
+        "transmission": "invalid_transmission"
+      }
+    ],
+    "filters": [
+      {
+        "url": "/gateleen/resources/.*",
+        "x-rp-mail": "john.doe@swisspush.org"
+      },
+      {
+        "url": "/gateleen/anotherres/.*",
+        "description": "description of this filter"
+      }
+    ]
+  }
+}

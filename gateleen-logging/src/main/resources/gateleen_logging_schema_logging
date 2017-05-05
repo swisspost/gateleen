@@ -32,6 +32,15 @@
 	        },
 	        "address": {
 	          "type": "string"
+	        },
+	        "metadata": {
+	          "type": "string"
+	        },
+	        "transmission": {
+	          "enum": [
+	            "publish",
+	            "send"
+	          ]
 	        }
 	      },
 	      "additionalProperties": false,
@@ -51,6 +60,10 @@
 				},
 				"destination": {
 					"description": "The destination the filtered content will be logged to",
+					"type": "string"
+				},
+				"description": {
+					"description": "The description of the purpose of the filter",
 					"type": "string"
 				},
 				"reject": {

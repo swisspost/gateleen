@@ -391,7 +391,7 @@ public class QoSTest extends AbstractTest {
      * @throws InstanceNotFoundException
      * @throws AttributeNotFoundException
      */
-    private void setSampleCount(ObjectName sentinel, int sampleCount) throws AttributeNotFoundException, InstanceNotFoundException, MBeanException, ReflectionException {
+    private void setSampleCount(ObjectName sentinel, long sampleCount) throws AttributeNotFoundException, InstanceNotFoundException, MBeanException, ReflectionException {
         when(mbeanServer.getAttribute(sentinel, "Count")).thenReturn(sampleCount);
     }
 

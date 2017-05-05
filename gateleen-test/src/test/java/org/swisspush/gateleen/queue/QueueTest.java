@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.queue;
 
+import org.junit.Ignore;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 import com.jayway.restassured.RestAssured;

@@ -10,9 +10,9 @@ import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
+import org.swisspush.gateleen.queue.queuing.QueueClient;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -31,17 +31,22 @@ public class Scheduler {
 
     private Vertx vertx;
     private RedisClient redisClient;
+    private String redisquesAddress;
     private String name;
     private CronExpression cronExpression;
     private List<HttpRequest> requests;
     private long timer;
     private MonitoringHandler monitoringHandler;
     private long randomOffset = 0L;
+    private boolean executeOnStartup = false;
+    private boolean executeOnReload = false;
+    private boolean executed = false;
 
     private Logger log;
 
-    public Scheduler(Vertx vertx, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset) throws ParseException {
+    public Scheduler(Vertx vertx, String redisquesAddress, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset, boolean executeOnStartup, boolean executeOnReload) throws ParseException {
         this.vertx = vertx;
+        this.redisquesAddress = redisquesAddress;
         this.redisClient = redisClient;
         this.name = name;
         this.cronExpression = new CronExpression(cronExpression);
@@ -49,6 +54,8 @@ public class Scheduler {
         this.log = LoggerFactory.getLogger(Scheduler.class.getName()+".scheduler-"+name);
         this.monitoringHandler = monitoringHandler;
         calcRandomOffset(maxRandomOffset);
+        this.executeOnStartup = executeOnStartup;
+        this.executeOnReload = executeOnReload;
     }
 
     /**
@@ -93,6 +100,10 @@ public class Scheduler {
                 });
             }
         }));
+        if( ( !executed && executeOnStartup ) || executeOnReload ){
+            executed = true;
+            trigger();
+        }
     }
 
     public void stop() {
@@ -120,7 +131,7 @@ public class Scheduler {
 
             ExpiryCheckHandler.updateServerTimestampHeader(request);
 
-            vertx.eventBus().send(Address.redisquesAddress(), buildEnqueueOperation("scheduler-" + name, request.toJsonObject().encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
+            vertx.eventBus().send(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
                 @Override
                 public void handle(AsyncResult<Message<JsonObject>> event) {
                     if (!OK.equals(event.result().body().getString(STATUS))) {

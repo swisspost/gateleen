@@ -7,13 +7,8 @@ import gatling.simulations._
 
 class GateleenPerformanceTestSimulation extends Simulation {
 
-  val targetHost = System.getProperty("targetHost", "localhost")
-  val targetPort = Integer.getInteger("targetPort", 7012)
-  val baseURL = "http://" + targetHost + ":" + targetPort
-  val httpConf = http.baseURL(baseURL).warmUp(baseURL + "/playground")
-
   before {
-    println("About to start performance tests on host " + baseURL)
+    println("About to start performance tests on host " + Constants.baseURL)
   }
 
   setUp(
@@ -24,7 +19,7 @@ class GateleenPerformanceTestSimulation extends Simulation {
     Scenarios.enqueueRequests.inject(nothingFor(37 minutes), constantUsersPerSec(7) during(2 minutes)),
     Scenarios.checkQueuesEmpty.inject(nothingFor(43 minutes), atOnceUsers(1))
   )
-    .protocols(httpConf)
+    .protocols(Constants.httpConf)
     .assertions(
       global.successfulRequests.percent.is(100),
       global.responseTime.percentile1.lessThan(500),    // 75%

@@ -87,7 +87,45 @@ public class SchedulerTest extends AbstractTest {
 
         await().atMost(30, SECONDS).until(() -> get("/tests/" + SERVER_NAME + "/schedulerWithPayload").then().extract().statusCode(), equalTo(200));
 
-        await().atMost(30, SECONDS).until(() -> get("/tests/" + SERVER_NAME + "/schedulerWithPayload").then().extract().body().jsonPath().getString("content"), equalTo(content));
+        await().atMost(30, SECONDS).until(() ->
+                get("/tests/" + SERVER_NAME + "/schedulerWithPayload").then().extract().body().jsonPath().getString("content"), equalTo(content));
+
+        async.complete();
+    }
+
+    @Test
+    public void testExpiredRequest(TestContext context) throws Exception {
+        Async async = context.async();
+        delete();
+
+        String content = String.valueOf(System.currentTimeMillis());
+
+        String testSchedulers = "{\n"
+                + "  \"schedulers\": {\n"
+                + "    \"gateleen-test\": {\n"
+                + "      \"cronExpression\": \"/2 * * * * ?\",\n"
+                + "      \"requests\": [\n"
+                + "        {\n"
+                + "          \"uri\": \"" + SERVER_ROOT + "/tests/" + SERVER_NAME + "/expiringRequest\",\n"
+                + "          \"method\": \"DELETE\",\n"
+                + "          \"payload\": {\"content\": \"" + content + "\"},\n"
+                + "          \"headers\": [[ \"x-queue-expire-after\", \"1\"]]\n"
+                + "        },\n"
+                + "        {\n"
+                + "          \"uri\": \"" + SERVER_ROOT + "/tests/" + SERVER_NAME + "/notExpiringRequest\",\n"
+                + "          \"method\": \"PUT\",\n"
+                + "          \"payload\": {\"content\": \"" + content + "\"}\n"
+                + "        }\n"
+                + "      ]\n"
+                + "    }\n"
+                + "  }\n"
+                + "}";
+
+        delete("/tests/" + SERVER_NAME + "/notExpiringRequest");
+
+        with().body(testSchedulers).put("/admin/v1/schedulers").then().assertThat().statusCode(200);
+
+        await().atMost(30, SECONDS).until(() -> get("/tests/" + SERVER_NAME + "/notExpiringRequest").then().extract().statusCode(), equalTo(200));
 
         async.complete();
     }
@@ -165,6 +203,102 @@ public class SchedulerTest extends AbstractTest {
                 get("/tests/" + SERVER_NAME + "/" + resourceName).getBody().jsonPath().getString("content").equals(content));
         Assert.assertTrue("successful delayed #3", successfulDelayed(nextRun,randomOffset, tolerance) );
 
+
+        async.complete();
+    }
+
+    @Test
+    public void testSchedulerWithExecuteOnStartupTrue(TestContext context) throws Exception {
+        Async async = context.async();
+        delete();
+
+        // prepare the settings
+        String content = String.valueOf(System.currentTimeMillis());
+        String schedulerName = "scheduler-executeOnStartup-test";
+        String resourceName = "schedulerWithExecuteInStartup";
+        String cronExpression = "0 0 1 1 1 ?";
+
+        // scheduler config
+        String testSchedulers = "{\n"
+                + "  \"schedulers\": {\n"
+                + "    \"" + schedulerName + "\": {\n"
+                + "      \"cronExpression\": \"" + cronExpression + "\",\n"
+                + "      \"executeOnStartup\": true,\n"
+                + "      \"requests\": [\n"
+                + "        {\n"
+                + "          \"uri\": \"" + SERVER_ROOT + "/tests/" + SERVER_NAME + "/" + resourceName + "\",\n"
+                + "          \"method\": \"PUT\",\n"
+                + "          \"payload\": {\"content\": \"" + content + "\"}\n"
+                + "        }\n"
+                + "      ]\n"
+                + "    }\n"
+                + "  }\n"
+                + "}";
+
+        delete("/tests/" + SERVER_NAME + "/" + resourceName);
+        with().body(testSchedulers).put("/admin/v1/schedulers").then().assertThat().statusCode(200);
+
+        // wait for the scheduler to be created
+        await().atMost(10, SECONDS).until( () -> {
+            if ( schedulerResourceManager.getSchedulers() != null ) {
+                return schedulerResourceManager.getSchedulers().stream().filter(s -> s.getName().equals(schedulerName)).findFirst().get();
+            }
+            return null;
+        }, is(notNullValue()));
+
+        // wait for the vertx timer to fire the first time
+        await().atMost(10, SECONDS).until( () -> jedis.get("schedulers:" + schedulerName), is(notNullValue()));
+
+        // Test if first run
+        await().atMost(30, SECONDS).until(() -> get("/tests/" + SERVER_NAME + "/" +resourceName ).then().extract().statusCode(), equalTo(200));
+
+        async.complete();
+    }
+
+    @Test
+    public void testSchedulerWithExecuteOnStartupFalse(TestContext context) throws Exception {
+        Async async = context.async();
+        delete();
+
+        // prepare the settings
+        String content = String.valueOf(System.currentTimeMillis());
+        String schedulerName = "scheduler-executeOnStartup-test";
+        String resourceName = "schedulerWithExecuteInStartup";
+        String cronExpression = "0 0 1 1 1 ?";
+
+        // scheduler config
+        String testSchedulers = "{\n"
+                + "  \"schedulers\": {\n"
+                + "    \"" + schedulerName + "\": {\n"
+                + "      \"cronExpression\": \"" + cronExpression + "\",\n"
+                + "      \"executeOnStartup\": false ,\n"
+                + "      \"requests\": [\n"
+                + "        {\n"
+                + "          \"uri\": \"" + SERVER_ROOT + "/tests/" + SERVER_NAME + "/" + resourceName + "\",\n"
+                + "          \"method\": \"PUT\",\n"
+                + "          \"payload\": {\"content\": \"" + content + "\"}\n"
+                + "        }\n"
+                + "      ]\n"
+                + "    }\n"
+                + "  }\n"
+                + "}";
+
+        delete("/tests/" + SERVER_NAME + "/" + resourceName);
+        with().body(testSchedulers).put("/admin/v1/schedulers").then().assertThat().statusCode(200);
+
+        // wait for the scheduler to be created
+        await().atMost(10, SECONDS).until( () -> {
+            if ( schedulerResourceManager.getSchedulers() != null ) {
+                return schedulerResourceManager.getSchedulers().stream().filter(s -> s.getName().equals(schedulerName)).findFirst().get();
+            }
+            return null;
+        }, is(notNullValue()));
+
+        // wait for the vertx timer to fire the first time
+        await().atMost(10, SECONDS).until( () -> jedis.get("schedulers:" + schedulerName), is(notNullValue()));
+
+        // Test if first run
+        await().atMost(30, SECONDS).until(() -> get("/tests/" + SERVER_NAME + "/" +resourceName ).then().extract().statusCode(), equalTo(404));
 
         async.complete();
     }

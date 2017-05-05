@@ -9,6 +9,17 @@ import org.junit.runner.RunWith;
 public class HashCodeGeneratorTest {
 
 	@Test
+	public void testHashing(TestContext context){
+		String inputString = "/playground/img/(.*)";
+		String sameInputString = "/playground/img/(.*)";
+
+		String hash = HashCodeGenerator.createHashCode(inputString);
+		String sameHash = HashCodeGenerator.createHashCode(sameInputString);
+
+		context.assertEquals(hash, sameHash, "hash values should be identical");
+	}
+
+	@Test
 	public void testHashingWithEqualData(TestContext context){
 		String uri = "/gateleen/server/tests/t1";
 		String payload = "{\"property1\": \"value1\"}";

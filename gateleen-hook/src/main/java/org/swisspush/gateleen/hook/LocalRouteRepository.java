@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Local in-memory implementation of a RouteRepository.
@@ -70,5 +72,46 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
     @Override
     public Map<String, Route> getRoutes() {
         return new HashMap<String, Route>(routes);
+    }
+
+    @Override
+    public Set<String> getCollections(String parentUri) {
+        // get rid of url parameters (if there are any)
+        parentUri = parentUri.contains("?") ? parentUri.substring(0, parentUri.indexOf('?')) : parentUri;
+
+        // add trailing '/'
+        parentUri = ! parentUri.endsWith("/") ? parentUri + "/" : parentUri;
+
+        // make it final for compiler (lambda)
+        final String parent =  parentUri;
+
+        /*  Example:
+            parentUri   = /gateleen/server/v1/test
+            route1      = /gateleen/server/v1/test/route1
+            route2      = /gateleen/server/v1/test/route2/subroute
+            route3      = /gateleen/server/v1/test/route3
+            !!! A stored route never ends with '/'.
+            !!! Incoming parent is prepared to have a trailing '/'
+
+            Listed:
+                > route1
+                > route3
+
+            Check:
+                > route is collection
+                > route is listable
+                > does a route start with parent?
+                > does a route have subroutes?
+                    => subroutes only exists, if a '/' can be found
+         */
+
+        return routes.entrySet().stream()
+                .filter( entry -> entry.getValue().getHook().isCollection()
+                        && entry.getValue().getHook().isListable()
+                        && entry.getKey().startsWith(parent)
+                        && ! entry.getKey().substring(parent.length()).contains("/")
+                )
+                .map( (Map.Entry<String, Route> entry) -> entry.getKey().substring(parent.length()) + "/")
+                .collect(Collectors.toSet());
     }
 }

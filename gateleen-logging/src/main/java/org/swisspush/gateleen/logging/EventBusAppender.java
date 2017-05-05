@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.logging;
 
+import io.vertx.core.MultiMap;
 import org.swisspush.gateleen.core.event.EventBusWriter;
 import org.apache.log4j.WriterAppender;
 import org.apache.log4j.spi.LoggingEvent;
@@ -15,6 +16,8 @@ public class EventBusAppender extends WriterAppender {
     private static EventBus eventBus;
     private String address;
     private Writer writer;
+    private MultiMap deliveryOptionsHeaders;
+    private EventBusWriter.TransmissionMode transmissionMode;
 
     public static void setEventBus(EventBus eventBus) {
         EventBusAppender.eventBus = eventBus;
@@ -24,11 +27,19 @@ public class EventBusAppender extends WriterAppender {
         this.address = address;
     }
 
+    public void setDeliveryOptionsHeaders(MultiMap deliveryOptionsHeaders) {
+        this.deliveryOptionsHeaders = deliveryOptionsHeaders;
+    }
+
+    public void setTransmissionMode(EventBusWriter.TransmissionMode transmissionMode) {
+        this.transmissionMode = transmissionMode;
+    }
+
     @Override
     public void append(LoggingEvent event) {
         if(eventBus != null) {
             if(writer == null) {
-                writer = new EventBusWriter(eventBus, address);
+                writer = new EventBusWriter(eventBus, address, deliveryOptionsHeaders, transmissionMode);
                 setWriter(writer);
             }
             super.append(event);

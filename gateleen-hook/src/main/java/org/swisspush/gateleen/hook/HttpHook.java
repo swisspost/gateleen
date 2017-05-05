@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.hook;
 
 import org.joda.time.LocalDateTime;
+import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
+import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,9 +20,13 @@ public class HttpHook {
     private int expireAfter;
     private LocalDateTime expirationTime;
     private boolean fullUrl = false;
+    private QueueingStrategy queueingStrategy = new DefaultQueueingStrategy();
     private Pattern filter = null;
     private int queueExpireAfter;
     private Map<String, String> staticHeaders = null;
+    private HookTriggerType hookTriggerType;
+    private boolean listable = false;
+    private boolean collection = true;
 
     /**
      * Creates a new hook.
@@ -31,6 +37,7 @@ public class HttpHook {
         this.destination = destination;
         methods = new ArrayList<>();
         queueExpireAfter = -1;
+        hookTriggerType = HookTriggerType.BEFORE;
     }
 
     /**
@@ -126,6 +133,20 @@ public class HttpHook {
     }
 
     /**
+     * Returns the queueing strategy for the hook
+     *
+     * @return queueingStrategy
+     */
+    public QueueingStrategy getQueueingStrategy() { return queueingStrategy; }
+
+    /**
+     * Sets the queueing strategy for the hook
+     *
+     * @param queueingStrategy
+     */
+    public void setQueueingStrategy(QueueingStrategy queueingStrategy) { this.queueingStrategy = queueingStrategy; }
+
+    /**
      * Returns the precompiled pattern, to match
      * a given url.
      * 
@@ -188,5 +209,63 @@ public class HttpHook {
      */
     public Map<String, String> getStaticHeaders() {
         return this.staticHeaders;
+    }
+
+    /**
+     * Retuns the trigger type of the hook.
+     *
+     * @return the trigger type of the hook
+     */
+    public HookTriggerType getHookTriggerType() {
+        return hookTriggerType;
+    }
+
+    /**
+     * Sets the trigger type of the hook.
+     * If nothing is set, the default value is 'before'.
+     *
+     * @param hookTriggerType the trigger type of the hook
+     */
+    public void setHookTriggerType(HookTriggerType hookTriggerType) {
+        this.hookTriggerType = hookTriggerType;
+    }
+
+    /**
+     * Indicates if a route hook should be listed
+     * for a GET request or not.
+     * @return true if the route hook should be listed
+     */
+    public boolean isListable() {
+        return listable;
+    }
+
+    /**
+     * Sets if a route hook should be listed
+     * for a GET request or not.
+     *
+     * @param listable true if the route hook should be listed
+     */
+    public void setListable(boolean listable) {
+        this.listable = listable;
+    }
+
+    /**
+     * Indicates if a hook points to a collection (default: true)
+     * or not.
+     *
+     * @return true (default) if hook points to collection.
+     */
+    public boolean isCollection() {
+        return collection;
+    }
+
+    /**
+     * Sets if a hook points to a collection (default: true)
+     * or not.
+     *
+     * @param collection true (default) if hook points to collection.
+     */
+    public void setCollection(boolean collection) {
+        this.collection = collection;
     }
 }

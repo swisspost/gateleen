@@ -1,0 +1,26 @@
+{
+  "accounting.menu.display": {},
+  "transport.menu.display": {},
+  "internal.menu.display": {},
+  "partner.menu.display": {},
+  "office.menu.display": {},
+  "sales.menu.display": {},
+  "security.menu.display": {},
+  "resources.menu.display": {},
+  "agency.menu.display": {},
+  "internal.menu.display": {},
+  "sorting.menu.display": {},
+  "support.menu.display": {},
+  "federal.menu.display": {},
+  "ui.admin.menu": {},
+  "ui.developer.context": {},
+  "zzz.all": {},
+  "zzzl.all": {},
+  "visa.all": {},
+  "developer.readrules": {
+    "methods": [
+      "GET"
+    ],
+    "path": "/gateleen/server/admin/v1/.*"
+  }
+}

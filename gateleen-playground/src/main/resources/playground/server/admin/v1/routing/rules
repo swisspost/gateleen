@@ -1,4 +1,20 @@
 {
+  "/playground/cb/1/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/cb/2/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/cb/3/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/cb/4/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
   "/playground/": {
     "description": "Home Page",
     "path": "/playground/server/pages/index.html",
@@ -32,6 +48,17 @@
   "/playground/server/storage(.*)": {
     "path": "/playground$1",
     "storage": "main"
+  },
+  "/playground/server/queuecircuitbreaker/circuit/(.*)": {
+    "description": "CircuitBreaker API",
+    "url": "http://localhost:7013/playground/server/queuecircuitbreaker/circuit/$1"
+  },
+  "/playground/server/redisques/(.*)": {
+    "description": "Redisques API",
+    "url": "http://localhost:7015/queuing/$1"
+  },
+  "/null/(.*)": {
+    "description": "Default Nirvana path, any resource routed to this destination is discarded immediately after any registered listener hooks are notified"
   },
   "/(.*)": {
     "metricName": "resource_storage",

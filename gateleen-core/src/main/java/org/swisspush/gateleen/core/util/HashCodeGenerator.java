@@ -16,6 +16,21 @@ public final class HashCodeGenerator {
     }
 
     /**
+     * Calculates the HashCode of the provided input string.
+     * Returns <code>null</code> if stringToHash is <code>null</code>
+     *
+     * @param stringToHash the input string to hash
+     * @return the HashCode of the input string or null when stringToHash was null
+     */
+    public static String createHashCode(String stringToHash) {
+        String trimmed = trimIfNotNull(stringToHash);
+        if (trimmed == null) {
+            return null;
+        }
+        return Hashing.murmur3_128().hashString(trimmed, Charsets.UTF_8).toString();
+    }
+
+    /**
      * Joins the given parameters with a + and calculates the HashCode.
      * Returns <code>null</code> if uri and payload are <code>null</code>
      *

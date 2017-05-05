@@ -1,6 +1,11 @@
 # [\_] Gateleen
 
-[![Build Status](https://drone.io/github.com/swisspush/gateleen/status.png)](https://drone.io/github.com/swisspush/gateleen/latest)
+[![Build Status](https://travis-ci.org/swisspush/gateleen.svg?branch=master)](https://travis-ci.org/swisspush/gateleen)
+[![codecov](https://codecov.io/gh/swisspush/gateleen/branch/master/graph/badge.svg)](https://codecov.io/gh/swisspush/gateleen)
+[![](https://img.shields.io/github/issues-raw/swisspush/gateleen.svg)](https://github.com/swisspush/gateleen/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aopen%20)
+[![GitHub contributors](https://img.shields.io/github/contributors/swisspush/gateleen.svg)](https://github.com/swisspush/gateleen/graphs/contributors)
+
+[![GitHub release](https://img.shields.io/github/release/swisspush/gateleen.svg)](https://github.com/swisspush/gateleen/releases/latest)
 [![Maven Central](https://img.shields.io/maven-central/v/org.swisspush.gateleen/gateleen-core.svg)](https://search.maven.org/#search|ga|1|g%3A%22org.swisspush.gateleen%22%20AND%20v%3A%221.0.4%22)
 
 Gateleen is a RESTFul middleware toolkit for building API gateways.
@@ -53,6 +58,7 @@ Then go again on [http://localhost:7012/playground](http://localhost:7012/playgr
 | Module                                                                         | Description                              |
 |:---------------------------------------------------------------------------------:| ---------------------------------------- |
 | [core](gateleen-core/README_core.md)                                     | HTTP infrastructure and hierarchical resource storage that can be used as cache, intermediate storage for backend-pushed data, user and apps data |
+| [delegate](gateleen-delegate/README_delegate.md)                                  | With the delegate feature a client is able to delegate requests to perform prespecified tasks.  |
 | [delta](gateleen-delta/README_delta.md)                                  | Traffic optimization allowing clients to fetch only data that actually changed from the last time they fetched it  |
 | [expansion](gateleen-expansion/README_expansion.md)                      | Traffic optimization allowing clients to fetch a sub-tree of data in one request instead of many requests |
 | [hook](gateleen-hook/README_hook.md)                                     | Server push and callback support allowing backends to push data to clients and be notified when data is pushed by clients |

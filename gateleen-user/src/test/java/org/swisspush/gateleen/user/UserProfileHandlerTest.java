@@ -29,7 +29,6 @@ public class UserProfileHandlerTest {
         Vertx vertx = mock(Vertx.class);
         when(vertx.eventBus()).thenReturn(mock(EventBus.class));
         ResourceStorage resourceStorage = mock(ResourceStorage.class);
-        LoggingResourceManager loggingResourceManager = mock(LoggingResourceManager.class);
 
         UserProfileConfiguration userProfileConfiguration =
                 UserProfileConfiguration.create()
@@ -39,7 +38,7 @@ public class UserProfileHandlerTest {
                         .rolePattern("^z-gateleen[-_](.*)$")
                         .build();
 
-        UserProfileHandler userProfileHandler = new UserProfileHandler(vertx, resourceStorage, loggingResourceManager, userProfileConfiguration);
+        UserProfileHandler userProfileHandler = new UserProfileHandler(vertx, resourceStorage, userProfileConfiguration);
 
         JsonObject profile = new JsonObject();
         profile.put("personalNumber", "04146251");
@@ -70,7 +69,6 @@ public class UserProfileHandlerTest {
         Vertx vertx = mock(Vertx.class);
         when(vertx.eventBus()).thenReturn(mock(EventBus.class));
         ResourceStorage resourceStorage = mock(ResourceStorage.class);
-        LoggingResourceManager loggingResourceManager = mock(LoggingResourceManager.class);
         UserProfileConfiguration userProfileConfiguration =
                 UserProfileConfiguration.create()
                         .userProfileUriPattern("/users/v1/([^/]+)/profile")
@@ -80,7 +78,7 @@ public class UserProfileHandlerTest {
                         .build();
 
 
-        UserProfileHandler userProfileHandler = new UserProfileHandler(vertx, resourceStorage, loggingResourceManager, userProfileConfiguration);
+        UserProfileHandler userProfileHandler = new UserProfileHandler(vertx, resourceStorage, userProfileConfiguration);
 
         JsonObject profile = new JsonObject();
         profile.put("personalNumber", "04146251");

@@ -67,8 +67,8 @@ public class RouteTest extends AbstractTest {
         String target = targetUrlBase + "/" + routeName;
         String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
 
-        registerRoute(requestUrl, target, methods);
-        unregisterRoute(requestUrl);
+        TestUtils.registerRoute(requestUrl, target, methods);
+        TestUtils.unregisterRoute(requestUrl);
 
         async.complete();
     }
@@ -100,7 +100,7 @@ public class RouteTest extends AbstractTest {
         // -------
 
         // register route
-        registerRoute(requestUrl, target, methods, staticHeaders);
+        TestUtils.registerRoute(requestUrl, target, methods, staticHeaders);
 
         //
         String body = get(routedResource).getBody().asString();
@@ -108,12 +108,43 @@ public class RouteTest extends AbstractTest {
         Assert.assertTrue(body.contains("x-test2"));
 
         // unregister route
-        unregisterRoute(requestUrl);
+        TestUtils.unregisterRoute(requestUrl);
 
         async.complete();
     }
 
+    @Test
+    public void testRouteWithValidPath(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
 
+        // Settings
+        String subresource = "routePathTest";
+        String routeName = "routePathTest";
+        // -------
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = SERVER_ROOT + "/tests/gateleen/routetarget/" + routeName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        // just for security reasons (unregister route)
+        delete(requestUrl);
+
+        // -------
+
+        final String routedResource = requestUrlBase + "/" + subresource + "/test";
+        final String checkTarget = targetUrlBase + "/" + routeName + "/test";
+
+        TestUtils.registerRoute(requestUrl, target, methods);
+
+        String body2 = "{ \"name\" : \"routePathTest\"}";
+        given().body(body2).put(routedResource).then().assertThat().statusCode(200);
+        when().get(routedResource).then().assertThat().body(containsString(body2));
+        when().get(checkTarget).then().assertThat().body(containsString(body2));
+
+        async.complete();
+    }
 
     /**
      * Test for create a route, and testing if requests
@@ -158,7 +189,7 @@ public class RouteTest extends AbstractTest {
          * Register a route
          * -------
          */
-        registerRoute(requestUrl, target, methods);
+        TestUtils.registerRoute(requestUrl, target, methods);
 
         // -------
 
@@ -187,7 +218,7 @@ public class RouteTest extends AbstractTest {
          * Unregister a route
          * -------
          */
-        unregisterRoute(requestUrl);
+        TestUtils.unregisterRoute(requestUrl);
 
         // -------
 
@@ -203,65 +234,5 @@ public class RouteTest extends AbstractTest {
 
         // -------
         async.complete();
-    }
-
-    /**
-     * Registers a route.
-     *
-     * @param requestUrl
-     * @param target
-     * @param methods
-     */
-    private void registerRoute(final String requestUrl, final String target, String[] methods) {
-        registerRoute(requestUrl, target, methods, null);
-    }
-
-    /**
-     * Registers a route.
-     *
-     * @param requestUrl
-     * @param target
-     * @param methods
-     * @param staticHeaders
-     */
-    private void registerRoute(final String requestUrl, final String target, String[] methods, Map<String, String> staticHeaders) {
-        String body = "{ \"destination\":\"" + target + "\"";
-
-        String m = null;
-        if (methods != null) {
-            for (String method : methods) {
-                m += "\"" + method + "\", ";
-            }
-            m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
-            m = "\"methods\": [" + m + "]";
-        }
-
-        if ( staticHeaders != null && staticHeaders.size() > 0 ) {
-            body = body + ", \"staticHeaders\" : {";
-
-            boolean notFirst = false;
-            for (Map.Entry<String, String> entry : staticHeaders.entrySet() ) {
-                body = body + ( notFirst ? ", " : "" ) + "\"" + entry.getKey() + "\" : \"" + entry.getValue() + "\"";
-
-                if ( ! notFirst ) {
-                    notFirst = true;
-                }
-            }
-
-            body = body + "}";
-        }
-
-        body = body + "}";
-
-        with().body(body).put(requestUrl).then().assertThat().statusCode(200);
-    }
-
-    /**
-     * Unregisters a route.
-     *
-     * @param request
-     */
-    private void unregisterRoute(String request) {
-        delete(request).then().assertThat().statusCode(200);
     }
 }

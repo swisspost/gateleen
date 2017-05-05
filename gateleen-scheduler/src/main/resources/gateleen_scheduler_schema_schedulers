@@ -16,6 +16,14 @@
 	"definitions": {
 		"Scheduler": {
 			"properties": {
+			    "executeOnStartup" : {
+			        "description" : "execute the job at system start",
+			        "type" : "boolean"
+			    },
+			    "executeOnReload " : {
+			        "description" : "execute the job after a reload of the scheduler (default is false, and true if executeOnStartup is also true)",
+			        "type" : "boolean"
+			    },
 				"randomOffset" : {
 				    "description" : "maximal random delay offset in seconds for better load balancing",
 					"type": "integer"

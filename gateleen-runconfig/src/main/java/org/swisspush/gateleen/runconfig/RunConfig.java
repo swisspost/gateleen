@@ -15,20 +15,27 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Log4jConfigurer;
+import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.property.PropertyHandler;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
+import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.merge.MergeHandler;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.packing.PackingHandler;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.security.authorization.Authorizer;
@@ -77,6 +84,8 @@ public class RunConfig {
     private SchedulerResourceManager schedulerResourceManager;
     private ValidationResourceManager validationResourceManager;
     private LoggingResourceManager loggingResourceManager;
+    private ConfigurationResourceManager configurationResourceManager;
+    private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
     private EventBusHandler eventBusHandler;
     private ValidationHandler validationHandler;
     private HookHandler hookHandler;
@@ -90,12 +99,17 @@ public class RunConfig {
     private CopyResourceHandler copyResourceHandler;
     private QoSHandler qosHandler;
     private PropertyHandler propertyHandler;
+    private ZipExtractHandler zipExtractHandler;
+    private DelegateHandler delegateHandler;
+    private MergeHandler mergeHandler;
 
     public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
+                     ConfigurationResourceManager configurationResourceManager, QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager,
                      EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
-                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler) {
+                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler,
+                     ZipExtractHandler zipExtractHandler, DelegateHandler delegateHandler, MergeHandler mergeHandler) {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.verticleClass = verticleClass;
@@ -106,6 +120,8 @@ public class RunConfig {
         this.schedulerResourceManager = schedulerResourceManager;
         this.validationResourceManager = validationResourceManager;
         this.loggingResourceManager = loggingResourceManager;
+        this.configurationResourceManager = configurationResourceManager;
+        this.queueCircuitBreakerConfigurationResourceManager = queueCircuitBreakerConfigurationResourceManager;
         this.eventBusHandler = eventBusHandler;
         this.validationHandler = validationHandler;
         this.hookHandler = hookHandler;
@@ -117,6 +133,9 @@ public class RunConfig {
         this.copyResourceHandler = copyResourceHandler;
         this.qosHandler = qosHandler;
         this.propertyHandler = propertyHandler;
+        this.zipExtractHandler = zipExtractHandler;
+        this.delegateHandler = delegateHandler;
+        this.mergeHandler = mergeHandler;
         init();
     }
 
@@ -131,6 +150,8 @@ public class RunConfig {
                 builder.schedulerResourceManager,
                 builder.validationResourceManager,
                 builder.loggingResourceManager,
+                builder.configurationResourceManager,
+                builder.queueCircuitBreakerConfigurationResourceManager,
                 builder.eventBusHandler,
                 builder.validationHandler,
                 builder.hookHandler,
@@ -141,7 +162,10 @@ public class RunConfig {
                 builder.authorizer,
                 builder.copyResourceHandler,
                 builder.qosHandler,
-                builder.propertyHandler);
+                builder.propertyHandler,
+                builder.zipExtractHandler,
+                builder.delegateHandler,
+                builder.mergeHandler);
     }
 
     private void init(){
@@ -178,6 +202,8 @@ public class RunConfig {
         private SchedulerResourceManager schedulerResourceManager;
         private ValidationResourceManager validationResourceManager;
         private LoggingResourceManager loggingResourceManager;
+        private ConfigurationResourceManager configurationResourceManager;
+        private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
         private EventBusHandler eventBusHandler;
         private ValidationHandler validationHandler;
         private HookHandler hookHandler;
@@ -189,10 +215,13 @@ public class RunConfig {
         private CopyResourceHandler copyResourceHandler;
         private QoSHandler qosHandler;
         public PropertyHandler propertyHandler;
+        private ZipExtractHandler zipExtractHandler;
+        private DelegateHandler delegateHandler;
+        private MergeHandler mergeHandler;
 
         public RunConfigBuilder(){}
 
-        public RunConfigBuilder     corsHandler(CORSHandler corsHandler){
+        public RunConfigBuilder corsHandler(CORSHandler corsHandler){
             this.corsHandler = corsHandler;
             return this;
         }
@@ -209,6 +238,16 @@ public class RunConfig {
 
         public RunConfigBuilder loggingResourceManager(LoggingResourceManager loggingResourceManager){
             this.loggingResourceManager = loggingResourceManager;
+            return this;
+        }
+
+        public RunConfigBuilder configurationResourceManager(ConfigurationResourceManager configurationResourceManager){
+            this.configurationResourceManager = configurationResourceManager;
+            return this;
+        }
+
+        public RunConfigBuilder queueCircuitBreakerConfigurationResourceManager(QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager){
+            this.queueCircuitBreakerConfigurationResourceManager = queueCircuitBreakerConfigurationResourceManager;
             return this;
         }
 
@@ -267,6 +306,21 @@ public class RunConfig {
             return this;
         }
 
+        public RunConfigBuilder zipExtractHandler(ZipExtractHandler zipExtractHandler) {
+            this.zipExtractHandler = zipExtractHandler;
+            return this;
+        }
+
+        public RunConfigBuilder delegateHandler(DelegateHandler delegateHandler) {
+            this.delegateHandler = delegateHandler;
+            return this;
+        }
+
+        public RunConfigBuilder mergeHandler(MergeHandler mergeHandler) {
+            this.mergeHandler = mergeHandler;
+            return this;
+        }
+
         public RunConfig build(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser){
             this.vertx = vertx;
             this.redisClient = redisClient;
@@ -316,6 +370,8 @@ public class RunConfig {
         return RedisquesConfiguration.with()
                 .address(Address.redisquesAddress())
                 .processorAddress(Address.queueProcessorAddress())
+                .httpRequestHandlerEnabled(true)
+                .httpRequestHandlerPort(7015)
                 .build()
                 .asJsonObject();
     }
@@ -449,7 +505,16 @@ public class RunConfig {
                 }
 
                 if(authorizer != null){
-                    authorizer.authorize(request, event -> handleRequest(request));
+                    authorizer.authorize(request).setHandler(event -> {
+                        if(event.succeeded() && event.result()){
+                            handleRequest(request);
+                        } else if(event.failed()){
+                            ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, RunConfig.class);
+                            request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                            request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+                            request.response().end(event.cause().getMessage());
+                        }
+                    });
                 } else {
                     handleRequest(request);
                 }
@@ -488,13 +553,26 @@ public class RunConfig {
                         if (loggingResourceManager != null && loggingResourceManager.handleLoggingResource(request)) {
                             return;
                         }
+                        if(configurationResourceManager != null && configurationResourceManager.handleConfigurationResource(request)){
+                            return;
+                        }
                         if (validationResourceManager != null && validationResourceManager.handleValidationResource(request)) {
                             return;
                         }
                         if (schedulerResourceManager != null && schedulerResourceManager.handleSchedulerResource(request)) {
                             return;
                         }
+                        if(queueCircuitBreakerConfigurationResourceManager != null &&
+                                queueCircuitBreakerConfigurationResourceManager.handleConfigurationResource(request)){
+                            return;
+                        }
                         if (propertyHandler != null && propertyHandler.handle(request)) {
+                            return;
+                        }
+                        if ( zipExtractHandler != null && zipExtractHandler.handle(request) ) {
+                            return;
+                        }
+                        if ( delegateHandler != null && delegateHandler.handle(request)) {
                             return;
                         }
                         if (userProfileHandler != null && userProfileHandler.isUserProfileRequest(request)) {
@@ -505,9 +583,12 @@ public class RunConfig {
                             expansionHandler.handleZipRecursion(request);
                         } else if (expansionHandler != null && expansionHandler.isExpansionRequest(request)) {
                             expansionHandler.handleExpansionRecursion(request);
-                        } else if (deltaHandler != null && deltaHandler.isDeltaRequest(request)) {
+                        }
+                        else if (deltaHandler != null && deltaHandler.isDeltaRequest(request)) {
                             setISO8601Timestamps(request);
                             deltaHandler.handle(request, router);
+                        } else if ( mergeHandler != null && mergeHandler.handle(request) ) {
+                            return;
                         } else {
                             setISO8601Timestamps(request);
                             router.route(request);

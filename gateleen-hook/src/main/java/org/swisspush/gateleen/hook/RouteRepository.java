@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.hook;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A repository for routes of hooks.
@@ -43,4 +44,15 @@ public interface RouteRepository {
      * @return a copy of all routes
      */
     Map<String, Route> getRoutes();
+
+    /**
+     * Returns a set with collections (routes) contained in the
+     * given parent. Only routes (collections) directly resided in
+     * the given parent will be returned. If no route
+     * could be found an empty set will be returned.
+     *
+     * @param parentUri the parent of which the routes should be listed
+     * @return a set with routes
+     */
+    Set<String> getCollections(String parentUri);
 }

@@ -1,0 +1,11 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"properties": {
+		"request.hops.limit": {
+			"description": "The limit for request hops",
+			"type": "integer"
+		}
+	},
+	"additionalProperties": false,
+    "required": ["request.hops.limit"]
+}

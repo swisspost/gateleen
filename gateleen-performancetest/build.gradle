@@ -49,17 +49,69 @@ task gatling(type: JavaExec) {
             // workaround for https://github.com/gatling/gatling/issues/2689
             "-Dgatling.core.directory.binaries=${sourceSets.test.output.classesDir.toString()}",
             "-Dlogback.configurationFile=${logbackGatlingConfig()}",
-            "-DtargetHost=$targetHost",
-            "-DtargetPort=$targetPort"
+            "-DtargetHost=${getTargetHost(project)}",
+            "-DtargetPort=${getTargetPort(project)}",
+            "-DnumberOfUsers=${getNumberOfUsers(project)}",
+            "-DrampUpTime=${getRampUpTime(project)}",
+            "-DloginUser=${getLoginUser(project)}",
+            "-DloginPassword=${getLoginPassword(project)}"
     ]
     main = "io.gatling.app.Gatling"
     args = [
-            "--simulation", "gatling.simulations.GateleenPerformanceTestSimulation",
+            "--simulation", "$simulation",
             "--results-folder", "${buildDir}/gatling-results",
             "--binaries-folder", sourceSets.test.output.classesDir.toString(), // ignored because of above bug
             "--bodies-folder", sourceSets.test.resources.srcDirs.toList().first().toString() + "/bodies",
             "--data-folder", sourceSets.test.resources.srcDirs.toList().first().toString() + "/data"
     ]
+}
+
+def getTargetHost(project){
+    if(project.hasProperty("targetHost")){
+        return "$targetHost"
+    } else {
+        return "localhost"
+    }
+}
+
+def getTargetPort(project){
+    if(project.hasProperty("targetPort")){
+        return "$targetPort"
+    } else {
+        return "0"
+    }
+}
+
+def getNumberOfUsers(project){
+    if(project.hasProperty("numberOfUsers")){
+        return "$numberOfUsers"
+    } else {
+        return "1"
+    }
+}
+
+def getRampUpTime(project){
+    if(project.hasProperty("rampUpTime")){
+        return "$rampUpTime"
+    } else {
+        return "1"
+    }
+}
+
+def getLoginUser(project){
+    if(project.hasProperty("loginUser")){
+        return "$loginUser"
+    } else {
+        return ""
+    }
+}
+
+def getLoginPassword(project){
+    if(project.hasProperty("loginPassword")){
+        return "$loginPassword"
+    } else {
+        return ""
+    }
 }
 
 def logbackGatlingConfig() {
@@ -80,6 +132,6 @@ task uploadStaticFiles << {
 }
 
 task wrapper(type: Wrapper) {
-  gradleVersion = '2.3'
-  distributionUrl = "https://services.gradle.org/distributions/gradle-$gradleVersion-all.zip"
+    gradleVersion = '2.3'
+    distributionUrl = "https://services.gradle.org/distributions/gradle-$gradleVersion-all.zip"
 }

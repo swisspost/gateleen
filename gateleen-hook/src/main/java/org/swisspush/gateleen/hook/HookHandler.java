@@ -6,24 +6,32 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.*;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.CollectionContentComparator;
+import org.swisspush.gateleen.core.util.HttpRequestHeader;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.hook.queueingstrategy.*;
+import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 
 /**
  * The HookHandler is responsible for un- and registering hooks (listener, as well as routes). He also
@@ -31,8 +39,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class HookHandler {
+public class HookHandler implements LoggableResource {
     public static final String HOOKED_HEADER = "x-hooked";
+    public static final String HOOK_ROUTES_LISTED = "x-hook-routes-listed";
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
     public static final String LISTENER_QUEUE_PREFIX = "listener-hook";
     private static final String LISTENER_HOOK_TARGET_PATH = "listeners/";
@@ -59,8 +68,14 @@ public class HookHandler {
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
+    public static final String DISCARD_PAYLOAD = "discardPayload";
+    public static final String HOOK_TRIGGER_TYPE = "type";
+    public static final String LISTABLE = "listable";
+    public static final String COLLECTION = "collection";
 
+    private final Comparator<String> collectionContentComparator;
     private Logger log = LoggerFactory.getLogger(HookHandler.class);
+
     private Vertx vertx;
     private final ResourceStorage storage;
     private MonitoringHandler monitoringHandler;
@@ -68,10 +83,14 @@ public class HookHandler {
     private final HttpClient selfClient;
     private String userProfilePath;
     private String hookRootUri;
-
+    private boolean listableRoutes;
     private ListenerRepository listenerRepository;
     private RouteRepository routeRepository;
     private RequestQueue requestQueue;
+
+    private ReducedPropagationManager reducedPropagationManager;
+
+    private boolean logHookConfigurationResourceChanges = false;
 
     /**
      * Creates a new HookHandler.
@@ -88,7 +107,42 @@ public class HookHandler {
         this(vertx,selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, new QueueClient(vertx, monitoringHandler));
     }
 
+
+    /**
+     * Creates a new HookHandler.
+
+     * @param vertx vertx
+     * @param selfClient selfClient
+     * @param storage storage
+     * @param loggingResourceManager loggingResourceManager
+     * @param monitoringHandler monitoringHandler
+     * @param userProfilePath userProfilePath
+     * @param hookRootUri hookRootUri
+     * @param requestQueue requestQueue
+     */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
+        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, requestQueue, false);
+    }
+
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
+        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, requestQueue, false, null);
+    }
+
+    /**
+     * Creates a new HookHandler.
+     *
+     * @param vertx vertx
+     * @param selfClient selfClient
+     * @param storage storage
+     * @param loggingResourceManager loggingResourceManager
+     * @param monitoringHandler monitoringHandler
+     * @param userProfilePath userProfilePath
+     * @param hookRootUri hookRootUri
+     * @param requestQueue requestQueue
+     * @param listableRoutes listableRoutes
+     * @param reducedPropagationManager reducedPropagationManager
+     */
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes, ReducedPropagationManager reducedPropagationManager) {
         log.debug("Creating HookHandler ...");
         this.vertx = vertx;
         this.selfClient = selfClient;
@@ -97,10 +151,12 @@ public class HookHandler {
         this.monitoringHandler = monitoringHandler;
         this.userProfilePath = userProfilePath;
         this.hookRootUri = hookRootUri;
-        this. requestQueue = requestQueue;
-
+        this.requestQueue = requestQueue;
+        this.listableRoutes = listableRoutes;
+        this.reducedPropagationManager = reducedPropagationManager;
         listenerRepository = new LocalListenerRepository();
         routeRepository = new LocalRouteRepository();
+        collectionContentComparator = new CollectionContentComparator();
     }
 
     public void init() {
@@ -111,6 +167,11 @@ public class HookHandler {
         loadStoredRoutes();
 
         registerCleanupHandler();
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logHookConfigurationResourceChanges = resourceLoggingEnabled;
     }
 
     /**
@@ -370,10 +431,140 @@ public class HookHandler {
         }
 
         if (!consumed) {
-            return routeRequestIfNeeded(request);
+            consumed = routeRequestIfNeeded(request);
+
+            if (!consumed) {
+                return createListingIfRequested(request);
+            }
+
+            return consumed;
         } else {
             return true;
         }
+    }
+
+    /**
+     * Create a listing of routes in the given parent. This happens
+     * only if we have a GET request, the routes are listable and
+     * the request is not marked as already listed (x-hook-routes-listed:true).
+     *
+     * @param request request
+     * @return true if a listing was performed (consumed), otherwise false.
+     */
+    private boolean createListingIfRequested(final HttpServerRequest request) {
+        String routesListedHeader = request.headers().get(HOOK_ROUTES_LISTED);
+        boolean routesListed = routesListedHeader != null && routesListedHeader.equals("true");
+
+        // GET request / routes not yet listed
+        if ( request.method().equals(HttpMethod.GET) && ! routesListed ) {
+            // route collection available for parent?
+            final List<String> collections = new ArrayList<String>(routeRepository.getCollections(request.uri()));
+
+            if ( ! collections.isEmpty() ) {
+                String parentUri = request.uri().contains("?") ? request.uri().substring(0, request.uri().indexOf('?')) : request.uri();
+                final String parentCollection = getCollectionName(parentUri);
+
+                // sort the result array
+                collections.sort(collectionContentComparator);
+
+                if ( log.isTraceEnabled() ) {
+                    log.trace("createListingIfRequested > (parentUri) {}, (parentCollection) {}", parentUri, parentCollection);
+                }
+
+                HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
+                    request.response().setStatusCode(response.statusCode());
+                    request.response().setStatusMessage(response.statusMessage());
+                    request.response().setChunked(true);
+                    request.response().headers().addAll(response.headers());
+                    request.response().headers().remove(CONTENT_LENGTH.getName());
+                    request.response().headers().remove(HOOK_ROUTES_LISTED);
+
+                    // if everything is fine, we add the listed collections to the given array
+                    if ( response.statusCode() == StatusCode.OK.getStatusCode() ) {
+                        if ( log.isTraceEnabled() ) {
+                            log.trace("createListingIfRequested > use existing array");
+                        }
+
+                        response.handler(data -> {
+                            JsonObject responseObject = new JsonObject(data.toString());
+
+                            // we only got an array back, if we perform a simple request
+                            if (responseObject.getValue(parentCollection) instanceof JsonArray) {
+                                JsonArray parentCollectionArray = responseObject.getJsonArray(parentCollection);
+
+                                // add the listed routes
+                                collections.forEach(parentCollectionArray::add);
+                            }
+
+                            if ( log.isTraceEnabled() ) {
+                                log.trace("createListingIfRequested > response: {}", responseObject.toString() );
+                            }
+
+                            // write the response
+                            request.response().write(Buffer.buffer(responseObject.toString()));
+                        });
+                    }
+                    // if nothing is found, we create a new array
+                    else if ( response.statusCode() == StatusCode.NOT_FOUND.getStatusCode() ) {
+                        if ( log.isTraceEnabled() ) {
+                            log.trace("createListingIfRequested > creating new array");
+                        }
+
+                        response.handler(data -> {
+                            // override status message and code
+                            request.response().setStatusCode(StatusCode.OK.getStatusCode());
+                            request.response().setStatusMessage(StatusCode.OK.getStatusMessage());
+
+                            JsonObject responseObject = new JsonObject();
+                            JsonArray parentCollectionArray = new JsonArray();
+                            responseObject.put(parentCollection, parentCollectionArray);
+
+                            // add the listed routes
+                            collections.forEach(parentCollectionArray::add);
+
+                            if ( log.isTraceEnabled() ) {
+                                log.trace("createListingIfRequested > response: {}", responseObject.toString() );
+                            }
+
+                            // write the response
+                            request.response().write(Buffer.buffer(responseObject.toString()));
+                        });
+                    }
+                    // something's wrong ...
+                    else {
+                        log.debug("createListingIfRequested - got response - ERROR");
+                        response.handler(data -> request.response().write(data));
+                    }
+
+                    response.endHandler(v -> request.response().end());
+                });
+
+                if (request.headers() != null && !request.headers().isEmpty()) {
+                    selfRequest.headers().setAll(request.headers());
+                }
+
+                // mark request as already listed
+                selfRequest.headers().add(HOOK_ROUTES_LISTED, "true");
+
+                selfRequest.exceptionHandler(exception -> log.warn("HookHandler: listing of collections (routes) failed: " + request.uri() + ": " + exception.getMessage()));
+                selfRequest.setTimeout(120000); // avoids blocking other requests
+                selfRequest.end();
+
+                // consumed
+                return true;
+            }
+        }
+
+        // not consumed
+        return false;
+    }
+
+    private String getCollectionName(String url) {
+        if ( url.endsWith("/") ) {
+            url = url.substring(0, url.lastIndexOf("/"));
+        }
+
+        return url.substring(url.lastIndexOf("/") + 1, url.length());
     }
 
     private boolean routeRequestIfNeeded(HttpServerRequest request) {
@@ -391,54 +582,30 @@ public class HookHandler {
     private void installBodyHandler(final HttpServerRequest request, final List<Listener> listeners) {
         // Read the original request and queue a new one for every listener
         request.bodyHandler(buffer -> {
-            // this handler is called by the queueclient
-            // for each committed listener
-            Handler<Void> doneHandler = new Handler<Void>() {
-                private AtomicInteger currentCount = new AtomicInteger(0);
-                private boolean sent = false;
+            // Create separate lists with filtered listeners
+            List<Listener> beforeListener = getFilteredListeners(listeners, HookTriggerType.BEFORE);
+            List<Listener> afterListener = getFilteredListeners(listeners, HookTriggerType.AFTER);
 
-                @Override
-                public void handle(Void event) {
+            // Create handlers for before/after - cases
+            Handler<Void> afterHandler = installAfterHandler(request, buffer, afterListener);
+            Handler<Void> beforeHandler = installBeforeHandler(request, buffer, beforeListener, afterHandler);
 
-                    // If the last queued request is performed
-                    // the original request will be triggered.
-                    // Because this handler is called async. we
-                    // have to secure, that it is only executed
-                    // once.
-                    if (currentCount.incrementAndGet() == listeners.size() && !sent) {
-                        sent = true;
+            // call the listeners (before)
+            callListener(request, buffer, beforeListener, beforeHandler);
+        });
+    }
 
-                        /*
-                         * we should find exactly one or none route (first match rtl)
-                         * routes will only be found for requests coming from
-                         * enqueueing through the listener and only for external
-                         * requests.
-                         */
-                        Route route = routeRepository.getRoute(request.uri());
-
-                        if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
-                            log.debug("Forward request (consumed) " + request.uri());
-                            route.forward(request, buffer);
-                        } else {
-                            // mark the original request as hooked
-                            request.headers().add(HOOKED_HEADER, "true");
-
-                            /*
-                             * self requests are only made for original
-                             * requests which were consumed during the
-                             * enqueueing process, therefore it is
-                             * imperative to use isRequestAlreadyHooked(HttpServerRequest request)
-                             * before calling the handle method of
-                             * this class!
-                             */
-                            createSelfRequest(request, buffer);
-                        }
-                    }
-                }
-            };
-
-            for (Listener listener : listeners) {
-                log.debug("Enqueue request matching " + request.method() + " " + listener.getMonitoredUrl() + " with listener " + listener.getListener());
+    /**
+     * Calls the passed listeners and passes the given handler to the enqueued listener requests.
+     *
+     * @param request original request
+     * @param buffer buffer
+     * @param filteredListeners all listeners which should be called
+     * @param handler the handler, which should handle the requests
+     */
+    private void callListener(final HttpServerRequest request, final Buffer buffer, final List<Listener> filteredListeners, final Handler<Void> handler) {
+        for (Listener listener : filteredListeners) {
+            log.debug("Enqueue request matching " + request.method() + " " + listener.getMonitoredUrl() + " with listener " + listener.getListener());
 
                 /*
                  * url suffix (path) after monitored url
@@ -446,49 +613,161 @@ public class HookHandler {
                  * => request.uri() = http://a/b/c/d/e.x
                  * => url suffix = /d/e.x
                  */
-                String path = request.uri();
-                if (!listener.getHook().isFullUrl()) {
-                    path = request.uri().replace(listener.getMonitoredUrl(), "");
-                }
-
-                String targetUri;
-
-                // internal
-                if (listener.getHook().getDestination().startsWith("/")) {
-                    targetUri = listener.getListener() + path;
-                    log.debug(" > internal target: " + targetUri);
-                }
-                // external
-                else {
-                    targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
-                    log.debug(" > external target: " + targetUri);
-                }
-
-                String queue = LISTENER_QUEUE_PREFIX + "-" + listener.getListenerId();
-
-                // Create a new multimap, copied from the original request,
-                // so that the original request is not overridden with the new values.
-                MultiMap queueHeaders = new CaseInsensitiveHeaders();
-                queueHeaders.addAll(request.headers());
-                if (ExpiryCheckHandler.getExpireAfter(queueHeaders) == null) {
-                    ExpiryCheckHandler.setExpireAfter(queueHeaders, listener.getHook().getExpireAfter());
-                }
-
-                if(ExpiryCheckHandler.getQueueExpireAfter(queueHeaders) == null && listener.getHook().getQueueExpireAfter() != -1 ) {
-                    ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
-                }
-
-                // update request headers with static headers (if available)
-                updateHeadersWithStaticHeaders(queueHeaders, listener.getHook().getStaticHeaders());
-
-                // in order not to block the queue because one client returns a creepy response,
-                // we translate all status codes of the listeners to 200.
-                // Therefor we set the header x-translate-status-4xx
-                queueHeaders.add("x-translate-status-4xx", "200");
-
-                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, doneHandler);
+            String path = request.uri();
+            if (!listener.getHook().isFullUrl()) {
+                path = request.uri().replace(listener.getMonitoredUrl(), "");
             }
-        });
+
+            String targetUri;
+
+            // internal
+            if (listener.getHook().getDestination().startsWith("/")) {
+                targetUri = listener.getListener() + path;
+                log.debug(" > internal target: " + targetUri);
+            }
+            // external
+            else {
+                targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
+                log.debug(" > external target: " + targetUri);
+            }
+
+            String queue = LISTENER_QUEUE_PREFIX + "-" + listener.getListenerId();
+
+            // Create a new multimap, copied from the original request,
+            // so that the original request is not overridden with the new values.
+            MultiMap queueHeaders = new CaseInsensitiveHeaders();
+            queueHeaders.addAll(request.headers());
+            if (ExpiryCheckHandler.getExpireAfter(queueHeaders) == null) {
+                ExpiryCheckHandler.setExpireAfter(queueHeaders, listener.getHook().getExpireAfter());
+            }
+
+            if(ExpiryCheckHandler.getQueueExpireAfter(queueHeaders) == null && listener.getHook().getQueueExpireAfter() != -1 ) {
+                ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
+            }
+
+            // update request headers with static headers (if available)
+            updateHeadersWithStaticHeaders(queueHeaders, listener.getHook().getStaticHeaders());
+
+            // in order not to block the queue because one client returns a creepy response,
+            // we translate all status codes of the listeners to 200.
+            // Therefor we set the header x-translate-status-4xx
+            queueHeaders.add("x-translate-status-4xx", "200");
+
+            QueueingStrategy queueingStrategy = listener.getHook().getQueueingStrategy();
+
+            if(queueingStrategy instanceof DefaultQueueingStrategy){
+                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
+            } else if(queueingStrategy instanceof DiscardPayloadQueueingStrategy){
+                if(HttpRequestHeader.containsHeader(queueHeaders, CONTENT_LENGTH)) {
+                    queueHeaders.set(CONTENT_LENGTH.getName(), "0");
+                }
+                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
+            } else if(queueingStrategy instanceof ReducedPropagationQueueingStrategy){
+                if(reducedPropagationManager != null) {
+                    reducedPropagationManager.processIncomingRequest(request.method(), targetUri, queueHeaders, buffer,
+                            queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationIntervalMs(), handler);
+                } else {
+                    log.error("ReducedPropagationQueueingStrategy without configured ReducedPropagationManager. Not going to handle (enqueue) anything!");
+                }
+            } else {
+                log.error("QueueingStrategy '"+queueingStrategy.getClass().getSimpleName()+"' is not handled. Could be an error, check the source code!");
+            }
+        }
+
+        // if for e.g. the beforListeners are empty,
+        // we have to ensure, that the original request
+        // is executed. This way the after handler will
+        // also be called properly.
+        if ( filteredListeners.isEmpty() && handler != null ) {
+            handler.handle(null);
+        }
+    }
+
+    /**
+     * This handler is called after the self request (original request) is performed
+     * successfully.
+     * The handler calls all listener (after), so this requests happen AFTER the original
+     * request is performed.
+     *
+     * @param request original request
+     * @param buffer buffer
+     * @param afterListener list of listeners which should be called after the original request
+     * @return the after handler
+     */
+    private Handler<Void> installAfterHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> afterListener) {
+        Handler<Void> afterHandler = event -> callListener(request, buffer, afterListener, null);
+        return afterHandler;
+    }
+
+    /**
+     * This handler is called by the queueclient
+     * for each listener (before).
+     * The request  happens BEFORE the original request is
+     * performed.
+
+     * @param request original request
+     * @param buffer buffer
+     * @param beforeListener list of listeners which should be called before the original request
+     * @param afterHandler the handler for listeners which have to be called after the original request
+     * @return the before handler
+     */
+    private Handler<Void> installBeforeHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> beforeListener, final Handler<Void> afterHandler) {
+        Handler<Void> beforeHandler = new Handler<Void>() {
+            private AtomicInteger currentCount = new AtomicInteger(0);
+            private boolean sent = false;
+
+            @Override
+            public void handle(Void event) {
+                // If the last queued request is performed
+                // the original request will be triggered.
+                // Because this handler is called async. we
+                // have to secure, that it is only executed
+                // once.
+                if ( ( currentCount.incrementAndGet() == beforeListener.size() || beforeListener.isEmpty() ) && !sent) {
+                    sent = true;
+
+                    /*
+                     * we should find exactly one or none route (first match rtl)
+                     * routes will only be found for requests coming from
+                     * enqueueing through the listener and only for external
+                     * requests.
+                     */
+                    Route route = routeRepository.getRoute(request.uri());
+
+                    if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
+                        log.debug("Forward request (consumed) " + request.uri());
+                        route.forward(request, buffer);
+                    } else {
+                        // mark the original request as hooked
+                        request.headers().add(HOOKED_HEADER, "true");
+
+                        /*
+                         * self requests are only made for original
+                         * requests which were consumed during the
+                         * enqueueing process, therefore it is
+                         * imperative to use isRequestAlreadyHooked(HttpServerRequest request)
+                         * before calling the handle method of
+                         * this class!
+                         */
+                        createSelfRequest(request, buffer, afterHandler);
+                    }
+                }
+            }
+        };
+
+        return beforeHandler;
+    }
+
+    /**
+     * Returns a list with listeners which fires before / after the original request.
+     *
+     * @param listeners all listeners
+     * @return filtered listeners
+     */
+    private List<Listener> getFilteredListeners(final List<Listener> listeners, final HookTriggerType hookTriggerType) {
+        return listeners.stream()
+                .filter(listener -> listener.getHook().getHookTriggerType().equals(hookTriggerType))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -584,10 +863,30 @@ public class HookHandler {
             JsonObject storageObject = new JsonObject();
             storageObject.put(REQUESTURL, request.uri());
             storageObject.put(EXPIRATION_TIME, ExpiryCheckHandler.printDateTime(expirationTime));
-            storageObject.put(HOOK, new JsonObject(hookData.toString()));
-
-            storage.put(routeStorageUri, request.headers(), Buffer.buffer(storageObject.toString()), status -> {
+            JsonObject hook;
+            try {
+                hook = new JsonObject(hookData.toString());
+            } catch (DecodeException e) {
+                request.response().setStatusCode(400);
+                final String msg = "Cannot decode JSON";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
+            if(hook.getString("destination")==null) {
+                request.response().setStatusCode(400);
+                final String msg = "Property 'destination' must be set";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
+            storageObject.put(HOOK, hook);
+            Buffer buffer = Buffer.buffer(storageObject.toString());
+            storage.put(routeStorageUri, request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
+                    if(logHookConfigurationResourceChanges){
+                        RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                    }
                     vertx.eventBus().publish(SAVE_ROUTE_ADDRESS, routeStorageUri);
                 } else {
                     request.response().setStatusCode(status);
@@ -656,8 +955,24 @@ public class HookHandler {
         log.debug("handleListenerRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
-            JsonObject hook = new JsonObject(hookData.toString());
+            JsonObject hook;
+            try {
+                hook = new JsonObject(hookData.toString());
+            } catch (DecodeException e) {
+                request.response().setStatusCode(400);
+                final String msg = "Cannot decode JSON";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
             String destination = hook.getString("destination");
+            if(destination==null) {
+                request.response().setStatusCode(400);
+                final String msg = "Property 'destination' must be set";
+                request.response().setStatusMessage(msg);
+                request.response().end(msg);
+                return;
+            }
             String hookOnUri = getMonitoredUrlSegment(request.uri());
             if (destination.startsWith(hookOnUri)) {
                 request.response().setStatusCode(400);
@@ -696,8 +1011,12 @@ public class HookHandler {
             storageObject.put(EXPIRATION_TIME, ExpiryCheckHandler.printDateTime(expirationTime));
             storageObject.put(HOOK, hook);
 
-            storage.put(listenerStorageUri, request.headers(), Buffer.buffer(storageObject.toString()), status -> {
+            Buffer buffer = Buffer.buffer(storageObject.toString());
+            storage.put(listenerStorageUri, request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
+                    if(logHookConfigurationResourceChanges){
+                        RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                    }
                     vertx.eventBus().publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
                 } else {
                     request.response().setStatusCode(status);
@@ -709,31 +1028,34 @@ public class HookHandler {
 
     /**
      * Creates a self Request from the original Request.
+     * If the requests succeeds (and only then) the after handler is called.
      * 
      * @param request - consumed request
      * @param requestBody - copy of request body
      */
-    private void createSelfRequest(final HttpServerRequest request, Buffer requestBody) {
+    private void createSelfRequest(final HttpServerRequest request, final Buffer requestBody, final Handler<Void> afterHandler) {
         log.debug("Create self request for " + request.uri());
 
-        HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), new Handler<HttpClientResponse>() {
-            public void handle(final HttpClientResponse response) {
+        HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
+            /*
+             * it shouldn't matter if the request is
+             * already consumed to write a response.
+             */
 
-                /*
-                 * it shouldn't matter if the request is
-                 * already consumed to write a response.
-                 */
+            request.response().setStatusCode(response.statusCode());
+            request.response().setStatusMessage(response.statusMessage());
+            request.response().setChunked(true);
 
-                request.response().setStatusCode(response.statusCode());
-                request.response().setStatusMessage(response.statusMessage());
-                request.response().setChunked(true);
+            request.response().headers().addAll(response.headers());
+            request.response().headers().remove(CONTENT_LENGTH.getName());
 
-                request.response().headers().addAll(response.headers());
-                request.response().headers().remove("Content-Length");
+            response.handler(data -> request.response().write(data));
 
-                response.handler(data -> request.response().write(data));
+            response.endHandler(v -> request.response().end());
 
-                response.endHandler(v -> request.response().end());
+            // if everything is fine, we call the after handler
+            if ( response.statusCode() == StatusCode.OK.getStatusCode() ) {
+                afterHandler.handle(null);
             }
         });
 
@@ -846,6 +1168,16 @@ public class HookHandler {
             hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
         }
 
+        if (jsonHook.getString(HOOK_TRIGGER_TYPE) != null) {
+            try {
+                hook.setHookTriggerType(HookTriggerType.valueOf(jsonHook.getString(HOOK_TRIGGER_TYPE).toUpperCase()));
+            }
+            catch(IllegalArgumentException e) {
+                log.warn("Listener " + listenerId + " for target " + target + " has an invalid trigger type " + jsonHook.getString(HOOK_TRIGGER_TYPE) + " and will not be registred!", e);
+                return;
+            }
+        }
+
         extractAndAddStaticHeadersToHook(jsonHook, hook);
 
         /*
@@ -872,8 +1204,8 @@ public class HookHandler {
 
         hook.setExpirationTime(expirationTime);
 
-        boolean fullUrl = jsonHook.getBoolean(FULL_URL, false);
-        hook.setFullUrl(fullUrl);
+        hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
+        hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(jsonHook));
 
         // for internal use we don't need a forwarder
         if (hook.getDestination().startsWith("/")) {
@@ -979,6 +1311,17 @@ public class HookHandler {
             hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
         }
 
+        if ( jsonHook.getBoolean(LISTABLE) != null ) {
+            hook.setListable(jsonHook.getBoolean(LISTABLE));
+        }
+        else {
+            hook.setListable(listableRoutes);
+        }
+
+        if ( jsonHook.getBoolean(COLLECTION) != null ) {
+            hook.setCollection(jsonHook.getBoolean(COLLECTION));
+        }
+
         extractAndAddStaticHeadersToHook(jsonHook, hook);
 
         /*
@@ -1000,8 +1343,8 @@ public class HookHandler {
             return;
         }
 
-        boolean fullUrl = storageObject.getBoolean(FULL_URL, false);
-        hook.setFullUrl(fullUrl);
+        hook.setFullUrl(storageObject.getBoolean(FULL_URL, false));
+        hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(storageObject));
 
         routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook));
     }
@@ -1014,7 +1357,7 @@ public class HookHandler {
      * @return Route
      */
     private Route createRoute(String urlPattern, HttpHook hook) {
-        return new Route(vertx, storage, loggingResourceManager, monitoringHandler, userProfilePath, hook, urlPattern);
+        return new Route(vertx, storage, loggingResourceManager, monitoringHandler, userProfilePath, hook, urlPattern, selfClient);
     }
 
     /**

@@ -1,0 +1,90 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"properties": {
+		"config": {
+			"description": "global configuration values",
+            "$ref": "#/definitions/Config"
+		},
+		"sentinels": {
+			"description": "sentinels configuration",
+			"type": "object",
+			"additionalProperties": {
+				"$ref": "#/definitions/Sentinel"
+			}
+		},
+		"rules": {
+			"description": "rules configuration",
+			"type": "object",
+			"additionalProperties": {
+				"$ref": "#/definitions/Rule"
+			}
+		}
+	},
+	"required": [
+		"config"
+	],
+	"additionalProperties": false,
+	"definitions": {
+		"Config": {
+			"properties": {
+			    "percentile" : {
+			        "description" : "percentile to use from metrics",
+			        "type" : "integer",
+			        "enum" : [50, 75, 95, 98, 99, 999]
+			    },
+			    "quorum" : {
+			        "description" : "percentage of sentinels where threshold is exceeded",
+			        "type" : "integer",
+			        "minimum": 0,
+                    "maximum": 100
+			    },
+				"period": {
+					"description": "time in seconds after which calculation is renewed",
+			        "type" : "integer",
+			        "minimum": 1
+				},
+				"minSampleCount": {
+					"description": "minimal count of samples for a sentinel to activate calculation",
+			        "type" : "integer"
+				},
+				"minSentinelCount": {
+					"description": "minimal count of sentinels required to perform calculation",
+			        "type" : "integer"
+				}
+			},
+			"required": [
+				"percentile",
+				"quorum",
+				"period",
+				"minSampleCount",
+				"minSentinelCount"
+			],
+			"additionalProperties": false
+		},
+		"Sentinel": {
+			"properties": {
+			    "percentile" : {
+			        "description" : "override global percentile to use from metrics",
+			        "type" : "integer",
+			        "enum" : [50, 75, 95, 98, 99, 999]
+			    }
+			},
+			"additionalProperties": false
+		},
+		"Rule": {
+			"properties": {
+			    "warn" : {
+			        "description" : "ratio to log a warning when exceeded",
+			        "type" : "number",
+			        "minimum": 0
+			    },
+			    "reject" : {
+			        "description" : "ratio to reject request when exceeded",
+			        "type" : "number",
+                    "minimum": 0
+			    }
+			},
+			"additionalProperties": false
+		}
+	}
+}

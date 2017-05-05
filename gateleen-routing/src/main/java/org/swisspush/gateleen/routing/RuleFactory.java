@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
-import org.swisspush.gateleen.validation.ValidationResult;
+import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
 
 import java.util.*;

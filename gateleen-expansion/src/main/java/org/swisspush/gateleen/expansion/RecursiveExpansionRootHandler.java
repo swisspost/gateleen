@@ -78,7 +78,7 @@ public class RecursiveExpansionRootHandler extends RecursiveRootHandlerBase {
         } catch (ResourceCollectionException exception) {
             handleResponseError(req, exception);
         } catch (Exception exception) {
-            ResponseStatusCodeLogUtil.debug(req, StatusCode.INTERNAL_SERVER_ERROR, RecursiveExpansionRootHandler.class);
+            ResponseStatusCodeLogUtil.info(req, StatusCode.INTERNAL_SERVER_ERROR, RecursiveExpansionRootHandler.class);
             req.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
             req.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
             req.response().end(exception.getMessage());

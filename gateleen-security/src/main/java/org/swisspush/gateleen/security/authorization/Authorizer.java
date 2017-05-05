@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.security.authorization;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -12,6 +13,8 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.RoleExtractor;
@@ -26,7 +29,7 @@ import java.util.regex.Pattern;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class Authorizer {
+public class Authorizer implements LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.authorization-updated";
 
@@ -47,6 +50,7 @@ public class Authorizer {
     private Vertx vertx;
     private EventBus eb;
 
+    private boolean logACLChanges = false;
     private ResourceStorage storage;
     private RoleExtractor roleExtractor;
     private Map<PatternHolder, Map<String, Set<String>>> initialGrantedRoles;
@@ -84,8 +88,50 @@ public class Authorizer {
         eb.consumer(UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateAllAcls());
     }
 
-    public void authorize(final HttpServerRequest request, final Handler<Void> handler) {
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logACLChanges = resourceLoggingEnabled;
+    }
 
+    public Future<Boolean> authorize(final HttpServerRequest request){
+        Future<Boolean> future = Future.future();
+
+        handleUserUriRequest(request, future);
+
+        if(!future.isComplete()){
+            handleIsAuthorized(request, future);
+        }
+
+        if(!future.isComplete()){
+            handleAclUriRequest(request, future);
+        }
+
+        if(!future.isComplete()) {
+            future.complete(Boolean.TRUE);
+        }
+
+        return future;
+    }
+
+    public void authorize(final HttpServerRequest request, final Handler<Void> handler) {
+        Future<Boolean> future = Future.future();
+
+        handleUserUriRequest(request, future);
+
+        if(!future.isComplete()){
+            handleIsAuthorized(request, future);
+        }
+
+        if(!future.isComplete()){
+            handleAclUriRequest(request, future);
+        }
+
+        if(!future.isComplete()) {
+            handler.handle(null);
+        }
+    }
+
+    private void handleUserUriRequest(final HttpServerRequest request, Future<Boolean> future){
         if (userUriPattern.matcher(request.uri()).matches()) {
             if (HttpMethod.GET == request.method()) {
                 String userId = request.headers().get("x-rp-usr");
@@ -102,23 +148,26 @@ public class Authorizer {
                     user.put("roles", new JsonArray(new ArrayList<>(roles)));
                 }
                 request.response().end(user.toString());
-                return;
             } else {
                 request.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
                 request.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
                 request.response().end();
-                return;
             }
+            future.complete(Boolean.FALSE);
         }
+    }
 
+    private void handleIsAuthorized(final HttpServerRequest request, Future<Boolean> future){
         if (!isAuthorized(request)) {
-            RequestLoggerFactory.getLogger(Authorizer.class, request).info("403 Forbidden");
+            RequestLoggerFactory.getLogger(Authorizer.class, request).info(StatusCode.FORBIDDEN.toString());
             request.response().setStatusCode(StatusCode.FORBIDDEN.getStatusCode());
             request.response().setStatusMessage(StatusCode.FORBIDDEN.getStatusMessage());
             request.response().end(StatusCode.FORBIDDEN.getStatusMessage());
-            return;
+            future.complete(Boolean.FALSE);
         }
+    }
 
+    private void handleAclUriRequest(final HttpServerRequest request, Future<Boolean> future){
         // Intercept configuration
         final Matcher matcher = aclUriPattern.getPattern().matcher(request.uri());
         if (matcher.matches()) {
@@ -140,6 +189,9 @@ public class Authorizer {
                     }
                     storage.put(request.uri(), buffer, status -> {
                         if (status == StatusCode.OK.getStatusCode()) {
+                            if(logACLChanges){
+                                RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                            }
                             scheduleUpdate();
                         } else {
                             request.response().setStatusCode(status);
@@ -147,9 +199,8 @@ public class Authorizer {
                         request.response().end();
                     });
                 });
-                return;
-            }
-            if (HttpMethod.DELETE == request.method()) {
+                future.complete(Boolean.FALSE);
+            } else if (HttpMethod.DELETE == request.method()) {
                 storage.delete(request.uri(), status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
                         eb.publish(UPDATE_ADDRESS, "*");
@@ -159,11 +210,9 @@ public class Authorizer {
                     }
                     request.response().end();
                 });
-                return;
+                future.complete(Boolean.FALSE);
             }
         }
-
-        handler.handle(null);
     }
 
     private long updateTimerId = -1;

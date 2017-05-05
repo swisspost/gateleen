@@ -50,6 +50,7 @@ public class Route {
     private Rule rule;
     private HttpClient client;
     private Forwarder forwarder;
+    private HttpClient selfClient;
 
     /**
      * Creates a new instance of a Route.
@@ -62,7 +63,7 @@ public class Route {
      * @param httpHook httpHook
      * @param urlPattern - this can be a listener or a normal urlPattern (eg. for a route)
      */
-    public Route(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, HttpHook httpHook, String urlPattern) {
+    public Route(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, HttpHook httpHook, String urlPattern, HttpClient selfClient) {
         this.vertx = vertx;
         this.storage = storage;
         this.loggingResourceManager = loggingResourceManager;
@@ -70,6 +71,7 @@ public class Route {
         this.userProfilePath = userProfilePath;
         this.httpHook = httpHook;
         this.urlPattern = urlPattern;
+        this.selfClient = selfClient;
 
         createRule();
 
@@ -93,22 +95,7 @@ public class Route {
         rule = new Rule();
         rule.setUrlPattern(urlPattern);
 
-        Matcher urlMatcher = URL_PARSE_PATTERN.matcher(httpHook.getDestination());
-
-        if (!urlMatcher.matches()) {
-            throw new IllegalArgumentException("Invalid url for " + httpHook.getDestination());
-        }
-
-        rule.setHost(urlMatcher.group("host"));
-        rule.setScheme(urlMatcher.group("scheme"));
-        rule.setPort(rule.getScheme().equals("https") ? 443 : 80);
-
-        String portString = urlMatcher.group("port");
-        if (portString != null) {
-            rule.setPort(Integer.parseInt(portString));
-        }
-
-        rule.setPath(urlMatcher.group("path"));
+        prepareUrl(rule, httpHook);
 
         rule.setTimeout(1000 * CLIENT_DEFAULT_TIMEOUT_SEC);
         rule.setPoolSize(CLIENT_DEFAULT_POOL_SIZE);
@@ -128,15 +115,59 @@ public class Route {
     }
 
     /**
+     * Checks if the given destination either is a valid url or a valid path.
+     * If neither is the case, an exception is thrown.
+     *
+     * @param rule the rule object
+     * @param httpHook the http hook for this rule
+     */
+    private void prepareUrl(final Rule rule, final HttpHook httpHook) {
+        Matcher urlMatcher = URL_PARSE_PATTERN.matcher(httpHook.getDestination());
+
+        // valid url
+        if (urlMatcher.matches()) {
+            rule.setHost(urlMatcher.group("host"));
+            rule.setScheme(urlMatcher.group("scheme"));
+            rule.setPort(rule.getScheme().equals("https") ? 443 : 80);
+
+            String portString = urlMatcher.group("port");
+            if (portString != null) {
+                rule.setPort(Integer.parseInt(portString));
+            }
+
+            rule.setPath(urlMatcher.group("path"));
+        }
+        // valid path
+        else if ( httpHook.getDestination().startsWith("/") ) {
+            rule.setPath(httpHook.getDestination());
+            rule.setHost("localhost");
+            rule.setScheme("local");
+        }
+        // neither a valid url, nor a valid path
+        else {
+            throw new IllegalArgumentException("Destination (" + httpHook.getDestination() + ") is neither a valid url, nor a valid path.");
+        }
+    }
+
+    /**
      * Creates an instance of the http client for this
-     * request forwarder.
+     * request forwarder. If it's a local request, the
+     * selfClient will ne used instead!
+     *
      */
     private void createHttpClient() {
-        HttpClientOptions options = new HttpClientOptions().setDefaultHost(rule.getHost()).setDefaultPort(rule.getPort()).setMaxPoolSize(5000).setKeepAlive(true).setPipelining(false);
-        if (rule.getScheme().equals("https")) {
-            options.setSsl(true).setVerifyHost(false).setTrustAll(true);
+        // local request (path)
+        if (rule.getScheme().equals("local")) {
+            client = selfClient;
         }
-        client = vertx.createHttpClient(options);
+        // url request
+        else {
+            HttpClientOptions options = new HttpClientOptions().setDefaultHost(rule.getHost()).setDefaultPort(rule.getPort()).setMaxPoolSize(5000).setKeepAlive(true).setPipelining(false);
+            if (rule.getScheme().equals("https")) {
+                options.setSsl(true).setVerifyHost(false).setTrustAll(true);
+            }
+            client = vertx.createHttpClient(options);
+        }
     }
 
     /**
@@ -173,12 +204,14 @@ public class Route {
      * Closes the http client of the route.
      */
     public void cleanup() {
-        vertx.setTimer(GRACE_PERIOD, new Handler<Long>() {
-            public void handle(Long event) {
-                LOG.debug("Cleaning up one client for route of " + urlPattern);
-                client.close();
-            }
-        });
+        if ( ! rule.getScheme().equals("local") ) {
+            vertx.setTimer(GRACE_PERIOD, new Handler<Long>() {
+                public void handle(Long event) {
+                    LOG.debug("Cleaning up one client for route of " + urlPattern);
+                    client.close();
+                }
+            });
+        }
     }
 
     /**

@@ -11,7 +11,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
-import org.swisspush.gateleen.validation.ValidationResult;
+import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
 
 import java.nio.charset.Charset;
@@ -33,21 +33,25 @@ public class SchedulerFactory {
     private static final String REQUESTS = "requests";
     private static final String SCHEDULERS = "schedulers";
     private static final String RANDOM_OFFSET = "randomOffset";
+    private static final String EXECUTE_ON_STARTUP = "executeOnStartup";
+    private static final String EXECUTE_ON_RELOAD = "executeOnReload";
 
     private final Map<String, Object> properties;
     private Vertx vertx;
     private RedisClient redisClient;
     private MonitoringHandler monitoringHandler;
     private String schedulersSchema;
+    private String redisquesAddress;
 
     private Logger log = LoggerFactory.getLogger(SchedulerFactory.class);
 
-    public SchedulerFactory(Map<String, Object> properties, Vertx vertx, RedisClient redisClient, MonitoringHandler monitoringHandler, String schedulersSchema) {
+    public SchedulerFactory(Map<String, Object> properties, Vertx vertx, RedisClient redisClient, MonitoringHandler monitoringHandler, String schedulersSchema, String redisquesAddress) {
         this.properties = properties;
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.monitoringHandler = monitoringHandler;
         this.schedulersSchema = schedulersSchema;
+        this.redisquesAddress = redisquesAddress;
     }
 
     public List<Scheduler> parseSchedulers(Buffer buffer) throws ValidationException {
@@ -68,7 +72,22 @@ public class SchedulerFactory {
         for(Map.Entry<String,Object> entry: mainObject.getJsonObject(SCHEDULERS).getMap().entrySet()) {
             Map<String,Object> schedulerJson = (Map<String,Object>)entry.getValue();
 
-            int maxRandomOffset = 0;
+            boolean executeOnStartup = false;
+            boolean executeOnReload = false;
+            if ( schedulerJson.containsKey(EXECUTE_ON_STARTUP) ) {
+                executeOnStartup = (boolean) schedulerJson.get(EXECUTE_ON_STARTUP);
+
+                // reload is always as a default performed, if startup execution is enforced
+                executeOnReload = executeOnStartup;
+            }
+
+            // do we need to fire a scheduler on a reload?
+            if ( schedulerJson.containsKey(EXECUTE_ON_RELOAD) ) {
+                executeOnReload = (boolean) schedulerJson.get(EXECUTE_ON_RELOAD);
+            }
+
+
+                int maxRandomOffset = 0;
             if ( schedulerJson.containsKey(RANDOM_OFFSET) ) {
                 try {
                     maxRandomOffset = (Integer) schedulerJson.get(RANDOM_OFFSET);
@@ -87,7 +106,7 @@ public class SchedulerFactory {
                 }
             }
             try {
-                result.add(new Scheduler(vertx, redisClient, entry.getKey(), (String)schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset));
+                result.add(new Scheduler(vertx, redisquesAddress, redisClient, entry.getKey(), (String)schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset, executeOnStartup, executeOnReload));
             } catch (ParseException e) {
                 throw new ValidationException("Could not parse cron expression of scheduler '"+entry.getKey()+"'", e);
             }

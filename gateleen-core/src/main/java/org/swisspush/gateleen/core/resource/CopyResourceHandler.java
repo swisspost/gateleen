@@ -5,8 +5,10 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StatusCodeTranslator;
 
 import java.util.Map;
 
@@ -16,6 +18,8 @@ import java.util.Map;
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 public class CopyResourceHandler {
+    private static final Logger log = LoggerFactory.getLogger(CopyResourceHandler.class);
+
     private static final String SLASH = "/";
     private static final int DEFAULT_TIMEOUT = 120000;
 
@@ -75,6 +79,8 @@ public class CopyResourceHandler {
         return true;
     }
 
+
+
     /**
      * Performs the initial GET request to the source.
      * 
@@ -98,6 +104,9 @@ public class CopyResourceHandler {
 
         // avoids blocking other requests
         selfRequest.setTimeout(DEFAULT_TIMEOUT);
+
+        // add exception handler
+        selfRequest.exceptionHandler(exception -> log.warn("CopyResourceHandler: GET request failed: " + request.uri() + ": " + exception.getMessage()));
 
         // fire
         selfRequest.end();
@@ -152,7 +161,7 @@ public class CopyResourceHandler {
             log.debug("copy resource task failed: {} -> {}", task.getSourceUri(), task.getDestinationUri());
         }
 
-        request.response().setStatusCode(response.statusCode());
+        request.response().setStatusCode(StatusCodeTranslator.translateStatusCode(response.statusCode(), request.headers()));
         request.response().setStatusMessage(response.statusMessage());
         response.bodyHandler(buffer -> request.response().end(buffer));
     }
@@ -175,6 +184,11 @@ public class CopyResourceHandler {
             }
         }
 
-        return new CopyTask(task.getString("source"), task.getString("destination"), request.headers(), staticHeaders);
+        MultiMap headers = StatusCodeTranslator.getTranslateFreeHeaders(request.headers());
+
+        // create copy task
+        return new CopyTask(task.getString("source"), task.getString("destination"), headers, staticHeaders);
     }
+
+
 }

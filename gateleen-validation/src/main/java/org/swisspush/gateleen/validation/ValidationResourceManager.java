@@ -10,15 +10,18 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.core.validation.ValidationResult;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class ValidationResourceManager {
+public class ValidationResourceManager implements LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.validation-updated";
 
@@ -28,6 +31,7 @@ public class ValidationResourceManager {
     private final Vertx vertx;
     private ValidationResource validationResource;
     private String validationResourceSchema;
+    private boolean logConfigurationResourceChanges = false;
 
     public ValidationResource getValidationResource() {
         if (validationResource == null) {
@@ -47,6 +51,11 @@ public class ValidationResourceManager {
 
         // Receive update notifications
         vertx.eventBus().consumer(UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> updateValidationResource());
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logConfigurationResourceChanges = resourceLoggingEnabled;
     }
 
     private void updateValidationResource() {
@@ -93,6 +102,9 @@ public class ValidationResourceManager {
                 }
                 storage.put(validationUri, validationResourceBuffer, status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
+                        if(logConfigurationResourceChanges){
+                            RequestLogger.logRequest(vertx.eventBus(), request, status, validationResourceBuffer);
+                        }
                         vertx.eventBus().publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);

@@ -9,6 +9,8 @@ The following configuration values are required
 | :----------| :----- |
 | targetHost | The host where the tests should be executed against |
 | targetPort | The port of the target host where the tests should be executed against |
+| numberOfUsers | The number of users executing the scenario |
+| rampUpTime | The time in seconds to ramp up the defined number of users for the test scenario |
 
 ## Prepare server resources
 To have the correct server resources like routing rules and acls used for the Gatling tests, the following gradle task should be applied **before** the tests:

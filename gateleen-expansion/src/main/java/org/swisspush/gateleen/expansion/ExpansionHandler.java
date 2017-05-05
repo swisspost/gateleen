@@ -1,18 +1,9 @@
 package org.swisspush.gateleen.expansion;
 
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.*;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
-import org.swisspush.gateleen.routing.Rule;
-import org.swisspush.gateleen.routing.RuleFactory;
-import org.swisspush.gateleen.routing.RuleFeaturesProvider;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
@@ -21,7 +12,17 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.validation.ValidationException;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
+import org.swisspush.gateleen.core.util.ResourceCollectionException;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.routing.Rule;
+import org.swisspush.gateleen.routing.RuleFeaturesProvider;
+import org.swisspush.gateleen.routing.RuleProvider;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.EXPAND_ON_BACKEND;
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.STORAGE_EXPAND;
+import static org.swisspush.gateleen.routing.RuleProvider.RuleChangesObserver;
 
 /**
  * The {@link ExpansionHandler} allows to fetch multiple a collection of multiple resources in
@@ -68,7 +70,7 @@ import static org.swisspush.gateleen.routing.RuleFeatures.Feature.STORAGE_EXPAND
  *
  * @author https://github.com/mcweba [Marc-Andre Weber], https://github.com/ljucam [Mario Ljuca]
  */
-public class ExpansionHandler {
+public class ExpansionHandler implements RuleChangesObserver{
     private Logger log = LoggerFactory.getLogger(ExpansionHandler.class);
 
     public static final String SERIOUS_EXCEPTION = "a serious exception happend ";
@@ -81,25 +83,24 @@ public class ExpansionHandler {
 
     private static final int DECREMENT_BY_ONE = 1;
     private static final int MAX_RECURSION_LEVEL = 0;
-    private static final String MAX_RECURSION_DEPTH_PROPERTY = "max.recursion.depth";
-    private static final int RECURSION_DEPTH_DEFAULT = 2000;
 
-    private static final String MAX_SUBREQUEST_PROPERTY = "max.expansion.subrequests";
+    public static final String MAX_EXPANSION_LEVEL_SOFT_PROPERTY = "max.expansion.level.soft";
+    public static final String MAX_EXPANSION_LEVEL_HARD_PROPERTY = "max.expansion.level.hard";
+    public static final String MAX_SUBREQUEST_PROPERTY = "max.expansion.subrequests";
     private static final int MAX_SUBREQUEST_COUNT_DEFAULT = 20000;
 
     private static final String ETAG_HEADER = "Etag";
     private static final String SELF_REQUEST_HEADER = "x-self-request";
 
-    private int maxRecursionDepth;
-    private int maxSubrequestCount;
+    private int maxSubRequestCount;
+
+    private int maxExpansionLevelSoft = Integer.MAX_VALUE;
+    private int maxExpansionLevelHard = Integer.MAX_VALUE;
 
     private HttpClient httpClient;
-    private ResourceStorage storage;
     private Map<String, Object> properties;
     private String serverRoot;
-    private String rulesPath;
-
-    private String routingRulesSchema;
+    private RuleProvider ruleProvider;
 
     /**
      * A list of parameters, which are always removed
@@ -126,38 +127,33 @@ public class ExpansionHandler {
      * @param rulesPath rulesPath
      */
     public ExpansionHandler(Vertx vertx, final ResourceStorage storage, HttpClient httpClient, final Map<String, Object> properties, String serverRoot, final String rulesPath) {
-        this.storage = storage;
         this.httpClient = httpClient;
         this.properties = properties;
         this.serverRoot = serverRoot;
-        this.rulesPath = rulesPath;
-
-        routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
 
         initParameterRemovalLists();
         initConfigurationValues();
 
-        loadRulesFromStorage();
-
-        // Receive update notifications
-        log.info("ExpansionHandler - register on vertx bus to receive routing rules updates");
-        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> loadRulesFromStorage());
+        this.ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
+        this.ruleProvider.registerObserver(this);
     }
 
-    private void loadRulesFromStorage(){
-        storage.get(rulesPath, buffer -> {
-            if (buffer != null) {
-                try {
-                    List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
-                    log.info("Update expandOnBackend and storageExpand information from changed routing rules");
-                    ruleFeaturesProvider = new RuleFeaturesProvider(rules);
-                } catch (ValidationException e) {
-                    log.error("Could not update expandOnBackend and storageExpand information from changed routing rules", e);
-                }
-            } else {
-                log.warn("Could not get URL '" + (rulesPath == null ? "<null>" : rulesPath) + "' (getting rules).");
-            }
-        });
+    @Override
+    public void rulesChanged(List<Rule> rules) {
+        log.info("Update expandOnBackend and storageExpand information from changed routing rules");
+        ruleFeaturesProvider = new RuleFeaturesProvider(rules);
+    }
+
+    public int getMaxExpansionLevelSoft() {
+        return maxExpansionLevelSoft;
+    }
+
+    public int getMaxExpansionLevelHard() {
+        return maxExpansionLevelHard;
+    }
+
+    public int getMaxSubRequestCount() {
+        return maxSubRequestCount;
     }
 
     /**
@@ -193,28 +189,37 @@ public class ExpansionHandler {
     private void initConfigurationValues() {
         if (properties != null && properties.containsKey(MAX_SUBREQUEST_PROPERTY)) {
             try {
-                maxSubrequestCount = Integer.parseInt((String) properties.get(MAX_SUBREQUEST_PROPERTY));
-                log.info("Setting maximum allowed subrequest count to " + maxSubrequestCount + " from properties");
+                maxSubRequestCount = Integer.parseInt((String) properties.get(MAX_SUBREQUEST_PROPERTY));
+                log.info("Setting maximum allowed subrequest count to " + maxSubRequestCount + " from properties");
             } catch (Exception e) {
-                maxSubrequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
-                log.warn("Setting maximum allowed subrequest count to a default of " + maxSubrequestCount + ", since defined value for " + MAX_SUBREQUEST_PROPERTY + " in properties is not a number");
+                maxSubRequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
+                log.warn("Setting maximum allowed subrequest count to a default of " + maxSubRequestCount + ", since defined value for " + MAX_SUBREQUEST_PROPERTY + " in properties is not a number");
             }
         } else {
-            maxSubrequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
-            log.warn("Setting maximum allowed subrequest count to a default of " + maxSubrequestCount + ", since no property " + MAX_SUBREQUEST_PROPERTY + " is defined!");
+            maxSubRequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
+            log.warn("Setting maximum allowed subrequest count to a default of " + maxSubRequestCount + ", since no property " + MAX_SUBREQUEST_PROPERTY + " is defined!");
         }
 
-        if (properties != null && properties.containsKey(MAX_RECURSION_DEPTH_PROPERTY)) {
+        if (properties != null && properties.containsKey(MAX_EXPANSION_LEVEL_SOFT_PROPERTY)) {
             try {
-                maxRecursionDepth = Integer.parseInt((String) properties.get(MAX_RECURSION_DEPTH_PROPERTY));
-                log.info("Setting default recursion depth to " + maxRecursionDepth + " from properties");
+                maxExpansionLevelSoft = Integer.parseInt((String) properties.get(MAX_EXPANSION_LEVEL_SOFT_PROPERTY));
+                log.info("Setting maximum expansion level soft value to " + maxExpansionLevelSoft + " from properties");
             } catch (Exception e) {
-                maxRecursionDepth = RECURSION_DEPTH_DEFAULT;
-                log.warn("Setting default recursion depth to a default of " + maxRecursionDepth + ", since defined value for " + MAX_RECURSION_DEPTH_PROPERTY + " in properties is not a number");
+                log.warn("Setting maximum expansion level soft value to a default of " + maxExpansionLevelSoft + ", since defined value for " + MAX_EXPANSION_LEVEL_SOFT_PROPERTY + " in properties is not a number");
             }
         } else {
-            maxRecursionDepth = RECURSION_DEPTH_DEFAULT;
-            log.warn("Setting default recursion depth to a default of " + maxRecursionDepth + ", since no property " + MAX_RECURSION_DEPTH_PROPERTY + " is defined!");
+            log.info("Setting maximum expansion level soft value to a default of " + maxExpansionLevelSoft + ", since no property " + MAX_EXPANSION_LEVEL_SOFT_PROPERTY + " is defined!");
+        }
+
+        if (properties != null && properties.containsKey(MAX_EXPANSION_LEVEL_HARD_PROPERTY)) {
+            try {
+                maxExpansionLevelHard = Integer.parseInt((String) properties.get(MAX_EXPANSION_LEVEL_HARD_PROPERTY));
+                log.info("Setting maximum expansion level hard value to " + maxExpansionLevelHard + " from properties");
+            } catch (Exception e) {
+                log.warn("Setting maximum expansion level hard value to a default of " + maxExpansionLevelHard + ", since defined value for " + MAX_EXPANSION_LEVEL_HARD_PROPERTY + " in properties is not a number");
+            }
+        } else {
+            log.info("Setting maximum expansion level soft hard to a default of " + maxExpansionLevelHard + ", since no property " + MAX_EXPANSION_LEVEL_HARD_PROPERTY + " is defined!");
         }
     }
 
@@ -284,17 +289,7 @@ public class ExpansionHandler {
      */
     private void handleExpansionRequest(final HttpServerRequest req, final RecursiveHandlerFactory.RecursiveHandlerTypes recursiveHandlerType) {
         req.pause();
-
         Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
-
-        // store the parameters for later use
-        // ----
-        Set<String> originalParams = null;
-        if (req.params() != null) {
-            originalParams = req.params().names();
-        }
-        final Set<String> finalOriginalParams = originalParams;
-        // ----
 
         /*
          * in order to get the recursion level,
@@ -305,20 +300,43 @@ public class ExpansionHandler {
          * the multimap and therefore we don't have
          * the possibility anymore to get the wished
          * parameter!
-         */
-        final int recursionDepth = getRecursionDepth(req, log);
+        */
+        Integer expandLevel = extractExpandParamValue(req, log);
 
-        if(isStorageExpand(req.uri()) && recursionDepth > 1){
-            req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-            req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-            req.response().end("Expand values higher than 1 are not supported for storageExpand requests");
-            req.resume();
+        if(expandLevel == null){
+            respondBadRequest(req,"Expand parameter is not valid. Must be a positive number");
             return;
         }
+
+        if(expandLevel > maxExpansionLevelHard){
+            String message = "Expand level '"+expandLevel+"' is greater than the maximum expand level '" + maxExpansionLevelHard + "'";
+            log.info(message);
+            respondBadRequest(req, message);
+            return;
+        }
+
+        if(expandLevel > maxExpansionLevelSoft){
+            log.warn("Expand level '"+expandLevel+"' is greater than the maximum soft expand level '" +
+                    maxExpansionLevelSoft + "'. Using '"+maxExpansionLevelSoft+"' instead");
+            expandLevel = maxExpansionLevelSoft;
+        }
+
+        if(isStorageExpand(req.uri()) && expandLevel > 1){
+            respondBadRequest(req, "Expand values higher than 1 are not supported for storageExpand requests");
+            return;
+        }
+
+        // store the parameters for later use
+        Set<String> originalParams = null;
+        if (req.params() != null) {
+            originalParams = req.params().names();
+        }
+        final Set<String> finalOriginalParams = originalParams;
 
         final String targetUri = ExpansionDeltaUtil.constructRequestUri(req.path(), req.params(), parameter_to_remove_for_all_request, null, SlashHandling.END_WITH_SLASH);
         log.debug("constructed uri for request: " + targetUri);
 
+        Integer finalExpandLevel = expandLevel;
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
             req.response().setStatusCode(cRes.statusCode());
             req.response().setStatusMessage(cRes.statusMessage());
@@ -349,7 +367,7 @@ public class ExpansionHandler {
                      * an exception is thrown and handled
                      * by the handler right away.
                      */
-                makeResourceSubRequest(targetUri, req, recursionDepth, new AtomicInteger(),
+                makeResourceSubRequest(targetUri, req, finalExpandLevel, new AtomicInteger(),
                         recursiveHandlerType,
                         RecursiveHandlerFactory.createRootHandler(recursiveHandlerType, req, serverRoot, data, finalOriginalParams), true);
             });
@@ -362,7 +380,7 @@ public class ExpansionHandler {
         cReq.setTimeout(TIMEOUT);
         cReq.headers().setAll(req.headers());
         cReq.headers().set("Accept", "application/json");
-        cReq.headers().set(SELF_REQUEST_HEADER, "");
+        cReq.headers().set(SELF_REQUEST_HEADER, "true");
         cReq.setChunked(true);
 
         if (log.isTraceEnabled()) {
@@ -390,31 +408,26 @@ public class ExpansionHandler {
         req.resume();
     }
 
-    /**
-     * Tries to extract the recursion depth from the
-     * request parameter 'expand'. If the value cannot
-     * be extracted a default value is returned.
-     * 
-     * @param req req
-     * @return int
-     */
-    private int getRecursionDepth(final HttpServerRequest req, final Logger log) {
-        String expandValue = req.params().get(EXPAND_PARAM);
-        log.debug("expandValue = " + expandValue);
-        int depth;
+    private Integer extractExpandParamValue(final HttpServerRequest request, final Logger log){
+        String expandValue = request.params().get(EXPAND_PARAM);
+        log.debug("got expand parameter value " + expandValue);
 
         try {
-            depth = Integer.valueOf(expandValue);
-        } catch (Exception e) {
-            depth = maxRecursionDepth;
+            Integer value = Integer.valueOf(expandValue);
+            if(value < 0){
+                log.warn("expand parameter value '"+expandValue+"' is not a positive number");
+                return null;
+            }
+            return value;
+        } catch (NumberFormatException ex){
+            log.warn("expand parameter value '"+expandValue+"' is not a valid number");
+            return null;
         }
-
-        return depth;
     }
 
     /**
      * Handles the request as if it is a recursive expansion.
-     * 
+     *
      * @param request request
      */
     public void handleExpansionRecursion(final HttpServerRequest request) {
@@ -424,7 +437,7 @@ public class ExpansionHandler {
 
     /**
      * Handles the request as if it is a request for a zip stream.
-     * 
+     *
      * @param request request
      */
     public void handleZipRecursion(final HttpServerRequest request) {
@@ -447,9 +460,9 @@ public class ExpansionHandler {
     }
 
     /**
-     * Removes the zip parametet, it's only needed by the check
+     * Removes the zip parameter, it's only needed by the check
      * method <code>isZipRequest(...)</code>.
-     * 
+     *
      * @param request request
      */
     private void removeZipParameter(final HttpServerRequest request) {
@@ -479,12 +492,12 @@ public class ExpansionHandler {
         });
 
         JsonObject requestPayload = new JsonObject();
-            requestPayload.put("subResources", new JsonArray(subResourceNames));
+        requestPayload.put("subResources", new JsonArray(subResourceNames));
         Buffer payload = Buffer.buffer(requestPayload.encodePrettily());
 
         cReq.setTimeout(TIMEOUT);
         cReq.headers().setAll(req.headers());
-        cReq.headers().set(SELF_REQUEST_HEADER, "");
+        cReq.headers().set(SELF_REQUEST_HEADER, "true");
         cReq.headers().set("Content-Type", "application/json; charset=utf-8");
         cReq.headers().set("Content-Length", "" + payload.length());
         cReq.setChunked(false);
@@ -495,7 +508,7 @@ public class ExpansionHandler {
 
     /**
      * Performs a recursive, asynchronous GET operation on the given uri.
-     * 
+     *
      * @param targetUri - uri for creating a new request
      * @param req - the original request
      * @param recursionLevel - the actual depth of the recursion
@@ -513,10 +526,10 @@ public class ExpansionHandler {
          * In order not to exceed the limit of allowed
          * subrequests, every call increments the subRequestCounter.
          * If the subRequestCounter reaches maxSubrequestCount, an exception is
-         * created and the recursive get process is canceld.
+         * created and the recursive get process is canceled.
          */
-        if (subRequestCounter.get() > maxSubrequestCount) {
-            handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException("Number of allowed sub requests exceeded. Limit is " + maxSubrequestCount + " requests", StatusCode.BAD_REQUEST)));
+        if (subRequestCounter.get() > maxSubRequestCount) {
+            handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException("Number of allowed sub requests exceeded. Limit is " + maxSubRequestCount + " requests", StatusCode.BAD_REQUEST)));
             return;
         }
 
@@ -576,7 +589,7 @@ public class ExpansionHandler {
         cReq.setTimeout(TIMEOUT);
         cReq.headers().setAll(req.headers());
         cReq.headers().set("Accept", "application/json");
-        cReq.headers().set(SELF_REQUEST_HEADER, "");
+        cReq.headers().set(SELF_REQUEST_HEADER, "true");
         cReq.setChunked(true);
 
         cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(req, targetUri, ExpansionHandler.class));
@@ -589,7 +602,7 @@ public class ExpansionHandler {
 
     /**
      * Handles the response data for creating a simple resource with content.
-     * 
+     *
      * @param targetUri - uri for creating a new request
      * @param handler - the parent handler
      * @param data - the data from the response of the request
@@ -607,7 +620,7 @@ public class ExpansionHandler {
 
     /**
      * Removes all parameters from the targetUri.
-     * 
+     *
      * @param targetUri targetUri
      * @return String
      */
@@ -621,8 +634,22 @@ public class ExpansionHandler {
     }
 
     /**
+     * Respond the request with a statuscode {@link StatusCode#BAD_REQUEST} and body.
+     *
+     * @param request the request to respond to
+     * @param body the body to respond
+     */
+    private void respondBadRequest(final HttpServerRequest request, String body){
+        ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, ExpansionHandler.class);
+        request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+        request.response().end(body);
+        request.resume();
+    }
+
+    /**
      * Handles the response data for creating a collection resource.
-     * 
+     *
      * @param targetUri - uri for creating a new request
      * @param req - the original request
      * @param recursionLevel - the actual depth of the recursion
@@ -699,7 +726,7 @@ public class ExpansionHandler {
      * Returns true if the given name or path belongs
      * to a collection.
      * In this case ends with a slash.
-     * 
+     *
      * @param target target
      * @return boolean
      */
@@ -710,7 +737,7 @@ public class ExpansionHandler {
     /**
      * Extracts the eTag from the given headers. <br />
      * If none eTag is found, an empty string is returned.
-     * 
+     *
      * @param headers headers
      * @return String
      */

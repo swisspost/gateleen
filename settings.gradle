@@ -1,3 +1,10 @@
+pluginRepositories {
+    if(System.getProperties().getProperty('pluginRepository')!=null){
+        maven { url System.getProperties().getProperty('pluginRepository') }
+        gradlePluginPortal()
+    }
+}
+rootProject.name = 'gateleen'
 include 'gateleen-core'
 include 'gateleen-delta'
 include 'gateleen-expansion'
@@ -16,4 +23,7 @@ include 'gateleen-test'
 include 'gateleen-queue'
 include 'gateleen-user'
 include 'gateleen-validation'
+include 'gateleen-delegate'
+include 'gateleen-merge'
+
 

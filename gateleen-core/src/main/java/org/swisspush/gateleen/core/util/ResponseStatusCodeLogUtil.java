@@ -30,6 +30,20 @@ public final class ResponseStatusCodeLogUtil {
     }
 
     /**
+     * Logs an info message with the provided status code and request information
+     *
+     * @param request request
+     * @param statusCode statusCode
+     * @param caller caller
+     */
+    public static void info(HttpServerRequest request, StatusCode statusCode, Class<?> caller) {
+        if (request != null && statusCode != null && caller != null && !request.headers().contains(SELF_REQUEST_HEADER)) {
+            RequestLoggerFactory.getLogger(caller, request).info("Responding " + request.method() + " request to " + request.uri() + " with status code " + statusCode);
+        }
+        request.headers().remove(SELF_REQUEST_HEADER);
+    }
+
+    /**
      * Check whether the request targets an external resource or not
      *
      * @param target target

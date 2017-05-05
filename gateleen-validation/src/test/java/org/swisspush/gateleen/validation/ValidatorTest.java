@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.validation;
 
 import io.vertx.ext.unit.Async;
+import org.swisspush.gateleen.core.validation.ValidationStatus;
 import org.swisspush.gateleen.validation.mocks.HttpServerRequestMock;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import com.google.common.util.concurrent.SettableFuture;

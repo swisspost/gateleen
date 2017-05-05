@@ -1,24 +1,24 @@
 package org.swisspush.gateleen.user;
 
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.logging.LoggingHandler;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.RoleExtractor;
-import org.swisspush.gateleen.core.util.StatusCode;
-import io.vertx.core.http.CaseInsensitiveHeaders;
-import io.vertx.core.http.HttpMethod;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.RoleExtractor;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,11 +27,10 @@ import java.util.Set;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class UserProfileHandler {
+public class UserProfileHandler implements LoggableResource {
 
     private Vertx vertx;
     private ResourceStorage storage;
-    private LoggingResourceManager loggingResourceManager;
 
     private String roleProfileKey = "profile";
     private UserProfileConfiguration userProfileConfiguration;
@@ -42,13 +41,21 @@ public class UserProfileHandler {
     private Map<String, JsonObject> roleProfiles = new HashMap<>();
     private RoleExtractor roleExtractor;
 
-    public UserProfileHandler(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager, UserProfileConfiguration userProfileConfiguration) {
+    private boolean logUserProfileChanges = false;
+
+    /**
+     * Constructor for the UserProfileHandler.
+     *
+     * @param vertx vertx
+     * @param storage storage
+     * @param userProfileConfiguration userProfileConfiguration
+     */
+    public UserProfileHandler(Vertx vertx, ResourceStorage storage, UserProfileConfiguration userProfileConfiguration) {
         this.vertx = vertx;
         this.storage = storage;
         this.userProfileConfiguration = userProfileConfiguration;
         this.userProfileManipulater = new UserProfileManipulater(log);
         this.roleExtractor = new RoleExtractor(userProfileConfiguration.getRolePattern());
-        this.loggingResourceManager = loggingResourceManager;
 
         updateRoleProfiles();
 
@@ -56,6 +63,27 @@ public class UserProfileHandler {
 
         // Receive update notifications
         eb.consumer(RoleProfileHandler.UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateRoleProfiles());
+    }
+
+    /**
+     * Constructor for the UserProfileHandler.
+     *
+     * @deprecated Use {@link UserProfileHandler#UserProfileHandler(Vertx, ResourceStorage, UserProfileConfiguration)} instead,
+     * because the {@link LoggingResourceManager} is not used anymore
+     *
+     * @param vertx vertx
+     * @param storage the storage
+     * @param loggingResourceManager manager for the logging resources
+     * @param userProfileConfiguration userProfileConfiguration
+     */
+    @Deprecated
+    public UserProfileHandler(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager, UserProfileConfiguration userProfileConfiguration) {
+        this(vertx, storage, userProfileConfiguration);
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logUserProfileChanges = resourceLoggingEnabled;
     }
 
     public boolean isUserProfileRequest(HttpServerRequest request) {
@@ -209,15 +237,9 @@ public class UserProfileHandler {
     }
 
     private void logPayload(final HttpServerRequest request, final Integer status, Buffer data, final MultiMap responseHeaders) {
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, request);
-        if (HttpMethod.PUT == request.method()) {
-            loggingHandler.appendRequestPayload(data);
-        } else if (HttpMethod.GET == request.method()) {
-            loggingHandler.appendResponsePayload(data, responseHeaders);
+        if(logUserProfileChanges){
+            RequestLogger.logRequest(vertx.eventBus(), request, status, data, responseHeaders);
         }
-        StatusCode statusCode = StatusCode.fromCode(status);
-        final String statusMessage = (statusCode != null ? statusCode.getStatusMessage() : "");
-        vertx.runOnContext(event -> loggingHandler.log(request.uri(), request.method(), status, statusMessage, request.headers(), responseHeaders));
     }
 
 }

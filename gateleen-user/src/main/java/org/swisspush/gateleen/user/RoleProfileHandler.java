@@ -2,6 +2,8 @@ package org.swisspush.gateleen.user;
 
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonUtil;
+import org.swisspush.gateleen.core.logging.LoggableResource;
+import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.Vertx;
@@ -16,16 +18,14 @@ import java.util.regex.Pattern;
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class RoleProfileHandler {
+public class RoleProfileHandler implements LoggableResource {
 
     public static final String UPDATE_ADDRESS = "gateleen.roleprofiles-updated";
 
     private ResourceStorage storage;
-
     private Logger log = LoggerFactory.getLogger(RoleProfileHandler.class);
-
+    private boolean logRoleProfileChanges = false;
     private Pattern uriPattern;
-
     private Vertx vertx;
     private EventBus eb;
 
@@ -38,6 +38,11 @@ public class RoleProfileHandler {
 
     public boolean isRoleProfileRequest(HttpServerRequest request) {
         return uriPattern.matcher(request.path()).matches();
+    }
+
+    @Override
+    public void enableResourceLogging(boolean resourceLoggingEnabled) {
+        this.logRoleProfileChanges = resourceLoggingEnabled;
     }
 
     public void handle(final HttpServerRequest request) {
@@ -61,6 +66,9 @@ public class RoleProfileHandler {
                 if (JsonUtil.containsNoNestedProperties(roleProfileProperties)) {
                     storage.put(request.uri() + "?merge=true", newBuffer, status -> {
                         if (status == StatusCode.OK.getStatusCode()) {
+                            if(logRoleProfileChanges){
+                                RequestLogger.logRequest(vertx.eventBus(), request, status, newBuffer);
+                            }
                             scheduleUpdate();
                         } else {
                             request.response().setStatusCode(status);

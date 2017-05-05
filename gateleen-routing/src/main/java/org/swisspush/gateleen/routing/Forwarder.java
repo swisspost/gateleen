@@ -10,13 +10,13 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.Base64;
 import java.util.HashMap;
@@ -107,7 +107,7 @@ public class Forwarder implements Handler<RoutingContext> {
     public void handle(final HttpServerRequest req, final Buffer bodyData) {
         monitoringHandler.updateRequestsMeter(target, req.uri());
         monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getMetricName());
-        final String targetUri = urlPattern.matcher(req.uri()).replaceAll(rule.getPath()).replaceAll("\\/\\/", "/");
+        final String targetUri = urlPattern.matcher(req.uri()).replaceFirst(rule.getPath()).replaceAll("\\/\\/", "/");
         final Logger log = RequestLoggerFactory.getLogger(Forwarder.class, req);
         log.debug("Forwarding request: " + req.uri() + " to " + rule.getScheme() + "://" + target + targetUri + " with rule " + rule.getRuleIdentifier());
         final String userId = extractUserId(req, log);
@@ -150,14 +150,20 @@ public class Forwarder implements Handler<RoutingContext> {
     }
 
     private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap) {
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req);
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req, vertx.eventBus());
 
         final String uniqueId = req.headers().get("x-rp-unique_id");
+        final String timeout = req.headers().get("x-timeout");
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());
 
         final HttpClientRequest cReq = prepareRequest(req, targetUri, log, profileHeaderMap, loggingHandler, startTime);
 
-        cReq.setTimeout(rule.getTimeout());
+        if (timeout != null) {
+            cReq.setTimeout(Long.valueOf(timeout));
+        } else {
+            cReq.setTimeout(rule.getTimeout());
+        }
+
         // Fix unique ID header name for backends not able to handle underscore in header names.
         cReq.headers().setAll(req.headers());
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
@@ -165,7 +171,7 @@ public class Forwarder implements Handler<RoutingContext> {
         cReq.headers().remove("connection");
 
         if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
-            cReq.headers().set(SELF_REQUEST_HEADER, "");
+            cReq.headers().set(SELF_REQUEST_HEADER, "true");
         }
 
         if (uniqueId != null) {
@@ -183,9 +189,6 @@ public class Forwarder implements Handler<RoutingContext> {
 
         cReq.setChunked(true);
 
-        if (rule.getTimeout() > 0) {
-            cReq.setTimeout(rule.getTimeout());
-        }
         installExceptionHandler(req, targetUri, startTime, cReq);
 
         /*
@@ -242,7 +245,7 @@ public class Forwarder implements Handler<RoutingContext> {
                 req.response().setStatusCode(StatusCode.TIMEOUT.getStatusCode());
                 req.response().setStatusMessage(StatusCode.TIMEOUT.getStatusMessage());
                 try {
-                    ResponseStatusCodeLogUtil.debug(req, StatusCode.TIMEOUT, Forwarder.class);
+                    ResponseStatusCodeLogUtil.info(req, StatusCode.TIMEOUT, Forwarder.class);
                     req.response().end(req.response().getStatusMessage());
                 } catch (IllegalStateException e) {
                     // ignore because maybe already closed
@@ -252,7 +255,7 @@ public class Forwarder implements Handler<RoutingContext> {
                 req.response().setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
                 req.response().setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
                 try {
-                    ResponseStatusCodeLogUtil.debug(req, StatusCode.SERVICE_UNAVAILABLE, Forwarder.class);
+                    ResponseStatusCodeLogUtil.info(req, StatusCode.SERVICE_UNAVAILABLE, Forwarder.class);
                     req.response().end(req.response().getStatusMessage());
                 } catch (IllegalStateException e) {
                     // ignore because maybe already closed
@@ -331,7 +334,7 @@ public class Forwarder implements Handler<RoutingContext> {
                 req.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                 req.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
                 try {
-                    ResponseStatusCodeLogUtil.debug(req, StatusCode.INTERNAL_SERVER_ERROR, Forwarder.class);
+                    ResponseStatusCodeLogUtil.info(req, StatusCode.INTERNAL_SERVER_ERROR, Forwarder.class);
                     req.response().end(req.response().getStatusMessage());
                 } catch (IllegalStateException e) {
                     // ignore because maybe already closed

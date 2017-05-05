@@ -1,0 +1,15 @@
+{
+  "headers": [],
+  "payload": {
+    "filters": [
+      {
+        "url": "/playground/nsa/v1/acknowledgment/.*",
+        "method": "GET",
+        "reject": "true"
+      },
+      {
+        "url": "/playground/server/users/v1/.*"
+      }
+    ]
+  }
+}
