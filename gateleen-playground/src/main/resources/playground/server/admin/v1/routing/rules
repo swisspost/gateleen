@@ -17,6 +17,7 @@
   },
   "/playground/": {
     "description": "Home Page",
+    "metricName": "home_page",
     "path": "/playground/server/pages/index.html",
     "storage": "main"
   },

@@ -410,6 +410,15 @@ public class QoSHandler implements LoggableResource {
                     sentinel.setLowestPercentileValue(oldSentinel.getLowestPercentileValue());
                 }
 
+                if (jsonSentinel.containsKey("minLowestPercentileValueMs")) {
+                    Double minLowestPercentileValueMs = jsonSentinel.getDouble("minLowestPercentileValueMs");
+                    sentinel.setLowestPercentileMinValue(minLowestPercentileValueMs);
+                    if(sentinel.getLowestPercentileValue() < minLowestPercentileValueMs){
+                        log.debug("Set lowest percentile value "+sentinel.getLowestPercentileValue()+" of sentinel '"+sentinelName+"' to a minLowestPercentileValueMs value of " + minLowestPercentileValueMs);
+                        sentinel.setLowestPercentileValue(minLowestPercentileValueMs);
+                    }
+                }
+
                 if (jsonSentinel.containsKey("percentile")) {
                     sentinel.setPercentile(jsonSentinel.getInteger("percentile"));
                 }
@@ -675,7 +684,11 @@ public class QoSHandler implements LoggableResource {
                         // over all readings
                         if (sentinel.getLowestPercentileValue() > currentResponseTime) {
                             if(currentResponseTime > 0.0) {
-                                sentinel.setLowestPercentileValue(currentResponseTime);
+                                if(sentinel.getLowestPercentileMinValue() != null && currentResponseTime < sentinel.getLowestPercentileMinValue()){
+                                    sentinel.setLowestPercentileValue(sentinel.getLowestPercentileMinValue());
+                                } else {
+                                    sentinel.setLowestPercentileValue(currentResponseTime);
+                                }
                             } else {
                                 log.debug("ignoring response time of 0.0, because the metric is probably not yet fully initalized");
                             }
@@ -686,6 +699,7 @@ public class QoSHandler implements LoggableResource {
                         currentSentinelRatios.add(currentRatio);
 
                         log.debug("sentinel '" + sentinel.getName() + "': percentile="+sentinel.getPercentile()+", lowestPercentileValue=" + sentinel.getLowestPercentileValue()
+                                + ", lowestPercentileMinValue=" + sentinel.getLowestPercentileMinValue()
                                 + ", currentSampleCount=" + currentSampleCount
                                 + ", currentResponseTime=" + currentResponseTime
                                 + ", currentRatio=" + currentRatio);

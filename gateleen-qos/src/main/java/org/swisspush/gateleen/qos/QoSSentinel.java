@@ -14,6 +14,7 @@ public class QoSSentinel {
     private String name;
     private Integer percentile = null;
     private double lowestPercentileValue;
+    private Double lowestPercentileMinValue;
 
     /**
      * Creates a new sentinel with the given
@@ -75,5 +76,25 @@ public class QoSSentinel {
      */
     public void setLowestPercentileValue(double lowestPercentileValue) {
         this.lowestPercentileValue = lowestPercentileValue;
+    }
+
+    /**
+     * Returns the minimal lowest percentile value
+     * of this sentinel.
+     *
+     * @return minimal lowest percentile value
+     */
+    public Double getLowestPercentileMinValue() {
+        return lowestPercentileMinValue;
+    }
+
+    /**
+     * Sets the minimal lowest percentile value
+     * of this sentinel.
+     *
+     * @param lowestPercentileMinValue minimal lowest percentile value
+     */
+    public void setLowestPercentileMinValue(Double lowestPercentileMinValue) {
+        this.lowestPercentileMinValue = lowestPercentileMinValue;
     }
 }
