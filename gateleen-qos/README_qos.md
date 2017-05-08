@@ -46,6 +46,8 @@ The **config** section defines the global settings of the QoS.
 
 The **sentinels** section defines which metrics (defined in the routing rules) will be used as sentinels. To determine the load, the lowest measured percentile value will be preserved for each sentinel and put in relation to the current percentile value.
 This calculated ratio is later used to check if a rule needs some actions or not. You can override the taken percentile value for a specific sentinel by setting the attribute **percentile** as shown in the example above.
+To define the minimal lowest percentile value for a single sentinel, you can add the attribute **minLowestPercentileValueMs**. When updating the QoS settings,
+the current _lowest percentile value_ will be raised to _minLowestPercentileValueMs_ when lower than _minLowestPercentileValueMs_.
  
 The **rules** section defines the rules for the QoS. Each rule is based on a pattern like the routing rules. 
 The possible attributes are:

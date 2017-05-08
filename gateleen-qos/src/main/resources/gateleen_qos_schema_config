@@ -67,6 +67,11 @@
 			        "description" : "override global percentile to use from metrics",
 			        "type" : "integer",
 			        "enum" : [50, 75, 95, 98, 99, 999]
+			    },
+			    "minLowestPercentileValueMs" : {
+			        "description" : "the minimum lowest percentile value to use as reference value",
+			        "type" : "number",
+                    "minimum": 0.001
 			    }
 			},
 			"additionalProperties": false

@@ -9,6 +9,7 @@ import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -95,7 +96,7 @@ public class QoSHandlerTest {
                 "      \"percentile\":50" +
                 "    }," +
                 "    \"sentinelB\":{}," +
-                "    \"sentinelC\":{}," +
+                "    \"sentinelC\":{ \"minLowestPercentileValueMs\": 0.1}," +
                 "    \"sentinelD\":{}" +
                 "  }," +
                 "  \"rules\":{" +
@@ -228,6 +229,109 @@ public class QoSHandlerTest {
         }
 
         @Override public MultiMap headers() { return headers; }
+    }
+
+    @Test
+    public void testSentinelMinLowestPercentileValue(TestContext context){
+
+        QoSHandler qosHandler = new QoSHandler(vertx, storage, qosSettingsPath, new HashMap<>(), prefix);
+
+        String configNoMinReponseTime = "{" +
+                "  \"config\":{" +
+                "    \"percentile\":75," +
+                "    \"quorum\":40," +
+                "    \"period\":5," +
+                "    \"minSampleCount\" : 1000," +
+                "    \"minSentinelCount\" : 5" +
+                "  }," +
+                "  \"sentinels\":{" +
+                "    \"sentinelA\":{" +
+                "      \"percentile\":50" +
+                "    }," +
+                "    \"sentinelB\":{}," +
+                "    \"sentinelC\":{}," +
+                "    \"sentinelD\":{}" +
+                "  }," +
+                "  \"rules\":{" +
+                "    \"/test/myapi1/v1/.*\":{" +
+                "      \"reject\":1.2," +
+                "      \"warn\":0.5" +
+                "    }," +
+                "    \"/test/myapi2/v1/.*\":{" +
+                "      \"reject\":0.3" +
+                "    }" +
+                "  }" +
+                "}";
+
+        JsonObject qosSettings = new JsonObject(configNoMinReponseTime);
+
+        List<QoSSentinel> sentinels = qosHandler.createQoSSentinels(qosSettings);
+        qosHandler.setQosSentinels(sentinels);
+
+        // set values for lowest percentile value
+        sentinels.get(0).setLowestPercentileValue(5.5); //sentinelA
+        sentinels.get(1).setLowestPercentileValue(10.9); //sentinelB
+        sentinels.get(2).setLowestPercentileValue(200.0); //sentinelC
+
+        context.assertEquals(5.5, sentinels.get(0).getLowestPercentileValue());
+        context.assertEquals(10.9, sentinels.get(1).getLowestPercentileValue());
+        context.assertEquals(200.0, sentinels.get(2).getLowestPercentileValue());
+        context.assertEquals(Double.MAX_VALUE, sentinels.get(3).getLowestPercentileValue());
+
+        context.assertNull(sentinels.get(0).getLowestPercentileMinValue());
+        context.assertNull(sentinels.get(1).getLowestPercentileMinValue());
+        context.assertNull(sentinels.get(2).getLowestPercentileMinValue());
+        context.assertNull(sentinels.get(3).getLowestPercentileMinValue());
+
+        // create sentinels again, the existing lowest percentile values should not be overriden
+        sentinels = qosHandler.createQoSSentinels(qosSettings);
+
+        context.assertEquals(5.5, sentinels.get(0).getLowestPercentileValue());
+        context.assertEquals(10.9, sentinels.get(1).getLowestPercentileValue());
+        context.assertEquals(200.0, sentinels.get(2).getLowestPercentileValue());
+        context.assertEquals(Double.MAX_VALUE, sentinels.get(3).getLowestPercentileValue());
+
+        // update the settings with minLowestPercentileValueMs values
+
+        String configWithMinResponseTime = "{" +
+                "  \"config\":{" +
+                "    \"percentile\":75," +
+                "    \"quorum\":40," +
+                "    \"period\":5," +
+                "    \"minSampleCount\" : 1000," +
+                "    \"minSentinelCount\" : 5" +
+                "  }," +
+                "  \"sentinels\":{" +
+                "    \"sentinelA\":{" +
+                "      \"percentile\":50" +
+                "    }," +
+                "    \"sentinelB\":{}," +
+                "    \"sentinelC\":{ \"minLowestPercentileValueMs\": 250.5}," +
+                "    \"sentinelD\":{ \"minLowestPercentileValueMs\": 50}" +
+                "  }," +
+                "  \"rules\":{" +
+                "    \"/test/myapi1/v1/.*\":{" +
+                "      \"reject\":1.2," +
+                "      \"warn\":0.5" +
+                "    }," +
+                "    \"/test/myapi2/v1/.*\":{" +
+                "      \"reject\":0.3" +
+                "    }" +
+                "  }" +
+                "}";
+
+        qosSettings = new JsonObject(configWithMinResponseTime);
+        sentinels = qosHandler.createQoSSentinels(qosSettings);
+
+        context.assertEquals(5.5, sentinels.get(0).getLowestPercentileValue(), "should still be the same (old) value");
+        context.assertEquals(10.9, sentinels.get(1).getLowestPercentileValue(), "should still be the same (old) value");
+        context.assertEquals(250.5, sentinels.get(2).getLowestPercentileValue(), "should have been overriden with the minLowestPercentileValueMs value");
+        context.assertEquals(Double.MAX_VALUE, sentinels.get(3).getLowestPercentileValue(), "should still be the same (old) value, because lowest percentile value is greater than minLowestPercentileValueMs");
+
+        context.assertNull(sentinels.get(0).getLowestPercentileMinValue());
+        context.assertNull(sentinels.get(1).getLowestPercentileMinValue());
+        context.assertEquals(250.5, sentinels.get(2).getLowestPercentileMinValue());
+        context.assertEquals(50.0, sentinels.get(3).getLowestPercentileMinValue());
     }
 
     /**
