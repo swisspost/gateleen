@@ -109,7 +109,7 @@ public abstract class AbstractTest {
         Async async = context.async();
         vertx = Vertx.vertx();
 
-        jedis = new Jedis("localhost", REDIS_PORT);
+        jedis = new Jedis("localhost", REDIS_PORT, 10000);
         jedis.flushAll();
 
         final JsonObject info = new JsonObject();
