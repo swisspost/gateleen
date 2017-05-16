@@ -18,6 +18,7 @@ local minQueueSampleCount = tonumber(ARGV[7])
 local maxQueueSampleCount = tonumber(ARGV[8])
 
 local return_value = "OK"
+local minScore = requestTS - entriesMaxAgeMS
 
 -- add request to circuit to update
 redis.call('zadd',circuitKeyToUpdate,requestTS,requestID)
@@ -25,6 +26,14 @@ redis.call('zadd',circuitKeyToUpdate,requestTS,requestID)
 redis.call('hsetnx',circuitInfoKey, circuitField, circuit)
 -- add circuit to all circuits set
 redis.call('sadd',allCircuitsKey,circuitHash)
+
+redis.log(redis.LOG_NOTICE, "minScore: "..minScore)
+local successCount = redis.call('zcount',circuitSuccessKey,minScore,'+inf')
+redis.log(redis.LOG_NOTICE, "successCount: "..successCount)
+local failureCount = redis.call('zcount',circuitFailureKey,minScore,'+inf')
+redis.log(redis.LOG_NOTICE, "failureCount: "..failureCount)
+local totalSamples = successCount + failureCount
+redis.log(redis.LOG_NOTICE, "total samples count is "..totalSamples)
 
 local function setCircuitState(state)
     redis.call('hset',circuitInfoKey,stateField,state)
@@ -40,24 +49,15 @@ local function getCircuitState()
 end
 
 local function calculateFailurePercentage()
-    local minScore = requestTS - entriesMaxAgeMS
-    redis.log(redis.LOG_NOTICE, "minScore: "..minScore)
-    local successCount = redis.call('zcount',circuitSuccessKey,minScore,'+inf')
-    redis.log(redis.LOG_NOTICE, "successCount: "..successCount)
-    local failureCount = redis.call('zcount',circuitFailureKey,minScore,'+inf')
-    redis.log(redis.LOG_NOTICE, "failureCount: "..failureCount)
-    local total = successCount + failureCount
     local percentage = 0
     if failureCount > 0 then
-        percentage = math.floor((failureCount / total)*100)
+        percentage = math.floor((failureCount / totalSamples)*100)
     end
     redis.log(redis.LOG_NOTICE, "percentage: "..percentage.."%")
     return percentage
 end
 
 local function sampleCountThresholdReached()
-    local totalSamples = redis.call('zcard',circuitSuccessKey) + redis.call('zcard',circuitFailureKey)
-    redis.log(redis.LOG_NOTICE, "total sample count is "..totalSamples)
     return totalSamples >= minQueueSampleCount
 end
 
