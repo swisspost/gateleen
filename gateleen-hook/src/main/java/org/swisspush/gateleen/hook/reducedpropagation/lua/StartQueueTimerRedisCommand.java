@@ -1,11 +1,10 @@
 package org.swisspush.gateleen.hook.reducedpropagation.lua;
 
 import io.vertx.core.Future;
-import io.vertx.core.logging.Logger;
+import org.slf4j.Logger;
 import io.vertx.redis.RedisClient;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.HalfOpenCircuitRedisCommand;
 
 import java.util.List;
 

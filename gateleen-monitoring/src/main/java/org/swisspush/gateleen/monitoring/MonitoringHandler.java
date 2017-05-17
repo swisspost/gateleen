@@ -132,27 +132,25 @@ public class MonitoringHandler {
         final Map<String, Long> metricCache = new HashMap<>();
         final Map<String, Long> lastDumps = new HashMap<>();
 
-        vertx.eventBus().consumer(getMonitoringAddress(), new Handler<Message<JsonObject>>() {
-            public void handle(Message<JsonObject> message) {
-                final JsonObject body = message.body();
-                final String action = body.getString(METRIC_ACTION);
-                final String name = body.getString(METRIC_NAME);
-                handleRequestPerRuleMessage(name);
-                long now;
-                switch (action) {
-                    case "set":
-                    case "update":
-                        Long currentValue = metricCache.get(name);
-                        Long newValue = body.getLong("n");
-                        Long lastDump = lastDumps.get(name);
-                        now = System.currentTimeMillis() / 1000;
-                        if (!newValue.equals(currentValue) || lastDump != null && lastDump < now - 300) {
-                            metricLogger.info(name + " " + body.getLong("n") + " " + now);
-                            metricCache.put(name, newValue);
-                            lastDumps.put(name, now);
-                        }
-                        break;
-                }
+        vertx.eventBus().consumer(getMonitoringAddress(), (Handler<Message<JsonObject>>) message -> {
+            final JsonObject body = message.body();
+            final String action = body.getString(METRIC_ACTION);
+            final String name = body.getString(METRIC_NAME);
+            handleRequestPerRuleMessage(name);
+            long now;
+            switch (action) {
+                case "set":
+                case "update":
+                    Long currentValue = metricCache.get(name);
+                    Long newValue = body.getLong("n");
+                    Long lastDump = lastDumps.get(name);
+                    now = System.currentTimeMillis() / 1000;
+                    if (!newValue.equals(currentValue) || lastDump != null && lastDump < now - 300) {
+                        metricLogger.info(name + " " + body.getLong("n") + " " + now);
+                        metricCache.put(name, newValue);
+                        lastDumps.put(name, now);
+                    }
+                    break;
             }
         });
     }
@@ -366,15 +364,12 @@ public class MonitoringHandler {
      * Update the count of active queues. Reads the count from redis and stores it to JMX.
      */
     public void updateQueueCountInformation() {
-        vertx.eventBus().send(getRedisquesAddress(), buildGetQueuesCountOperation(), new Handler<AsyncResult<Message<JsonObject>>>() {
-            @Override
-            public void handle(AsyncResult<Message<JsonObject>> reply) {
-                if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
-                    final long count = reply.result().body().getLong(VALUE);
-                    vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ACTIVE_QUEUE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n", count));
-                } else {
-                    log.error("Error gathering count of active queues");
-                }
+        vertx.eventBus().send(getRedisquesAddress(), buildGetQueuesCountOperation(), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
+                final long count = reply.result().body().getLong(VALUE);
+                vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ACTIVE_QUEUE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n", count));
+            } else {
+                log.error("Error gathering count of active queues");
             }
         });
     }
@@ -386,15 +381,12 @@ public class MonitoringHandler {
      */
     public void updateLastUsedQueueSizeInformation(final String queue) {
         log.trace("About to update last used Queue size counter");
-        vertx.eventBus().send(getRedisquesAddress(), buildGetQueueItemsCountOperation(queue), new Handler<AsyncResult<Message<JsonObject>>>() {
-            @Override
-            public void handle(AsyncResult<Message<JsonObject>> reply) {
-                if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
-                    final long count = reply.result().body().getLong(VALUE);
-                    vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "update").put("n", count));
-                } else {
-                    log.error("Error gathering queue size for queue '" + queue + "'");
-                }
+        vertx.eventBus().send(getRedisquesAddress(), buildGetQueueItemsCountOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
+                final long count = reply.result().body().getLong(VALUE);
+                vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "update").put("n", count));
+            } else {
+                log.error("Error gathering queue size for queue '" + queue + "'");
             }
         });
     }
@@ -409,27 +401,25 @@ public class MonitoringHandler {
     public void updateQueuesSizesInformation(final int numQueues, final boolean showEmptyQueues, final MonitoringCallback callback) {
         final JsonObject resultObject = new JsonObject();
         final JsonArray queuesArray = new JsonArray();
-        vertx.eventBus().send(getRedisquesAddress(), buildGetQueuesOperation(), new Handler<AsyncResult<Message<JsonObject>>>() {
-            @Override
-            public void handle(AsyncResult<Message<JsonObject>> reply) {
-                if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
-                    final List<String> queueNames = reply.result().body().getJsonObject(VALUE).getJsonArray("queues").getList();
-                    collectQueueLengths(queueNames, numQueues, showEmptyQueues, mapEntries -> {
-                        for (Map.Entry<String, Long> entry : mapEntries) {
-                            JsonObject obj = new JsonObject();
-                            obj.put(METRIC_NAME, entry.getKey());
-                            obj.put("size", entry.getValue());
-                            queuesArray.add(obj);
-                        }
-                        resultObject.put("queues", queuesArray);
-                        callback.onDone(resultObject);
-                    });
-                } else {
-                    String error = "Error gathering names of active queues";
-                    log.error(error);
-                    callback.onFail(error, StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-                }
-        }});
+        vertx.eventBus().send(getRedisquesAddress(), buildGetQueuesOperation(), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
+                final List<String> queueNames = reply.result().body().getJsonObject(VALUE).getJsonArray("queues").getList();
+                collectQueueLengths(queueNames, numQueues, showEmptyQueues, mapEntries -> {
+                    for (Map.Entry<String, Long> entry : mapEntries) {
+                        JsonObject obj = new JsonObject();
+                        obj.put(METRIC_NAME, entry.getKey());
+                        obj.put("size", entry.getValue());
+                        queuesArray.add(obj);
+                    }
+                    resultObject.put("queues", queuesArray);
+                    callback.onDone(resultObject);
+                });
+            } else {
+                String error = "Error gathering names of active queues";
+                log.error(error);
+                callback.onFail(error, StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            }
+    });
     }
 
     private void collectQueueLengths(final List<String> queueNames, final int numOfQueues, final boolean showEmptyQueues, final QueueLengthCollectingCallback callback) {
@@ -438,26 +428,23 @@ public class MonitoringHandler {
         final AtomicInteger subCommandCount = new AtomicInteger(queueNames.size());
         if (!queueNames.isEmpty()) {
             for (final String name : queueNames) {
-                vertx.eventBus().send(getRedisquesAddress(), buildGetQueueItemsCountOperation(name), new Handler<AsyncResult<Message<JsonObject>>>() {
-                    @Override
-                    public void handle(AsyncResult<Message<JsonObject>> reply) {
-                        subCommandCount.decrementAndGet();
-                        if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
-                            final long count = reply.result().body().getLong(VALUE);
-                            if (showEmptyQueues || count > 0) {
-                                resultMap.put(name, count);
-                            }
-                        } else {
-                            log.error("Error gathering size of queue " + name);
+                vertx.eventBus().send(getRedisquesAddress(), buildGetQueueItemsCountOperation(name), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                    subCommandCount.decrementAndGet();
+                    if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
+                        final long count = reply.result().body().getLong(VALUE);
+                        if (showEmptyQueues || count > 0) {
+                            resultMap.put(name, count);
                         }
+                    } else {
+                        log.error("Error gathering size of queue " + name);
+                    }
 
-                        if (subCommandCount.get() == 0) {
-                            mapEntryList.addAll(resultMap.entrySet());
-                            sortResultMap(mapEntryList);
-                            int toIndex = numOfQueues > queueNames.size() ? queueNames.size() : numOfQueues;
-                            toIndex = Math.min(mapEntryList.size(), toIndex);
-                            callback.onDone(mapEntryList.subList(0, toIndex));
-                        }
+                    if (subCommandCount.get() == 0) {
+                        mapEntryList.addAll(resultMap.entrySet());
+                        sortResultMap(mapEntryList);
+                        int toIndex = numOfQueues > queueNames.size() ? queueNames.size() : numOfQueues;
+                        toIndex = Math.min(mapEntryList.size(), toIndex);
+                        callback.onDone(mapEntryList.subList(0, toIndex));
                     }
                 });
             }

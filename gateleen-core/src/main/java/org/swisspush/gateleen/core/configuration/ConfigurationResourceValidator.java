@@ -14,7 +14,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.core.validation.ValidationResult;
@@ -32,7 +33,7 @@ class ConfigurationResourceValidator {
 
     private static final String SCHEMA_DECLARATION = "http://json-schema.org/draft-04/schema#";
     private static JsonSchemaFactory factory = JsonSchemaFactory.byDefault();
-    private io.vertx.core.logging.Logger log = LoggerFactory.getLogger(ConfigurationResourceValidator.class);
+    private Logger log = LoggerFactory.getLogger(ConfigurationResourceValidator.class);
 
     private Vertx vertx;
 

@@ -13,6 +13,7 @@ import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
@@ -89,6 +90,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
                     schedulerFactory.parseSchedulers(buffer);
                 } catch (ValidationException validationException) {
                     log.warn("Could not parse schedulers: " + validationException.toString());
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, SchedulerResourceManager.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
                     if(validationException.getValidationDetails() != null){
@@ -108,6 +110,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
                     } else {
                         request.response().setStatusCode(status);
                     }
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), SchedulerResourceManager.class);
                     request.response().end();
                 });
             });

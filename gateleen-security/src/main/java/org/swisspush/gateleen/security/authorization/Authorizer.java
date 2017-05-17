@@ -17,6 +17,7 @@ import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.validation.ValidationException;
@@ -147,8 +148,10 @@ public class Authorizer implements LoggableResource {
                     roles.add(anonymousRole);
                     user.put("roles", new JsonArray(new ArrayList<>(roles)));
                 }
+                ResponseStatusCodeLogUtil.info(request, StatusCode.OK, Authorizer.class);
                 request.response().end(user.toString());
             } else {
+                ResponseStatusCodeLogUtil.info(request, StatusCode.METHOD_NOT_ALLOWED, Authorizer.class);
                 request.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
                 request.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
                 request.response().end();
@@ -159,7 +162,7 @@ public class Authorizer implements LoggableResource {
 
     private void handleIsAuthorized(final HttpServerRequest request, Future<Boolean> future){
         if (!isAuthorized(request)) {
-            RequestLoggerFactory.getLogger(Authorizer.class, request).info(StatusCode.FORBIDDEN.toString());
+            ResponseStatusCodeLogUtil.info(request, StatusCode.FORBIDDEN, Authorizer.class);
             request.response().setStatusCode(StatusCode.FORBIDDEN.getStatusCode());
             request.response().setStatusMessage(StatusCode.FORBIDDEN.getStatusMessage());
             request.response().end(StatusCode.FORBIDDEN.getStatusMessage());
@@ -177,6 +180,7 @@ public class Authorizer implements LoggableResource {
                         aclFactory.parseAcl(buffer);
                     } catch (ValidationException validationException) {
                         log.warn("Could not parse acl: " + validationException.toString());
+                        ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, Authorizer.class);
                         request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                         request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
                         if(validationException.getValidationDetails() != null){
@@ -196,6 +200,7 @@ public class Authorizer implements LoggableResource {
                         } else {
                             request.response().setStatusCode(status);
                         }
+                        ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), Authorizer.class);
                         request.response().end();
                     });
                 });
@@ -208,6 +213,7 @@ public class Authorizer implements LoggableResource {
                         log.warn("Could not delete '" + (request.uri() == null ? "<null>" : request.uri()) + "'. Error code is '" + (status == null ? "<null>" : status) + "'.");
                         request.response().setStatusCode(status);
                     }
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), Authorizer.class);
                     request.response().end();
                 });
                 future.complete(Boolean.FALSE);

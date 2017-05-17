@@ -3,8 +3,6 @@ package org.swisspush.gateleen.hook;
 import com.google.common.collect.ImmutableMap;
 import com.jayway.awaitility.Awaitility;
 import com.jayway.restassured.RestAssured;
-import com.jayway.restassured.response.ExtractableResponse;
-import com.jayway.restassured.response.Response;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;

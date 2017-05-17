@@ -19,7 +19,6 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
 
 /**
  * Tests for the {@link LoggingHandler} class

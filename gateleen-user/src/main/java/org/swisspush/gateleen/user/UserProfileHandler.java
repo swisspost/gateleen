@@ -16,6 +16,7 @@ import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -105,6 +106,7 @@ public class UserProfileHandler implements LoggableResource {
                     final JsonObject mergedProfile = mergeUserProfileWithRoleProfile(request, profile);
                     logPayload(request, StatusCode.OK.getStatusCode(), Buffer.buffer(mergedProfile.encode()),
                             request.response().headers());
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.OK, UserProfileHandler.class);
                     if (enrichUpdateCount == 0) {
                         // Normal case: Nothing changed in profile
                         request.response().end(mergedProfile.encode());
@@ -124,6 +126,7 @@ public class UserProfileHandler implements LoggableResource {
                     // cause the server cannot enrich the request create the profile data
                     storage.put(request.path(), Buffer.buffer(profile.encode()), status -> {
                         logPayload(request, status, Buffer.buffer(mergedProfile.encode()), request.response().headers());
+                        ResponseStatusCodeLogUtil.info(request, StatusCode.OK, UserProfileHandler.class);
                         request.response().end(mergedProfile.encode());
                     });
                 }
@@ -150,12 +153,14 @@ public class UserProfileHandler implements LoggableResource {
                 try {
                     profile = new JsonObject(newBuffer.toString());
                 } catch (DecodeException ex) {
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, UserProfileHandler.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().end(StatusCode.BAD_REQUEST.getStatusMessage());
                     return;
                 }
                 cleanupUserProfile(profile, updatedProfile -> storage.put(request.uri() + "?merge=true", Buffer.buffer(updatedProfile.encode()), status -> {
                     logPayload(request, status, Buffer.buffer(updatedProfile.encode()), new CaseInsensitiveHeaders());
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), UserProfileHandler.class);
                     request.response().setStatusCode(status);
                     request.response().end();
                 }));
@@ -163,11 +168,13 @@ public class UserProfileHandler implements LoggableResource {
             break;
         case DELETE:
             storage.delete(request.path(), status -> {
+                ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), UserProfileHandler.class);
                 request.response().setStatusCode(status);
                 request.response().end();
             });
             break;
         default:
+            ResponseStatusCodeLogUtil.info(request, StatusCode.METHOD_NOT_ALLOWED, UserProfileHandler.class);
             request.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
             request.response().end(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
         }

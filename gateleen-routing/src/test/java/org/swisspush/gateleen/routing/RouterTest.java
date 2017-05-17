@@ -446,6 +446,8 @@ public class RouterTest {
                 return this;
             }
 
+            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+
             @Override
             public HttpServerResponse response() {
                 return response;
@@ -469,15 +471,13 @@ public class RouterTest {
             @Override public HttpMethod method() {
                 return HttpMethod.GET;
             }
-
             @Override public String uri() {
                 return "/gateleen/server/admin/v1/routing/rules";
             }
-
-            @Override
-            public DummyHttpServerResponse response() {
+            @Override public DummyHttpServerResponse response() {
                 return response;
             }
+            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
         }
         GETRoutingRulesRequest request = new GETRoutingRulesRequest();
         router.route(request);
@@ -502,15 +502,13 @@ public class RouterTest {
             @Override public HttpMethod method() {
                 return HttpMethod.GET;
             }
-
             @Override public String uri() {
                 return "/gateleen/server/random/resource";
             }
-
-            @Override
-            public DummyHttpServerResponse response() {
+            @Override public DummyHttpServerResponse response() {
                 return response;
             }
+            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
         }
         GETRandomResourceRequest request = new GETRandomResourceRequest();
         router.route(request);
@@ -542,9 +540,9 @@ public class RouterTest {
                 return "/gateleen/server/random/resource";
             }
 
-            @Override public String path() {
-                return "/gateleen/server/random/resource";
-            }
+            @Override public String path() { return "/gateleen/server/random/resource"; }
+
+            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
 
             @Override
             public DummyHttpServerResponse response() {
@@ -578,6 +576,8 @@ public class RouterTest {
                 bodyHandler.handle(Buffer.buffer(RULES_WITH_VALID_PROPS));
                 return this;
             }
+
+            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
 
             @Override
             public HttpServerResponse response() {

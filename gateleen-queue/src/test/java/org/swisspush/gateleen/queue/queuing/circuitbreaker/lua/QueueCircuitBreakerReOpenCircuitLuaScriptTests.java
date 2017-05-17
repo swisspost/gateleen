@@ -7,6 +7,7 @@ import org.swisspush.gateleen.core.lua.AbstractLuaScriptTest;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -84,11 +85,7 @@ public class QueueCircuitBreakerReOpenCircuitLuaScriptTests extends AbstractLuaS
                 halfOpenCircuitsKey,
                 openCircuitsKey
         );
-
-        List<String> arguments = Arrays.asList(
-                circuitHash
-        );
-
+        List<String> arguments = Collections.singletonList(circuitHash);
         return jedis.eval(script, keys, arguments);
     }
 }

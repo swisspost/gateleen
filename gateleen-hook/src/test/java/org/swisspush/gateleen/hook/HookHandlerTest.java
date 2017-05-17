@@ -25,6 +25,7 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.Assert.assertEquals;
@@ -78,7 +79,7 @@ public class HookHandlerTest {
 
         JsonObject hook = new JsonObject();
         hook.put("destination", "/playground/server/push/v1/devices/" + deviceId);
-        hook.put("methods", new JsonArray(Arrays.asList("PUT")));
+        hook.put("methods", new JsonArray(Collections.singletonList("PUT")));
         hook.put("expireAfter", 300);
         hook.put("fullUrl", true);
         JsonObject staticHeaders = new JsonObject();

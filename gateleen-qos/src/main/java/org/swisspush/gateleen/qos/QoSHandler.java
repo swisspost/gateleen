@@ -303,6 +303,7 @@ public class QoSHandler implements LoggableResource {
                     validateConfigurationValues(buffer);
                 } catch (ValidationException validationException) {
                     log.error("Could not parse QoS config resource: " + validationException.toString());
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, QoSHandler.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
                     if(validationException.getValidationDetails() != null){
@@ -323,6 +324,7 @@ public class QoSHandler implements LoggableResource {
                     } else {
                         request.response().setStatusCode(status);
                     }
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), QoSHandler.class);
                     request.response().end();
                 });
             });

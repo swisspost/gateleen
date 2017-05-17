@@ -42,9 +42,7 @@ public class RuleProvider {
         notifyRuleChangesObservers();
 
         log.info("Register on vertx event bus to receive routing rules updates");
-        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> {
-            notifyRuleChangesObservers();
-        });
+        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> notifyRuleChangesObservers());
     }
 
     /**

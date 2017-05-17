@@ -9,7 +9,6 @@ import io.vertx.redis.RedisClient;
 import io.vertx.redis.RedisOptions;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import redis.clients.jedis.Jedis;

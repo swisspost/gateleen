@@ -14,6 +14,7 @@ import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.core.validation.ValidationResult;
@@ -101,6 +102,7 @@ public class QueueCircuitBreakerConfigurationResourceManager implements Loggable
                     extractConfigurationValues(configResourceBuffer);
                 } catch (ValidationException validationException) {
                     log.error("Could not parse circuit breaker configuration resource: " + validationException.toString());
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, QueueCircuitBreakerConfigurationResourceManager.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
                     if(validationException.getValidationDetails() != null){
@@ -120,6 +122,7 @@ public class QueueCircuitBreakerConfigurationResourceManager implements Loggable
                     } else {
                         request.response().setStatusCode(status);
                     }
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), QueueCircuitBreakerConfigurationResourceManager.class);
                     request.response().end();
                 });
             });

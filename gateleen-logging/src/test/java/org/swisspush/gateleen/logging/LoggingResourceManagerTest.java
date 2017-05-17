@@ -2,9 +2,11 @@ package org.swisspush.gateleen.logging;
 
 import com.google.common.collect.ImmutableMap;
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -153,5 +155,6 @@ public class LoggingResourceManagerTest {
         @Override public String uri() {
             return LOGGING_URI;
         }
+        @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
     }
 }

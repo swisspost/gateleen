@@ -7,20 +7,19 @@
  */
 package org.swisspush.gateleen.core.property;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import io.vertx.core.Handler;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.refresh.Refreshable;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -117,37 +116,36 @@ public class PropertyHandler {
         // Only process PUT requests and request, which URL can be found
         if (request.method().equals(HttpMethod.PUT) && propertyUrls.containsKey(request.uri())) {
             // process body
-            request.bodyHandler(new Handler<Buffer>() {
-                public void handle(final Buffer buffer) {
-                    Map<String, String> idProperties = propertyUrls.get(request.uri());
-                    JsonObject body = new JsonObject(buffer.toString());
+            request.bodyHandler(buffer -> {
+                Map<String, String> idProperties = propertyUrls.get(request.uri());
+                JsonObject body = new JsonObject(buffer.toString());
 
-                    boolean found = false;
-                    for (String keyId : idProperties.keySet()) {
+                boolean found = false;
+                for (String keyId : idProperties.keySet()) {
 
-                        // try to find a watched key in the body
-                        if (body.containsKey(keyId)) {
-                            // save the value in the properties
-                            props.put(idProperties.get(keyId), body.getValue(keyId));
+                    // try to find a watched key in the body
+                    if (body.containsKey(keyId)) {
+                        // save the value in the properties
+                        props.put(idProperties.get(keyId), body.getValue(keyId));
 
-                            // refresh all refreshables
-                            refresh();
+                        // refresh all refreshables
+                        refresh();
 
-                            // break the process
-                            found = true;
-                            break;
-                        }
+                        // break the process
+                        found = true;
+                        break;
                     }
-
-                    if (!found) {
-                        log.warn("id for the request PUT " + request.uri() + " could not be found: " + body.toString());
-                    }
-
-                    // everythin is fine
-                    request.response().setStatusCode(StatusCode.OK.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.OK.getStatusMessage());
-                    request.response().end();
                 }
+
+                if (!found) {
+                    log.warn("id for the request PUT " + request.uri() + " could not be found: " + body.toString());
+                }
+
+                // everythin is fine
+                ResponseStatusCodeLogUtil.info(request, StatusCode.OK, PropertyHandler.class);
+                request.response().setStatusCode(StatusCode.OK.getStatusCode());
+                request.response().setStatusMessage(StatusCode.OK.getStatusMessage());
+                request.response().end();
             });
 
             return true;

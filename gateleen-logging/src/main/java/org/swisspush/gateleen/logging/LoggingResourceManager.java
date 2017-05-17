@@ -14,6 +14,7 @@ import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
@@ -104,6 +105,7 @@ public class LoggingResourceManager implements LoggableResource {
                     extractLoggingFilterValues(loggingResourceBuffer);
                 } catch (ValidationException validationException) {
                     log.error("Could not parse logging resource: " + validationException.toString());
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, LoggingResourceManager.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
                     if(validationException.getValidationDetails() != null){
@@ -123,6 +125,7 @@ public class LoggingResourceManager implements LoggableResource {
                     } else {
                         request.response().setStatusCode(status);
                     }
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), LoggingResourceManager.class);
                     request.response().end();
                 });
             });

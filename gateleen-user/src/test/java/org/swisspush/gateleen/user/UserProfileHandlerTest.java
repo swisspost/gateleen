@@ -1,7 +1,5 @@
 package org.swisspush.gateleen.user;
 
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
@@ -9,6 +7,7 @@ import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.json.JsonObject;
 import org.junit.Test;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;

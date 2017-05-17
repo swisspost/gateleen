@@ -21,10 +21,7 @@ import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.core.util.ResourcesUtils;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
@@ -230,6 +227,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                     new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
                 } catch (ValidationException validationException) {
                     log.error("Could not parse rules: " + validationException.toString());
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, Router.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
                     if (validationException.getValidationDetails() != null) {
@@ -250,6 +248,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                     } else {
                         request.response().setStatusCode(status);
                     }
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), Router.class);
                     request.response().end();
                 });
             });
@@ -259,17 +258,20 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             if (isRoutingBroken) {
                 if (request.uri().equals(rulesUri) && HttpMethod.GET == request.method()) {
                     storage.get(rulesUri, buffer -> {
+                        ResponseStatusCodeLogUtil.info(request, StatusCode.OK, Router.class);
                         request.response().setStatusCode(StatusCode.OK.getStatusCode());
                         request.response().setStatusMessage(StatusCode.OK.getStatusMessage());
                         request.response().end(buffer);
                     });
                 } else {
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, Router.class);
                     request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                     request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
                     request.response().end(ErrorPageCreator.createRoutingBrokenHTMLErrorPage(routingBrokenMessage, rulesUri, rulesUri));
                 }
             } else {
                 if (router == null) {
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.SERVICE_UNAVAILABLE, Router.class);
                     request.response().setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
                     request.response().setStatusMessage("Server not yet ready");
                     request.response().end(request.response().getStatusMessage());
@@ -285,6 +287,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 } else {
                     String errorMessage = "Request hops limit of '" + requestHopsLimit + "' has been exceeded. Check the routing rules for looping configurations";
                     RequestLoggerFactory.getLogger(Router.class, request).error(errorMessage);
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, Router.class);
                     request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                     request.response().setStatusMessage("Request hops limit exceeded");
                     request.response().end(errorMessage);
@@ -440,6 +443,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 ctx.response().headers().set("Content-Type", "application/json");
                 ctx.response().end(info.toString());
             } else {
+                ResponseStatusCodeLogUtil.info(ctx.request(), StatusCode.METHOD_NOT_ALLOWED, Router.class);
                 ctx.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
                 ctx.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
                 ctx.response().end();

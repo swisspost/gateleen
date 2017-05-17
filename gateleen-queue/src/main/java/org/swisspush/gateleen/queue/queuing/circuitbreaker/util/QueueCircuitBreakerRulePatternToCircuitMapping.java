@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.util;
 
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.HashCodeGenerator;
 import org.swisspush.gateleen.routing.Rule;
 
@@ -37,8 +37,8 @@ public class QueueCircuitBreakerRulePatternToCircuitMapping {
         log.debug("new rule pattern to circuit mapping values are:");
         for (Rule rule : rules) {
             PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRule(rule);
-            log.debug(patternAndCircuitHash);
             if(patternAndCircuitHash != null){
+                log.debug(patternAndCircuitHash.toString());
                 rulePatternToCircuitMapping.add(patternAndCircuitHash);
             } else {
                 log.error("rule pattern and circuitHash could not be retrieved from rule " + rule.getUrlPattern());
