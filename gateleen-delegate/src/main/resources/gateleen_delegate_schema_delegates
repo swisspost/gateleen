@@ -10,6 +10,14 @@
         "type": "string"
       }
     },
+    "description": {
+      "description": Documents this delegate",
+      "type": "string"
+    },    
+    "doc": {
+      "description": "Link or reference to feature/specification documentation",
+      "type": "string"
+    },	
     "pattern": {
       "description": "Pattern for grouping the incomming uri",
       "type": "string"
