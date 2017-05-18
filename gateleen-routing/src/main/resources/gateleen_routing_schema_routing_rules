@@ -26,6 +26,10 @@
 					"description": "Documents the rule.",
 					"type": "string"
 				},
+				"doc": {
+					"description": "Link or reference to feature/specification documentation",
+					"type": "string"
+				},				
 				"methods": {
 					"description": "Restricts the HTTP methods concerned by this rule (`GET`, `PUT`, `POST`, `DELETE`).\nWhen absent, all methods are concerned.",
 					"type": "array",
