@@ -32,6 +32,10 @@
 					"description": "documentation of the scheduler",
 					"type": "string"
 				},
+				"doc": {
+					"description": "Link or reference to feature/specification documentation",
+					"type": "string"
+				},					
 				"cronExpression": {
 					"description": "6-segment cron expression (first are seconds). Use ? as last segment. Example: `0 /3 * * * ?`.",
 					"type": "string"
