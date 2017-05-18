@@ -254,6 +254,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                     future.fail(event.cause());
                     return;
                 }
+                log.info("circuit '" + patternAndCircuitHash.getPattern().pattern() + "' has been closed");
                 future.complete();
             });
         } else {
@@ -288,6 +289,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                     future.fail(event.cause());
                     return;
                 }
+                log.info("circuit '" + patternAndCircuitHash.getPattern().pattern() + "' has been reopened");
                 future.complete();
             });
         } else {
