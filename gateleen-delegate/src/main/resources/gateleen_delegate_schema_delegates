@@ -11,7 +11,7 @@
       }
     },
     "description": {
-      "description": Documents this delegate",
+      "description": "Documents this delegate",
       "type": "string"
     },    
     "doc": {
