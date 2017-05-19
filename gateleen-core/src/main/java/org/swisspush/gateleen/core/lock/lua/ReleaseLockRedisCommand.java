@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class AcquireLockRedisCommand implements RedisCommand {
+public class ReleaseLockRedisCommand implements RedisCommand {
 
     private LuaScriptState luaScriptState;
     private List<String> keys;
@@ -20,7 +20,7 @@ public class AcquireLockRedisCommand implements RedisCommand {
     private RedisClient redisClient;
     private Logger log;
 
-    public AcquireLockRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
+    public ReleaseLockRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
                                    RedisClient redisClient, Logger log, final Future<Boolean> future) {
         this.luaScriptState = luaScriptState;
         this.keys = keys;
@@ -34,20 +34,20 @@ public class AcquireLockRedisCommand implements RedisCommand {
     public void exec(int executionCounter) {
         redisClient.evalsha(luaScriptState.getSha(), keys, arguments, event -> {
             if(event.succeeded()){
-                Long locked = event.result().getLong(0);
-                future.complete(locked > 0);
+                Long unlocked = event.result().getLong(0);
+                future.complete(unlocked > 0);
             } else {
                 String message = event.cause().getMessage();
                 if(message != null && message.startsWith("NOSCRIPT")) {
-                    log.warn("AcquireLockRedisCommand script couldn't be found, reload it");
+                    log.warn("ReleaseLockRedisCommand script couldn't be found, reload it");
                     log.warn("amount the script got loaded: " + String.valueOf(executionCounter));
                     if(executionCounter > 10) {
                         future.fail("amount the script got loaded is higher than 10, we abort");
                     } else {
-                        luaScriptState.loadLuaScript(new AcquireLockRedisCommand(luaScriptState, keys, arguments, redisClient, log, future), executionCounter);
+                        luaScriptState.loadLuaScript(new ReleaseLockRedisCommand(luaScriptState, keys, arguments, redisClient, log, future), executionCounter);
                     }
                 } else {
-                    future.fail("AcquireLockRedisCommand request failed with message: " + message);
+                    future.fail("ReleaseLockRedisCommand request failed with message: " + message);
                 }
             }
         });
