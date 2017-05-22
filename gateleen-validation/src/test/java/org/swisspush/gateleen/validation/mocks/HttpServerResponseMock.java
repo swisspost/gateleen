@@ -5,6 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.CaseInsensitiveHeaders;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
 
 /**
@@ -152,6 +153,35 @@ public class HttpServerResponseMock implements HttpServerResponse {
     }
 
     @Override public long bytesWritten() { return 0; }
+
+    @Override
+    public int streamId() { return 0; }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String host, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
+        return null;
+    }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
+        return null;
+    }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
+        return null;
+    }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String host, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
+        return null;
+    }
+
+    @Override
+    public void reset(long code) { }
+
+    @Override
+    public HttpServerResponse writeCustomFrame(int type, int flags, Buffer payload) { return null; }
 
     @Override public HttpServerResponse setWriteQueueMaxSize(int maxSize) {
         return null;

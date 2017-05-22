@@ -37,29 +37,29 @@ public class RedisBasedLock implements Lock {
         this.releaseLockLuaScriptState = new LuaScriptState(LockLuaScripts.LOCK_RELEASE, redisClient, false);
     }
 
-    @Override
-    public Future<Boolean> acquireLock(String lock, String token, long lockExpiryMs) {
-        Future<Boolean> future = Future.future();
-        List<String> keys = Collections.singletonList(buildLockKey(lock));
-        List<String> arguments = Arrays.asList(token, String.valueOf(lockExpiryMs));
-        AcquireLockRedisCommand cmd = new AcquireLockRedisCommand(acquireLockLuaScriptState,
-                keys, arguments, redisClient, log, future);
-        cmd.exec(0);
-        return future;
-    }
-
 //    @Override
 //    public Future<Boolean> acquireLock(String lock, String token, long lockExpiryMs) {
 //        Future<Boolean> future = Future.future();
-//        redisClient.setWithOptions(buildLockKey(lock), token, new SetOptions().setNX(true).setPX(lockExpiryMs), event -> {
-//            if(event.succeeded()){
-//                future.complete(Boolean.TRUE);
-//            } else {
-//                future.fail(event.cause().getMessage());
-//            }
-//        });
+//        List<String> keys = Collections.singletonList(buildLockKey(lock));
+//        List<String> arguments = Arrays.asList(token, String.valueOf(lockExpiryMs));
+//        AcquireLockRedisCommand cmd = new AcquireLockRedisCommand(acquireLockLuaScriptState,
+//                keys, arguments, redisClient, log, future);
+//        cmd.exec(0);
 //        return future;
 //    }
+
+    @Override
+    public Future<Boolean> acquireLock(String lock, String token, long lockExpiryMs) {
+        Future<Boolean> future = Future.future();
+        redisClient.setWithOptions(buildLockKey(lock), token, new SetOptions().setNX(true).setPX(lockExpiryMs), event -> {
+            if(event.succeeded()){
+                future.complete("OK".equalsIgnoreCase(event.result()));
+            } else {
+                future.fail(event.cause().getMessage());
+            }
+        });
+        return future;
+    }
 
     @Override
     public Future<Boolean> releaseLock(String lock, String token) {
