@@ -1,8 +1,8 @@
 package org.swisspush.gateleen.core.lock.lua;
 
 import io.vertx.core.Future;
-import io.vertx.core.logging.Logger;
 import io.vertx.redis.RedisClient;
+import org.slf4j.Logger;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
 

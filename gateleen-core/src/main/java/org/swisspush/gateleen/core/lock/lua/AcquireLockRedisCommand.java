@@ -1,8 +1,8 @@
 package org.swisspush.gateleen.core.lock.lua;
 
 import io.vertx.core.Future;
-import io.vertx.core.logging.Logger;
 import io.vertx.redis.RedisClient;
+import org.slf4j.Logger;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
 
@@ -34,8 +34,12 @@ public class AcquireLockRedisCommand implements RedisCommand {
     public void exec(int executionCounter) {
         redisClient.evalsha(luaScriptState.getSha(), keys, arguments, event -> {
             if(event.succeeded()){
-                Long locked = event.result().getLong(0);
-                future.complete(locked > 0);
+                if(event.result() == null){
+                    future.complete(false);
+                } else {
+                    String locked = event.result().getString(0);
+                    future.complete("OK".equalsIgnoreCase(locked));
+                }
             } else {
                 String message = event.cause().getMessage();
                 if(message != null && message.startsWith("NOSCRIPT")) {
