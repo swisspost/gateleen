@@ -18,7 +18,6 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 @RunWith(VertxUnitRunner.class)
-@Ignore
 public class RedisBasedLockTest {
 
     private static Vertx vertx;
