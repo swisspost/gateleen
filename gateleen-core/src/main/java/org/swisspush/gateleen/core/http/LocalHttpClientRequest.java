@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.core.http;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -52,7 +53,13 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
+        public String rawMethod() { throw new UnsupportedOperationException(); }
+
+        @Override
         public boolean isSSL() { return false; }
+
+        @Override
+        public @Nullable String scheme() { throw new UnsupportedOperationException(); }
 
         @Override
         public String uri() {
@@ -74,6 +81,9 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
             }
             return query;
         }
+
+        @Override
+        public @Nullable String host() { throw new UnsupportedOperationException(); }
 
         @Override
         public MultiMap params() {
@@ -183,6 +193,14 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
+        public HttpServerRequest customFrameHandler(Handler<HttpFrame> handler) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public HttpConnection connection() { throw new UnsupportedOperationException(); }
+
+        @Override
         public HttpServerRequest endHandler(Handler<Void> handler) {
             setEndHandler(handler);
             return this;
@@ -252,6 +270,9 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         public <T> T get(String key) {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public <T> T remove(String key) { throw new UnsupportedOperationException(); }
 
         @Override
         public Map<String, Object> data() {
@@ -421,6 +442,12 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
         @Override
         public Locale preferredLocale() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public Map<String, String> pathParams() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public @Nullable String pathParam(String name) { throw new UnsupportedOperationException(); }
     };
 
     public LocalHttpClientRequest(HttpMethod method, String uri, Vertx vertx, Handler<RoutingContext> routingContextHandler, HttpServerResponse response) {
@@ -447,9 +474,27 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
     }
 
     @Override
+    public String getRawMethod() { return null; }
+
+    @Override
+    public HttpClientRequest setRawMethod(String method) { return this; }
+
+    @Override
     public String uri() {
         return null;
     }
+
+    @Override
+    public String path() { return null; }
+
+    @Override
+    public String query() { return null; }
+
+    @Override
+    public HttpClientRequest setHost(String host) { return this; }
+
+    @Override
+    public String getHost() { return null; }
 
     @Override
     public MultiMap headers() {
@@ -521,6 +566,9 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
     }
 
     @Override
+    public HttpClientRequest sendHead(Handler<HttpVersion> completionHandler) { return this; }
+
+    @Override
     public void end(String chunk) {
         write(chunk);
         end();
@@ -548,6 +596,21 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
     public HttpClientRequest setTimeout(long timeoutMs) {
         return this;
     }
+
+    @Override
+    public HttpClientRequest pushHandler(Handler<HttpClientRequest> handler) { return this; }
+
+    @Override
+    public void reset(long code) { }
+
+    @Override
+    public HttpConnection connection() { return null; }
+
+    @Override
+    public HttpClientRequest connectionHandler(@Nullable Handler<HttpConnection> handler) { return this; }
+
+    @Override
+    public HttpClientRequest writeCustomFrame(int type, int flags, Buffer payload) { return this; }
 
     @Override
     public HttpClientRequest setWriteQueueMaxSize(int maxSize) {

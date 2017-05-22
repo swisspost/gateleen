@@ -164,7 +164,7 @@ public abstract class AbstractTest {
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
-                QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage,
+                QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, Address.redisquesAddress(), queueCircuitBreakerStorage,
                         ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler, CIRCUIT_BREAKER_REST_API_PORT);
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);

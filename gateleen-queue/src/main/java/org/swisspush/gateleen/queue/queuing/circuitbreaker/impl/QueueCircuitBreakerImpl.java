@@ -45,6 +45,8 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private long unlockSampleQueuesTimerId = -1;
 
     /**
+     * @deprecated
+     *
      * @param vertx
      * @param queueCircuitBreakerStorage
      * @param ruleProvider
@@ -52,7 +54,6 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
      * @param configResourceManager
      * @param queueCircuitBreakerHttpRequestHandler
      * @param requestHandlerPort
-     * @deprecated
      */
     public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
         this(vertx, Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, ruleToCircuitMapping,
@@ -62,14 +63,14 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     /**
      * Constructor for the QueueCircuitBreakerImpl.
      *
-     * @param vertx                                 vertx
-     * @param redisquesAddress                      the event bus address of redisques
-     * @param queueCircuitBreakerStorage            the storage
-     * @param ruleProvider                          the provider for the rule objects
-     * @param ruleToCircuitMapping                  ruleToCircuitMapping helper class
-     * @param configResourceManager                 the manager for the configuration resource
+     * @param vertx vertx
+     * @param redisquesAddress the event bus address of redisques
+     * @param queueCircuitBreakerStorage the storage
+     * @param ruleProvider the provider for the rule objects
+     * @param ruleToCircuitMapping ruleToCircuitMapping helper class
+     * @param configResourceManager the manager for the configuration resource
      * @param queueCircuitBreakerHttpRequestHandler request handler
-     * @param requestHandlerPort                    the port to listen to
+     * @param requestHandlerPort the port to listen to
      */
     public QueueCircuitBreakerImpl(Vertx vertx, String redisquesAddress, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
         this.vertx = vertx;
