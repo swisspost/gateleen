@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.core.http;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
@@ -25,7 +26,13 @@ public class DummyHttpServerRequest implements HttpServerRequest {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public String rawMethod() { throw new UnsupportedOperationException(); }
+
     @Override public boolean isSSL() { return false; }
+
+    @Override
+    public @Nullable String scheme() { throw new UnsupportedOperationException(); }
 
     @Override public String uri() {
         throw new UnsupportedOperationException();
@@ -38,6 +45,9 @@ public class DummyHttpServerRequest implements HttpServerRequest {
     @Override public String query() {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public @Nullable String host() { throw new UnsupportedOperationException(); }
 
     @Override public HttpServerResponse response() {
         throw new UnsupportedOperationException();
@@ -98,6 +108,14 @@ public class DummyHttpServerRequest implements HttpServerRequest {
     @Override public ServerWebSocket upgrade() { throw new UnsupportedOperationException(); }
 
     @Override public boolean isEnded() { throw new UnsupportedOperationException(); }
+
+    @Override
+    public HttpServerRequest customFrameHandler(Handler<HttpFrame> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpConnection connection() { throw new UnsupportedOperationException(); }
 
     @Override public HttpServerRequest endHandler(Handler<Void> endHandler) {
         throw new UnsupportedOperationException();

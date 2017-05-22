@@ -46,6 +46,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     /**
      * @deprecated
+     *
      * @param vertx
      * @param queueCircuitBreakerStorage
      * @param ruleProvider

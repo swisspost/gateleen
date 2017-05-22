@@ -63,7 +63,7 @@ public class QueueCircuitBreakerImplTest {
         configResourceManager = Mockito.spy(new QueueCircuitBreakerConfigurationResourceManager(vertx, storage,
                 "/path/to/circuitbreaker/config"));
         Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler = Mockito.mock(Handler.class);
-        queueCircuitBreaker = Mockito.spy(new QueueCircuitBreakerImpl(vertx, queueCircuitBreakerStorage, ruleProvider,
+        queueCircuitBreaker = Mockito.spy(new QueueCircuitBreakerImpl(vertx, Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider,
                 ruleToCircuitMapping, configResourceManager, queueCircuitBreakerHttpRequestHandler,9999));
     }
 

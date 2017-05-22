@@ -1,11 +1,9 @@
 package org.swisspush.gateleen.core.http;
 
+import io.vertx.core.http.*;
 import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.net.NetSocket;
 
 import java.util.List;
@@ -86,6 +84,9 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
         }
 
         @Override
+        public HttpClientResponse customFrameHandler(Handler<HttpFrame> handler) { return this; }
+
+        @Override
         public NetSocket netSocket() {
             throw new UnsupportedOperationException();
         }
@@ -95,6 +96,9 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
             setEndHandler(handler);
             return this;
         }
+
+        @Override
+        public HttpVersion version() { throw new UnsupportedOperationException(); }
 
         @Override
         public HttpClientResponse handler(Handler<Buffer> handler) {
@@ -339,6 +343,39 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
 
     @Override
     public long bytesWritten() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int streamId() { throw new UnsupportedOperationException(); }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String host, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String host, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void reset(long code) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerResponse writeCustomFrame(int type, int flags, Buffer payload) {
         throw new UnsupportedOperationException();
     }
 

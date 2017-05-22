@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.validation.mocks;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
@@ -32,7 +33,13 @@ public class HttpServerRequestMock implements HttpServerRequest {
     }
 
     @Override
+    public String rawMethod() { return null; }
+
+    @Override
     public boolean isSSL() { return false; }
+
+    @Override
+    public @Nullable String scheme() { return null; }
 
     @Override public String uri() {
         return null;
@@ -45,6 +52,9 @@ public class HttpServerRequestMock implements HttpServerRequest {
     @Override public String query() {
         return null;
     }
+
+    @Override
+    public @Nullable String host() { return null; }
 
     @Override public HttpServerResponse response() {
         return new HttpServerResponseMock();
@@ -106,6 +116,12 @@ public class HttpServerRequestMock implements HttpServerRequest {
     @Override public ServerWebSocket upgrade() {return null; }
 
     @Override public boolean isEnded() {return false; }
+
+    @Override
+    public HttpServerRequest customFrameHandler(Handler<HttpFrame> handler) { return null; }
+
+    @Override
+    public HttpConnection connection() { return null; }
 
     @Override public HttpServerRequest endHandler(Handler<Void> endHandler) {
         return null;

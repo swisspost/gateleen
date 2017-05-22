@@ -5,6 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.CaseInsensitiveHeaders;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
 
 /**
@@ -155,6 +156,37 @@ public class DummyHttpServerResponse implements HttpServerResponse {
     @Override public HttpServerResponse bodyEndHandler(Handler<Void> handler) { throw new UnsupportedOperationException(); }
 
     @Override public long bytesWritten() { throw new UnsupportedOperationException(); }
+
+    @Override
+    public int streamId() { throw new UnsupportedOperationException(); }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String host, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerResponse push(HttpMethod method, String host, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void reset(long code) { throw new UnsupportedOperationException(); }
+
+    @Override
+    public HttpServerResponse writeCustomFrame(int type, int flags, Buffer payload) {
+        throw new UnsupportedOperationException();
+    }
 
     @Override public HttpServerResponse setWriteQueueMaxSize(int maxSize) {
         throw new UnsupportedOperationException();
