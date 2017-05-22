@@ -6,7 +6,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.lua.AbstractLuaScriptTest;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -56,9 +55,9 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(jedis.exists(lock2), is(false));
         assertThat(jedis.exists(lock3), is(false));
 
-        evalScriptAcquireLock(lock1, "token_1", 200);
-        evalScriptAcquireLock(lock2, "token_2", 500);
-        evalScriptAcquireLock(lock3, "token_3", 1000);
+        acquireLock(lock1, "token_1", 200);
+        acquireLock(lock2, "token_2", 500);
+        acquireLock(lock3, "token_3", 1000);
 
         assertThat(jedis.exists(lock1), is(true));
         assertThat(jedis.exists(lock2), is(true));
@@ -84,9 +83,9 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(jedis.exists(lock2), is(false));
         assertThat(jedis.exists(lock3), is(false));
 
-        evalScriptAcquireLock(lock1, "token_1", 200);
-        evalScriptAcquireLock(lock2, "token_2", 500);
-        evalScriptAcquireLock(lock3, "token_3", 1000);
+        acquireLock(lock1, "token_1", 200);
+        acquireLock(lock2, "token_2", 500);
+        acquireLock(lock3, "token_3", 1000);
 
         assertThat(jedis.exists(lock1), is(true));
         assertThat(jedis.exists(lock2), is(true));
@@ -112,17 +111,17 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(jedis.exists(lock2), is(false));
         assertThat(jedis.exists(lock3), is(false));
 
-        evalScriptAcquireLock(lock1, "token_1", 200);
-        evalScriptAcquireLock(lock2, "token_2", 500);
-        evalScriptAcquireLock(lock3, "token_3", 1000);
+        acquireLock(lock1, "token_1", 200);
+        acquireLock(lock2, "token_2", 500);
+        acquireLock(lock3, "token_3", 1000);
 
         assertThat(jedis.exists(lock1), is(true));
         assertThat(jedis.exists(lock2), is(true));
         assertThat(jedis.exists(lock3), is(true));
 
-        await().pollInterval(2, MILLISECONDS).atMost(new Duration(250, MILLISECONDS)).until(() -> !jedis.exists(lock1));
-        await().pollInterval(2, MILLISECONDS).atMost(new Duration(550, MILLISECONDS)).until(() -> !jedis.exists(lock2));
-        await().pollInterval(2, MILLISECONDS).atMost(new Duration(1100, MILLISECONDS)).until(() -> !jedis.exists(lock3));
+        waitMaxUntilExpired(lock1, 250);
+        waitMaxUntilExpired(lock2, 550);
+        waitMaxUntilExpired(lock3, 1100);
 
         assertThat(0L, equalTo(evalScriptReleaseLock(lock1, "token_1")));
         assertThat(0L, equalTo(evalScriptReleaseLock(lock2, "token_2")));
@@ -144,25 +143,25 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(jedis.exists(lock2), is(false));
         assertThat(jedis.exists(lock3), is(false));
 
-        evalScriptAcquireLock(lock1, "token_1", 200);
-        evalScriptAcquireLock(lock2, "token_2", 500);
-        evalScriptAcquireLock(lock3, "token_3", 1000);
+        acquireLock(lock1, "token_1", 200);
+        acquireLock(lock2, "token_2", 500);
+        acquireLock(lock3, "token_3", 1000);
 
         assertThat(jedis.exists(lock1), is(true));
         assertThat(jedis.exists(lock2), is(true));
         assertThat(jedis.exists(lock3), is(true));
 
-        await().pollInterval(2, MILLISECONDS).atMost(new Duration(250, MILLISECONDS)).until(() -> !jedis.exists(lock1));
-        await().pollInterval(2, MILLISECONDS).atMost(new Duration(550, MILLISECONDS)).until(() -> !jedis.exists(lock2));
-        await().pollInterval(2, MILLISECONDS).atMost(new Duration(1100, MILLISECONDS)).until(() -> !jedis.exists(lock3));
+        waitMaxUntilExpired(lock1, 250);
+        waitMaxUntilExpired(lock2, 550);
+        waitMaxUntilExpired(lock3, 1100);
 
         assertThat(jedis.exists(lock1), is(false));
         assertThat(jedis.exists(lock2), is(false));
         assertThat(jedis.exists(lock3), is(false));
 
-        assertThat("OK", equalTo(evalScriptAcquireLock(lock1, "token_X", 200)));
-        assertThat("OK", equalTo(evalScriptAcquireLock(lock2, "token_Y", 500)));
-        assertThat("OK", equalTo(evalScriptAcquireLock(lock3, "token_Z", 1000)));
+        assertThat("OK", equalTo(acquireLock(lock1, "token_X", 200)));
+        assertThat("OK", equalTo(acquireLock(lock2, "token_Y", 500)));
+        assertThat("OK", equalTo(acquireLock(lock3, "token_Z", 1000)));
 
         assertThat(jedis.exists(lock1), is(true));
         assertThat(jedis.exists(lock2), is(true));
@@ -189,11 +188,8 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
         return STORAGE_PREFIX + lock;
     }
 
-    private Object evalScriptAcquireLock(String lock, String token, long expireMs){
-        String script = readScript(LockLuaScripts.LOCK_ACQUIRE.getFilename());
-        List<String> keys = Collections.singletonList(lock);
-        List<String> arguments = Arrays.asList(token, String.valueOf(expireMs));
-        return jedis.eval(script, keys, arguments);
+    private String acquireLock(String lock, String token, long expireMs){
+        return jedis.set(lock, token, "NX", "PX", expireMs);
     }
 
     private Object evalScriptReleaseLock(String lock, String token){
@@ -201,5 +197,9 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
         List<String> keys = Collections.singletonList(lock);
         List<String> arguments = Collections.singletonList(token);
         return jedis.eval(script, keys, arguments);
+    }
+
+    private void waitMaxUntilExpired(String key, long expireMs){
+        await().pollInterval(50, MILLISECONDS).atMost(new Duration(expireMs, MILLISECONDS)).until(() -> !jedis.exists(key));
     }
 }

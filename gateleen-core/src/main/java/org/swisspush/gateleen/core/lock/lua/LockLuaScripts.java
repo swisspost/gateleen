@@ -7,7 +7,6 @@ import org.swisspush.gateleen.core.lua.LuaScript;
  */
 public enum LockLuaScripts implements LuaScript{
 
-    LOCK_ACQUIRE("lock_acquire.lua"),
     LOCK_RELEASE("lock_release.lua");
 
     private String file;
