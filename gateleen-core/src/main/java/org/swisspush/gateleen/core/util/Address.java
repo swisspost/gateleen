@@ -12,6 +12,8 @@ public final class Address {
 
     private Address(){}
 
+    public static String instanceAddress() { return ID; }
+
     public static String storageAddress() {
         return "resource-storage-"+ID;
     }

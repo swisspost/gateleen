@@ -1,6 +1,9 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
-import io.vertx.core.*;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerRequest;
@@ -8,6 +11,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
@@ -38,6 +42,12 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
     private QueueCircuitBreakerConfigurationResourceManager configResourceManager;
 
+    private Lock lock;
+
+    public static final String OPEN_TO_HALF_OPEN_TASK_LOCK = "openToHalfOpenTask";
+    public static final String UNLOCK_QUEUES_TASK_LOCK = "unlockQueuesTask";
+    public static final String UNLOCK_SAMPLE_QUEUES_TASK_LOCK = "unlockSampleQueuesTask";
+
     private String redisquesAddress;
 
     private long openToHalfOpenTimerId = -1;
@@ -45,25 +55,10 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private long unlockSampleQueuesTimerId = -1;
 
     /**
-     * @deprecated
-     *
-     * @param vertx
-     * @param queueCircuitBreakerStorage
-     * @param ruleProvider
-     * @param ruleToCircuitMapping
-     * @param configResourceManager
-     * @param queueCircuitBreakerHttpRequestHandler
-     * @param requestHandlerPort
-     */
-    public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
-        this(vertx, Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, ruleToCircuitMapping,
-                configResourceManager, queueCircuitBreakerHttpRequestHandler, requestHandlerPort);
-    }
-
-    /**
      * Constructor for the QueueCircuitBreakerImpl.
      *
      * @param vertx vertx
+     * @param lock the lock implementation
      * @param redisquesAddress the event bus address of redisques
      * @param queueCircuitBreakerStorage the storage
      * @param ruleProvider the provider for the rule objects
@@ -72,8 +67,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
      * @param queueCircuitBreakerHttpRequestHandler request handler
      * @param requestHandlerPort the port to listen to
      */
-    public QueueCircuitBreakerImpl(Vertx vertx, String redisquesAddress, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
+    public QueueCircuitBreakerImpl(Vertx vertx, Lock lock, String redisquesAddress, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
         this.vertx = vertx;
+        this.lock = lock;
         this.redisquesAddress = redisquesAddress;
         this.queueCircuitBreakerStorage = queueCircuitBreakerStorage;
         ruleProvider.registerObserver(this);
@@ -102,23 +98,90 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         registerUnlockSampleQueuesTask();
     }
 
+    private String createToken(String appendix){
+        return Address.instanceAddress()+ "_" + System.currentTimeMillis() + "_" + appendix;
+    }
+
+    private long getLockExpiry(int taskInterval){
+        if(taskInterval <= 1){
+            return 1;
+        }
+        return taskInterval / 2;
+    }
+
+    private Future<Boolean> acquireLock(String lock, String token, long lockExpiryMs){
+        Future<Boolean> future = Future.future();
+
+        if(this.lock == null){
+            log.info("No lock implementation defined, going to pretend like we got the lock");
+            future.complete(Boolean.TRUE);
+            return future;
+        }
+
+        log.debug("Trying to acquire lock '"+lock+"' with token '"+token+"' and expiry " + lockExpiryMs + "ms");
+        this.lock.acquireLock(lock, token, lockExpiryMs).setHandler(lockEvent -> {
+            if(lockEvent.succeeded()){
+                if(lockEvent.result()){
+                    log.debug("Acquired lock '"+OPEN_TO_HALF_OPEN_TASK_LOCK+"' with token '"+token+"'");
+                    future.complete(Boolean.TRUE);
+                } else {
+                    future.complete(Boolean.FALSE);
+                }
+            } else {
+                future.fail(lockEvent.cause());
+            }
+        });
+
+        return future;
+    }
+
+    private void releaseLock(String lock, String token){
+        if(this.lock == null){
+            log.info("No lock implementation defined, going to pretend like we released the lock");
+            return;
+        }
+        log.debug("Trying to release lock '"+lock+"' with token '"+token+"'");
+        this.lock.releaseLock(lock, token).setHandler(releaseEvent -> {
+            if(releaseEvent.succeeded()){
+                if(releaseEvent.result()){
+                    log.debug("Released lock '"+OPEN_TO_HALF_OPEN_TASK_LOCK+"' with token '"+token+"'");
+                }
+            } else {
+                log.error("Could not release lock '"+lock+"'. Message: " + releaseEvent.cause().getMessage());
+            }
+        });
+    }
+
     private void registerOpenToHalfOpenTask() {
         boolean openToHalfOpenTaskEnabled = getConfig().isOpenToHalfOpenTaskEnabled();
+        int openToHalfOpenTaskInterval = getConfig().getOpenToHalfOpenTaskInterval();
         vertx.cancelTimer(openToHalfOpenTimerId);
         if (openToHalfOpenTaskEnabled) {
             log.info("About to register periodic open to half-open task execution every " + getConfig().getOpenToHalfOpenTaskInterval() + "ms");
-            openToHalfOpenTimerId = vertx.setPeriodic(getConfig().getOpenToHalfOpenTaskInterval(),
-                    event -> setOpenCircuitsToHalfOpen().setHandler(event1 -> {
-                        if (event1.succeeded()) {
-                            if (event1.result() > 0) {
-                                log.info("Successfully changed " + event1.result() + " circuits from state open to state half-open");
+            openToHalfOpenTimerId = vertx.setPeriodic(openToHalfOpenTaskInterval,
+                    event -> {
+                        final String token = createToken(OPEN_TO_HALF_OPEN_TASK_LOCK);
+                        acquireLock(OPEN_TO_HALF_OPEN_TASK_LOCK, token, getLockExpiry(openToHalfOpenTaskInterval)).setHandler(lockEvent ->{
+                            if(lockEvent.succeeded()){
+                                if(lockEvent.result()){
+                                    setOpenCircuitsToHalfOpen().setHandler(event1 -> {
+                                        if (event1.succeeded()) {
+                                            if (event1.result() > 0) {
+                                                log.info("Successfully changed " + event1.result() + " circuits from state open to state half-open");
+                                            } else {
+                                                log.debug("No open circuits to change state to half-open");
+                                            }
+                                        } else {
+                                            log.error(event1.cause().getMessage());
+                                        }
+                                        releaseLock(OPEN_TO_HALF_OPEN_TASK_LOCK, token);
+                                    });
+                                }
                             } else {
-                                log.info("No open circuits to change state to half-open");
+                                log.error("Could not acquire lock '"+OPEN_TO_HALF_OPEN_TASK_LOCK+"'. Message: " + lockEvent.cause().getMessage());
                             }
-                        } else {
-                            log.error(event1.cause().getMessage());
-                        }
-                    }));
+                        });
+                    });
         } else {
             log.info("Not going to register periodic open to half-open task execution");
         }
@@ -126,21 +189,34 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     private void registerUnlockQueuesTask() {
         boolean unlockQueuesTaskEnabled = getConfig().isUnlockQueuesTaskEnabled();
+        int unlockQueuesTaskInterval = getConfig().getUnlockQueuesTaskInterval();
         vertx.cancelTimer(unlockQueuesTimerId);
         if (unlockQueuesTaskEnabled) {
-            log.info("About to register periodic queues unlock task execution every " + getConfig().getUnlockQueuesTaskInterval() + "ms");
-            unlockQueuesTimerId = vertx.setPeriodic(getConfig().getUnlockQueuesTaskInterval(),
-                    event -> unlockNextQueue().setHandler(event1 -> {
-                        if (event1.succeeded()) {
-                            if (event1.result() == null) {
-                                log.debug("No locked queues to unlock");
+            log.info("About to register periodic queues unlock task execution every " + unlockQueuesTaskInterval + "ms");
+            unlockQueuesTimerId = vertx.setPeriodic(unlockQueuesTaskInterval,
+                    event -> {
+                        final String token = createToken(UNLOCK_QUEUES_TASK_LOCK);
+                        acquireLock(UNLOCK_QUEUES_TASK_LOCK, token, getLockExpiry(unlockQueuesTaskInterval)).setHandler(lockEvent ->{
+                            if(lockEvent.succeeded()){
+                                if(lockEvent.result()){
+                                    unlockNextQueue().setHandler(event1 -> {
+                                        if (event1.succeeded()) {
+                                            if (event1.result() == null) {
+                                                log.debug("No locked queues to unlock");
+                                            } else {
+                                                log.info("Successfully unlocked queue '" + event1.result() + "'");
+                                            }
+                                        } else {
+                                            log.error("Unable to unlock queue '" + event1.cause().getMessage() + "'");
+                                        }
+                                        releaseLock(UNLOCK_QUEUES_TASK_LOCK, token);
+                                    });
+                                }
                             } else {
-                                log.info("Successfully unlocked queue '" + event1.result() + "'");
+                                log.error("Could not acquire lock '"+UNLOCK_QUEUES_TASK_LOCK+"'. Message: " + lockEvent.cause().getMessage());
                             }
-                        } else {
-                            log.error("Unable to unlock queue '" + event1.cause().getMessage() + "'");
-                        }
-                    }));
+                        });
+                    });
         } else {
             log.info("Not going to register periodic queues unlock task execution");
         }
@@ -148,20 +224,33 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     private void registerUnlockSampleQueuesTask() {
         boolean unlockSampleQueuesTaskEnabled = getConfig().isUnlockSampleQueuesTaskEnabled();
+        int unlockSampleQueuesTaskInterval = getConfig().getUnlockSampleQueuesTaskInterval();
         vertx.cancelTimer(unlockSampleQueuesTimerId);
         if (unlockSampleQueuesTaskEnabled) {
-            log.info("About to register periodic unlock sample queues task execution every " + getConfig().getUnlockSampleQueuesTaskInterval() + "ms");
-            unlockSampleQueuesTimerId = vertx.setPeriodic(getConfig().getUnlockSampleQueuesTaskInterval(), event -> unlockSampleQueues().setHandler(event1 -> {
-                if (event1.succeeded()) {
-                    if (event1.result() == 0L) {
-                        log.debug("No sample queues to unlock");
+            log.info("About to register periodic unlock sample queues task execution every " + unlockSampleQueuesTaskInterval + "ms");
+            unlockSampleQueuesTimerId = vertx.setPeriodic(unlockSampleQueuesTaskInterval, event -> {
+                final String token = createToken(UNLOCK_SAMPLE_QUEUES_TASK_LOCK);
+                acquireLock(UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token, getLockExpiry(unlockSampleQueuesTaskInterval)).setHandler(lockEvent ->{
+                    if(lockEvent.succeeded()){
+                        if(lockEvent.result()){
+                            unlockSampleQueues().setHandler(event1 -> {
+                                if (event1.succeeded()) {
+                                    if (event1.result() == 0L) {
+                                        log.debug("No sample queues to unlock");
+                                    } else {
+                                        log.info("Successfully unlocked " + event1.result() + " sample queues");
+                                    }
+                                } else {
+                                    log.error(event1.cause().getMessage());
+                                }
+                                releaseLock(UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token);
+                            });
+                        }
                     } else {
-                        log.info("Successfully unlocked " + event1.result() + " sample queues");
+                        log.error("Could not acquire lock '"+UNLOCK_SAMPLE_QUEUES_TASK_LOCK+"'. Message: " + lockEvent.cause().getMessage());
                     }
-                } else {
-                    log.error(event1.cause().getMessage());
-                }
-            }));
+                });
+            });
         } else {
             log.info("Not going to register periodic unlock sample queues task execution");
         }

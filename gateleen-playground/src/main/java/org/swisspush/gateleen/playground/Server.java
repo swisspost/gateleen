@@ -16,6 +16,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
+import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
 import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
@@ -209,8 +210,9 @@ public class Server extends AbstractVerticle {
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
-                QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, Address.redisquesAddress(), queueCircuitBreakerStorage,
-                        ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);
+                QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, new RedisBasedLock(redisClient),
+                        Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, rulePatternToCircuitMapping,
+                        queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
