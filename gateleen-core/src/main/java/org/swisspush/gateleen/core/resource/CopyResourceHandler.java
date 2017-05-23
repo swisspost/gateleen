@@ -124,9 +124,7 @@ public class CopyResourceHandler {
             // GET response is OK
             if (getResponse.statusCode() == StatusCode.OK.getStatusCode()) {
 
-                HttpClientRequest selfRequest = selfClient.put(task.getDestinationUri(), response -> {
-                    createResponse(request, response, task);
-                });
+                HttpClientRequest selfRequest = selfClient.put(task.getDestinationUri(), response -> createResponse(request, response, task));
 
                 // setting headers
                 selfRequest.headers().addAll(task.getHeaders());

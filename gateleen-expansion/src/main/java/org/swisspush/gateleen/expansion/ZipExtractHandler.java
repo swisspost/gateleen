@@ -4,6 +4,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.reststorage.MimeTypeResolver;
 
@@ -103,6 +104,7 @@ public class ZipExtractHandler {
      * @param mimeType
      */
     private void createResponse(final HttpServerRequest req, final int statusCode, final String statusMessage, final Buffer buffer, final String mimeType) {
+        ResponseStatusCodeLogUtil.info(req, StatusCode.fromCode(statusCode), ZipExtractHandler.class);
         req.response().setStatusCode(statusCode);
         req.response().setStatusMessage(statusMessage);
 

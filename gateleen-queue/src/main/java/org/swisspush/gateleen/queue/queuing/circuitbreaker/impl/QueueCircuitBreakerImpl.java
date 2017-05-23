@@ -1,13 +1,17 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
-import io.vertx.core.*;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
@@ -38,6 +42,12 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
     private QueueCircuitBreakerConfigurationResourceManager configResourceManager;
 
+    private Lock lock;
+
+    public static final String OPEN_TO_HALF_OPEN_TASK_LOCK = "openToHalfOpenTask";
+    public static final String UNLOCK_QUEUES_TASK_LOCK = "unlockQueuesTask";
+    public static final String UNLOCK_SAMPLE_QUEUES_TASK_LOCK = "unlockSampleQueuesTask";
+
     private String redisquesAddress;
 
     private long openToHalfOpenTimerId = -1;
@@ -45,25 +55,10 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private long unlockSampleQueuesTimerId = -1;
 
     /**
-     * @deprecated
-     *
-     * @param vertx
-     * @param queueCircuitBreakerStorage
-     * @param ruleProvider
-     * @param ruleToCircuitMapping
-     * @param configResourceManager
-     * @param queueCircuitBreakerHttpRequestHandler
-     * @param requestHandlerPort
-     */
-    public QueueCircuitBreakerImpl(Vertx vertx, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
-        this(vertx, Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, ruleToCircuitMapping,
-                configResourceManager, queueCircuitBreakerHttpRequestHandler, requestHandlerPort);
-    }
-
-    /**
      * Constructor for the QueueCircuitBreakerImpl.
      *
      * @param vertx vertx
+     * @param lock the lock implementation
      * @param redisquesAddress the event bus address of redisques
      * @param queueCircuitBreakerStorage the storage
      * @param ruleProvider the provider for the rule objects
@@ -72,8 +67,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
      * @param queueCircuitBreakerHttpRequestHandler request handler
      * @param requestHandlerPort the port to listen to
      */
-    public QueueCircuitBreakerImpl(Vertx vertx, String redisquesAddress, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
+    public QueueCircuitBreakerImpl(Vertx vertx, Lock lock, String redisquesAddress, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
         this.vertx = vertx;
+        this.lock = lock;
         this.redisquesAddress = redisquesAddress;
         this.queueCircuitBreakerStorage = queueCircuitBreakerStorage;
         ruleProvider.registerObserver(this);
@@ -88,7 +84,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         HttpServerOptions options = new HttpServerOptions().setHandle100ContinueAutomatically(true);
 
         vertx.createHttpServer(options).requestHandler(queueCircuitBreakerHttpRequestHandler).listen(requestHandlerPort, event -> {
-            if(event.succeeded()){
+            if (event.succeeded()) {
                 log.info("Successfully listening to port " + requestHandlerPort);
             } else {
                 log.error("Unable to listen to port " + requestHandlerPort + ". Cannot handle QueueCircuitBreaker http requests");
@@ -96,65 +92,167 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         });
     }
 
-    private void registerPeriodicTasks(){
+    private void registerPeriodicTasks() {
         registerOpenToHalfOpenTask();
         registerUnlockQueuesTask();
         registerUnlockSampleQueuesTask();
     }
 
-    private void registerOpenToHalfOpenTask(){
-        boolean openToHalfOpenTaskEnabled = getConfig().isOpenToHalfOpenTaskEnabled();
-        vertx.cancelTimer(openToHalfOpenTimerId);
-        if(openToHalfOpenTaskEnabled){
-            openToHalfOpenTimerId = vertx.setPeriodic(getConfig().getOpenToHalfOpenTaskInterval(),
-                    event -> setOpenCircuitsToHalfOpen().setHandler(event1 -> {
-                        if(event1.succeeded()){
-                            if(event1.result() > 0){
-                                log.info("Successfully changed " + event1.result() + " circuits from state open to state half-open");
-                            } else {
-                                log.info("No open circuits to change state to half-open");
-                            }
-                        } else {
-                            log.error(event1.cause().getMessage());
-                        }
-                    }));
-        }
+    private String createToken(String appendix){
+        return Address.instanceAddress()+ "_" + System.currentTimeMillis() + "_" + appendix;
     }
 
-    private void registerUnlockQueuesTask(){
-        boolean unlockQueuesTaskEnabled = getConfig().isUnlockQueuesTaskEnabled();
-        vertx.cancelTimer(unlockQueuesTimerId);
-        if(unlockQueuesTaskEnabled){
-            unlockQueuesTimerId = vertx.setPeriodic(getConfig().getUnlockQueuesTaskInterval(),
-                    event -> unlockNextQueue().setHandler(event1 -> {
-                        if(event1.succeeded()){
-                            if(event1.result() == null){
-                                log.info("No locked queues to unlock");
-                            } else {
-                                log.info("Successfully unlocked queue '" + event1.result() + "'");
-                            }
-                        } else {
-                            log.error("Unable to unlock queue '" + event1.cause().getMessage() + "'");
-                        }
-                    }));
+    private long getLockExpiry(int taskInterval){
+        if(taskInterval <= 1){
+            return 1;
         }
+        return taskInterval / 2;
     }
 
-    private void registerUnlockSampleQueuesTask(){
-        boolean unlockSampleQueuesTaskEnabled = getConfig().isUnlockSampleQueuesTaskEnabled();
-        vertx.cancelTimer(unlockSampleQueuesTimerId);
-        if(unlockSampleQueuesTaskEnabled){
-            unlockSampleQueuesTimerId = vertx.setPeriodic(getConfig().getUnlockSampleQueuesTaskInterval(), event -> unlockSampleQueues().setHandler(event1 -> {
-                if(event1.succeeded()){
-                    if(event1.result() == 0L){
-                        log.info("No sample queues to unlock");
-                    } else {
-                        log.info("Successfully unlocked "+event1.result()+" sample queues");
-                    }
+    private Future<Boolean> acquireLock(String lock, String token, long lockExpiryMs){
+        Future<Boolean> future = Future.future();
+
+        if(this.lock == null){
+            log.info("No lock implementation defined, going to pretend like we got the lock");
+            future.complete(Boolean.TRUE);
+            return future;
+        }
+
+        log.debug("Trying to acquire lock '"+lock+"' with token '"+token+"' and expiry " + lockExpiryMs + "ms");
+        this.lock.acquireLock(lock, token, lockExpiryMs).setHandler(lockEvent -> {
+            if(lockEvent.succeeded()){
+                if(lockEvent.result()){
+                    log.debug("Acquired lock '"+lock+"' with token '"+token+"'");
+                    future.complete(Boolean.TRUE);
                 } else {
-                    log.error(event1.cause().getMessage());
+                    future.complete(Boolean.FALSE);
                 }
-            }));
+            } else {
+                future.fail(lockEvent.cause());
+            }
+        });
+
+        return future;
+    }
+
+    private void releaseLock(String lock, String token){
+        if(this.lock == null){
+            log.info("No lock implementation defined, going to pretend like we released the lock");
+            return;
+        }
+        log.debug("Trying to release lock '"+lock+"' with token '"+token+"'");
+        this.lock.releaseLock(lock, token).setHandler(releaseEvent -> {
+            if(releaseEvent.succeeded()){
+                if(releaseEvent.result()){
+                    log.debug("Released lock '"+lock+"' with token '"+token+"'");
+                }
+            } else {
+                log.error("Could not release lock '"+lock+"'. Message: " + releaseEvent.cause().getMessage());
+            }
+        });
+    }
+
+    private void registerOpenToHalfOpenTask() {
+        boolean openToHalfOpenTaskEnabled = getConfig().isOpenToHalfOpenTaskEnabled();
+        int openToHalfOpenTaskInterval = getConfig().getOpenToHalfOpenTaskInterval();
+        vertx.cancelTimer(openToHalfOpenTimerId);
+        if (openToHalfOpenTaskEnabled) {
+            log.info("About to register periodic open to half-open task execution every " + getConfig().getOpenToHalfOpenTaskInterval() + "ms");
+            openToHalfOpenTimerId = vertx.setPeriodic(openToHalfOpenTaskInterval,
+                    event -> {
+                        final String token = createToken(OPEN_TO_HALF_OPEN_TASK_LOCK);
+                        acquireLock(OPEN_TO_HALF_OPEN_TASK_LOCK, token, getLockExpiry(openToHalfOpenTaskInterval)).setHandler(lockEvent ->{
+                            if(lockEvent.succeeded()){
+                                if(lockEvent.result()){
+                                    setOpenCircuitsToHalfOpen().setHandler(event1 -> {
+                                        if (event1.succeeded()) {
+                                            if (event1.result() > 0) {
+                                                log.info("Successfully changed " + event1.result() + " circuits from state open to state half-open");
+                                            } else {
+                                                log.debug("No open circuits to change state to half-open");
+                                            }
+                                        } else {
+                                            log.error(event1.cause().getMessage());
+                                        }
+                                        releaseLock(OPEN_TO_HALF_OPEN_TASK_LOCK, token);
+                                    });
+                                }
+                            } else {
+                                log.error("Could not acquire lock '"+OPEN_TO_HALF_OPEN_TASK_LOCK+"'. Message: " + lockEvent.cause().getMessage());
+                            }
+                        });
+                    });
+        } else {
+            log.info("Not going to register periodic open to half-open task execution");
+        }
+    }
+
+    private void registerUnlockQueuesTask() {
+        boolean unlockQueuesTaskEnabled = getConfig().isUnlockQueuesTaskEnabled();
+        int unlockQueuesTaskInterval = getConfig().getUnlockQueuesTaskInterval();
+        vertx.cancelTimer(unlockQueuesTimerId);
+        if (unlockQueuesTaskEnabled) {
+            log.info("About to register periodic queues unlock task execution every " + unlockQueuesTaskInterval + "ms");
+            unlockQueuesTimerId = vertx.setPeriodic(unlockQueuesTaskInterval,
+                    event -> {
+                        final String token = createToken(UNLOCK_QUEUES_TASK_LOCK);
+                        acquireLock(UNLOCK_QUEUES_TASK_LOCK, token, getLockExpiry(unlockQueuesTaskInterval)).setHandler(lockEvent ->{
+                            if(lockEvent.succeeded()){
+                                if(lockEvent.result()){
+                                    unlockNextQueue().setHandler(event1 -> {
+                                        if (event1.succeeded()) {
+                                            if (event1.result() == null) {
+                                                log.debug("No locked queues to unlock");
+                                            } else {
+                                                log.info("Successfully unlocked queue '" + event1.result() + "'");
+                                            }
+                                        } else {
+                                            log.error("Unable to unlock queue '" + event1.cause().getMessage() + "'");
+                                        }
+                                        releaseLock(UNLOCK_QUEUES_TASK_LOCK, token);
+                                    });
+                                }
+                            } else {
+                                log.error("Could not acquire lock '"+UNLOCK_QUEUES_TASK_LOCK+"'. Message: " + lockEvent.cause().getMessage());
+                            }
+                        });
+                    });
+        } else {
+            log.info("Not going to register periodic queues unlock task execution");
+        }
+    }
+
+    private void registerUnlockSampleQueuesTask() {
+        boolean unlockSampleQueuesTaskEnabled = getConfig().isUnlockSampleQueuesTaskEnabled();
+        int unlockSampleQueuesTaskInterval = getConfig().getUnlockSampleQueuesTaskInterval();
+        vertx.cancelTimer(unlockSampleQueuesTimerId);
+        if (unlockSampleQueuesTaskEnabled) {
+            log.info("About to register periodic unlock sample queues task execution every " + unlockSampleQueuesTaskInterval + "ms");
+            unlockSampleQueuesTimerId = vertx.setPeriodic(unlockSampleQueuesTaskInterval, event -> {
+                final String token = createToken(UNLOCK_SAMPLE_QUEUES_TASK_LOCK);
+                acquireLock(UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token, getLockExpiry(unlockSampleQueuesTaskInterval)).setHandler(lockEvent ->{
+                    if(lockEvent.succeeded()){
+                        if(lockEvent.result()){
+                            unlockSampleQueues().setHandler(event1 -> {
+                                if (event1.succeeded()) {
+                                    if (event1.result() == 0L) {
+                                        log.debug("No sample queues to unlock");
+                                    } else {
+                                        log.info("Successfully unlocked " + event1.result() + " sample queues");
+                                    }
+                                } else {
+                                    log.error(event1.cause().getMessage());
+                                }
+                                releaseLock(UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token);
+                            });
+                        }
+                    } else {
+                        log.error("Could not acquire lock '"+UNLOCK_SAMPLE_QUEUES_TASK_LOCK+"'. Message: " + lockEvent.cause().getMessage());
+                    }
+                });
+            });
+        } else {
+            log.info("Not going to register periodic unlock sample queues task execution");
         }
     }
 
@@ -183,16 +281,16 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
-    public Future<QueueCircuitState> handleQueuedRequest(String queueName, HttpRequest queuedRequest){
+    public Future<QueueCircuitState> handleQueuedRequest(String queueName, HttpRequest queuedRequest) {
         Future<QueueCircuitState> future = Future.future();
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
-        if(patternAndCircuitHash != null){
+        if (patternAndCircuitHash != null) {
             this.queueCircuitBreakerStorage.getQueueCircuitState(patternAndCircuitHash).setHandler(event -> {
-                if(event.failed()){
+                if (event.failed()) {
                     future.fail(event.cause());
                 } else {
                     future.complete(event.result());
-                    if(QueueCircuitState.OPEN == event.result()){
+                    if (QueueCircuitState.OPEN == event.result()) {
                         lockQueueSync(queueName, queuedRequest);
                     }
                 }
@@ -210,7 +308,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         long currentTS = System.currentTimeMillis();
 
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
-        if(patternAndCircuitHash != null) {
+        if (patternAndCircuitHash != null) {
             int errorThresholdPercentage = getConfig().getErrorThresholdPercentage();
             int entriesMaxAgeMS = getConfig().getEntriesMaxAgeMS();
             int minQueueSampleCount = getConfig().getMinQueueSampleCount();
@@ -222,7 +320,8 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                 if (event.failed()) {
                     future.fail(event.cause());
                 } else {
-                    if(UpdateStatisticsResult.OPENED == event.result()) {
+                    if (UpdateStatisticsResult.OPENED == event.result()) {
+                        log.warn("circuit '" + patternAndCircuitHash.getPattern().pattern() + "' has been opened");
                         lockQueueSync(queueName, queuedRequest);
                     }
                     future.complete();
@@ -238,13 +337,14 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     public Future<Void> closeCircuit(HttpRequest queuedRequest) {
         Future<Void> future = Future.future();
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
-        if(patternAndCircuitHash != null){
+        if (patternAndCircuitHash != null) {
             log.info("About to close circuit " + patternAndCircuitHash.getPattern().pattern());
             queueCircuitBreakerStorage.closeCircuit(patternAndCircuitHash).setHandler(event -> {
-                if(event.failed()){
+                if (event.failed()) {
                     future.fail(event.cause());
                     return;
                 }
+                log.info("circuit '" + patternAndCircuitHash.getPattern().pattern() + "' has been closed");
                 future.complete();
             });
         } else {
@@ -256,7 +356,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private void closeAndRemoveCircuit(PatternAndCircuitHash patternAndCircuitHash) {
         log.info("circuit " + patternAndCircuitHash.getPattern().pattern() + " has been removed. Closing corresponding circuit");
         queueCircuitBreakerStorage.closeAndRemoveCircuit(patternAndCircuitHash).setHandler(event -> {
-            if(event.failed()){
+            if (event.failed()) {
                 log.error("failed to close circuit " + patternAndCircuitHash.getPattern().pattern());
             }
         });
@@ -272,13 +372,14 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     public Future<Void> reOpenCircuit(HttpRequest queuedRequest) {
         Future<Void> future = Future.future();
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
-        if(patternAndCircuitHash != null){
+        if (patternAndCircuitHash != null) {
             log.info("About to reopen circuit " + patternAndCircuitHash.getPattern().pattern());
             queueCircuitBreakerStorage.reOpenCircuit(patternAndCircuitHash).setHandler(event -> {
-                if(event.failed()){
+                if (event.failed()) {
                     future.fail(event.cause());
                     return;
                 }
+                log.info("circuit '" + patternAndCircuitHash.getPattern().pattern() + "' has been reopened");
                 future.complete();
             });
         } else {
@@ -292,27 +393,28 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         Future<Void> future = Future.future();
 
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
-        if(patternAndCircuitHash != null){
+        if (patternAndCircuitHash != null) {
             queueCircuitBreakerStorage.lockQueue(queueName, patternAndCircuitHash).setHandler(event -> {
-                if(event.failed()){
+                if (event.failed()) {
                     future.fail(event.cause());
                     return;
                 }
-                vertx.eventBus().send(redisquesAddress, buildPutLockOperation(queueName, "queue_circuit_breaker"), new Handler<AsyncResult<Message<JsonObject>>>() {
-                    @Override
-                    public void handle(AsyncResult<Message<JsonObject>> reply) {
-                        if(reply.failed()){
-                            future.fail(reply.cause());
-                            return;
-                        }
-                        if (OK.equals(reply.result().body().getString(STATUS))) {
-                            log.info("locked queue '" + queueName + "' because the circuit has been opened");
-                            future.complete();
-                        } else {
-                            future.fail("failed to lock queue '" + queueName + "'. Queue should have been locked, because the circuit has been opened");
-                        }
-                    }
-                });
+                vertx.eventBus().send(redisquesAddress, buildPutLockOperation(queueName, "queue_circuit_breaker"),
+                        (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                            if (reply.failed()) {
+                                future.fail(reply.cause());
+                                return;
+                            }
+                            if (OK.equals(reply.result().body().getString(STATUS))) {
+                                log.info("locked queue '" + queueName + "' because the circuit '"
+                                        + patternAndCircuitHash.getPattern().pattern() + "' is open");
+                                future.complete();
+                            } else {
+                                future.fail("failed to lock queue '" + queueName
+                                        + "'. Queue should have been locked, because the circuit '"
+                                        + patternAndCircuitHash.getPattern().pattern() + "' is open");
+                            }
+                        });
             });
         } else {
             failWithNoRuleToCircuitMappingMessage(future, queueName, queuedRequest);
@@ -322,17 +424,17 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     @Override
     public Future<String> unlockNextQueue() {
-        log.info("About to unlock the next queue");
+        log.debug("About to unlock the next queue");
         Future<String> future = Future.future();
         queueCircuitBreakerStorage.popQueueToUnlock().setHandler(event -> {
-            if(event.failed()){
+            if (event.failed()) {
                 future.fail(event.cause().getMessage());
                 return;
             }
             String queueToUnlock = event.result();
-            if(queueToUnlock != null){
+            if (queueToUnlock != null) {
                 unlockQueue(queueToUnlock).setHandler(event1 -> {
-                    if(event1.failed()){
+                    if (event1.failed()) {
                         future.fail(event1.cause().getMessage());
                         return;
                     }
@@ -345,8 +447,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         return future;
     }
 
-    private void logQueueUnlockError(String queueToUnlock){
-        log.error("Error during unlock of queue '" + queueToUnlock + "'. This queue has been removed from database but not from redisques. This queue must be unlocked manually!");
+    private void logQueueUnlockError(String queueToUnlock, String errorMessage) {
+        log.error("Error during unlock of queue '" + queueToUnlock + "'. This queue has been removed from database " +
+                "but not from redisques. This queue must be unlocked manually! Message: " + errorMessage);
     }
 
     @Override
@@ -359,25 +462,26 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         log.info("About to unlock a sample queue for each circuit");
         Future<Long> future = Future.future();
         queueCircuitBreakerStorage.unlockSampleQueues().setHandler(event -> {
-            if(event.failed()){
+            if (event.failed()) {
                 future.fail(event.cause().getMessage());
                 return;
             }
             List<String> queuesToUnlock = event.result();
-            if(queuesToUnlock == null || queuesToUnlock.isEmpty()){
+            if (queuesToUnlock == null || queuesToUnlock.isEmpty()) {
                 future.complete(0L);
                 return;
             }
             final AtomicInteger futureCounter = new AtomicInteger(queuesToUnlock.size());
             List<String> failedFutures = new ArrayList<>();
             for (String queueToUnlock : queuesToUnlock) {
+                log.info("About to unlock sample queue '" + queueToUnlock + "'");
                 unlockQueue(queueToUnlock).setHandler(event1 -> {
                     futureCounter.decrementAndGet();
-                    if(event1.failed()){
+                    if (event1.failed()) {
                         failedFutures.add(event1.cause().getMessage());
                     }
-                    if(futureCounter.get() == 0){
-                        if(failedFutures.size() > 0){
+                    if (futureCounter.get() == 0) {
+                        if (failedFutures.size() > 0) {
                             future.fail("The following queues could not be unlocked: " + failedFutures);
                         } else {
                             future.complete((long) queuesToUnlock.size());
@@ -390,61 +494,58 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     }
 
     @Override
-    public Future<String> unlockQueue(String queueName){
+    public Future<String> unlockQueue(String queueName) {
         log.info("About to unlock queue '" + queueName + "'");
         Future<String> future = Future.future();
-        vertx.eventBus().send(redisquesAddress, buildDeleteLockOperation(queueName), new Handler<AsyncResult<Message<JsonObject>>>() {
-            @Override
-            public void handle(AsyncResult<Message<JsonObject>> reply) {
-                if(reply.failed()){
-                    logQueueUnlockError(queueName);
-                    future.fail(queueName);
-                    return;
-                }
-                if(OK.equals(reply.result().body().getString(STATUS))) {
-                    future.complete(queueName);
-                } else {
-                    logQueueUnlockError(queueName);
-                    future.fail(queueName);
-                }
+        vertx.eventBus().send(redisquesAddress, buildDeleteLockOperation(queueName), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            if (reply.failed()) {
+                logQueueUnlockError(queueName, reply.cause().getMessage());
+                future.fail(queueName);
+                return;
+            }
+            if (OK.equals(reply.result().body().getString(STATUS))) {
+                future.complete(queueName);
+            } else {
+                logQueueUnlockError(queueName, "Got reply with status value '" + reply.result().body().getString(STATUS) + "'");
+                future.fail(queueName);
             }
         });
         return future;
     }
 
-    private void lockQueueSync(String queueName, HttpRequest queuedRequest){
+    private void lockQueueSync(String queueName, HttpRequest queuedRequest) {
         lockQueue(queueName, queuedRequest).setHandler(event -> {
-            if(event.failed()){
+            if (event.failed()) {
                 log.warn(event.cause().getMessage());
             }
         });
     }
 
-    private void failWithNoRuleToCircuitMappingMessage(Future future, String queueName, HttpRequest request){
-        if(queueName == null){
+    private void failWithNoRuleToCircuitMappingMessage(Future future, String queueName, HttpRequest request) {
+        if (queueName == null) {
             future.fail("no rule to circuit mapping found for uri " + request.getUri());
         } else {
             future.fail("no rule to circuit mapping found for queue '" + queueName + "' and uri " + request.getUri());
         }
     }
 
-    private PatternAndCircuitHash getPatternAndCircuitHashFromRequest(HttpRequest request){
+    private PatternAndCircuitHash getPatternAndCircuitHashFromRequest(HttpRequest request) {
         return this.ruleToCircuitMapping.getCircuitFromRequestUri(request.getUri());
     }
 
-    private String getRequestUniqueId(HttpRequest request){
+    private String getRequestUniqueId(HttpRequest request) {
         String unique = request.getHeaders().get("x-rp-unique_id");
         if (unique == null) {
             unique = request.getHeaders().get("x-rp-unique-id");
         }
-        if(unique == null){
+        if (unique == null) {
             log.warn("request to " + request.getUri() + " has no unique-id header. Using request uri instead");
             unique = request.getUri();
         }
         return unique;
     }
 
-    private QueueCircuitBreakerConfigurationResource getConfig(){
+    private QueueCircuitBreakerConfigurationResource getConfig() {
         return configResourceManager.getConfigurationResource();
     }
 }

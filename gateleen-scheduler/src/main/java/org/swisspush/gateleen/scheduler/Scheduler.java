@@ -51,7 +51,7 @@ public class Scheduler {
         this.name = name;
         this.cronExpression = new CronExpression(cronExpression);
         this.requests = requests;
-        this.log = LoggerFactory.getLogger(Scheduler.class.getName()+".scheduler-"+name);
+        this.log = LoggerFactory.getLogger(Scheduler.class.getName() + ".scheduler-" + name);
         this.monitoringHandler = monitoringHandler;
         calcRandomOffset(maxRandomOffset);
         this.executeOnStartup = executeOnStartup;
@@ -68,14 +68,14 @@ public class Scheduler {
      */
     private void calcRandomOffset(int maxRandomOffset) {
         // only calc randomOffset if maxRandomOffset is set
-        if ( maxRandomOffset != 0 ) {
+        if (maxRandomOffset != 0) {
             // offset between 0 and maxRandomOffset (from seconds to miliseconds)
             randomOffset = new Random().nextInt(maxRandomOffset + 1) * 1000L;
         }
     }
 
     public void start() {
-        log.info("Starting scheduler [ "+cronExpression.getCronExpression()+" ]");
+        log.info("Starting scheduler [ " + cronExpression.getCronExpression() + " ]");
         timer = vertx.setPeriodic(5000, timer -> redisClient.get("schedulers:" + name, reply -> {
             final String stringValue = reply.result();
 
@@ -84,7 +84,7 @@ public class Scheduler {
                 we have to subtract the randomOffset from the current time. This way we don’t
                 change the behavior of the scheduler, because we simply “adjust” the current time.
              */
-            if (stringValue == null || Long.parseLong(stringValue) <= ( System.currentTimeMillis() - randomOffset) ) {
+            if (stringValue == null || Long.parseLong(stringValue) <= (System.currentTimeMillis() - randomOffset)) {
                 // Either first use of the scheduler or run time reached.
                 // We need to set the next run time
                 final long nextRunTime = nextRunTime();
@@ -100,45 +100,43 @@ public class Scheduler {
                 });
             }
         }));
-        if( ( !executed && executeOnStartup ) || executeOnReload ){
+        if ((!executed && executeOnStartup) || executeOnReload) {
             executed = true;
             trigger();
         }
     }
 
     public void stop() {
-        log.info("Stopping scheduler [ "+cronExpression.getCronExpression()+" ] ");
+        log.info("Stopping scheduler [ " + cronExpression.getCronExpression() + " ] ");
         vertx.cancelTimer(timer);
-        String key = "schedulers:"+name;
+        String key = "schedulers:" + name;
         redisClient.del(key, reply -> {
-            if(reply.failed()){
-                log.error("Could not reset scheduler '"+key+"'");
+            if (reply.failed()) {
+                log.error("Could not reset scheduler '" + key + "'");
             }
         });
     }
 
     private void trigger() {
-        for(final HttpRequest request: requests) {
+        for (final HttpRequest request : requests) {
             monitoringHandler.updateEnqueue();
 
-            if(log.isTraceEnabled()) {
-                log.trace("Triggering request "+request.toJsonObject().encodePrettily());
+            if (log.isTraceEnabled()) {
+                log.trace("Triggering request " + request.toJsonObject().encodePrettily());
             }
 
-            if ( request.getHeaders() != null ) {
+            if (request.getHeaders() != null) {
                 request.getHeaders().remove(ExpiryCheckHandler.SERVER_TIMESTAMP_HEADER);
             }
 
             ExpiryCheckHandler.updateServerTimestampHeader(request);
 
-            vertx.eventBus().send(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
-                @Override
-                public void handle(AsyncResult<Message<JsonObject>> event) {
-                    if (!OK.equals(event.result().body().getString(STATUS))) {
-                        log.error("Could not enqueue request "+request.toJsonObject().encodePrettily());
-                    }
-                }
-            });
+            vertx.eventBus().send(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
+                    (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+                        if (!OK.equals(event.result().body().getString(STATUS))) {
+                            log.error("Could not enqueue request " + request.toJsonObject().encodePrettily());
+                        }
+                    });
         }
     }
 

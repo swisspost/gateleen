@@ -7,6 +7,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
@@ -204,30 +205,30 @@ public class QueueClient implements RequestQueue {
      * @param doneHandler   a handler which is called as soon as the request is written into the queue.
      */
     private void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Void> doneHandler) {
-        vertx.eventBus().send(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()), new Handler<AsyncResult<Message<JsonObject>>>() {
-            @Override
-            public void handle(AsyncResult<Message<JsonObject>> event) {
-                if (OK.equals(event.result().body().getString(STATUS))) {
-                    monitoringHandler.updateLastUsedQueueSizeInformation(queue);
-                    monitoringHandler.updateEnqueue();
+        vertx.eventBus().send(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
+                (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+                    if (OK.equals(event.result().body().getString(STATUS))) {
+                        monitoringHandler.updateLastUsedQueueSizeInformation(queue);
+                        monitoringHandler.updateEnqueue();
 
-                    if (request != null) {
-                        request.response().setStatusCode(StatusCode.ACCEPTED.getStatusCode());
-                        request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
-                        request.response().end();
+                        if (request != null) {
+                            ResponseStatusCodeLogUtil.info(request, StatusCode.ACCEPTED, QueueClient.class);
+                            request.response().setStatusCode(StatusCode.ACCEPTED.getStatusCode());
+                            request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
+                            request.response().end();
+                        }
+                    } else if (request != null) {
+                        ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, QueueClient.class);
+                        request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                        request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+                        request.response().end(event.result().body().getString(MESSAGE));
                     }
-                } else if (request != null) {
-                    request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
-                    request.response().end(event.result().body().getString(MESSAGE));
-                }
 
-                // call the done handler to tell,
-                // that the request was written
-                if (doneHandler != null) {
-                    doneHandler.handle(null);
-                }
-            }
-        });
+                    // call the done handler to tell,
+                    // that the request was written
+                    if (doneHandler != null) {
+                        doneHandler.handle(null);
+                    }
+                });
     }
 }

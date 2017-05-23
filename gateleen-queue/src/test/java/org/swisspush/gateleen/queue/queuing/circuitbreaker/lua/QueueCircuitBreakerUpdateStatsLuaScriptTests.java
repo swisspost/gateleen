@@ -12,11 +12,13 @@ import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState.CLOSED;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState.OPEN;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage.FIELD_FAILRATIO;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage.FIELD_STATE;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState.CLOSED;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState.OPEN;
 
 /**
  * Tests for the {@link QueueCircuitBreakerLuaScripts#UPDATE_CIRCUIT} lua script.
@@ -32,6 +34,9 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
     private final String openCircuitsKey = "open_circuits";
     private final String allCircuitsKey = "all_circuits";
 
+    private final String update_success = circuitSuccessKey;
+    private final String update_fail = circuitFailureKey;
+
     @Test
     public void testCalculateErrorPercentage(){
         assertThat(jedis.exists(circuitInfoKey), is(false));
@@ -39,9 +44,6 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertThat(jedis.exists(circuitFailureKey), is(false));
         assertThat(jedis.exists(openCircuitsKey), is(false));
         assertThat(jedis.exists(allCircuitsKey), is(false));
-
-        String update_success = "q:success";
-        String update_fail = "q:failure";
 
         // adding 3 failing requests
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_1", "url_pattern", 0, 50, 10, 4, 10);
@@ -122,44 +124,107 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
 
     @Test
     public void testOnlyRespectEntriesWithinAgeRange(){
-        String update_success = "q:success";
-        String update_fail = "q:failure";
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_1", "url_pattern", 1, 50, 3, 1, 100);
         assertStateAndErroPercentage(CLOSED, 0);
+        assertSampleCount(1, 3, 1, 0);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_2", "url_pattern", 2, 50, 3, 1, 100);
+        assertSampleCount(2, 3, 2, 0);
         assertStateAndErroPercentage(CLOSED, 0);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_3", "url_pattern", 3, 50, 3, 1, 100);
+        assertSampleCount(3, 3, 2, 1);
         assertStateAndErroPercentage(CLOSED, 33);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_4", "url_pattern", 4, 50, 3, 1, 100);
+        assertSampleCount(4, 3, 2, 2);
         assertStateAndErroPercentage(OPEN, 50);
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_5", "url_pattern", 5, 50, 3, 1, 100);
+        assertSampleCount(5, 3, 1, 3);
         assertStateAndErroPercentage(OPEN, 75); // req_1 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_6", "url_pattern", 6, 50, 3, 1, 100);
+        assertSampleCount(6, 3, 0, 4);
         assertStateAndErroPercentage(OPEN, 100); // req_2 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 7, 50, 3, 1, 100);
+        assertSampleCount(7, 3, 1, 3);
         assertStateAndErroPercentage(OPEN, 75); // req_3 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_8", "url_pattern", 8, 50, 3, 1, 100);
+        assertSampleCount(8, 3, 2, 2);
         assertStateAndErroPercentage(OPEN, 50); // req_4 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_9", "url_pattern", 9, 50, 3, 1, 100);
+        assertSampleCount(9, 3, 3, 1);
         assertStateAndErroPercentage(OPEN, 25); // req_5 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         assertHashInAllCircuitsSet("url_patternHash", 1);
         evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_10", "url_pattern", 10, 50, 3, 1, 100);
+        assertSampleCount(10, 3, 4, 0);
         assertStateAndErroPercentage(OPEN, 0); // req_6 is out of range by now
         assertHashInOpenCircuitsSet("url_patternHash", 1);
         assertHashInAllCircuitsSet("url_patternHash", 1);
 
         assertCircuit("url_pattern");
+    }
+
+    @Test
+    public void testSampleCountThresholdReachedRespectingEntriesMaxAgeMS(){
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_1", "url_pattern", 1, 50, 3, 3, 100);
+        assertSampleCountThreshold(1, 2,3, false,1);
+        assertStateAndErroPercentage(CLOSED, 0);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_2", "url_pattern", 2, 50, 3, 3, 100);
+        assertSampleCountThreshold(2, 2, 3, false, 2);
+        assertStateAndErroPercentage(CLOSED, 0);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_3", "url_pattern", 3, 50, 3, 3, 100);
+        assertSampleCountThreshold(3, 2, 3, true, 3);
+        assertSampleCountThreshold(4, 2, 3, false, 2);
+        assertStateAndErroPercentage(CLOSED, 33);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_4", "url_pattern", 5, 50, 3, 3, 100);
+        assertSampleCountThreshold(5, 2, 3, false, 2);
+        assertSampleCountThreshold(6, 2, 3, false, 1);
+        assertStateAndErroPercentage(OPEN, 66);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_5", "url_pattern", 7, 50, 3, 3, 100);
+        assertSampleCountThreshold(7, 2, 3, false, 2);
+        assertStateAndErroPercentage(OPEN, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_6", "url_pattern", 8, 50, 3, 3, 100);
+        assertSampleCountThreshold(8, 2, 3, false, 2);
+        assertStateAndErroPercentage(OPEN, 100);
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_7", "url_pattern", 9, 50, 3, 3, 100);
+        assertStateAndErroPercentage(OPEN, 66);
+        assertSampleCountThreshold(9, 2, 3, true, 3);
+        assertSampleCountThreshold(10, 2, 3, false, 2);
+        assertSampleCountThreshold(11, 2, 3, false, 1);
+        assertSampleCountThreshold(12, 2, 3, false, 0);
+        assertSampleCountThreshold(13, 2, 3, false, 0);
+
+        evalScriptUpdateQueueCircuitBreakerStats(update_success, "req_8", "url_pattern", 15, 50, 3, 3, 100);
+
+        assertStateAndErroPercentage(OPEN, 0); //state is closed by another lua script, therefore it's still open here
+    }
+
+    private void assertSampleCountThreshold(long timestamp, long entriesMaxAgeMS, long minQueueSampleCount, boolean thresholdReached, long entriesRespected){
+        long minScore = timestamp - entriesMaxAgeMS;
+        Long successCount = jedis.zcount(circuitSuccessKey, String.valueOf(minScore), "+inf");
+        Long failureCount = jedis.zcount(circuitFailureKey, String.valueOf(minScore), "+inf");
+        assertThat(successCount + failureCount, equalTo(entriesRespected));
+        if(thresholdReached) {
+            assertThat(successCount + failureCount, greaterThanOrEqualTo(minQueueSampleCount));
+        } else {
+            assertThat(successCount + failureCount, lessThan(minQueueSampleCount));
+        }
+    }
+
+    private void assertSampleCount(long timestamp, long entriesMaxAgeMS, long successEntryCount, long failureEntryCount){
+        long minScore = timestamp - entriesMaxAgeMS;
+        Long successCount = jedis.zcount(circuitSuccessKey, String.valueOf(minScore), "+inf");
+        Long failureCount = jedis.zcount(circuitFailureKey, String.valueOf(minScore), "+inf");
+        assertThat(successCount, equalTo(successEntryCount));
+        assertThat(failureCount, equalTo(failureEntryCount));
     }
 
     private void assertStateAndErroPercentage(QueueCircuitState state, int percentage){

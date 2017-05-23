@@ -1,6 +1,9 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
-import io.vertx.core.*;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -12,26 +15,27 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResource;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.*;
 import org.swisspush.gateleen.routing.RuleProvider;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.*;
+import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.SUCCESS;
 
 /**
  * Tests for the {@link QueueCircuitBreakerImpl} class
@@ -42,6 +46,7 @@ import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResp
 public class QueueCircuitBreakerImplTest {
 
     private Vertx vertx;
+    private Lock lock;
     private ResourceStorage storage;
     private RuleProvider ruleProvider;
     private QueueCircuitBreakerStorage queueCircuitBreakerStorage;
@@ -56,15 +61,61 @@ public class QueueCircuitBreakerImplTest {
     @Before
     public void setUp(){
         vertx = Vertx.vertx();
+
+        lock = Mockito.mock(Lock.class);
+        Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.succeededFuture(Boolean.TRUE));
+        Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.TRUE));
+
         storage = Mockito.mock(ResourceStorage.class);
+
         queueCircuitBreakerStorage = Mockito.mock(QueueCircuitBreakerStorage.class);
+        Mockito.when(queueCircuitBreakerStorage.setOpenCircuitsToHalfOpen()).thenReturn(Future.succeededFuture(0L));
+        Mockito.when(queueCircuitBreakerStorage.popQueueToUnlock()).thenReturn(Future.succeededFuture("SomeQueue"));
+        Mockito.when(queueCircuitBreakerStorage.unlockSampleQueues()).thenReturn(Future.succeededFuture(new ArrayList<>()));
+
         ruleProvider = new RuleProvider(vertx, "/path/to/routing/rules", storage, props);
         ruleToCircuitMapping = Mockito.mock(QueueCircuitBreakerRulePatternToCircuitMapping.class);
-        configResourceManager = Mockito.spy(new QueueCircuitBreakerConfigurationResourceManager(vertx, storage,
-                "/path/to/circuitbreaker/config"));
+
+        configResourceManager = Mockito.mock(QueueCircuitBreakerConfigurationResourceManager.class);
+        QueueCircuitBreakerConfigurationResource config = new QueueCircuitBreakerConfigurationResource();
+        config.setOpenToHalfOpenTaskEnabled(true);
+        config.setOpenToHalfOpenTaskInterval(1000);
+        config.setUnlockQueuesTaskEnabled(true);
+        config.setUnlockQueuesTaskInterval(1000);
+        config.setUnlockSampleQueuesTaskEnabled(true);
+        config.setUnlockSampleQueuesTaskInterval(1000);
+        Mockito.when(configResourceManager.getConfigurationResource()).thenReturn(config);
+
         Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler = Mockito.mock(Handler.class);
-        queueCircuitBreaker = Mockito.spy(new QueueCircuitBreakerImpl(vertx, Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider,
+        queueCircuitBreaker = Mockito.spy(new QueueCircuitBreakerImpl(vertx, lock, Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider,
                 ruleToCircuitMapping, configResourceManager, queueCircuitBreakerHttpRequestHandler,9999));
+    }
+
+    @Test
+    public void testLockingForPeriodicTimers(TestContext context){
+        Async async = context.async();
+
+        ArgumentCaptor<String> lockArguments = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> releaseArguments = ArgumentCaptor.forClass(String.class);
+
+        Mockito.verify(lock, timeout(1100).times(3)).acquireLock(lockArguments.capture(), anyString(), anyLong());
+        Mockito.verify(lock, timeout(1100).times(3)).releaseLock(releaseArguments.capture(), anyString());
+
+        List<String> lockValues = lockArguments.getAllValues();
+        context.assertTrue(lockValues.contains(QueueCircuitBreakerImpl.OPEN_TO_HALF_OPEN_TASK_LOCK));
+        context.assertTrue(lockValues.contains(QueueCircuitBreakerImpl.UNLOCK_QUEUES_TASK_LOCK));
+        context.assertTrue(lockValues.contains(QueueCircuitBreakerImpl.UNLOCK_SAMPLE_QUEUES_TASK_LOCK));
+
+        List<String> releaseValues = releaseArguments.getAllValues();
+        context.assertTrue(releaseValues.contains(QueueCircuitBreakerImpl.OPEN_TO_HALF_OPEN_TASK_LOCK));
+        context.assertTrue(releaseValues.contains(QueueCircuitBreakerImpl.UNLOCK_QUEUES_TASK_LOCK));
+        context.assertTrue(releaseValues.contains(QueueCircuitBreakerImpl.UNLOCK_SAMPLE_QUEUES_TASK_LOCK));
+
+        Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).setOpenCircuitsToHalfOpen();
+        Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).popQueueToUnlock();
+        Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).unlockSampleQueues();
+
+        async.complete();
     }
 
     @Test

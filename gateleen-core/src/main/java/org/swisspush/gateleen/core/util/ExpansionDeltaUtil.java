@@ -142,7 +142,7 @@ public final class ExpansionDeltaUtil {
         return result;
     }
 
-    public static enum SlashHandling {
+    public enum SlashHandling {
         END_WITH_SLASH, END_WITHOUT_SLASH, KEEP
     }
 
@@ -155,30 +155,27 @@ public final class ExpansionDeltaUtil {
      * @return Handler
      */
     public static Handler<Throwable> createRequestExceptionHandler(final HttpServerRequest request, final String uri, final Class<?> caller) {
-        return new Handler<Throwable>() {
-            @Override
-            public void handle(Throwable exception) {
-                if (log.isTraceEnabled()) {
-                    log.trace("end response with content");
+        return exception -> {
+            if (log.isTraceEnabled()) {
+                log.trace("end response with content");
+            }
+            if (exception instanceof TimeoutException) {
+                error("Timeout", request, uri, caller);
+                request.response().setStatusCode(StatusCode.TIMEOUT.getStatusCode());
+                request.response().setStatusMessage(StatusCode.TIMEOUT.getStatusMessage());
+                try {
+                    request.response().end(request.response().getStatusMessage());
+                } catch (IllegalStateException e) {
+                    // ignore because maybe already closed
                 }
-                if (exception instanceof TimeoutException) {
-                    error("Timeout", request, uri, caller);
-                    request.response().setStatusCode(StatusCode.TIMEOUT.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.TIMEOUT.getStatusMessage());
-                    try {
-                        request.response().end(request.response().getStatusMessage());
-                    } catch (IllegalStateException e) {
-                        // ignore because maybe already closed
-                    }
-                } else {
-                    error(exception.getMessage(), request, uri, caller);
-                    request.response().setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
-                    try {
-                        request.response().end(request.response().getStatusMessage());
-                    } catch (IllegalStateException e) {
-                        // ignore because maybe already closed
-                    }
+            } else {
+                error(exception.getMessage(), request, uri, caller);
+                request.response().setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
+                request.response().setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
+                try {
+                    request.response().end(request.response().getStatusMessage());
+                } catch (IllegalStateException e) {
+                    // ignore because maybe already closed
                 }
             }
         };
@@ -193,17 +190,14 @@ public final class ExpansionDeltaUtil {
      * @return Handler
      */
     public static Handler<Throwable> createResponseExceptionHandler(final HttpServerRequest request, final String uri, final Class<?> caller) {
-        return new Handler<Throwable>() {
-            @Override
-            public void handle(Throwable exception) {
-                error("Problem with backend: " + exception.getMessage(), request, uri, caller);
-                request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-                request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
-                try {
-                    request.response().end(request.response().getStatusMessage());
-                } catch (IllegalStateException e) {
-                    // ignore because maybe already closed
-                }
+        return exception -> {
+            error("Problem with backend: " + exception.getMessage(), request, uri, caller);
+            request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+            try {
+                request.response().end(request.response().getStatusMessage());
+            } catch (IllegalStateException e) {
+                // ignore because maybe already closed
             }
         };
     }

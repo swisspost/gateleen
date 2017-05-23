@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.Arrays;
@@ -105,6 +106,7 @@ public class ValidationHandler {
     private void handleValidation(final HttpServerRequest req) {
 		final Logger log = RequestLoggerFactory.getLogger(ValidationHandler.class,req);
         final HttpClientRequest cReq = httpClient.request(req.method(), req.uri(), cRes -> {
+            ResponseStatusCodeLogUtil.info(req, StatusCode.fromCode(cRes.statusCode()), ValidationHandler.class);
             req.response().setStatusCode(cRes.statusCode());
             req.response().setStatusMessage(cRes.statusMessage());
             req.response().headers().setAll(cRes.headers());

@@ -7,6 +7,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -94,7 +95,7 @@ public class QueueingStrategyFactoryTest {
     private JsonObject buildHookConfig(JsonObject queueingStrategy){
         JsonObject hookConfig = new JsonObject();
         hookConfig.put("destination", "/playground/server/push/v1/devices/x99");
-        hookConfig.put("methods", new JsonArray(Arrays.asList("PUT")));
+        hookConfig.put("methods", new JsonArray(Collections.singletonList("PUT")));
         hookConfig.put("expireAfter", 300);
         hookConfig.put("fullUrl", true);
         JsonObject staticHeaders = new JsonObject();

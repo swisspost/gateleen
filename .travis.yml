@@ -5,7 +5,7 @@ services:
    - redis-server
 script: 
    - ./gradlew test
-   - ./gradlew :gateleen-test:test -PintegrationTests -q
+   - ./gradlew :gateleen-test:test -PintegrationTests
    - ./gradlew jacocoTestReport
 after_success:
   - bash <(curl -s https://codecov.io/bash)

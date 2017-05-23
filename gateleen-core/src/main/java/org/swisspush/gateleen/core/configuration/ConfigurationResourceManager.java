@@ -12,6 +12,7 @@ import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.ArrayList;
@@ -97,36 +98,36 @@ public class ConfigurationResourceManager implements LoggableResource {
 
         if(HttpMethod.PUT == request.method()) {
             requestLog.info("Refresh resource " + resourceUri);
-            request.bodyHandler(buffer -> {
-                configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
-                    if (event.failed() || (event.succeeded() && !event.result().isSuccess())) {
-                        requestLog.error("Could not parse configuration resource for uri '" + resourceUri + "' message: " + event.result().getMessage());
-                        request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                        request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + event.result().getMessage());
-                        if (event.result().getValidationDetails() != null) {
-                            request.response().headers().add("content-type", "application/json");
-                            request.response().end(event.result().getValidationDetails().encode());
-                        } else {
-                            request.response().end(event.result().getMessage());
-                        }
+            request.bodyHandler(buffer -> configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
+                if (event.failed() || (event.succeeded() && !event.result().isSuccess())) {
+                    requestLog.error("Could not parse configuration resource for uri '" + resourceUri + "' message: " + event.result().getMessage());
+                    request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + event.result().getMessage());
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, ConfigurationResourceManager.class);
+                    if (event.result().getValidationDetails() != null) {
+                        request.response().headers().add("content-type", "application/json");
+                        request.response().end(event.result().getValidationDetails().encode());
                     } else {
-                        storage.put(resourceUri, buffer, status -> {
-                            if (status == StatusCode.OK.getStatusCode()) {
-                                if(logConfigurationResourceChanges){
-                                    RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
-                                }
-                                JsonObject object = new JsonObject();
-                                object.put("requestUri", resourceUri);
-                                object.put("type", ConfigurationResourceChangeType.CHANGE);
-                                vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
-                            } else {
-                                request.response().setStatusCode(status);
-                            }
-                            request.response().end();
-                        });
+                        request.response().end(event.result().getMessage());
                     }
-                });
-            });
+                } else {
+                    storage.put(resourceUri, buffer, status -> {
+                        if (status == StatusCode.OK.getStatusCode()) {
+                            if(logConfigurationResourceChanges){
+                                RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                            }
+                            JsonObject object = new JsonObject();
+                            object.put("requestUri", resourceUri);
+                            object.put("type", ConfigurationResourceChangeType.CHANGE);
+                            vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
+                        } else {
+                            request.response().setStatusCode(status);
+                        }
+                        ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), ConfigurationResourceManager.class);
+                        request.response().end();
+                    });
+                }
+            }));
             return true;
         }
 

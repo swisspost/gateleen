@@ -1,8 +1,8 @@
 package org.swisspush.gateleen.hook.queueingstrategy;
 
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Factory class to build {@link QueueingStrategy} instances from hook configurations.

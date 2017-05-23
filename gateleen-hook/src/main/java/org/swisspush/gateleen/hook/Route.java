@@ -205,11 +205,9 @@ public class Route {
      */
     public void cleanup() {
         if ( ! rule.getScheme().equals("local") ) {
-            vertx.setTimer(GRACE_PERIOD, new Handler<Long>() {
-                public void handle(Long event) {
-                    LOG.debug("Cleaning up one client for route of " + urlPattern);
-                    client.close();
-                }
+            vertx.setTimer(GRACE_PERIOD, event -> {
+                LOG.debug("Cleaning up one client for route of " + urlPattern);
+                client.close();
             });
         }
     }

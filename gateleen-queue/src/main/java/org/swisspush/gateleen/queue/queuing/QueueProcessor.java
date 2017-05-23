@@ -43,43 +43,41 @@ public class QueueProcessor {
         this.monitoringHandler = monitoringHandler;
         this.queueCircuitBreaker = queueCircuitBreaker;
 
-        vertx.eventBus().localConsumer(getQueueProcessorAddress(), new Handler<Message<JsonObject>>() {
-            public void handle(final Message<JsonObject> message) {
-                HttpRequest queuedRequestTry = null;
-                JsonObject jsonRequest = new JsonObject(message.body().getString("payload"));
-                try {
-                    queuedRequestTry = new HttpRequest(jsonRequest);
-                } catch (Exception exception) {
-                    LoggerFactory.getLogger(QueueProcessor.class).error("Could not build request: " + message.body().toString() + " error is " + exception.getMessage());
-                    message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
-                    return;
-                }
-                final HttpRequest queuedRequest = queuedRequestTry;
-                final Logger logger = RequestLoggerFactory.getLogger(QueueProcessor.class, queuedRequest.getHeaders());
-                if (logger.isTraceEnabled()) {
-                    logger.trace("process message: " + message);
-                }
+        vertx.eventBus().localConsumer(getQueueProcessorAddress(), (Handler<Message<JsonObject>>) message -> {
+            HttpRequest queuedRequestTry = null;
+            JsonObject jsonRequest = new JsonObject(message.body().getString("payload"));
+            try {
+                queuedRequestTry = new HttpRequest(jsonRequest);
+            } catch (Exception exception) {
+                LoggerFactory.getLogger(QueueProcessor.class).error("Could not build request: " + message.body().toString() + " error is " + exception.getMessage());
+                message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
+                return;
+            }
+            final HttpRequest queuedRequest = queuedRequestTry;
+            final Logger logger = RequestLoggerFactory.getLogger(QueueProcessor.class, queuedRequest.getHeaders());
+            if (logger.isTraceEnabled()) {
+                logger.trace("process message: " + message);
+            }
 
-                String queueName = message.body().getString("queue");
+            String queueName = message.body().getString("queue");
 
-                if (!isCircuitCheckEnabled()) {
-                    executeQueuedRequest(message, logger, queuedRequest, jsonRequest, queueName, null);
-                } else {
-                    queueCircuitBreaker.handleQueuedRequest(queueName, queuedRequest).setHandler(event -> {
-                        if (event.failed()) {
-                            String msg = "Error in QueueCircuitBreaker occurred for queue " + queueName + ". Reply with status ERROR. Message is: " + event.cause().getMessage();
-                            logger.error(msg);
-                            message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, msg));
-                            return;
-                        }
-                        QueueCircuitState state = event.result();
-                        if (QueueCircuitState.OPEN == state) {
-                            message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, "Circuit for queue " + queueName + " is " + state + ". Queues using this endpoint are not allowed to be executed right now"));
-                        } else {
-                            executeQueuedRequest(message, logger, queuedRequest, jsonRequest, queueName, state);
-                        }
-                    });
-                }
+            if (!isCircuitCheckEnabled()) {
+                executeQueuedRequest(message, logger, queuedRequest, jsonRequest, queueName, null);
+            } else {
+                queueCircuitBreaker.handleQueuedRequest(queueName, queuedRequest).setHandler(event -> {
+                    if (event.failed()) {
+                        String msg = "Error in QueueCircuitBreaker occurred for queue " + queueName + ". Reply with status ERROR. Message is: " + event.cause().getMessage();
+                        logger.error(msg);
+                        message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, msg));
+                        return;
+                    }
+                    QueueCircuitState state = event.result();
+                    if (QueueCircuitState.OPEN == state) {
+                        message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, "Circuit for queue " + queueName + " is " + state + ". Queues using this endpoint are not allowed to be executed right now"));
+                    } else {
+                        executeQueuedRequest(message, logger, queuedRequest, jsonRequest, queueName, state);
+                    }
+                });
             }
         });
     }

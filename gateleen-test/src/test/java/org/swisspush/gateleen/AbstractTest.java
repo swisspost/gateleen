@@ -24,6 +24,7 @@ import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
+import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
 import org.swisspush.gateleen.core.property.PropertyHandler;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
@@ -164,8 +165,9 @@ public abstract class AbstractTest {
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
-                QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, Address.redisquesAddress(), queueCircuitBreakerStorage,
-                        ruleProvider, rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler, CIRCUIT_BREAKER_REST_API_PORT);
+                QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, new RedisBasedLock(redisClient),
+                        Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, rulePatternToCircuitMapping,
+                        queueCircuitBreakerConfigurationResourceManager, requestHandler, CIRCUIT_BREAKER_REST_API_PORT);
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);

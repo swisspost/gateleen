@@ -5,6 +5,7 @@ import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
@@ -52,9 +53,11 @@ public class RoleProfileHandler implements LoggableResource {
             storage.get(request.path(), buffer -> {
                 request.response().headers().set("Content-Type", "application/json");
                 if (buffer != null) {
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.OK, RoleProfileHandler.class);
                     request.response().setStatusCode(StatusCode.OK.getStatusCode());
                     request.response().end(buffer);
                 } else {
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.NOT_FOUND, RoleProfileHandler.class);
                     request.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
                     request.response().end();
                 }
@@ -73,9 +76,11 @@ public class RoleProfileHandler implements LoggableResource {
                         } else {
                             request.response().setStatusCode(status);
                         }
+                        ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), RoleProfileHandler.class);
                         request.response().end();
                     });
                 } else {
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, RoleProfileHandler.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
                     request.response().end("role profiles can't take nested property values");
@@ -90,10 +95,12 @@ public class RoleProfileHandler implements LoggableResource {
                     log.warn("Could not delete '" + (request.uri() == null ? "<null>" : request.uri()) + "'. Error code is '" + (status == null ? "<null>" : status) + "'.");
                     request.response().setStatusCode(status);
                 }
+                ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), RoleProfileHandler.class);
                 request.response().end();
             });
             break;
         default:
+            ResponseStatusCodeLogUtil.info(request, StatusCode.METHOD_NOT_ALLOWED, RoleProfileHandler.class);
             request.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
             request.response().end(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
         }
