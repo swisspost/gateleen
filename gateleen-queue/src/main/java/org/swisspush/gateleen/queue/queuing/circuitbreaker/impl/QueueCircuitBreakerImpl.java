@@ -122,7 +122,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         this.lock.acquireLock(lock, token, lockExpiryMs).setHandler(lockEvent -> {
             if(lockEvent.succeeded()){
                 if(lockEvent.result()){
-                    log.debug("Acquired lock '"+OPEN_TO_HALF_OPEN_TASK_LOCK+"' with token '"+token+"'");
+                    log.debug("Acquired lock '"+lock+"' with token '"+token+"'");
                     future.complete(Boolean.TRUE);
                 } else {
                     future.complete(Boolean.FALSE);
@@ -144,7 +144,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         this.lock.releaseLock(lock, token).setHandler(releaseEvent -> {
             if(releaseEvent.succeeded()){
                 if(releaseEvent.result()){
-                    log.debug("Released lock '"+OPEN_TO_HALF_OPEN_TASK_LOCK+"' with token '"+token+"'");
+                    log.debug("Released lock '"+lock+"' with token '"+token+"'");
                 }
             } else {
                 log.error("Could not release lock '"+lock+"'. Message: " + releaseEvent.cause().getMessage());
