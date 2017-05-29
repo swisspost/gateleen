@@ -9,6 +9,8 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.lock.Lock;
+import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.HttpRequestHeader;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
@@ -16,6 +18,8 @@ import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import java.util.List;
 
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
+import static org.swisspush.gateleen.core.util.LockUtil.acquireLock;
+import static org.swisspush.gateleen.core.util.LockUtil.releaseLock;
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
@@ -29,6 +33,8 @@ public class ReducedPropagationManager {
     private Vertx vertx;
     private final ReducedPropagationStorage storage;
     private final RequestQueue requestQueue;
+    private Lock lock;
+    public static final String PROCESS_EXPIRED_QUEUES_LOCK = "reducedPropagationProcExpQueuesLock";
     public static final String LOCK_REQUESTER = "ReducedPropagationManager";
     public static final String PROCESSOR_ADDRESS = "gateleen.hook-expired-queues-processor";
     public static final String MANAGER_QUEUE_PREFIX = "manager_";
@@ -37,10 +43,11 @@ public class ReducedPropagationManager {
 
     private Logger log = LoggerFactory.getLogger(ReducedPropagationManager.class);
 
-    public ReducedPropagationManager(Vertx vertx, ReducedPropagationStorage storage, RequestQueue requestQueue) {
+    public ReducedPropagationManager(Vertx vertx, ReducedPropagationStorage storage, RequestQueue requestQueue, Lock lock) {
         this.vertx = vertx;
         this.storage = storage;
         this.requestQueue = requestQueue;
+        this.lock = lock;
 
         registerExpiredQueueProcessor();
     }
@@ -53,7 +60,18 @@ public class ReducedPropagationManager {
     public void startExpiredQueueProcessing(long intervalMs) {
         log.info("About to start periodic processing of expired queues with an interval of " + intervalMs + " ms");
         vertx.cancelTimer(processExpiredQueuesTimerId);
-        processExpiredQueuesTimerId = vertx.setPeriodic(intervalMs, event -> processExpiredQueues());
+        processExpiredQueuesTimerId = vertx.setPeriodic(intervalMs, event -> {
+            final String token = createToken("reducedpropagation_expired_queue_processing");
+            acquireLock(this.lock, PROCESS_EXPIRED_QUEUES_LOCK, token, getLockExpiry(intervalMs), log).setHandler(lockEvent -> {
+                if(lockEvent.succeeded()){
+                    if(lockEvent.result()){
+                        processExpiredQueues(token);
+                    }
+                } else {
+                    log.error("Could not acquire lock '"+PROCESS_EXPIRED_QUEUES_LOCK+"'. Message: " + lockEvent.cause().getMessage());
+                }
+            });
+        });
     }
 
     /**
@@ -126,9 +144,10 @@ public class ReducedPropagationManager {
         return future;
     }
 
-    private void processExpiredQueues() {
+    private void processExpiredQueues(String lockToken) {
         log.debug("Going to process expired queues");
         storage.removeExpiredQueues(System.currentTimeMillis()).setHandler(event -> {
+            releaseLock(this.lock, PROCESS_EXPIRED_QUEUES_LOCK, lockToken, log);
             if (event.failed()) {
                 log.error("Failed to process expired queues. Cause: " + event.cause());
                 return;
@@ -146,6 +165,17 @@ public class ReducedPropagationManager {
                 });
             }
         });
+    }
+
+    private long getLockExpiry(long interval){
+        if(interval <= 1){
+            return 1;
+        }
+        return interval / 2;
+    }
+
+    private String createToken(String appendix){
+        return Address.instanceAddress()+ "_" + System.currentTimeMillis() + "_" + appendix;
     }
 
     private void registerExpiredQueueProcessor() {

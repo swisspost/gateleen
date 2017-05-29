@@ -18,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
 import java.util.ArrayList;
@@ -46,6 +47,7 @@ public class ReducedPropagationManagerTest {
     private ReducedPropagationManager manager;
     private RequestQueue requestQueue;
     private InOrder requestQueueInOrder;
+    private Lock lock;
 
     @Before
     public void setUp() {
@@ -53,7 +55,8 @@ public class ReducedPropagationManagerTest {
         reducedPropagationStorage = Mockito.mock(ReducedPropagationStorage.class);
         requestQueue = Mockito.mock(RequestQueue.class);
         requestQueueInOrder = Mockito.inOrder(requestQueue);
-        manager = new ReducedPropagationManager(vertx, reducedPropagationStorage, requestQueue);
+        lock = Mockito.mock(Lock.class);
+        manager = new ReducedPropagationManager(vertx, reducedPropagationStorage, requestQueue, lock);
     }
 
     @Test
@@ -65,10 +68,22 @@ public class ReducedPropagationManagerTest {
 
     @Test
     public void testStartExpiredQueueProcessing(TestContext context) {
+        Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.succeededFuture(Boolean.TRUE));
+        Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.TRUE));
         Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
                 .thenReturn(Future.succeededFuture(new ArrayList<>()));
         manager.startExpiredQueueProcessing(10);
         verify(reducedPropagationStorage, timeout(110).atLeast(10)).removeExpiredQueues(anyLong());
+    }
+
+    @Test
+    public void testExpiredQueueProcessingNotExecutedWhenLocked(TestContext context) {
+        Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.succeededFuture(Boolean.FALSE));
+        Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.TRUE));
+        Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
+                .thenReturn(Future.succeededFuture(new ArrayList<>()));
+        manager.startExpiredQueueProcessing(10);
+        verify(reducedPropagationStorage, timeout(110).never()).removeExpiredQueues(anyLong());
     }
 
     @Test
