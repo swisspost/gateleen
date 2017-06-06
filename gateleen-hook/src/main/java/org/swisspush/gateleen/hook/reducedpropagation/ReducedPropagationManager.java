@@ -147,9 +147,9 @@ public class ReducedPropagationManager {
     private void processExpiredQueues(String lockToken) {
         log.debug("Going to process expired queues");
         storage.removeExpiredQueues(System.currentTimeMillis()).setHandler(event -> {
-            releaseLock(this.lock, PROCESS_EXPIRED_QUEUES_LOCK, lockToken, log);
             if (event.failed()) {
-                log.error("Failed to process expired queues. Cause: " + event.cause());
+                log.error("Going to release lock because process expired queues failed. Cause: " + event.cause());
+                releaseLock(this.lock, PROCESS_EXPIRED_QUEUES_LOCK, lockToken, log);
                 return;
             }
             List<String> expiredQueues = event.result();

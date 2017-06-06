@@ -116,7 +116,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         int openToHalfOpenTaskInterval = getConfig().getOpenToHalfOpenTaskInterval();
         vertx.cancelTimer(openToHalfOpenTimerId);
         if (openToHalfOpenTaskEnabled) {
-            log.info("About to register periodic open to half-open task execution every " + getConfig().getOpenToHalfOpenTaskInterval() + "ms");
+            log.info("About to register periodic open to half-open task execution every " + openToHalfOpenTaskInterval + "ms");
             openToHalfOpenTimerId = vertx.setPeriodic(openToHalfOpenTaskInterval,
                     event -> {
                         final String token = createToken(OPEN_TO_HALF_OPEN_TASK_LOCK);
@@ -132,8 +132,8 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                                             }
                                         } else {
                                             log.error(event1.cause().getMessage());
+                                            releaseLock(this.lock, OPEN_TO_HALF_OPEN_TASK_LOCK, token, log);
                                         }
-                                        releaseLock(this.lock, OPEN_TO_HALF_OPEN_TASK_LOCK, token, log);
                                     });
                                 }
                             } else {
@@ -167,8 +167,8 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                                             }
                                         } else {
                                             log.error("Unable to unlock queue '" + event1.cause().getMessage() + "'");
+                                            releaseLock(this.lock, UNLOCK_QUEUES_TASK_LOCK, token, log);
                                         }
-                                        releaseLock(this.lock, UNLOCK_QUEUES_TASK_LOCK, token, log);
                                     });
                                 }
                             } else {
@@ -201,8 +201,8 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                                     }
                                 } else {
                                     log.error(event1.cause().getMessage());
+                                    releaseLock(this.lock, UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token, log);
                                 }
-                                releaseLock(this.lock, UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token, log);
                             });
                         }
                     } else {

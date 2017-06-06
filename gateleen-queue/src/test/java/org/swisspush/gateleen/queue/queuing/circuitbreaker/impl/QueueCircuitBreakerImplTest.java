@@ -92,8 +92,44 @@ public class QueueCircuitBreakerImplTest {
     }
 
     @Test
-    public void testLockingForPeriodicTimers(TestContext context){
+    public void testLockingForPeriodicTimersSuccess(TestContext context){
+        Async async = context.async(1);
+
+        Mockito.when(queueCircuitBreakerStorage.setOpenCircuitsToHalfOpen()).thenReturn(Future.succeededFuture(0L));
+        Mockito.when(queueCircuitBreakerStorage.popQueueToUnlock()).thenReturn(Future.succeededFuture("SomeQueue"));
+        Mockito.when(queueCircuitBreakerStorage.unlockSampleQueues()).thenReturn(Future.succeededFuture(new ArrayList<>()));
+
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
+            async.countDown();
+            context.assertEquals("deleteLock", event.body().getString("operation"));
+            context.assertEquals("SomeQueue", event.body().getJsonObject("payload").getString("queuename"));
+            event.reply(new JsonObject().put("status", "ok"));
+        });
+
+        ArgumentCaptor<String> lockArguments = ArgumentCaptor.forClass(String.class);
+
+        Mockito.verify(lock, timeout(1100).times(3)).acquireLock(lockArguments.capture(), anyString(), anyLong());
+        Mockito.verify(lock, timeout(1100).never()).releaseLock(anyString(), anyString());
+
+        List<String> lockValues = lockArguments.getAllValues();
+        context.assertTrue(lockValues.contains(QueueCircuitBreakerImpl.OPEN_TO_HALF_OPEN_TASK_LOCK));
+        context.assertTrue(lockValues.contains(QueueCircuitBreakerImpl.UNLOCK_QUEUES_TASK_LOCK));
+        context.assertTrue(lockValues.contains(QueueCircuitBreakerImpl.UNLOCK_SAMPLE_QUEUES_TASK_LOCK));
+
+        Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).setOpenCircuitsToHalfOpen();
+        Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).popQueueToUnlock();
+        Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).unlockSampleQueues();
+
+        async.awaitSuccess();
+    }
+
+    @Test
+    public void testLockingForPeriodicTimersFail(TestContext context){
         Async async = context.async();
+
+        Mockito.when(queueCircuitBreakerStorage.setOpenCircuitsToHalfOpen()).thenReturn(Future.failedFuture("setOpenCircuitsToHalfOpen::booom"));
+        Mockito.when(queueCircuitBreakerStorage.popQueueToUnlock()).thenReturn(Future.failedFuture("popQueueToUnlock::booom"));
+        Mockito.when(queueCircuitBreakerStorage.unlockSampleQueues()).thenReturn(Future.failedFuture("unlockSampleQueues::booom"));
 
         ArgumentCaptor<String> lockArguments = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> releaseArguments = ArgumentCaptor.forClass(String.class);
