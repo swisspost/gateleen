@@ -9,6 +9,7 @@ include 'gateleen-core'
 include 'gateleen-delta'
 include 'gateleen-expansion'
 include 'gateleen-hook'
+include 'gateleen-hook-js'
 include 'gateleen-logging'
 include 'gateleen-monitoring'
 include 'gateleen-packing'
@@ -25,5 +26,4 @@ include 'gateleen-user'
 include 'gateleen-validation'
 include 'gateleen-delegate'
 include 'gateleen-merge'
-
 
