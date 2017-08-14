@@ -45,7 +45,7 @@ Now you can see the resource appear in [http://localhost:7012/playground](http:/
 
 The playground module provides a convenient web client for manipulating resources and a basic configuration.
 
-You can push them with
+You can push them with:
 ```
 gradle gateleen-playground:uploadStaticFiles
 ```
