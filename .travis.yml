@@ -5,7 +5,7 @@ jdk:
 services:
    - redis-server
 script: 
-   - ./gradlew test
+   - ./gradlew build
    - ./gradlew :gateleen-test:test -PintegrationTests
    - ./gradlew jacocoTestReport
 after_success:
