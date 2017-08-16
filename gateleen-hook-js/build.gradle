@@ -1,0 +1,95 @@
+plugins {
+    id 'com.moowork.grunt' version '1.2.0'
+}
+
+node {
+    // Version of node to use.
+    version = '0.10.22'
+
+    // Enabled the automatic download. False is the default (for now).
+    download = true
+}
+
+grunt {
+    // Set the directory where Gruntfile.js should be found
+    workDir = file("${project.projectDir}")
+
+    // Whether colors should output on the terminal
+    colors = true
+
+    // Whether output from Grunt should be buffered - useful when running tasks in parallel
+    bufferOutput = false
+}
+
+// makes sure on each build that grunt is installed
+grunt_build.dependsOn 'installGrunt'
+
+// processes your package.json before running grunt build
+grunt_build.dependsOn 'npmInstall'
+
+apply plugin: 'maven-publish'
+
+configurations {
+    webJars { transitive = false }
+}
+
+dependencies {
+    compile "org.webjars:angularjs:$angularjsVersion"
+
+    webJars(group: 'org.webjars', name: 'angularjs', version: "$angularjsVersion") {
+        artifact {
+            name = 'angularjs'
+            type = 'jar'
+        }
+    }
+}
+
+task unzipWebjars(type: Copy) {
+    configurations.webJars.files.each { jar ->
+        from zipTree(jar)
+    }
+    into "$buildDir/tmp/webjars/lib"
+}
+
+task copyWebjars(type: Copy) {
+    configurations.webJars.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+        from("$buildDir/tmp/webjars/lib/META-INF/resources/webjars/$artifact.moduleVersion.id.name/$artifact.moduleVersion.id.version/") {
+            into "$artifact.moduleVersion.id.name/"
+        }
+        into "$buildDir/optimization"
+    }
+}
+
+task webjar(type: Jar, dependsOn: "jar") {
+    from(fileTree("${buildDir}/optimization/$project.name/"))
+    into "META-INF/resources/webjars/$project.name/$version/"
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            artifactId project.name
+            artifact source: webjar, extension: 'jar'
+        }
+    }
+}
+
+task prepareJs(type: Copy) {
+    from("${projectDir}/src/main/webapp/app/") {
+        into "optimization/$project.name"
+    }
+    from("${projectDir}/src/main/webapp/lib/") {
+        into "optimization"
+    }
+    into "$buildDir/"
+}
+
+afterEvaluate {
+    tasks.webjar.dependsOn(tasks.prepareJs)
+    tasks.build.dependsOn(tasks.webjar)
+    tasks.copyWebjars.dependsOn(tasks.unzipWebjars)
+    tasks.build.dependsOn(tasks.copyWebjars)
+    tasks.build.dependsOn(tasks.grunt_build)
+    tasks.build.finalizedBy(tasks.grunt_test)
+    tasks.build.finalizedBy(publishToMavenLocal)
+}

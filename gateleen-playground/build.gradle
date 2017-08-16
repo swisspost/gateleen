@@ -39,7 +39,10 @@ shadowJar {
         attributes 'Main-Class': 'org.swisspush.gateleen.playground.Server'
     }
 }
-build.finalizedBy(shadowJar)
+
+configurations {
+    webJars { transitive = false }
+}
 
 dependencies {
     compile project(':gateleen-core')
@@ -50,6 +53,7 @@ dependencies {
     compile project(':gateleen-scheduler')
     compile project(':gateleen-validation')
     compile project(':gateleen-hook')
+    compile project(':gateleen-hook-js')
     compile project(':gateleen-packing')
     compile project(':gateleen-user')
     compile project(':gateleen-queue')
@@ -70,17 +74,54 @@ dependencies {
     compile "org.slf4j:slf4j-api:$slf4jVersion"
     compile "org.slf4j:slf4j-log4j12:$slf4jVersion"
     compile "log4j:log4j:$log4jVersion"
+    compile "org.webjars:angularjs:$angularjsVersion"
+
+    webJars(group: 'org.webjars', name: 'angularjs', version: "$angularjsVersion") {
+        artifact {
+            name = 'angularjs'
+            type = 'jar'
+        }
+    }
 }
 
 task uploadStaticFiles << {
     def serverUrl = 'http://'+project.targetHost+':'+project.targetPort+'/'
     println 'About to upload server resources to ' + serverUrl
     def rest = new RESTClient( serverUrl )
-    FileTree tree = fileTree('src/main/resources')
+    FileTree tree = fileTree("${buildDir}/resources/main/")
     tree.each {File file ->
         println file.name
-        def path = file.toURI().getPath().split("src/main/resources/")[1]
+        def path = file.toURI().getPath().split("${buildDir}/resources/main/")[1]
         def resp = rest.put(path: path, body: file.bytes, requestContentType: 'application/octet-stream')
         println resp.statusLine
     }
 }
+
+task copyHookJS(type: Copy) {
+    from project(':gateleen-hook-js').file("build/optimization/gateleen-hook-js/js/")
+    into file("${buildDir}/resources/main/playground/server/pages/js/")
+}
+
+task unzipWebjars(type: Copy) {
+    configurations.webJars.files.each { jar ->
+        from zipTree(jar)
+    }
+    into "$buildDir/tmp/webJars/lib"
+}
+
+task copyWebjars(type: Copy) {
+    configurations.webJars.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+        from("$buildDir/tmp/webJars/lib/META-INF/resources/webjars/$artifact.moduleVersion.id.name/$artifact.moduleVersion.id.version/") {
+            into "$artifact.moduleVersion.id.name/"
+        }
+        into file("${buildDir}/resources/main/playground/server/pages/js/")
+    }
+}
+
+afterEvaluate {
+    tasks.copyWebjars.dependsOn(tasks.unzipWebjars)
+    tasks.build.dependsOn(tasks.copyWebjars)
+    tasks.build.dependsOn(tasks.copyHookJS)
+    tasks.build.finalizedBy(tasks.shadowJar)
+}
+
