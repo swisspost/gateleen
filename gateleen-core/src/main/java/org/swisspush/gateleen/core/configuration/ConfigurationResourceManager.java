@@ -47,7 +47,7 @@ public class ConfigurationResourceManager implements LoggableResource {
         this.configurationResourceValidator = new ConfigurationResourceValidator(vertx);
 
         log.info("Register on vertx event bus to receive configuration resource updates");
-        vertx.eventBus().localConsumer(CONFIG_RESOURCE_CHANGED_ADDRESS, (Handler<Message<JsonObject>>) event -> {
+        vertx.eventBus().consumer(CONFIG_RESOURCE_CHANGED_ADDRESS, (Handler<Message<JsonObject>>) event -> {
 
             String requestUri = event.body().getString(MESSAGE_REQUEST_URI);
             ConfigurationResourceChangeType type = ConfigurationResourceChangeType.fromString(event.body().getString(MESSAGE_RESOURCE_TYPE));
