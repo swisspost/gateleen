@@ -1,3 +1,9 @@
+buildscript {
+    dependencies {
+        classpath "com.moowork.gradle:gradle-node-plugin:1.2.0"
+    }
+}
+
 plugins {
     id 'com.moowork.grunt' version '1.2.0'
 }
