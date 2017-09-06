@@ -7,7 +7,7 @@ services:
 before_install:
   - wget http://www.slimjet.com/chrome/download-chrome.php?file=lnx%2Fchrome64_48.0.2564.109.deb
   - sudo apt-get update -qq
-  - sudo dpkg -i ./google-chrome*.deb
+  - sudo dpkg -i ./chrome*.deb
   - sudo apt-get -f install
 script: 
    - ./gradlew build
