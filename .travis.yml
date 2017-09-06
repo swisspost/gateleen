@@ -12,7 +12,7 @@ services:
 #      - google-chrome-stable
 before_install:
 #  - export CHROME_BIN=/usr/bin/google-chrome
-#  - export DISPLAY=:99.0
+  - export DISPLAY=:99.0
   - sh -e /etc/init.d/xvfb start
 #  - sudo apt-get update -qq
   - sudo apt-get install -y libappindicator1 fonts-liberation
