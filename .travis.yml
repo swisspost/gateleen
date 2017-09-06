@@ -4,6 +4,8 @@ jdk:
   - oraclejdk8
 services:
    - redis-server
+addons:
+     chrome: stable
 script: 
    - ./gradlew build
 #   - ./gradlew gateleen-test:startServer  (also waits for it to come up)
