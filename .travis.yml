@@ -5,7 +5,7 @@ jdk:
 services:
    - redis-server
 before_install:
-  - wget https://dl.google.com/linux/direct/google-chrome-stable_current_i386.deb
+  - wget http://www.slimjet.com/chrome/download-chrome.php?file=lnx%2Fchrome64_48.0.2564.109.deb
   - sudo apt-get update -qq
   - sudo dpkg -i ./google-chrome*.deb
   - sudo apt-get -f install
