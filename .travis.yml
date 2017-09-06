@@ -6,6 +6,9 @@ services:
    - redis-server
 script: 
    - ./gradlew build
+#   - ./gradlew gateleen-test:startServer  (also waits for it to come up)
+#   - ./gradlew gateleen-playground:uploapStaticFiles
+#   - ./gradlew gateleen-test:stopServer
    - ./gradlew :gateleen-test:test -PintegrationTests
    - ./gradlew jacocoTestReport
 after_success:
