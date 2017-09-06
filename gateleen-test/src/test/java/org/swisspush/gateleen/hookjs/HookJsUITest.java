@@ -26,7 +26,8 @@ public class HookJsUITest extends AbstractTest {
     @Test
     public void testSingleHook() throws InterruptedException {
 
-        System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver/chromedriver2-21");
+        System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver");
+//        System.setProperty("webdriver.chrome.driver", "gateleen-test/src/test/resources/chromedrivers/chromedriver2-32");
         webDriver = new ChromeDriver();
         webDriver.get("http://localhost:" + MAIN_PORT + ROOT + "/hooktest.html");
 
