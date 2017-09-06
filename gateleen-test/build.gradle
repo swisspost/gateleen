@@ -47,8 +47,8 @@ test {
     onlyIf {
         project.hasProperty("integrationTests")
     }
-//    filter {
-//        //specific test class, wildcard for packages
-//        includeTestsMatching "*.HookJsUITest"
-//    }
+    filter {
+        //specific test class, wildcard for packages
+        includeTestsMatching "*.HookJsUITest"
+    }
 }
