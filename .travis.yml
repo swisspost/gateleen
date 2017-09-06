@@ -11,11 +11,14 @@ services:
 #     packages:
 #      - google-chrome-stable
 before_install:
+  - export CHROME_BIN=/usr/bin/google-chrome
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start
   - sudo apt-get update -qq
-#  - sudo apt-get install -y libappindicator1 fonts-liberation
-#  - sudo apt-get install -y libc6
+  - sudo apt-get install -y libappindicator1 fonts-liberation
   - wget http://www.slimjet.com/chrome/download-chrome.php?file=lnx%2Fchrome64_48.0.2564.109.deb
   - sudo dpkg -i chrome64_48.0.2564.109.deb
+  - sudo dpkg -i google-chrome*.deb
 script:
    - ./gradlew build
 #   - ./gradlew gateleen-test:startServer  (also waits for it to come up)
