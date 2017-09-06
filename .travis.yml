@@ -4,15 +4,18 @@ jdk:
   - oraclejdk8
 services:
    - redis-server
-addons:
-  apt:
-    sources:
-      - google-chrome
-      packages:
-      - google-chrome-stable
+# addons:
+#   apt:
+#     sources:
+#      - google-chrome
+#     packages:
+#      - google-chrome-stable
 before_install:
-   - sudo apt-get update -qq
-   - sudo apt-get install libc6
+  - sudo apt-get update -qq
+  - sudo apt-get install -y libappindicator1 fonts-liberation
+  - sudo apt-get install -y libc6
+  - wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+  - sudo dpkg -i google-chrome*.deb
 script:
    - ./gradlew build
 #   - ./gradlew gateleen-test:startServer  (also waits for it to come up)
