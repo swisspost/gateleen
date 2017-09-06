@@ -16,8 +16,8 @@ before_install:
   - sh -e /etc/init.d/xvfb start
   - sudo apt-get update -qq
   - sudo apt-get install -y libappindicator1 fonts-liberation
-  - wget http://www.slimjet.com/chrome/download-chrome.php?file=lnx%2Fchrome64_48.0.2564.109.deb
-  - sudo dpkg -i download-chrome.php?file=lnx%2Fchrome64_48.0.2564.109.deb
+  - wget http://www.slimjet.com/chrome/download-chrome.php?file=lnx%2Fchrome64_54.0.2840.71.deb
+  - sudo dpkg -i download-chrome.php?file=lnx%2Fchrome64_54.0.2840.71.deb
 script:
    - ./gradlew build
 #   - ./gradlew gateleen-test:startServer  (also waits for it to come up)
