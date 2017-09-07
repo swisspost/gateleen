@@ -19,6 +19,7 @@ import org.swisspush.gateleen.AbstractTest;
 import static com.jayway.awaitility.Awaitility.await;
 import static org.hamcrest.core.IsEqual.equalTo;
 
+@Ignore
 public class HookJsUITest extends AbstractTest {
 
     private static WebDriver webDriver;
