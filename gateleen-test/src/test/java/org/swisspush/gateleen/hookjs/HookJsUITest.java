@@ -23,12 +23,19 @@ public class HookJsUITest extends AbstractTest {
 
     private static WebDriver webDriver;
 
+    @BeforeClass
+    public static void setupChromeDriver() {
+
+        if (System.getProperty("webdriver.chrome.driver") == null) {
+            System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver");
+        }
+
+        webDriver = new ChromeDriver();
+    }
+
     @Test
     public void testSingleHook() throws InterruptedException {
 
-        System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver");
-//        System.setProperty("webdriver.chrome.driver", "gateleen-test/src/test/resources/chromedrivers/chromedriver2-32");
-        webDriver = new ChromeDriver();
         webDriver.get("http://localhost:" + MAIN_PORT + ROOT + "/hooktest.html");
 
         await().atMost(Duration.TWO_SECONDS).until(() ->
@@ -48,8 +55,8 @@ public class HookJsUITest extends AbstractTest {
 //                equalTo("Listener 1 received:<Message 1>"));
     }
 
-    @After
-    public void afterClass(){
+    @AfterClass
+    public static void afterClass(){
         webDriver.quit();
     }
 
