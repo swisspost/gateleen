@@ -15,7 +15,7 @@ public class TestDelegateHandler {
 
     @BeforeClass
     public static void init() {
-        delegateHandler = new DelegateHandler(null, null, null, null, DELEGATE_URI, null);
+        delegateHandler = new DelegateHandler(null, null, null, null, DELEGATE_URI, null, null);
     }
 
     @Test
