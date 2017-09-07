@@ -8,6 +8,7 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,8 +21,9 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,31 +68,36 @@ public class DelegateHandler implements Refreshable, LoggableResource {
 
     private final Vertx vertx;
     private final HttpClient selfClient;
-    private final ResourceStorage storage;
+    private final ResourceStorage delegateStorage;
     private final String delegatesUri;
     private final DelegateFactory delegateFactory;
     private final Pattern delegateNamePattern;
     private final Map<String, Delegate> delegateMap;
+    private final Handler<Void> doneHandler;
 
     private boolean initialized;
     private boolean logDelegateChanges = false;
-
 
     /**
      * Creates a new instance of the DelegateHandler.
      *
      * @param vertx vertx
      * @param selfClient selfClient
-     * @param storage storage
+     * @param delegateStorage delegateStorage - only used for storing delegates
      * @param monitoringHandler monitoringHandler
      * @param delegatesUri delegate root
      * @param properties properties
+     * @param doneHandler doneHandler
      */
-    public DelegateHandler(final Vertx vertx, final HttpClient selfClient, final ResourceStorage storage, final MonitoringHandler monitoringHandler, final String delegatesUri, final Map<String, Object> properties) {
+    public DelegateHandler(final Vertx vertx, final HttpClient selfClient, final ResourceStorage delegateStorage,
+                           final MonitoringHandler monitoringHandler, final String delegatesUri,
+                           final Map<String, Object> properties,
+                           final Handler<Void> doneHandler) {
         this.vertx = vertx;
         this.selfClient = selfClient;
-        this.storage = storage;
+        this.delegateStorage = delegateStorage;
         this.delegatesUri = delegatesUri;
+        this.doneHandler = doneHandler;
 
         String delegatesSchema = ResourcesUtils.loadResource("gateleen_delegate_schema_delegates", true);
         this.delegateFactory = new DelegateFactory(monitoringHandler,selfClient,properties,delegatesSchema);
@@ -107,61 +114,86 @@ public class DelegateHandler implements Refreshable, LoggableResource {
      */
     public void init() {
         if ( ! initialized ) {
-            registerDelegateRegistrationHandler();
-            loadStoredDelegates();
+            // add all init methods here (!)
+            final List<Consumer<Handler<Void>>> initMethods = new ArrayList<>();
+            initMethods.add(this::registerDelegateRegistrationHandler);
+            initMethods.add(this::loadStoredDelegates);
+
+            // ready handler, calls the doneHandler when everything is done and the DelegateHandler is ready to use
+            Handler<Void> readyHandler = new Handler<Void>() {
+                // count of methods with may return an OK (ready)
+                private AtomicInteger readyCounter = new AtomicInteger(initMethods.size());
+
+                @Override
+                public void handle(Void aVoid) {
+                    if (readyCounter.decrementAndGet() == 0) {
+                        initialized = true;
+                        LOG.info("DelegateHandler is ready!");
+                        if (doneHandler != null) {
+                            doneHandler.handle(null);
+                        }
+                    }
+                }
+            };
+
+            initMethods.forEach(handlerConsumer -> handlerConsumer.accept(readyHandler));
         }
-        initialized = true;
     }
 
     /**
      * Loads the stored delegates during the
      * start sequence of the server.
+     *
+     * @param readyHandler
      */
-    private void loadStoredDelegates() {
-        HttpClientRequest selfRequest = selfClient.request(HttpMethod.GET, delegatesUri + "?expand=2", response -> {
-            // response OK
-            if (response.statusCode() == StatusCode.OK.getStatusCode()) {
-                response.bodyHandler(event -> {
+    private void loadStoredDelegates(Handler<Void> readyHandler) {
+        delegateStorage.get(delegatesUri, buffer -> {
+            // clear all delegates
+            delegateMap.clear();
 
-                    // clear all delegates
-                    delegateMap.clear();
+            if (buffer != null) {
+                JsonObject listOfDelegates = new JsonObject(buffer.toString());
+                JsonArray delegateNames = listOfDelegates.getJsonArray("delegates");
+                Iterator<String> keys = delegateNames.getList().iterator();
 
-                    /*
-                     * the body of our response contains
-                     * every delegate in the storage.
-                     */
+                final AtomicInteger storedDelegateCount = new AtomicInteger(delegateNames.getList().size());
 
-                    JsonObject responseObject = new JsonObject(event.toString());
+                // go through the delegates ...
+                while( keys.hasNext() ) {
+                    final String key = keys.next().replace("/", "");
 
-                    if (responseObject.getValue("delegates") instanceof JsonObject) {
-                        JsonObject delegates = responseObject.getJsonObject("delegates");
-
-                        for (String delegateName : delegates.fieldNames()) {
-                            JsonObject delegateContent = delegates.getJsonObject(delegateName);
-                            JsonObject delegateDefinition = delegateContent.getJsonObject("definition");
-                            LOG.info("Loading delegate: {}", delegateName );
-                            registerDelegate(Buffer.buffer(delegateDefinition.toString()), delegateName);
+                    // ... and load each one
+                    delegateStorage.get(delegatesUri + key + "/definition", delegateBody -> {
+                        if ( delegateBody != null ) {
+                            LOG.info("Loading delegate: {}", key );
+                            registerDelegate(delegateBody, key);
                         }
-                    } else {
-                        LOG.info("Currently are no delegates stored!");
-                    }
-                });
-            } else if (response.statusCode() == StatusCode.NOT_FOUND.getStatusCode()) {
-                LOG.debug("No delegates previously stored");
+                        else {
+                            LOG.warn("Could not get URL '" + delegatesUri + key + "/definition'.");
+                        }
+
+                        // send a ready flag
+                        if ( storedDelegateCount.decrementAndGet() == 0 && readyHandler != null ) {
+                            readyHandler.handle( null );
+                        }
+                    });
+                }
             } else {
-                LOG.error("Delegates could not be loaded.");
+                LOG.debug("No delegates previously stored");
+                // send a ready flag
+                if ( readyHandler != null ) {
+                    readyHandler.handle( null );
+                }
             }
         });
-
-        selfRequest.setTimeout(120000);
-        selfRequest.end();
     }
 
     /**
      * Registers all needed handlers for the
      * delegate registration / unregistration.
+     * @param readyHandler
      */
-    private void registerDelegateRegistrationHandler() {
+    private void registerDelegateRegistrationHandler(Handler<Void> readyHandler) {
         if ( LOG.isTraceEnabled()) {
             LOG.trace("registerDelegateRegistrationHandler");
         }
@@ -173,7 +205,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
                 final String[] messages = delegateEvent.body().split(";");
 
                 if ( messages != null ) {
-                    storage.get(messages[MESSAGE_URL], buffer -> {
+                    delegateStorage.get(messages[MESSAGE_URL], buffer -> {
                         if (buffer != null) {
                             registerDelegate(buffer, messages[MESSAGE_NAME]);
                         } else {
@@ -194,6 +226,9 @@ public class DelegateHandler implements Refreshable, LoggableResource {
                 unregisterDelegate(delegateName.body());
             }
         });
+
+        // method done / no async processing pending
+        readyHandler.handle(null);
     }
 
     /**
@@ -259,8 +294,8 @@ public class DelegateHandler implements Refreshable, LoggableResource {
                 return;
             }
 
-            // if everything is fine, put it to the storage
-            storage.put(request.uri(),request.headers(), buffer, status -> {
+            // if everything is fine, put it to the delegateStorage
+            delegateStorage.put(request.uri(),request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode() ) {
                     if(logDelegateChanges){
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
@@ -285,7 +320,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
         }
 
         String delegateName = getDelegateName(request.uri());
-        storage.delete(delegatesUri + delegateName, status -> {
+        delegateStorage.delete(delegatesUri + delegateName, status -> {
             vertx.eventBus().publish(REMOVE_DELEGATE_ADDRESS, delegateName);
             request.response().end();
         });
@@ -373,7 +408,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
 
     @Override
     public void refresh() {
-        loadStoredDelegates();
+        loadStoredDelegates(null);
     }
 
     @Override
