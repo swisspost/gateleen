@@ -26,9 +26,9 @@ public class HookJsUITest extends AbstractTest {
     @BeforeClass
     public static void setupChromeDriver() {
 
-        if (System.getProperty("webdriver.chrome.driver") == null) {
-            System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver");
-        }
+//        if (System.getProperty("webdriver.chrome.driver") == null) {
+            System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver/chromedriver");
+//        }
 
         webDriver = new ChromeDriver();
     }
