@@ -50,11 +50,37 @@ dependencies {
 }
 
 test {
+    onlyIf {
+        project.hasProperty("integrationTests")
+    }
+}
+
+//test {
 //    onlyIf {
 //        project.hasProperty("integrationTests")
 //    }
-    filter {
-        //specific test class, wildcard for packages
-        includeTestsMatching "*.HookJsUITest"
-    }
-}
+//
+//    exclude "*.HookJsUITest"
+//
+//    filter {
+//        //specific test class, wildcard for packages
+//        includeTestsMatching "*.RouteTest"
+//        includeTestsMatching "*.HookJsUITest"
+//    }
+//}
+
+//task integrationTests {
+//
+//    if (project.hasProperty("nonUiTests")) {
+//        tasks.gateleen-test.test
+//    }
+//
+//    filter {
+//        onlyIf {
+//            project.hasProperty("onlyUITests")
+//        }
+//        //specific test class, wildcard for packages
+//        includeTestsMatching "*.HookJsUITest"
+//    }
+//
+//}
