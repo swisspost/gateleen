@@ -29,6 +29,7 @@ import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
@@ -77,7 +78,8 @@ public class HookHandler implements LoggableResource {
     private Logger log = LoggerFactory.getLogger(HookHandler.class);
 
     private Vertx vertx;
-    private final ResourceStorage storage;
+    private final ResourceStorage userProfileStorage;
+    private final ResourceStorage hookStorage;
     private MonitoringHandler monitoringHandler;
     private LoggingResourceManager loggingResourceManager;
     private final HttpClient selfClient;
@@ -92,6 +94,9 @@ public class HookHandler implements LoggableResource {
 
     private boolean logHookConfigurationResourceChanges = false;
 
+    private Handler<Void> doneHandler;
+
+
     /**
      * Creates a new HookHandler.
      * 
@@ -103,8 +108,11 @@ public class HookHandler implements LoggableResource {
      * @param userProfilePath userProfilePath
      * @param hookRootUri hookRootUri
      */
-    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri) {
-        this(vertx,selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, new QueueClient(vertx, monitoringHandler));
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
+                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       String userProfilePath, String hookRootUri) {
+        this(vertx,selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+                new QueueClient(vertx, monitoringHandler));
     }
 
 
@@ -120,12 +128,18 @@ public class HookHandler implements LoggableResource {
      * @param hookRootUri hookRootUri
      * @param requestQueue requestQueue
      */
-    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
-        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, requestQueue, false);
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
+                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
+        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+                requestQueue, false);
     }
 
-    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
-        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri, requestQueue, false, null);
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
+                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
+        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+                requestQueue, false, null);
     }
 
     /**
@@ -142,11 +156,38 @@ public class HookHandler implements LoggableResource {
      * @param listableRoutes listableRoutes
      * @param reducedPropagationManager reducedPropagationManager
      */
-    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes, ReducedPropagationManager reducedPropagationManager) {
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
+                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
+                       ReducedPropagationManager reducedPropagationManager) {
+        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+                requestQueue, listableRoutes, reducedPropagationManager, null, storage);
+    }
+
+    /**
+     * Creates a new HookHandler.
+     *
+     * @param vertx vertx
+     * @param selfClient selfClient
+     * @param userProfileStorage userProfileStorage - where the user profiles are stored
+     * @param loggingResourceManager loggingResourceManager
+     * @param monitoringHandler monitoringHandler
+     * @param userProfilePath userProfilePath
+     * @param hookRootUri hookRootUri
+     * @param requestQueue requestQueue
+     * @param listableRoutes listableRoutes
+     * @param reducedPropagationManager reducedPropagationManager
+     * @param doneHandler doneHandler
+     * @param hookStorage hookStorage - where the hooks are stored
+     */
+    public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
+                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
+                       ReducedPropagationManager reducedPropagationManager, Handler doneHandler, ResourceStorage hookStorage) {
         log.debug("Creating HookHandler ...");
         this.vertx = vertx;
         this.selfClient = selfClient;
-        this.storage = storage;
+        this.userProfileStorage = userProfileStorage;
         this.loggingResourceManager = loggingResourceManager;
         this.monitoringHandler = monitoringHandler;
         this.userProfilePath = userProfilePath;
@@ -157,16 +198,44 @@ public class HookHandler implements LoggableResource {
         listenerRepository = new LocalListenerRepository();
         routeRepository = new LocalRouteRepository();
         collectionContentComparator = new CollectionContentComparator();
+        this.doneHandler = doneHandler;
+        this.hookStorage = hookStorage;
     }
 
     public void init() {
-        registerListenerRegistrationHandler();
-        registerRouteRegistrationHandler();
+        // add all init methods here (!)
+        final List<Consumer<Handler<Void>>> initMethods = new ArrayList<>();
+        initMethods.add(this::registerListenerRegistrationHandler);
+        initMethods.add(this::registerRouteRegistrationHandler);
+        initMethods.add(this::loadStoredListeners);
+        initMethods.add(this::loadStoredRoutes);
+        initMethods.add(this::registerCleanupHandler);
 
-        loadStoredListeners();
-        loadStoredRoutes();
+        // ready handler, calls the doneHandler when everything is done and the HookHandler is ready to use
+        Handler<Void> readyHandler = new Handler<Void>() {
+            // count of methods with may return an OK (ready)
+            private AtomicInteger readyCounter = new AtomicInteger(initMethods.size());
 
-        registerCleanupHandler();
+            @Override
+            public void handle(Void aVoid) {
+                if ( readyCounter.decrementAndGet() == 0 ) {
+                    log.info("HookHandler is ready!");
+                    if ( doneHandler != null ) {
+                        doneHandler.handle(null);
+                    }
+                }
+            }
+        };
+
+        initMethods.forEach( handlerConsumer -> handlerConsumer.accept(readyHandler) );
+
+//        registerListenerRegistrationHandler(readyHandler);
+//        registerRouteRegistrationHandler(readyHandler);
+
+//        loadStoredListeners(readyHandler);
+//        loadStoredRoutes(readyHandler);
+
+//        registerCleanupHandler(readyHandler);
     }
 
     @Override
@@ -176,8 +245,10 @@ public class HookHandler implements LoggableResource {
 
     /**
      * Registers a cleanup timer
+     *
+     * @param readyHandler - the ready handler
      */
-    private void registerCleanupHandler() {
+    private void registerCleanupHandler(Handler<Void> readyHandler) {
         vertx.setPeriodic(DEFAULT_CLEANUP_TIME, new Handler<Long>() {
             public void handle(Long timerID) {
                 log.trace("Running hook cleanup ...");
@@ -206,134 +277,117 @@ public class HookHandler implements LoggableResource {
                 log.trace("done");
             }
         });
+
+        // method done / no async processing pending
+        readyHandler.handle(null);
     }
 
     /**
      * Loads the stored routes
-     * from the resource storage,
+     * from the resource hookStorage,
      * if any are available.
+     *
+     * @param readyHandler - the ready handler
      */
-    private void loadStoredRoutes() {
+    private void loadStoredRoutes(Handler<Void> readyHandler) {
         log.debug("loadStoredRoutes");
 
-        /*
-         * In order to get this working, we
-         * have to create a self request
-         * to see if there are any routes
-         * stored.
-         */
+        // load the names of the routes from the hookStorage
+        final String routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
 
-        HttpClientRequest selfRequest = selfClient.request(HttpMethod.GET, hookRootUri + HOOK_ROUTE_STORAGE_PATH + "?expand=1", response -> {
+        hookStorage.get(routeBase, buffer -> {
+            if (buffer != null) {
+                JsonObject listOfRoutes = new JsonObject(buffer.toString());
+                JsonArray routeNames = listOfRoutes.getJsonArray("routes");
+                Iterator<String> keys = routeNames.getList().iterator();
 
-            // response OK
-            if (response.statusCode() == StatusCode.OK.getStatusCode()) {
-                makeResponse(response);
-            } else if (response.statusCode() == StatusCode.NOT_FOUND.getStatusCode()) {
-                log.debug("No route previously stored");
-            } else {
-                log.error("Routes could not be loaded.");
-            }
-        });
+                final AtomicInteger storedRoutesCount = new AtomicInteger(routeNames.getList().size());
 
-        selfRequest.setTimeout(120000); // avoids blocking other requests
+                // go through the routes ...
+                while( keys.hasNext() ) {
+                    final String key = keys.next();
 
-        selfRequest.end();
-    }
+                    // ... and load each one
+                    hookStorage.get(routeBase + key, routeBody -> {
+                        if ( routeBody != null ) {
+                            registerRoute(routeBody);
+                        }
+                        else {
+                            log.warn("Could not get URL '" + routeBase + key + "' (getting hook route).");
+                        }
 
-    private void makeResponse(HttpClientResponse response) {
-        response.bodyHandler(event -> {
-
-            /*
-             * the body of our response contains
-             * every storage id for each registred
-             * route in the storage.
-             */
-
-            JsonObject responseObject = new JsonObject(event.toString());
-            if (responseObject.getValue("routes") instanceof JsonObject) {
-                JsonObject routes = responseObject.getJsonObject("routes");
-
-                for (String routeStorageId : routes.fieldNames()) {
-                    log.info("Loading route with storage id: " + routeStorageId);
-
-                    JsonObject storageObject = routes.getJsonObject(routeStorageId);
-                    registerRoute(Buffer.buffer(storageObject.toString()));
+                        // send a ready flag
+                        if ( storedRoutesCount.decrementAndGet() == 0 ) {
+                            readyHandler.handle( null );
+                        }
+                    });
                 }
             } else {
-                log.info("Currently are no routes stored!");
+                log.warn("Could not get URL '" + routeBase + "' (getting hook route).");
+                // send a ready flag
+                readyHandler.handle( null );
             }
         });
     }
 
     /**
      * Loads the stored listeners
-     * from the resource storage, if
+     * from the resource hookStorage, if
      * any are available.
+     * @param readyHandler - the ready handler
      */
-    private void loadStoredListeners() {
+    private void loadStoredListeners(final Handler<Void> readyHandler) {
         log.debug("loadStoredListeners");
-        /*
-         * In order to get this working, we
-         * have to create a self request
-         * to see if there are any listeners
-         * stored.
-         */
 
-        HttpClientRequest selfRequest = selfClient.request(HttpMethod.GET, hookRootUri + HOOK_LISTENER_STORAGE_PATH + "?expand=1", new Handler<HttpClientResponse>() {
-            public void handle(final HttpClientResponse response) {
+        // load the names of the listener from the hookStorage
+        final String listenerBase = hookRootUri + HOOK_LISTENER_STORAGE_PATH;
+        hookStorage.get(listenerBase, buffer -> {
+            if (buffer != null) {
+                JsonObject listOfListeners = new JsonObject(buffer.toString());
+                JsonArray listenerNames = listOfListeners.getJsonArray("listeners");
+                Iterator<String> keys = listenerNames.getList().iterator();
 
-                // response OK
-                if (response.statusCode() == StatusCode.OK.getStatusCode()) {
-                    response.bodyHandler(new Handler<Buffer>() {
+                final AtomicInteger storedListenerCount = new AtomicInteger(listenerNames.getList().size());
 
-                        @Override
-                        public void handle(Buffer event) {
+                // go through the listeners ...
+                while( keys.hasNext() ) {
+                    final String key = keys.next();
 
-                            /*
-                             * the body of our response contains
-                             * every storage id for each registred
-                             * listener in the storage.
-                             */
+                    // ... and load each one
+                    hookStorage.get(listenerBase + key, listenerBody -> {
+                        if ( listenerBody != null ) {
+                            registerListener(listenerBody);
+                        }
+                        else {
+                            log.warn("Could not get URL '" + listenerBase + key + "' (getting hook listener).");
+                        }
 
-                            JsonObject responseObject = new JsonObject(event.toString());
-
-                            if (responseObject.getValue("listeners") instanceof JsonObject) {
-                                JsonObject listeners = responseObject.getJsonObject("listeners");
-
-                                for (String listenerStorageId : listeners.fieldNames()) {
-                                    log.info("Loading listener with storage id: " + listenerStorageId);
-
-                                    JsonObject storageObject = listeners.getJsonObject(listenerStorageId);
-                                    registerListener(Buffer.buffer(storageObject.toString()));
-                                }
-                            } else {
-                                log.info("Currently are no listeners stored!");
-                            }
+                        // send a ready flag
+                        if ( storedListenerCount.decrementAndGet() == 0 ) {
+                            readyHandler.handle( null );
                         }
                     });
-                } else if (response.statusCode() == StatusCode.NOT_FOUND.getStatusCode()) {
-                    log.debug("No listener previously stored");
-                } else {
-                    log.error("Listeners could not be loaded.");
                 }
+            } else {
+                log.warn("Could not get URL '" + listenerBase + "' (getting hook listener).");
+                // send a ready flag
+                readyHandler.handle( null );
             }
         });
-
-        selfRequest.setTimeout(120000); // avoids blocking other requests
-
-        selfRequest.end();
     }
 
     /**
      * Registers all needed handlers for the
      * route registration / unregistration.
+     *
+     * @param readyHandler - the ready handler
      */
-    private void registerRouteRegistrationHandler() {
+    private void registerRouteRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
         vertx.eventBus().consumer(SAVE_ROUTE_ADDRESS, new Handler<Message<String>>() {
             @Override
             public void handle(final Message<String> event) {
-                storage.get(event.body(), buffer -> {
+                hookStorage.get(event.body(), buffer -> {
                     if (buffer != null) {
                         registerRoute(buffer);
                     } else {
@@ -350,18 +404,21 @@ public class HookHandler implements LoggableResource {
                 unregisterRoute(event.body());
             }
         });
+
+        // method done / no async processing pending
+        readyHandler.handle(null);
     }
 
     /**
      * Registers all needed handlers for the
      * listener registration / unregistration.
      */
-    private void registerListenerRegistrationHandler() {
+    public void registerListenerRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
         vertx.eventBus().consumer(SAVE_LISTENER_ADDRESS, new Handler<Message<String>>() {
             @Override
             public void handle(final Message<String> event) {
-                storage.get(event.body(), buffer -> {
+                hookStorage.get(event.body(), buffer -> {
                     if (buffer != null) {
                         registerListener(buffer);
                     } else {
@@ -378,6 +435,9 @@ public class HookHandler implements LoggableResource {
                 unregisterListener(event.body());
             }
         });
+
+        // method done / no async processing pending
+        readyHandler.handle(null);
     }
 
     /**
@@ -793,7 +853,7 @@ public class HookHandler implements LoggableResource {
      * This method is called after an incoming route
      * unregistration is detected.
      * This method deletes the route from the resource
-     * storage.
+     * hookStorage.
      * 
      * @param request request
      */
@@ -803,7 +863,7 @@ public class HookHandler implements LoggableResource {
         // eg. /server/hooks/v1/registrations/+my+storage+id+
         final String routeStorageUri = hookRootUri + HOOK_ROUTE_STORAGE_PATH + getStorageIdentifier(request.uri());
 
-        storage.delete(routeStorageUri, status -> {
+        hookStorage.delete(routeStorageUri, status -> {
             /*
              * In case of an unregistration, it does not matter,
              * if the route is still stored in the resource
@@ -882,7 +942,7 @@ public class HookHandler implements LoggableResource {
             }
             storageObject.put(HOOK, hook);
             Buffer buffer = Buffer.buffer(storageObject.toString());
-            storage.put(routeStorageUri, request.headers(), buffer, status -> {
+            hookStorage.put(routeStorageUri, request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
                     if(logHookConfigurationResourceChanges){
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
@@ -922,7 +982,7 @@ public class HookHandler implements LoggableResource {
         // eg. /server/hooks/v1/registrations/listeners/http+myservice+1
         final String listenerStorageUri = hookRootUri + HOOK_LISTENER_STORAGE_PATH + getUniqueListenerId(request.uri());
 
-        storage.delete(listenerStorageUri, status -> {
+        hookStorage.delete(listenerStorageUri, status -> {
             /*
              * In case of an unregistration, it does not matter,
              * if the listener is still stored in the resource
@@ -1012,7 +1072,7 @@ public class HookHandler implements LoggableResource {
             storageObject.put(HOOK, hook);
 
             Buffer buffer = Buffer.buffer(storageObject.toString());
-            storage.put(listenerStorageUri, request.headers(), buffer, status -> {
+            hookStorage.put(listenerStorageUri, request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
                     if(logHookConfigurationResourceChanges){
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
@@ -1357,7 +1417,7 @@ public class HookHandler implements LoggableResource {
      * @return Route
      */
     private Route createRoute(String urlPattern, HttpHook hook) {
-        return new Route(vertx, storage, loggingResourceManager, monitoringHandler, userProfilePath, hook, urlPattern, selfClient);
+        return new Route(vertx, userProfileStorage, loggingResourceManager, monitoringHandler, userProfilePath, hook, urlPattern, selfClient);
     }
 
     /**
