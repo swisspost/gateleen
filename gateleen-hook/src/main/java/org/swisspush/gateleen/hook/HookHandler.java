@@ -228,14 +228,6 @@ public class HookHandler implements LoggableResource {
         };
 
         initMethods.forEach( handlerConsumer -> handlerConsumer.accept(readyHandler) );
-
-//        registerListenerRegistrationHandler(readyHandler);
-//        registerRouteRegistrationHandler(readyHandler);
-
-//        loadStoredListeners(readyHandler);
-//        loadStoredRoutes(readyHandler);
-
-//        registerCleanupHandler(readyHandler);
     }
 
     @Override
