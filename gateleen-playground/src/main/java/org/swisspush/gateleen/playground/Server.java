@@ -193,7 +193,7 @@ public class Server extends AbstractVerticle {
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
                 schedulerResourceManager.enableResourceLogging(true);
                 zipExtractHandler = new ZipExtractHandler(selfClient);
-                delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/delegate/v1/delegates/", props);
+                delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/delegate/v1/delegates/", props, null);
                 delegateHandler.enableResourceLogging(true);
                 router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
                         (Handler<Void>) aVoid -> {
