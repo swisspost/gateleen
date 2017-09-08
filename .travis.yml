@@ -10,8 +10,10 @@ before_install:
   - sudo apt-get install -y libappindicator1 fonts-liberation
   - wget http://www.slimjet.com/chrome/download-chrome.php?file=lnx%2Fchrome64_48.0.2564.109.deb
   - sudo dpkg -i download-chrome.php?file=lnx%2Fchrome64_48.0.2564.109.deb
+  - cd gateleen-test/src/test/resources/
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
   - unzip chromedriver_linux64.zip
+  - cd ..; cd ..; cd ..; cd ..
 script:
    - ./gradlew build
 #   - ./gradlew gateleen-test:startServer  (no logging, also waits for it to come up)
@@ -19,7 +21,7 @@ script:
    - sleep 15s
 #   - ./gradlew :gateleen-playground:uploadStaticFiles
    - ./gradlew :gateleen-playground:uploadStaticFiles
-   - ./gradlew :gateleen-test:test -PuiTests
+   - ./gradlew :gateleen-test:test -PuiTests -Dsel_chrome_driver=src/test/resources/chromedriver
 #   - ./gradlew gateleen-test:stopServer
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
    - ./gradlew :gateleen-test:test -PnonUiTests
