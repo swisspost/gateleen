@@ -49,38 +49,26 @@ dependencies {
     }
 }
 
-test {
-    onlyIf {
-        project.hasProperty("integrationTests")
-    }
-}
-
 //test {
 //    onlyIf {
 //        project.hasProperty("integrationTests")
 //    }
-//
-//    exclude "*.HookJsUITest"
-//
-//    filter {
-//        //specific test class, wildcard for packages
-//        includeTestsMatching "*.RouteTest"
-//        includeTestsMatching "*.HookJsUITest"
-//    }
 //}
 
-//task integrationTests {
-//
-//    if (project.hasProperty("nonUiTests")) {
-//        tasks.gateleen-test.test
-//    }
-//
-//    filter {
-//        onlyIf {
-//            project.hasProperty("onlyUITests")
-//        }
-//        //specific test class, wildcard for packages
-//        includeTestsMatching "*.HookJsUITest"
-//    }
-//
-//}
+test {
+    onlyIf {
+        project.hasProperty("nonUiTests") || project.hasProperty("uiTests")
+    }
+
+    systemProperty "sel_chrome_driver", System.getProperty("sel_chrome_driver")
+
+    filter {
+        if (project.hasProperty("nonUiTests")) {
+            exclude "org/swisspush/gateleen/hookjs/**"
+            include "org/swisspush/gateleen/**"
+        }
+        if (project.hasProperty("uiTests")) {
+            include "org/swisspush/gateleen/hookjs/**"
+        }
+    }
+}

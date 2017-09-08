@@ -19,16 +19,19 @@ import org.swisspush.gateleen.AbstractTest;
 import static com.jayway.awaitility.Awaitility.await;
 import static org.hamcrest.core.IsEqual.equalTo;
 
-public class HookJsUITest extends AbstractTest {
+public class HookJsUITest {
 
     private static WebDriver webDriver;
 
     @BeforeClass
     public static void setupChromeDriver() {
 
-//        if (System.getProperty("webdriver.chrome.driver") == null) {
-            System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver/chromedriver");
-//        }
+
+        if (System.getProperty("sel_chrome_driver") == null) {
+            System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver");
+        } else {
+            System.setProperty("webdriver.chrome.driver", System.getProperty("sel_chrome_driver"));
+        }
 
         webDriver = new ChromeDriver();
     }
@@ -36,23 +39,23 @@ public class HookJsUITest extends AbstractTest {
     @Test
     public void testSingleHook() throws InterruptedException {
 
-        webDriver.get("http://localhost:" + MAIN_PORT + ROOT + "/hooktest.html");
+        webDriver.get("http://localhost:7012/playground/hooktest.html");
 
+//        await().atMost(Duration.TWO_SECONDS).until(() ->
+//                webDriver.findElement(By.xpath("/html/body/pre")).getText(),
+//                equalTo("404 Not Found"));
+
+        WebElement buttonPlaceSingleHook = webDriver.findElement(By.id("psh"));
+        buttonPlaceSingleHook.click();
         await().atMost(Duration.TWO_SECONDS).until(() ->
-                webDriver.findElement(By.xpath("/html/body/pre")).getText(),
-                equalTo("404 Not Found"));
+                webDriver.findElement(By.xpath("//*[@id=\"hjsm\"]/li[1]")).getText(),
+                equalTo("Installing listener 1"));
 
-//        WebElement buttonPlaceSingleHook = webDriver.findElement(By.id("psh"));
-//        buttonPlaceSingleHook.click();
-//        await().atMost(Duration.TWO_SECONDS).until(() ->
-//                webDriver.findElement(By.xpath("//*[@id=\"hjsm\"]/li[1]")).getText(),
-//                equalTo("Installing listener 1"));
-//
-//        WebElement buttonPutSingle = webDriver.findElement(By.id("ps"));
-//        buttonPutSingle.click();
-//        await().atMost(Duration.TWO_SECONDS).until(() ->
-//                webDriver.findElement(By.xpath("//*[@id=\"hjsm\"]/li[2]")).getText(),
-//                equalTo("Listener 1 received:<Message 1>"));
+        WebElement buttonPutSingle = webDriver.findElement(By.id("ps"));
+        buttonPutSingle.click();
+        await().atMost(Duration.TWO_SECONDS).until(() ->
+                webDriver.findElement(By.xpath("//*[@id=\"hjsm\"]/li[2]")).getText(),
+                equalTo("Listener 1 received:<Message 1>"));
     }
 
     @AfterClass
