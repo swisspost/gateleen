@@ -27,11 +27,11 @@ public class HookJsUITest {
     public static void setupChromeDriver() {
 
 
-        if (System.getProperty("sel_chrome_driver") == null) {
-            System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver");
-        } else {
+//        if (System.getProperty("sel_chrome_driver") == null) {
+//            System.setProperty("webdriver.chrome.driver", "src/test/resources/chromedriver");
+//        } else {
             System.setProperty("webdriver.chrome.driver", System.getProperty("sel_chrome_driver"));
-        }
+//        }
 
         webDriver = new ChromeDriver();
     }

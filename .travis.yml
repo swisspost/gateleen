@@ -21,7 +21,7 @@ script:
    - sleep 10s
 #   - ./gradlew :gateleen-playground:uploadStaticFiles
    - ./gradlew :gateleen-playground:uploadStaticFiles
-   - ./gradlew :gateleen-test:test -PuiTests
+   - ./gradlew :gateleen-test:test -PuiTests -Dsel_chrome_driver=src/test/resources/chromedriver
 #   - ./gradlew gateleen-test:stopServer
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
    - ./gradlew :gateleen-test:test -PnonUiTests
