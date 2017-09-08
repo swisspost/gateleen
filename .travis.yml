@@ -16,9 +16,9 @@ before_install:
   - cd ..; cd ..; cd ..; cd ..
 script:
    - ./gradlew build
-#   - ./gradlew gateleen-test:startServer  (also waits for it to come up)
-   - java -jar gateleen-playground/build/libs/playground.jar &
-   - sleep 10s
+#   - ./gradlew gateleen-test:startServer  (no logging, also waits for it to come up)
+   - nohup java -jar gateleen-playground/build/libs/playground.jar &
+   - sleep 15s
 #   - ./gradlew :gateleen-playground:uploadStaticFiles
    - ./gradlew :gateleen-playground:uploadStaticFiles
    - ./gradlew :gateleen-test:test -PuiTests -Dsel_chrome_driver=src/test/resources/chromedriver
