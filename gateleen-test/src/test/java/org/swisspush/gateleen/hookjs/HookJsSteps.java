@@ -9,6 +9,7 @@
 package org.swisspush.gateleen.hookjs;
 
 import com.jayway.awaitility.Duration;
+import cucumber.api.PendingException;
 import cucumber.api.java.After;
 import cucumber.api.java.en.And;
 import cucumber.api.java.en.Given;
@@ -26,6 +27,11 @@ public class HookJsSteps {
 
     private static WebDriver webDriver;
 
+    @After
+    public static void quitBrowser(){
+        webDriver.quit();
+    }
+
     @Given("^Chrome has been started$")
     public void chromeHasBeenStarted() throws Throwable {
         System.setProperty("webdriver.chrome.driver", System.getProperty("sel_chrome_driver"));
@@ -35,42 +41,30 @@ public class HookJsSteps {
     @And("^the hook-js UI is displayed$")
     public void theHookJsUIIsDisplayed() throws Throwable {
         webDriver.get("http://localhost:7012/playground/hooktest.html");
-//        TODO: Check that page really is displayed.
+        given().await().atMost(Duration.TWO_SECONDS).until(() ->
+                        webDriver.findElement(By.xpath("/html/body/div/div/div/div[1]")).getText(),
+                equalTo("Hook JS Demo")
+        );
     }
 
     @When("^we click on the button \"([^\"]*)\"$")
-    public void weClickOnTheButton(String button) throws Throwable {
-
-        String buttonId;
-
-        switch (button) {
-            case "Place Single Hook":
-                buttonId = "psh";
-                break;
-
-            case "PUT Single":
-                buttonId = "ps";
-                break;
-
-            default:
-                buttonId = button;
-                break;
-        }
-
+    public void weClickOnTheButton(String buttonId) throws Throwable {
         WebElement webButton = webDriver.findElement(By.id(buttonId));
         webButton.click();
     }
 
-    @Then("^we see the message \"([^\"]*)\" on position (\\d+)$")
-    public void weSeeTheMessageOnPosition(String message, int indexOfMessage) throws Throwable {
+    @Then("^we see the message \"([^\"]*)\" at position (\\d+)$")
+    public void weSeeTheMessageAtPosition(String message, int indexOfMessage) throws Throwable {
         given().await().atMost(Duration.TWO_SECONDS).until(() ->
-                        webDriver.findElement(By.xpath("//*[@id=\"hjsm\"]/li[" + indexOfMessage + "]")).getText(),
+                        webDriver.findElement(By.xpath("//*[@id=\"hookjs messages\"]/li[" + indexOfMessage + "]")).getText(),
                 equalTo(message));
+
     }
 
-    @After
-    public static void quitBrowser(){
-        webDriver.quit();
+    @Then("^we see no message at position (\\d+)$")
+    public void weSeeNoMessageAtPosition(int indexOfMessage) throws Throwable {
+        given().await().atMost(Duration.TWO_SECONDS).until(() ->
+                webDriver.findElements(By.xpath("//*[@id=\"hookjs messages\"]/li[" + indexOfMessage + "]")).size(),
+                equalTo(0));
     }
-
 }

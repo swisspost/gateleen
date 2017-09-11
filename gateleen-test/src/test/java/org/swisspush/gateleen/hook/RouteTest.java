@@ -111,10 +111,6 @@ public class RouteTest extends AbstractTest {
                         .body(containsString("x-test1"))
                         .body(containsString("x-test2"))
         );
-//        String body = get(routedResource).getBody().asString();
-//        Assert.assertTrue(body.contains("x-test1"));
-//        Assert.assertTrue(body.contains("x-test2"));
-
         // unregister route
         TestUtils.unregisterRoute(requestUrl);
 
@@ -148,8 +144,10 @@ public class RouteTest extends AbstractTest {
 
         String body2 = "{ \"name\" : \"routePathTest\"}";
         given().body(body2).put(routedResource).then().assertThat().statusCode(200);
-        when().get(routedResource).then().assertThat().body(containsString(body2));
-        when().get(checkTarget).then().assertThat().body(containsString(body2));
+        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+                    when().get(routedResource).then().assertThat().body(containsString(body2));
+                    when().get(checkTarget).then().assertThat().body(containsString(body2));
+        });
 
         async.complete();
     }
@@ -187,8 +185,10 @@ public class RouteTest extends AbstractTest {
          */
         String body1 = "{ \"name\" : \"routeTest 1\"}";
         given().body(body1).put(routedResource).then().assertThat().statusCode(200);
-        when().get(routedResource).then().assertThat().body(containsString(body1));
-        when().get(checkTarget).then().assertThat().statusCode(404);
+        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+                    when().get(routedResource).then().assertThat().body(containsString(body1));
+                    when().get(checkTarget).then().assertThat().statusCode(404);
+        });
         delete(routedResource);
 
         // -------
@@ -207,8 +207,13 @@ public class RouteTest extends AbstractTest {
          */
         String body2 = "{ \"name\" : \"routeTest 2\"}";
         given().body(body2).put(routedResource).then().assertThat().statusCode(200);
-        when().get(routedResource).then().assertThat().body(containsString(body2));
-        when().get(checkTarget).then().assertThat().body(containsString(body2));
+        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+            when().get(routedResource).then().assertThat().body(containsString(body2));
+            when().get(checkTarget).then().assertThat().body(containsString(body2));
+        });
+//
+//                when().get(routedResource).then().assertThat().body(containsString(body2));
+//        when().get(checkTarget).then().assertThat().body(containsString(body2));
 
         // -------
 
@@ -217,8 +222,11 @@ public class RouteTest extends AbstractTest {
          * -------
          */
         delete(routedResource).then().assertThat().statusCode(200);
-        when().get(routedResource).then().assertThat().statusCode(404);
-        when().get(checkTarget).then().assertThat().statusCode(404);
+        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+                    when().get(routedResource).then().assertThat().statusCode(404);
+                    when().get(checkTarget).then().assertThat().statusCode(404);
+        });
+
 
         // -------
 
@@ -236,9 +244,11 @@ public class RouteTest extends AbstractTest {
          */
         String body3 = "{ \"name\" : \"routeTest 3\"}";
         given().body(body3).put(routedResource).then().assertThat().statusCode(200);
-        when().get(routedResource).then().assertThat().body(containsString(body3));
-        when().get(checkTarget).then().assertThat().statusCode(404);
-        delete(routedResource);
+        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+                    when().get(routedResource).then().assertThat().body(containsString(body3));
+                    when().get(checkTarget).then().assertThat().statusCode(404);
+                    delete(routedResource);
+        });
 
         // -------
         async.complete();

@@ -18,7 +18,7 @@ script:
    - ./gradlew build
 #   - ./gradlew gateleen-test:startServer  (no logging, also waits for it to come up)
    - nohup java -jar gateleen-playground/build/libs/playground.jar &
-   - sleep 15s
+   - sleep 5s
 #   - ./gradlew :gateleen-playground:uploadStaticFiles
    - ./gradlew :gateleen-playground:uploadStaticFiles
    - ./gradlew :gateleen-test:test -PuiTests -Dsel_chrome_driver=src/test/resources/chromedriver
