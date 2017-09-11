@@ -3,7 +3,7 @@ dist: precise
 jdk:
   - oraclejdk8
 services:
-   - redis-server
+  - redis-server
 before_install:
   - export DISPLAY=:99.0
   - sh -e /etc/init.d/xvfb start
@@ -16,13 +16,10 @@ before_install:
   - cd ..; cd ..; cd ..; cd ..
 script:
    - ./gradlew build
-#   - ./gradlew gateleen-test:startServer  (no logging, also waits for it to come up)
    - nohup java -jar gateleen-playground/build/libs/playground.jar &
    - sleep 5s
-#   - ./gradlew :gateleen-playground:uploadStaticFiles
    - ./gradlew :gateleen-playground:uploadStaticFiles
    - ./gradlew :gateleen-test:test -PuiTests -Dsel_chrome_driver=src/test/resources/chromedriver
-#   - ./gradlew gateleen-test:stopServer
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
    - ./gradlew :gateleen-test:test -PnonUiTests
    - ./gradlew jacocoTestReport

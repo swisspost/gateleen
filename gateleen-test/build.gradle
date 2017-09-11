@@ -40,15 +40,15 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core', module: 'jackson-annotations'
         exclude group: 'com.fasterxml.jackson.core', module: 'jackson-databind'
     }
-    compile (group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.+') {
+    testCompile (group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.+') {
         exclude group: 'org.seleniumhq.selenium', module: 'selenium-edge-driver'
         exclude group: 'org.seleniumhq.selenium', module: 'selenium-firefox-driver'
         exclude group: 'org.seleniumhq.selenium', module: 'selenium-ie-driver'
         exclude group: 'org.seleniumhq.selenium', module: 'selenium-opera-driver'
         exclude group: 'org.seleniumhq.selenium', module: 'selenium-safari-driver'
     }
-    testCompile (group: 'info.cukes', name: 'cucumber-java', version: '1.2.5')
-    testCompile (group: 'info.cukes', name: 'cucumber-junit', version: '1.2.5')
+    testCompile (group: 'info.cukes', name: 'cucumber-java', version: "$cukeVersion")
+    testCompile (group: 'info.cukes', name: 'cucumber-junit', version: "$cukeVersion")
 }
 
 test {
@@ -61,8 +61,8 @@ test {
     filter {
 
         if (project.hasProperty("nonUiTests")) {
-            exclude "org/swisspush/gateleen/hookjs/**"
             include "org/swisspush/gateleen/**"
+            exclude "org/swisspush/gateleen/hookjs/**"
         }
 
         if (project.hasProperty("uiTests")) {
