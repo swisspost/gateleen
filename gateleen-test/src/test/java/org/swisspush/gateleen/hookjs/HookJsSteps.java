@@ -28,7 +28,6 @@ public class HookJsSteps {
 
     @Given("^Chrome has been started$")
     public void chromeHasBeenStarted() throws Throwable {
-        System.setProperty("sel_chrome_driver", "/home/jonas/work/jrepo-local/tools/chromedrivers/chromedriver2-32");
         System.setProperty("webdriver.chrome.driver", System.getProperty("sel_chrome_driver"));
         webDriver = new ChromeDriver();
     }
