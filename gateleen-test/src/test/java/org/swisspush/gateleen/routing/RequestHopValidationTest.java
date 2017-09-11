@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.routing;
 
 import com.google.common.collect.ImmutableMap;
+import com.jayway.awaitility.Awaitility;
 import com.jayway.awaitility.Duration;
 import com.jayway.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
@@ -80,19 +81,19 @@ public class RequestHopValidationTest extends AbstractTest {
         when().get("/loop/4/resource").then().assertThat().statusCode(200);
 
         // get the test data via looping rules
-        com.jayway.awaitility.Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
+        Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
                 when().get("/loop/1/resource").then().assertThat()
                         .statusCode(500)
                         .statusLine(containsString("Request hops limit exceeded"))
                         .body(containsString(buildLimitExceededMessage(2)))
         );
-        com.jayway.awaitility.Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
+        Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
                 when().get("/loop/2/resource").then().assertThat()
                     .statusCode(500)
                     .statusLine(containsString("Request hops limit exceeded"))
                     .body(containsString(buildLimitExceededMessage(2)))
         );
-        com.jayway.awaitility.Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
+        Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
                 when().get("/loop/3/resource").then().assertThat()
                     .statusCode(200)
                     .body(not(containsString(buildLimitExceededMessage(2))))
@@ -205,14 +206,14 @@ public class RequestHopValidationTest extends AbstractTest {
         with().body("{\"request.hops.limit\":0}").put(ROUTING_CONFIG).then().assertThat().statusCode(200);
 
         // prepare test data
-        com.jayway.awaitility.Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
+        Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
                 with().body("{\"someKey\":"+System.currentTimeMillis()+"}").put("/loop/4/resource").then().assertThat()
                     .statusCode(500)
                     .statusLine(containsString("Request hops limit exceeded"))
                     .body(containsString(buildLimitExceededMessage(0)))
         );
 
-        com.jayway.awaitility.Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
+        Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
                 when().get("/loop/4/resource").then().assertThat()
                     .statusCode(500)
                     .statusLine(containsString("Request hops limit exceeded"))
@@ -240,7 +241,7 @@ public class RequestHopValidationTest extends AbstractTest {
         TestUtils.putRoutingRules(rules);
 
         // configure request hops limit to 10
-        com.jayway.awaitility.Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
+        Awaitility.given().await().atMost(Duration.ONE_SECOND).until(() ->
                 with().body("{\"request.hops.limit\":10}").put(ROUTING_CONFIG).then().assertThat().statusCode(200)
         );
         validateRoutingConfig(true, 10);

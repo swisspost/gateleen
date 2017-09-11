@@ -1,11 +1,12 @@
 package org.swisspush.gateleen.hook;
 
+import com.jayway.awaitility.Awaitility;
+import com.jayway.awaitility.Duration;
 import com.jayway.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.AbstractTest;
@@ -103,9 +104,16 @@ public class RouteTest extends AbstractTest {
         TestUtils.registerRoute(requestUrl, target, methods, staticHeaders);
 
         //
-        String body = get(routedResource).getBody().asString();
-        Assert.assertTrue(body.contains("x-test1"));
-        Assert.assertTrue(body.contains("x-test2"));
+
+        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() ->
+                when().get(routedResource).then().assertThat()
+                        .statusCode(200)
+                        .body(containsString("x-test1"))
+                        .body(containsString("x-test2"))
+        );
+//        String body = get(routedResource).getBody().asString();
+//        Assert.assertTrue(body.contains("x-test1"));
+//        Assert.assertTrue(body.contains("x-test2"));
 
         // unregister route
         TestUtils.unregisterRoute(requestUrl);

@@ -47,13 +47,9 @@ dependencies {
         exclude group: 'org.seleniumhq.selenium', module: 'selenium-opera-driver'
         exclude group: 'org.seleniumhq.selenium', module: 'selenium-safari-driver'
     }
+    testCompile (group: 'info.cukes', name: 'cucumber-java', version: '1.2.5')
+    testCompile (group: 'info.cukes', name: 'cucumber-junit', version: '1.2.5')
 }
-
-//test {
-//    onlyIf {
-//        project.hasProperty("integrationTests")
-//    }
-//}
 
 test {
     onlyIf {
@@ -63,12 +59,16 @@ test {
     systemProperty "sel_chrome_driver", System.getProperty("sel_chrome_driver")
 
     filter {
+
         if (project.hasProperty("nonUiTests")) {
             exclude "org/swisspush/gateleen/hookjs/**"
             include "org/swisspush/gateleen/**"
         }
+
         if (project.hasProperty("uiTests")) {
             include "org/swisspush/gateleen/hookjs/**"
         }
     }
+
+    outputs.upToDateWhen { false }
 }
