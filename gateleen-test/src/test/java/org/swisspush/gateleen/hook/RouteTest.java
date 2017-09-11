@@ -211,9 +211,6 @@ public class RouteTest extends AbstractTest {
             when().get(routedResource).then().assertThat().body(containsString(body2));
             when().get(checkTarget).then().assertThat().body(containsString(body2));
         });
-//
-//                when().get(routedResource).then().assertThat().body(containsString(body2));
-//        when().get(checkTarget).then().assertThat().body(containsString(body2));
 
         // -------
 
@@ -226,7 +223,6 @@ public class RouteTest extends AbstractTest {
                     when().get(routedResource).then().assertThat().statusCode(404);
                     when().get(checkTarget).then().assertThat().statusCode(404);
         });
-
 
         // -------
 

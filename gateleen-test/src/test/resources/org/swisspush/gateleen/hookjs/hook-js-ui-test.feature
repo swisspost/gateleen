@@ -56,14 +56,3 @@ Feature: hook-js UI Test
     And we click on the button "Place Collection Fetching Hook"
     Then we see the message "Installing listener 2" at position 3
     And we see no message at position 4
-
-
-
-
-
-
-
-
-
-
-

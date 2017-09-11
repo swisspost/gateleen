@@ -53,19 +53,19 @@ dependencies {
 
 test {
     onlyIf {
-        project.hasProperty("nonUiTests") || project.hasProperty("uiTests")
+        project.hasProperty("nonUiIntegrationTests") || project.hasProperty("uiIntegrationTests")
     }
 
     systemProperty "sel_chrome_driver", System.getProperty("sel_chrome_driver")
 
     filter {
 
-        if (project.hasProperty("nonUiTests")) {
+        if (project.hasProperty("nonUiIntegrationTests")) {
             include "org/swisspush/gateleen/**"
             exclude "org/swisspush/gateleen/hookjs/**"
         }
 
-        if (project.hasProperty("uiTests")) {
+        if (project.hasProperty("uiIntegrationTests")) {
             include "org/swisspush/gateleen/hookjs/**"
         }
     }

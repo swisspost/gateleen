@@ -19,9 +19,9 @@ script:
    - nohup java -jar gateleen-playground/build/libs/playground.jar &
    - sleep 5s
    - ./gradlew :gateleen-playground:uploadStaticFiles
-   - ./gradlew :gateleen-test:test -PuiTests -Dsel_chrome_driver=src/test/resources/chromedriver
+   - ./gradlew :gateleen-test:test -PuiIntegrationTests -Dsel_chrome_driver=src/test/resources/chromedriver
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
-   - ./gradlew :gateleen-test:test -PnonUiTests
+   - ./gradlew :gateleen-test:test -PnonUiIntegrationTests
    - ./gradlew jacocoTestReport
 after_success:
   - bash <(curl -s https://codecov.io/bash)
