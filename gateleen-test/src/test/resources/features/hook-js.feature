@@ -1,4 +1,4 @@
-Feature: hook-js UI Test
+Feature: Hooking for JavaScript clients
 
   Background:
     Given Chrome has been started
