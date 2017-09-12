@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.lua.AbstractLuaScriptTest;
@@ -25,6 +26,7 @@ public class QueueCircuitBreakerUnlockSamplesLuaScriptTests extends AbstractLuaS
     private final String circuitQueuesKeyPrefix = "q:";
     private final String circuitQueuesKeySuffix = ":queues";
 
+//    @Ignore
     @Test
     public void testUnlockSamples(){
 

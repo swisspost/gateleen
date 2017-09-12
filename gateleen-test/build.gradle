@@ -40,10 +40,35 @@ dependencies {
         exclude group: 'com.fasterxml.jackson.core', module: 'jackson-annotations'
         exclude group: 'com.fasterxml.jackson.core', module: 'jackson-databind'
     }
+    testCompile (group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '3.+') {
+        exclude group: 'org.seleniumhq.selenium', module: 'selenium-edge-driver'
+        exclude group: 'org.seleniumhq.selenium', module: 'selenium-firefox-driver'
+        exclude group: 'org.seleniumhq.selenium', module: 'selenium-ie-driver'
+        exclude group: 'org.seleniumhq.selenium', module: 'selenium-opera-driver'
+        exclude group: 'org.seleniumhq.selenium', module: 'selenium-safari-driver'
+    }
+    testCompile (group: 'info.cukes', name: 'cucumber-java', version: "$cukeVersion")
+    testCompile (group: 'info.cukes', name: 'cucumber-junit', version: "$cukeVersion")
 }
 
 test {
     onlyIf {
-        project.hasProperty("integrationTests")
+        project.hasProperty("nonUiIntegrationTests") || project.hasProperty("uiIntegrationTests")
     }
+
+    systemProperty "sel_chrome_driver", System.getProperty("sel_chrome_driver")
+
+    filter {
+
+        if (project.hasProperty("nonUiIntegrationTests")) {
+            include "org/swisspush/gateleen/**"
+            exclude "org/swisspush/gateleen/hookjs/**"
+        }
+
+        if (project.hasProperty("uiIntegrationTests")) {
+            include "org/swisspush/gateleen/hookjs/**"
+        }
+    }
+
+    outputs.upToDateWhen { false }
 }
