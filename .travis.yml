@@ -1,4 +1,5 @@
 language: java
+# We use the deprecated travis environment "precise", because Gateleen does not yet support the newer redis version of the "trusty" environment.
 dist: precise
 jdk:
   - oraclejdk8
@@ -7,16 +8,18 @@ services:
 before_install:
   - export DISPLAY=:99.0
   - sh -e /etc/init.d/xvfb start
+#  Because newer versions of Chrome are not supported for the deprecated precise environment we are using,
+#  we download and install an older version of Chrome (v. 48), along with some dependencies.
   - sudo apt-get install -y libappindicator1 fonts-liberation
   - wget http://www.slimjet.com/chrome/download-chrome.php?file=lnx%2Fchrome64_48.0.2564.109.deb
   - sudo dpkg -i download-chrome.php?file=lnx%2Fchrome64_48.0.2564.109.deb
-  - cd gateleen-test/src/test/resources/
+#  We also download the newest version of Chrome Driver that still supports our old version of Chrome (v. 48).
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
-  - unzip chromedriver_linux64.zip
-  - cd ..; cd ..; cd ..; cd ..
+  - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
 script:
    - ./gradlew build
-   - nohup java -jar gateleen-playground/build/libs/playground.jar &
+   - java -jar gateleen-playground/build/libs/playground.jar &> /home/jonas/work/projects/gateleen/playground_logs.log &
+#   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
    - ./gradlew :gateleen-playground:uploadStaticFiles
    - ./gradlew :gateleen-test:test -PuiIntegrationTests -Dsel_chrome_driver=src/test/resources/chromedriver
