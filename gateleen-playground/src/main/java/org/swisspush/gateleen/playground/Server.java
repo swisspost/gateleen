@@ -3,7 +3,6 @@ package org.swisspush.gateleen.playground;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
@@ -16,16 +15,16 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
-import org.swisspush.gateleen.core.lock.Lock;
-import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
-import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
+import org.swisspush.gateleen.core.lock.Lock;
+import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
 import org.swisspush.gateleen.expansion.ZipExtractHandler;
@@ -34,7 +33,6 @@ import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.logging.RequestLoggingConsumer;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.monitoring.ResetMetricsController;
@@ -42,7 +40,8 @@ import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.*;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
+import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerHttpRequestHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
@@ -68,20 +67,19 @@ import java.util.Map;
  */
 public class Server extends AbstractVerticle {
 
-    public static final String PREFIX = RunConfig.SERVER_NAME + ".";
-    public static final String ROOT = "/playground";
-    public static final String SERVER_ROOT = ROOT + "/server";
-    public static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
+    private static final String PREFIX = RunConfig.SERVER_NAME + ".";
+    private static final String ROOT = "/playground";
+    private static final String SERVER_ROOT = ROOT + "/server";
+    private static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
 
-    public static final String ROLE_PATTERN = "^z-playground[-_](.*)$";
+    private static final String ROLE_PATTERN = "^z-playground[-_](.*)$";
 
-    public static final String JMX_DOMAIN = "org.swisspush.gateleen";
+    private static final String JMX_DOMAIN = "org.swisspush.gateleen";
     private HttpServer mainServer;
 
     private Authorizer authorizer;
     private Router router;
     private LoggingResourceManager loggingResourceManager;
-    private RequestLoggingConsumer requestLoggingConsumer;
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
     private SchedulerResourceManager schedulerResourceManager;
@@ -112,15 +110,14 @@ public class Server extends AbstractVerticle {
     private Logger log = LoggerFactory.getLogger(Server.class);
 
     public static void main(String[] args) {
-        Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event -> {
-            LoggerFactory.getLogger(Server.class).info("[_] Gateleen - http://localhost:7012/gateleen/");
-        });
+        Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event ->
+            LoggerFactory.getLogger(Server.class).info("[_] Gateleen - http://localhost:7012/gateleen/")
+        );
     }
 
     @Override
     public void start() {
         final LocalHttpClient selfClient = new LocalHttpClient(vertx);
-        final HttpClient selfClientExpansionHandler = selfClient;
         final JsonObject info = new JsonObject();
         final Map<String, Object> props = RunConfig.buildRedisProps("localhost", defaultRedisPort);
 
@@ -134,10 +131,10 @@ public class Server extends AbstractVerticle {
             String externalConfig = System.getProperty("org.swisspush.config.dir") + "/config.properties";
             Resource externalConfigResource = new FileSystemResource(externalConfig);
             if (externalConfigResource.exists()) {
-                log.info("Merging external config " + externalConfig);
+                log.info("Merging external config {}", externalConfig);
                 props.putAll(RunConfig.subMap(new ResourcePropertySource(externalConfigResource).getSource(), "redis."));
             } else {
-                log.info("No external config found under " + externalConfig);
+                log.info("No external config found under {}", externalConfig);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -156,7 +153,7 @@ public class Server extends AbstractVerticle {
                 storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
                 corsHandler = new CORSHandler();
                 deltaHandler = new DeltaHandler(redisClient, selfClient);
-                expansionHandler = new ExpansionHandler(vertx, storage, selfClientExpansionHandler, props, ROOT, RULES_ROOT);
+                expansionHandler = new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
@@ -164,12 +161,10 @@ public class Server extends AbstractVerticle {
                 configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
                 configurationResourceManager.enableResourceLogging(true);
                 String eventBusConfigurationResource = SERVER_ROOT + "/admin/v1/hookconfig";
-                eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event-", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
+                eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event/channels/", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
                 loggingResourceManager.enableResourceLogging(true);
-
-                requestLoggingConsumer = new RequestLoggingConsumer(vertx, loggingResourceManager);
 
                 userProfileHandler = new UserProfileHandler(vertx, storage, RunConfig.buildUserProfileConfiguration());
                 userProfileHandler.enableResourceLogging(true);

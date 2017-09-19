@@ -9,11 +9,13 @@
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
     <link href="css/gateleen.css" rel="stylesheet">
-    <script src="js/angularjs/angular.min.js"></script>
-    <script src="js/angularjs/angular-animate.js"></script>
 
     <script src="js/sockjs.js"></script>
     <script src="js/vertxbus.js"></script>
+
+    <script src="js/angularjs/angular.min.js"></script>
+    <script src="js/angularjs/angular-animate.js"></script>
+
     <script src="js/gateleen-hook.js"></script>
 </head>
 
@@ -76,31 +78,31 @@
             <div class="panel-body">
                 <div class="row">
                     <div class="col-md-3">
-                        <button type="button" class="btn btn-primary btn-lg btn-block"
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Single Hook"
                                 ng-click="hookJs.install('hook-demo')">Place Single Hook
                         </button>
                         </br>
-                        <button type="button" class="btn btn-primary btn-lg btn-block"
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Single Fetching Hook"
                                 ng-click="hookJs.install('hook-demo', 'single')">Place Single Fetching Hook
                         </button>
                         </br>
-                        <button type="button" class="btn btn-primary btn-lg btn-block"
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Collection Hook"
                                 ng-click="hookJs.install('messages/')">Place Collection Hook
                         </button>
                         </br>
-                        <button type="button" class="btn btn-primary btn-lg btn-block"
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Collection Fetching Hook"
                                 ng-click="hookJs.install('messages/', 'collection')">Place Collection Fetching Hook
                         </button>
                         </br>
-                        <button type="button" class="btn btn-primary btn-lg btn-block" ng-click="hookJs.remove()">
-                            Remove Last Hook
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Remove Last Hook"
+                                ng-click="hookJs.remove()">Remove Last Hook
                         </button>
                         </br>
-                        <button type="button" class="btn btn-primary btn-lg btn-block"
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="PUT Single"
                                 ng-click="hookJs.put('hook-demo')">PUT Single
                         </button>
                         </br>
-                        <button type="button" class="btn btn-primary btn-lg btn-block"
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="PUT Collection"
                                 ng-click="hookJs.put('messages', true)">PUT Collection
                         </button>
                     </div>
@@ -108,20 +110,20 @@
                     <div class="col-md-9">
                         <div class="row">
                             <div class="col-md-6">
-                                <button type="button" class="btn btn-info btn-lg btn-block"
+                                <button type="button" class="btn btn-info btn-lg btn-block" id="Clear log"
                                         ng-click="hookJs.clearLog()">Clear log
                                 </button>
                             </div>
 
                             <div class="col-md-6">
-                                <button type="button" class="btn btn-info btn-lg btn-block"
+                                <button type="button" class="btn btn-info btn-lg btn-block" id="Clear collection"
                                         ng-click="hookJs.clearCollection('messages')">Clear collection
                                 </button>
                             </div>
                         </div>
                         </br>
                         <div class="row" style="padding-right: 15px">
-                            <ul class="list-group" ng-show="hookJs.messages">
+                            <ul class="list-group" ng-show="hookJs.messages" id="hookjs messages">
                                 <li class="list-group-item" ng-repeat="message in hookJs.messages track by $index">
                                     {{message.info}}{{message.text}}
                                 </li>
