@@ -53,7 +53,7 @@ dependencies {
     compile project(':gateleen-scheduler')
     compile project(':gateleen-validation')
     compile project(':gateleen-hook')
-    compile project(':gateleen-hook-js')
+//    compile project(':gateleen-hook-js')
     compile project(':gateleen-packing')
     compile project(':gateleen-user')
     compile project(':gateleen-queue')
@@ -97,10 +97,10 @@ task uploadStaticFiles << {
     }
 }
 
-task copyHookJS(type: Copy) {
-    from project(':gateleen-hook-js').file("build/optimization/gateleen-hook-js/js/")
-    into file("${buildDir}/resources/main/playground/server/pages/js/")
-}
+//task copyHookJS(type: Copy) {
+//    from project(':gateleen-hook-js').file("build/optimization/gateleen-hook-js/js/")
+//    into file("${buildDir}/resources/main/playground/server/pages/js/")
+//}
 
 task unzipWebjars(type: Copy) {
     configurations.webJars.files.each { jar ->
@@ -121,7 +121,7 @@ task copyWebjars(type: Copy) {
 afterEvaluate {
     tasks.copyWebjars.dependsOn(tasks.unzipWebjars)
     tasks.build.dependsOn(tasks.copyWebjars)
-    tasks.build.dependsOn(tasks.copyHookJS)
+//    tasks.build.dependsOn(tasks.copyHookJS)
     tasks.build.finalizedBy(tasks.shadowJar)
 }
 
