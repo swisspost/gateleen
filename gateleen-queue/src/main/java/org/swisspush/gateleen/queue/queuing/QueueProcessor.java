@@ -60,8 +60,8 @@ public class QueueProcessor {
     }
 
     public void startQueueProcessing(){
-        log.info("about to register consumer to start queue processing");
         if(this.consumer == null || !this.consumer.isRegistered()) {
+            log.info("about to register consumer to start queue processing");
             this.consumer = vertx.eventBus().localConsumer(getQueueProcessorAddress(), (Handler<Message<JsonObject>>) message -> {
                 HttpRequest queuedRequestTry = null;
                 JsonObject jsonRequest = new JsonObject(message.body().getString("payload"));
@@ -100,11 +100,18 @@ public class QueueProcessor {
                 }
             });
             log.info("registered queue processing consumer on address: " + this.consumer.address());
+        } else {
+            log.info("queue processing is already started");
         }
     }
 
     public void stopQueueProcessing(){
-        this.consumer.unregister();
+        if(this.consumer != null && this.consumer.isRegistered()) {
+            log.info("about to unregister consumer to stop queue processing");
+            this.consumer.unregister();
+        } else {
+            log.info("queue processing is already stopped");
+        }
     }
 
     public boolean isQueueProcessingStarted(){
