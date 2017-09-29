@@ -56,6 +56,23 @@ public class QueueProcessorTest {
         });
     }
 
+    @Test
+    public void testQueueProcessorStartStopQueueProcessing(TestContext context){
+        QueueProcessor queueProcessor = new QueueProcessor(vertx, httpClient, monitoringHandler);
+        context.assertTrue(queueProcessor.isQueueProcessingStarted());
+
+        queueProcessor = new QueueProcessor(vertx, httpClient, monitoringHandler, null, true);
+        context.assertTrue(queueProcessor.isQueueProcessingStarted());
+
+        queueProcessor = new QueueProcessor(vertx, httpClient, monitoringHandler, null, false);
+        context.assertFalse(queueProcessor.isQueueProcessingStarted());
+
+        queueProcessor.startQueueProcessing();
+        context.assertTrue(queueProcessor.isQueueProcessingStarted());
+        queueProcessor.stopQueueProcessing();
+        context.assertFalse(queueProcessor.isQueueProcessingStarted());
+    }
+
     /**
      * Open circuits should not perform the actual queue requests. This tests verifies the following conditions:
      *
