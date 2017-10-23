@@ -17,14 +17,14 @@ before_install:
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
 script:
-   - ./gradlew build
+   - ./mvn install
    - java -jar gateleen-playground/build/libs/playground.jar &> playground_logs.log &
 #   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
-   - ./gradlew :gateleen-playground:uploadStaticFiles
-   - ./gradlew :gateleen-test:test -PuiIntegrationTests -Dsel_chrome_driver=src/test/resources/chromedriver
-   - kill $(ps -ef | grep playground | awk '{ print $2 }')
-   - ./gradlew :gateleen-test:test -PnonUiIntegrationTests
-   - ./gradlew jacocoTestReport
+ #  - ./gradlew :gateleen-playground:uploadStaticFiles
+ #  - ./gradlew :gateleen-test:test -PuiIntegrationTests -Dsel_chrome_driver=src/test/resources/chromedriver
+ #  - kill $(ps -ef | grep playground | awk '{ print $2 }')
+ #  - ./gradlew :gateleen-test:test -PnonUiIntegrationTests
+ #  - ./gradlew jacocoTestReport
 after_success:
   - bash <(curl -s https://codecov.io/bash)
