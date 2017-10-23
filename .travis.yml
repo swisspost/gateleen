@@ -16,8 +16,9 @@ before_install:
 #  We also download the newest version of Chrome Driver that still supports our old version of Chrome (v. 48).
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
+  - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
 script:
-   - ./mvn install
+   - ./mvnw install
    - java -jar gateleen-playground/build/libs/playground.jar &> playground_logs.log &
 #   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
