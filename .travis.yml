@@ -18,6 +18,7 @@ before_install:
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
   - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
   - npm install -g grunt-cli
+  - npm install node
 script:
    - ./mvnw install
    - java -jar gateleen-playground/build/libs/playground.jar &> playground_logs.log &
