@@ -109,7 +109,7 @@ public class MergeHandler {
                                     We may however improve the performance by using the following algorithm.
 
                                     First request the underlying collection (for all routes) and mark the ones,
-                                    which are not available (404 - NOT FOUND). This one’s doesn't have to be
+                                    which are not available (404 - NOT FOUND). This one's doesn't have to be
                                     requested again.
 
                                     If an error occured (not 404), create an error response.

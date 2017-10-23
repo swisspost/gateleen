@@ -81,8 +81,8 @@ public class Scheduler {
 
             /*
                 To guarantee that a scheduler is always triggered after the same interval,
-                we have to subtract the randomOffset from the current time. This way we don’t
-                change the behavior of the scheduler, because we simply “adjust” the current time.
+                we have to subtract the randomOffset from the current time. This way we don't
+                change the behavior of the scheduler, because we simply "adjust" the current time.
              */
             if (stringValue == null || Long.parseLong(stringValue) <= (System.currentTimeMillis() - randomOffset)) {
                 // Either first use of the scheduler or run time reached.
