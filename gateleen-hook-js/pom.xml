@@ -123,10 +123,9 @@
                         <!-- we need node in phase generate-resources, so do this before-->
                         <phase>initialize</phase>
                         <configuration>
-                            <skip>true</skip>
+                            <skip>${skip.node.install}</skip>
                             <nodeVersion>v0.12.2</nodeVersion>
                             <npmVersion>2.7.5</npmVersion>
-                            <downloadRoot>http://artifactory.pnet.ch/artifactory/files-local/node/</downloadRoot>
                         </configuration>
                     </execution>
 
