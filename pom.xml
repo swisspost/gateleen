@@ -13,8 +13,8 @@
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <targetHost></targetHost>
-        <targetPort></targetPort>
+        <targetHost>localhost</targetHost>
+        <targetPort>8080</targetPort>
     </properties>
 
     <modules>
