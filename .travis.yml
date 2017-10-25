@@ -18,7 +18,7 @@ before_install:
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
 script:
    - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
-   - java -jar gateleen-playground/build/libs/playground.jar &> playground_logs.log &
+   - java -jar gateleen-playground/targer/libs/gateleen-playground-1.1.9-SNAPSHOT-shaded.jar &> playground_logs.log &
 #   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
 
