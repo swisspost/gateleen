@@ -21,6 +21,14 @@ script:
    - java -jar gateleen-playground/build/libs/playground.jar &> playground_logs.log &
 #   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
+
+#TODO - ./gradlew :gateleen-playground:uploadStaticFiles
+   - mvn test -PuiIntegrationTests
+   #TODO - kill $(ps -ef | grep playground | awk '{ print $2 }')
+   - mvn test -PnonUiIntegrationTests
+#TODO - ./gradlew jacocoTestReport
+
+
  #  - ./gradlew :gateleen-playground:uploadStaticFiles
  #  - ./gradlew :gateleen-test:test -PuiIntegrationTests -Dsel_chrome_driver=src/test/resources/chromedriver
  #  - kill $(ps -ef | grep playground | awk '{ print $2 }')
