@@ -17,32 +17,51 @@
         <targetPort>8080</targetPort>
     </properties>
 
-    <modules>
-        <module>gateleen-core</module>
-        <module>gateleen-delegate</module>
-        <module>gateleen-delta</module>
-        <module>gateleen-expansion</module>
-        <module>gateleen-hook</module>
-        <module>gateleen-hook-js</module>
-        <!--<module>gateleen-integrationtest</module>-->
-        <module>gateleen-logging</module>
-        <module>gateleen-merge</module>
-        <module>gateleen-monitoring</module>
-        <module>gateleen-packing</module>
-        <!--<module>gateleen-performancetest</module>-->
-        <module>gateleen-player</module>
-        <module>gateleen-playground</module>
-        <module>gateleen-qos</module>
-        <module>gateleen-queue</module>
-        <module>gateleen-routing</module>
-        <module>gateleen-runconfig</module>
-        <module>gateleen-scheduler</module>
-        <module>gateleen-security</module>
-        <module>gateleen-test</module>
-        <module>gateleen-user</module>
-        <module>gateleen-validation</module>
-
-    </modules>
+    <profiles>
+        <profile>
+            <id>default</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <modules>
+                <module>gateleen-core</module>
+                <module>gateleen-delegate</module>
+                <module>gateleen-delta</module>
+                <module>gateleen-expansion</module>
+                <module>gateleen-hook</module>
+                <module>gateleen-hook-js</module>
+                <!--<module>gateleen-integrationtest</module>-->
+                <module>gateleen-logging</module>
+                <module>gateleen-merge</module>
+                <module>gateleen-monitoring</module>
+                <module>gateleen-packing</module>
+                <!--<module>gateleen-performancetest</module>-->
+                <module>gateleen-player</module>
+                <module>gateleen-playground</module>
+                <module>gateleen-qos</module>
+                <module>gateleen-queue</module>
+                <module>gateleen-routing</module>
+                <module>gateleen-runconfig</module>
+                <module>gateleen-scheduler</module>
+                <module>gateleen-security</module>
+                <module>gateleen-test</module>
+                <module>gateleen-user</module>
+                <module>gateleen-validation</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>uiIntegrationTests</id>
+            <modules>
+                <module>gateleen-test</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>nonUiIntegrationTests</id>
+            <modules>
+                <module>gateleen-test</module>
+            </modules>
+        </profile>
+    </profiles>
 
     <dependencyManagement>
         <dependencies>
