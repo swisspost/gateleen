@@ -23,7 +23,7 @@ script:
 #   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
 
-#TODO - ./gradlew :gateleen-playground:uploadStaticFiles
+   - mvn deploy -PuploadStaticFiles
    - mvn test -PuiIntegrationTests
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
    - mvn test -PnonUiIntegrationTests

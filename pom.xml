@@ -61,6 +61,12 @@
                 <module>gateleen-test</module>
             </modules>
         </profile>
+        <profile>
+            <id>uploadStaticFiles</id>
+            <modules>
+                <module>gateleen-playground</module>
+            </modules>
+        </profile>
     </profiles>
 
     <dependencyManagement>
