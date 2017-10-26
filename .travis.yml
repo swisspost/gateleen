@@ -17,16 +17,15 @@ before_install:
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
 install:
-   - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
-
+   - mvn install -Dmaven.javadoc.skip=true -B -V
 script:
-   - java -jar gateleen-playground/targer/libs/gateleen-playground-1.1.9-SNAPSHOT-shaded.jar &> playground_logs.log &
+   - java -jar gateleen-playground/targer/libs/playground.jar &> playground_logs.log &
 #   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
 
 #TODO - ./gradlew :gateleen-playground:uploadStaticFiles
    - mvn test -PuiIntegrationTests
-   #TODO - kill $(ps -ef | grep playground | awk '{ print $2 }')
+   - kill $(ps -ef | grep playground | awk '{ print $2 }')
    - mvn test -PnonUiIntegrationTests
 #TODO - ./gradlew jacocoTestReport
 

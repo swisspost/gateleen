@@ -165,6 +165,17 @@
                         <goals>
                             <goal>shade</goal>
                         </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <manifestEntries>
+                                        <Main-Class>org.swisspush.gateleen.playground.Server</Main-Class>
+                                    </manifestEntries>
+                                </transformer>
+                            </transformers>
+                            <finalName>playground</finalName>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
