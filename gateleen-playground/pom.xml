@@ -194,6 +194,38 @@
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <phase>deploy</phase>
+                                <id>unpack angularjs</id>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeGroupIds>org.webjars</includeGroupIds>
+                                    <includeArtifactIds>angularjs</includeArtifactIds>
+                                    <includes>**/*.js</includes>
+                                    <outputDirectory>${project.build.directory}/js/angularjs</outputDirectory>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <phase>deploy</phase>
+                                <id>unpack hook-js</id>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeGroupIds>org.swisspush.gateleen</includeGroupIds>
+                                    <includeArtifactIds>gateleen-hook-js</includeArtifactIds>
+                                    <includes>**/*.js</includes>
+                                    <outputDirectory>${project.build.directory}/js/hookjs</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-deploy-plugin</artifactId>
                         <configuration>
                             <skip>true</skip>
@@ -214,6 +246,46 @@
                                     <fromDir>${project.basedir}/src/main/resources/</fromDir>
                                     <includes>**</includes>
                                     <url>http://${targetHost}:${targetPort}</url>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>upload-pages</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>upload</goal>
+                                </goals>
+                                <configuration>
+                                    <fromDir>${project.basedir}/src/main/resources/playground/server/pages</fromDir>
+                                    <includes>**</includes>
+                                    <url>http://${targetHost}:${targetPort}/playground</url>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>upload-angularjs</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>upload</goal>
+                                </goals>
+                                <configuration>
+                                    <fromDir>
+                                        ${project.build.directory}/js/angularjs/META-INF/resources/webjars/angularjs/1.5.8/
+                                    </fromDir>
+                                    <includes>**</includes>
+                                    <url>http://${targetHost}:${targetPort}/playground/js/angularjs</url>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>upload-hookjs</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>upload</goal>
+                                </goals>
+                                <configuration>
+                                    <fromDir>
+                                        ${project.build.directory}/js/hookjs/META-INF/resources/webjars/gateleen-hook-js/1.1.9-SNAPSHOT/js
+                                    </fromDir>
+                                    <includes>**</includes>
+                                    <url>http://${targetHost}:${targetPort}/playground/js</url>
                                 </configuration>
                             </execution>
                         </executions>
