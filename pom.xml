@@ -15,6 +15,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <targetHost>localhost</targetHost>
         <targetPort>8989</targetPort>
+        <sel_chrome_driver>${project.basedir}/gateleen-test/src/test/resources/chromedriver</sel_chrome_driver>
     </properties>
 
     <profiles>
@@ -120,7 +121,7 @@
             <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
-                <version>19.0</version>
+                <version>22.0</version>
             </dependency>
             <dependency>
                 <groupId>com.github.fge</groupId>

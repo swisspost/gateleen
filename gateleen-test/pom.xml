@@ -292,6 +292,9 @@
                     <plugin>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
+                            <systemPropertyVariables>
+                                <sel_chrome_driver>${sel_chrome_driver}</sel_chrome_driver>
+                            </systemPropertyVariables>
                             <includes>
                                 <include>org/swisspush/gateleen/hookjs/**</include>
                             </includes>
