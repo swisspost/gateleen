@@ -32,7 +32,6 @@ public class CORSTest extends AbstractTest {
 
     @Test
     public void testGetForwarderWithoutOrigin(TestContext context) throws InterruptedException {
-        Async async = context.async();
         init(createForwarderRoutingRule());
         when().get("tests/gateleen/cors/TestResource").then().assertThat()
                 .statusCode(200)
@@ -40,12 +39,10 @@ public class CORSTest extends AbstractTest {
                 .header("Access-Control-Allow-Origin", is(nullValue()))
                 .header("Access-Control-Allow-Credentials", is(nullValue()))
                 .header("Access-Control-Allow-Methods", is(nullValue()));
-        async.complete();
     }
 
     @Test
     public void testGetForwarderWithOrigin(TestContext context) throws InterruptedException {
-        Async async = context.async();
         init(createForwarderRoutingRule());
         given().header("Origin", "http://127.0.0.1:8888").when().get("tests/gateleen/cors/TestResource").then().assertThat()
                 .statusCode(200)
@@ -53,12 +50,10 @@ public class CORSTest extends AbstractTest {
                 .header("Access-Control-Allow-Origin", is("http://127.0.0.1:8888"))
                 .header("Access-Control-Allow-Credentials", is("true"))
                 .header("Access-Control-Allow-Methods", is("GET, POST, OPTIONS, PUT, DELETE"));
-        async.complete();
     }
 
     @Test
     public void testGetStorageForwarderWithoutOrigin(TestContext context) throws InterruptedException {
-        Async async = context.async();
         init(createStorageForwarderRoutingRule());
         when().get("tests/gateleen/cors/TestResource").then().assertThat()
                 .statusCode(200)
@@ -66,12 +61,10 @@ public class CORSTest extends AbstractTest {
                 .header("Access-Control-Allow-Origin", is(nullValue()))
                 .header("Access-Control-Allow-Credentials", is(nullValue()))
                 .header("Access-Control-Allow-Methods", is(nullValue()));
-        async.complete();
     }
 
     @Test
     public void testGetStorageForwarderWithOrigin(TestContext context) throws InterruptedException {
-        Async async = context.async();
         init(createStorageForwarderRoutingRule());
         given().header("Origin", "http://127.0.0.1:8888").when().get("tests/gateleen/cors/TestResource").then().assertThat()
                 .statusCode(200)
@@ -79,8 +72,6 @@ public class CORSTest extends AbstractTest {
                 .header("Access-Control-Allow-Origin", is("http://127.0.0.1:8888"))
                 .header("Access-Control-Allow-Credentials", is("true"))
                 .header("Access-Control-Allow-Methods", is("GET, POST, OPTIONS, PUT, DELETE"));
-
-        async.complete();
     }
 
     /**

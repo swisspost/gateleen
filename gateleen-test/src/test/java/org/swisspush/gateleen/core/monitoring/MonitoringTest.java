@@ -43,7 +43,6 @@ public class MonitoringTest extends AbstractTest {
 
     @Test
     public void testStorageMetrics(TestContext context) throws Exception {
-        Async async = context.async();
         // cleanup
         delete();
 
@@ -109,7 +108,5 @@ public class MonitoringTest extends AbstractTest {
         } else {
             context.fail("could not found mbean " + beanName);
         }
-
-        async.complete();
     }
 }
