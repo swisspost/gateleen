@@ -11,6 +11,7 @@ import static org.junit.Assert.assertTrue;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.Before;
 import org.junit.Test;
 import io.vertx.core.json.JsonObject;
 import com.jayway.restassured.RestAssured;
@@ -30,6 +31,7 @@ public class CleanupTest extends AbstractTest {
         RestAssured.requestSpecification.baseUri("http://localhost:" + MAIN_PORT + ROOT);
     }
 
+    @Before
     public void init() {
         delete();
 
@@ -45,8 +47,6 @@ public class CleanupTest extends AbstractTest {
     @Test
     public void testCleanup100(TestContext context) throws InterruptedException {
         Async async = context.async();
-        init();
-
         put("/server/queuing/locks/scheduler-main-storage-cleanup");
 
         try {
@@ -70,18 +70,17 @@ public class CleanupTest extends AbstractTest {
 
             RestAssured.basePath = "/server/tests/cleanup";
             get("test1").then().assertThat().statusCode(404);
-
+            async.complete();
         } finally {
             delete("/server/queuing/locks/scheduler-main-storage-cleanup");
             async.complete();
         }
+        async.awaitSuccess();
     }
 
     @Test
     public void testCleanup2050(TestContext context) throws InterruptedException {
         Async async = context.async();
-        init();
-
         put("/server/queuing/locks/scheduler-main-storage-cleanup");
 
         try {
@@ -117,18 +116,17 @@ public class CleanupTest extends AbstractTest {
             } catch (NumberFormatException ex) {
                 assertFalse("cleanedResources does not contain a numerical value but '" + cleanedResourcesStr + "'", true);
             }
-
+            async.complete();
         } finally {
             delete("/server/queuing/locks/scheduler-main-storage-cleanup");
             async.complete();
         }
+        async.awaitSuccess();
     }
 
     @Test
     public void testCleanup1070CleanupResourceAmount1000(TestContext context) throws InterruptedException {
         Async async = context.async();
-        init();
-
         put("/server/queuing/locks/scheduler-main-storage-cleanup");
 
         try {
@@ -154,10 +152,12 @@ public class CleanupTest extends AbstractTest {
             } catch (NumberFormatException ex) {
                 assertFalse("cleanedResources does not contain a numerical value but '" + cleanedResourcesStr + "'", true);
             }
+            async.complete();
 
         } finally {
             delete("/server/queuing/locks/scheduler-main-storage-cleanup");
             async.complete();
         }
+        async.awaitSuccess();
     }
 }
