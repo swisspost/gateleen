@@ -5,7 +5,6 @@ import org.swisspush.gateleen.TestUtils;
 import com.google.common.collect.ImmutableMap;
 import com.jayway.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;

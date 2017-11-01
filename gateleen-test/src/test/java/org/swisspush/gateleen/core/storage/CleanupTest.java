@@ -70,7 +70,6 @@ public class CleanupTest extends AbstractTest {
 
             RestAssured.basePath = "/server/tests/cleanup";
             get("test1").then().assertThat().statusCode(404);
-            async.complete();
         } finally {
             delete("/server/queuing/locks/scheduler-main-storage-cleanup");
             async.complete();
@@ -116,7 +115,6 @@ public class CleanupTest extends AbstractTest {
             } catch (NumberFormatException ex) {
                 assertFalse("cleanedResources does not contain a numerical value but '" + cleanedResourcesStr + "'", true);
             }
-            async.complete();
         } finally {
             delete("/server/queuing/locks/scheduler-main-storage-cleanup");
             async.complete();
@@ -152,8 +150,6 @@ public class CleanupTest extends AbstractTest {
             } catch (NumberFormatException ex) {
                 assertFalse("cleanedResources does not contain a numerical value but '" + cleanedResourcesStr + "'", true);
             }
-            async.complete();
-
         } finally {
             delete("/server/queuing/locks/scheduler-main-storage-cleanup");
             async.complete();
