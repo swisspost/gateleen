@@ -6,7 +6,6 @@ import com.jayway.restassured.parsing.Parser;
 import com.jayway.restassured.specification.RequestSpecification;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
@@ -65,10 +64,9 @@ import redis.clients.jedis.Jedis;
 
 import javax.management.*;
 import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * TestVerticle all Gateleen tests. <br />
@@ -247,88 +245,15 @@ public abstract class AbstractTest {
         if (mbs.getMBeanCount() == 0) {
             return;
         }
-        List<String> beanNameList = new ArrayList<>();
-        beanNameList.add("metrics:name=gateleen.requests.pending.count");
-        beanNameList.add("metrics:name=gateleen.requests.localhost");
-        beanNameList.add("metrics:name=gateleen.queues.active.count");
-        beanNameList.add("metrics:name=redis.main.server.redis_git_sha1");
-        beanNameList.add("metrics:name=redis.main.server.redis_git_dirty");
-        beanNameList.add("metrics:name=redis.main.server.arch_bits");
-        beanNameList.add("metrics:name=redis.main.server.process_id");
-        beanNameList.add("metrics:name=redis.main.server.tcp_port");
-        beanNameList.add("metrics:name=redis.main.server.uptime_in_seconds");
-        beanNameList.add("metrics:name=redis.main.server.uptime_in_days");
-        beanNameList.add("metrics:name=redis.main.server.hz");
-        beanNameList.add("metrics:name=redis.main.server.lru_clock");
-        beanNameList.add("metrics:name=redis.main.clients.connected_clients");
-        beanNameList.add("metrics:name=redis.main.clients.client_longest_output_list");
-        beanNameList.add("metrics:name=redis.main.clients.client_biggest_input_buf");
-        beanNameList.add("metrics:name=redis.main.clients.blocked_clients");
-        beanNameList.add("metrics:name=redis.main.memory.used_memory");
-        beanNameList.add("metrics:name=redis.main.memory.used_memory_rss");
-        beanNameList.add("metrics:name=redis.main.memory.used_memory_peak");
-        beanNameList.add("metrics:name=redis.main.memory.total_system_memory");
-        beanNameList.add("metrics:name=redis.main.memory.used_memory_lua");
-        beanNameList.add("metrics:name=redis.main.memory.maxmemory");
-        beanNameList.add("metrics:name=redis.main.persistence.loading");
-        beanNameList.add("metrics:name=redis.main.persistence.rdb_changes_since_last_save");
-        beanNameList.add("metrics:name=redis.main.persistence.rdb_bgsave_in_progress");
-        beanNameList.add("metrics:name=redis.main.persistence.rdb_last_save_time");
-        beanNameList.add("metrics:name=redis.main.persistence.rdb_last_bgsave_time_sec");
-        beanNameList.add("metrics:name=redis.main.persistence.rdb_current_bgsave_time_sec");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_enabled");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_rewrite_in_progress");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_rewrite_scheduled");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_last_rewrite_time_sec");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_current_rewrite_time_sec");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_current_size");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_base_size");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_pending_rewrite");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_buffer_length");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_rewrite_buffer_length");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_pending_bio_fsync");
-        beanNameList.add("metrics:name=redis.main.persistence.aof_delayed_fsync");
-        beanNameList.add("metrics:name=redis.main.stats.total_connections_received");
-        beanNameList.add("metrics:name=redis.main.stats.total_commands_processed");
-        beanNameList.add("metrics:name=redis.main.stats.instantaneous_ops_per_sec");
-        beanNameList.add("metrics:name=redis.main.stats.total_net_input_bytes");
-        beanNameList.add("metrics:name=redis.main.stats.total_net_output_bytes");
-        beanNameList.add("metrics:name=redis.main.stats.rejected_connections");
-        beanNameList.add("metrics:name=redis.main.stats.sync_full");
-        beanNameList.add("metrics:name=redis.main.stats.sync_partial_ok");
-        beanNameList.add("metrics:name=redis.main.stats.sync_partial_err");
-        beanNameList.add("metrics:name=redis.main.stats.expired_keys");
-        beanNameList.add("metrics:name=redis.main.stats.evicted_keys");
-        beanNameList.add("metrics:name=redis.main.stats.keyspace_hits");
-        beanNameList.add("metrics:name=redis.main.stats.keyspace_misses");
-        beanNameList.add("metrics:name=redis.main.stats.pubsub_channels");
-        beanNameList.add("metrics:name=redis.main.stats.pubsub_patterns");
-        beanNameList.add("metrics:name=redis.main.stats.latest_fork_usec");
-        beanNameList.add("metrics:name=redis.main.stats.migrate_cached_sockets");
-        beanNameList.add("metrics:name=redis.main.replication.connected_slaves");
-        beanNameList.add("metrics:name=redis.main.replication.master_repl_offset");
-        beanNameList.add("metrics:name=redis.main.replication.repl_backlog_active");
-        beanNameList.add("metrics:name=redis.main.replication.repl_backlog_size");
-        beanNameList.add("metrics:name=redis.main.replication.repl_backlog_first_byte_offset");
-        beanNameList.add("metrics:name=redis.main.replication.repl_backlog_histlen");
-        beanNameList.add("metrics:name=redis.main.cpu.used_cpu_sys");
-        beanNameList.add("metrics:name=redis.main.cpu.used_cpu_user");
-        beanNameList.add("metrics:name=redis.main.cpu.used_cpu_sys_children");
-        beanNameList.add("metrics:name=redis.main.cpu.used_cpu_user_children");
-        beanNameList.add("metrics:name=redis.main.cluster.cluster_enabled");
-        beanNameList.add("metrics:name=redis.main.keyspace.db0.keys");
-        beanNameList.add("metrics:name=redis.main.keyspace.db0.expires");
-        beanNameList.add("metrics:name=redis.main.keyspace.db0.avg_ttl");
-        beanNameList.add("metrics:name=redis.main.expirable");
-        beanNameList.add("metrics:name=gateleen.queues.enqueue");
-        beanNameList.add("metrics:name=gateleen.queues.last.size");
-        beanNameList.add("metrics:name=gateleen.queues.dequeue");
-        for (String beanName : beanNameList) {
-            ObjectName beanNameObject = new ObjectName(beanName);
-            if (mbs.isRegistered(beanNameObject)) {
-                mbs.unregisterMBean(beanNameObject);
+        Set<ObjectName> beanNameList = mbs.queryNames(null, null);
+        for (ObjectName beanName : beanNameList) {
+            if (beanName.toString().startsWith("metrics:name=gateleen") || beanName.toString().startsWith("metrics:name=redis.main")) {
+                if (mbs.isRegistered(beanName)) {
+                    mbs.unregisterMBean(beanName);
+                }
             }
         }
+
     }
 
     @Before
