@@ -24,9 +24,9 @@ script:
    - sleep 5s
 
    - mvn deploy -PuploadStaticFiles
-   - mvn test -PuiIntegrationTests
+   - mvn test -PuiIntegrationTests -e
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
-   - mvn test -PnonUiIntegrationTests
+   - mvn test -PnonUiIntegrationTests -e
 #TODO - ./gradlew jacocoTestReport
 
 
