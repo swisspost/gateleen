@@ -48,6 +48,8 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // check property
         Assert.assertTrue(props.get(property).equals(propertyValue));
+
+        context.async().complete();
     }
 
     /**
@@ -72,6 +74,8 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // check property
         Assert.assertEquals(props.get(property), propertyValue);
+
+        context.async().complete();
     }
 
     /**
@@ -82,6 +86,7 @@ public class PropertyHandlerTest extends AbstractTest {
     public void testChangeProperty_registred(TestContext context) {
         String property = "myprop.id";
         String propertyValue = "ok";
+
         // put property to pros
         props.put(property, propertyValue);
         Assert.assertTrue(props.get(property).equals(propertyValue));
@@ -94,6 +99,8 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // check property
         Assert.assertEquals(props.get(property), "test");
+
+        context.async().complete();
     }
 
     /**
@@ -127,6 +134,8 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // check refreshable
         Assert.assertTrue(freshi.isRefreshed());
+
+        context.async().complete();
     }
 
     /**
@@ -160,6 +169,8 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // check refreshable
         Assert.assertFalse(freshi.isRefreshed());
+
+        context.async().complete();
     }
 
     /**
@@ -193,6 +204,8 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // check refreshable
         Assert.assertFalse(freshi.isRefreshed());
+
+        context.async().complete();
     }
 
     /**

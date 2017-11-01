@@ -67,6 +67,7 @@ public class CopyResourceTest extends AbstractTest {
      */
     @Test
     public void testCopyCollection(TestContext context) {
+        Async async = context.async();
         init();
 
         // source & destination are collection
@@ -77,6 +78,8 @@ public class CopyResourceTest extends AbstractTest {
 
         // destination is collection
         with().body(createCopyTaskBody(base + "copyresource/input/test1", base + "copyresource/output/", null)).post(copyUrl).then().assertThat().statusCode(BAD_REQUEST);
+
+        async.complete();
     }
 
     /**
@@ -85,10 +88,12 @@ public class CopyResourceTest extends AbstractTest {
      */
     @Test
     public void testCopyUnavailableResource(TestContext context) {
+        Async async = context.async();
         init();
 
         with().body(createCopyTaskBody(base + "copyresource/input/test4", base + "copyresource/output/test4", null)).post(copyUrl).then().assertThat().statusCode(NOT_FOUND);
 
+        async.complete();
     }
 
     /**
@@ -97,6 +102,7 @@ public class CopyResourceTest extends AbstractTest {
      */
     @Test
     public void testPassedHeadersBehaviour(TestContext context) {
+        Async async = context.async();
         init();
 
         // copy test2 - destination should disapear after 5 seconds
@@ -111,6 +117,8 @@ public class CopyResourceTest extends AbstractTest {
 
         // destination should no longer be available
         get("copyresource/output/test2").then().assertThat().statusCode(NOT_FOUND);
+
+        async.complete();
     }
 
     /**
@@ -119,6 +127,7 @@ public class CopyResourceTest extends AbstractTest {
      */
     @Test
     public void testStaticHeadersBehaviour(TestContext context) {
+        Async async = context.async();
         init();
 
         // create static headers
@@ -137,6 +146,8 @@ public class CopyResourceTest extends AbstractTest {
 
         // destination should no longer be available
         get("copyresource/output/test3").then().assertThat().statusCode(NOT_FOUND);
+
+        async.complete();
     }
 
     /**
@@ -145,6 +156,7 @@ public class CopyResourceTest extends AbstractTest {
      */
     @Test
     public void testCopyValidResource(TestContext context) {
+        Async async = context.async();
         init();
 
         // copy test1
@@ -153,6 +165,8 @@ public class CopyResourceTest extends AbstractTest {
 
         // check if copied resource is identical with source resource
         context.assertEquals(get("copyresource/input/test1").asString(), get("copyresource/output/test1").asString());
+
+        async.complete();
     }
 
     public String createCopyTaskBody(String source, String destination, Map<String, String> staticHeaders) {

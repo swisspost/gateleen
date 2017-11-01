@@ -77,17 +77,17 @@ import java.util.Map;
  */
 @RunWith(VertxUnitRunner.class)
 public abstract class AbstractTest {
-    public static final String SERVER_NAME = "gateleen";
-    public static final String PREFIX = SERVER_NAME + ".";
-    public static final String JMX_DOMAIN = "org.swisspush.gateleen";
+    protected static final String SERVER_NAME = "gateleen";
+    protected static final String PREFIX = SERVER_NAME + ".";
+    private static final String JMX_DOMAIN = "org.swisspush.gateleen";
 
     public static final String ROOT = "/playground";
     public static final String SERVER_ROOT = ROOT + "/server";
-    public static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
-    public static final String DELEGATE_ROOT = ROOT + "/server/delegate/v1/delegates/";
+    private static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
+    private static final String DELEGATE_ROOT = ROOT + "/server/delegate/v1/delegates/";
     public static final int MAIN_PORT = 3332;
-    public static final int REDIS_PORT = 6379;
-    public static final int CIRCUIT_BREAKER_REST_API_PORT = 7014;
+    protected static final int REDIS_PORT = 6379;
+    private static final int CIRCUIT_BREAKER_REST_API_PORT = 7014;
 
     /**
      * Basis configuration for RestAssured
@@ -120,7 +120,6 @@ public abstract class AbstractTest {
 
         final JsonObject info = new JsonObject();
         final LocalHttpClient selfClient = new LocalHttpClient(vertx);
-        final HttpClient selfClientExpansionHandler = selfClient;
         props.putAll(RunConfig.buildRedisProps("localhost", REDIS_PORT));
 
         String redisHost = (String) props.get("redis.host");
@@ -195,7 +194,7 @@ public abstract class AbstractTest {
                         RunConfig.with()
                                 .corsHandler(new CORSHandler())
                                 .deltaHandler(new DeltaHandler(redisClient, selfClient))
-                                .expansionHandler(new ExpansionHandler(vertx, storage, selfClientExpansionHandler, props, ROOT, RULES_ROOT))
+                                .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))
                                 .hookHandler(hookHandler)
                                 .qosHandler(qosHandler)
                                 .copyResourceHandler(new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy"))
@@ -227,6 +226,7 @@ public abstract class AbstractTest {
                 });
             }
         });
+        async.awaitSuccess();
     }
 
     /**
@@ -239,6 +239,7 @@ public abstract class AbstractTest {
         mainServer.close();
         removeRegisteredMBean();
         vertx.close(event -> async.complete());
+        async.awaitSuccess();
     }
 
     private static void removeRegisteredMBean() throws MalformedObjectNameException, MBeanRegistrationException, InstanceNotFoundException {
@@ -319,7 +320,9 @@ public abstract class AbstractTest {
         beanNameList.add("metrics:name=redis.main.keyspace.db0.expires");
         beanNameList.add("metrics:name=redis.main.keyspace.db0.avg_ttl");
         beanNameList.add("metrics:name=redis.main.expirable");
-
+        beanNameList.add("metrics:name=gateleen.queues.enqueue");
+        beanNameList.add("metrics:name=gateleen.queues.last.size");
+        beanNameList.add("metrics:name=gateleen.queues.dequeue");
         for (String beanName : beanNameList) {
             ObjectName beanNameObject = new ObjectName(beanName);
             if (mbs.isRegistered(beanNameObject)) {
