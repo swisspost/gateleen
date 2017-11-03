@@ -34,9 +34,7 @@ public class JoltTransformerTest {
             "  {\n" +
             "    \"operation\": \"shift\",\n" +
             "    \"spec\": {\n" +
-            "      \"@1\": {\n" +
-            "        \"@\": \"records[].value\"\n" +
-            "      }\n" +
+            "      \"@\": \"records[0].value\"\n" +
             "    }\n" +
             "  }\n" +
             "]";
@@ -145,7 +143,6 @@ public class JoltTransformerTest {
         context.assertEquals(anotherOutput, JoltTransformer.transform(anotherInput, copyToArraySpec).result());
 
         JsonObject complexOutput = buildRecordsOutput(new JsonObject(COMPLEX_INPUT_JSON));
-        System.out.println(complexOutput.encodePrettily());
         context.assertEquals(complexOutput, JoltTransformer.transform(COMPLEX_INPUT_JSON, copyToArraySpec).result());
     }
 
