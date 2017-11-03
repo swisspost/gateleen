@@ -14,4 +14,6 @@ dependencies {
     compile "org.mockito:mockito-core:$mockitoVersion"
     compile "com.jayway.awaitility:awaitility:$awaitilityVersion"
     compile "redis.clients:jedis:$jedisVersion"
+    compile "com.bazaarvoice.jolt:jolt-core:$joltVersion"
+    compile "com.bazaarvoice.jolt:json-utils:$joltVersion"
 }
