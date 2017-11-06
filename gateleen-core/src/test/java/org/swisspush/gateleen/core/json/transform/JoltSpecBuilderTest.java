@@ -4,7 +4,10 @@ import com.bazaarvoice.jolt.exception.JsonUnmarshalException;
 import com.bazaarvoice.jolt.exception.SpecException;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.hamcrest.core.IsInstanceOf;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 
 /**
@@ -15,82 +18,76 @@ import org.junit.runner.RunWith;
 @RunWith(VertxUnitRunner.class)
 public class JoltSpecBuilderTest {
 
+    @Rule
+    public ExpectedException thrown= ExpectedException.none();
+
     @Test
-    public void testBuildSpecNull(TestContext context) {
-        JoltSpecBuilder.buildSpec(null).setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(NullPointerException.class, event.cause().getClass());
-        });
+    public void testBuildSpecNull(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(NullPointerException.class));
+        JoltSpecBuilder.buildSpec(null);
     }
 
     @Test
-    public void testBuildSpecEmptyString(TestContext context) {
-        JoltSpecBuilder.buildSpec("").setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(JsonUnmarshalException.class, event.cause().getClass());
-        });
+    public void testBuildSpecEmptyString(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(JsonUnmarshalException.class));
+        JoltSpecBuilder.buildSpec("");
     }
 
     @Test
-    public void testBuildSpecEmptyJson(TestContext context) {
-        JoltSpecBuilder.buildSpec("{}").setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(JsonUnmarshalException.class, event.cause().getClass());
-        });
+    public void testBuildSpecEmptyJson(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(JsonUnmarshalException.class));
+        JoltSpecBuilder.buildSpec("{}");
     }
 
     @Test
-    public void testBuildSpecNoJsonArray(TestContext context) {
-        JoltSpecBuilder.buildSpec("{\"abc\":234}").setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(JsonUnmarshalException.class, event.cause().getClass());
-        });
+    public void testBuildSpecNoJsonArray(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(JsonUnmarshalException.class));
+        JoltSpecBuilder.buildSpec("{\"abc\":234}");
     }
 
     @Test
-    public void testBuildSpecMissingOperation(TestContext context){
-        JoltSpecBuilder.buildSpec("[{\"abc\":234}]").setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(SpecException.class, event.cause().getClass());
-        });
+    public void testBuildSpecMissingOperation(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(SpecException.class));
+        JoltSpecBuilder.buildSpec("[{\"abc\":234}]");
     }
 
     @Test
-    public void testBuildSpecInvalidOperation(TestContext context){
-        JoltSpecBuilder.buildSpec("[{\"operation\":\"xx\"}]").setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(SpecException.class, event.cause().getClass());
-        });
+    public void testBuildSpecInvalidOperation(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(SpecException.class));
+        JoltSpecBuilder.buildSpec("[{\"operation\":\"xx\"}]");
     }
 
     @Test
-    public void testBuildSpecMissingSpec(TestContext context){
-        JoltSpecBuilder.buildSpec("[{\"operation\":\"shift\"}]").setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(SpecException.class, event.cause().getClass());
-        });
+    public void testBuildSpecMissingSpec(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(SpecException.class));
+        JoltSpecBuilder.buildSpec("[{\"operation\":\"shift\"}]");
     }
 
     @Test
-    public void testBuildSpecInvalidSpec(TestContext context){
+    public void testBuildSpecInvalidSpecWrongType(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(SpecException.class));
+
         String specWrongType = "[\n" +
                 "  {\n" +
                 "    \"operation\": \"shift\",\n" +
                 "    \"spec\": 123\n" +
                 "  }\n" +
                 "]";
-        JoltSpecBuilder.buildSpec(specWrongType).setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(SpecException.class, event.cause().getClass());
-        });
+        JoltSpecBuilder.buildSpec(specWrongType);
+    }
+
+    @Test
+    public void testBuildSpecInvalidSpecEmptyObject(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(SpecException.class));
 
         String specEmptyObject = "[\n" +
                 "  {\n" +
@@ -98,11 +95,13 @@ public class JoltSpecBuilderTest {
                 "    \"spec\": {}\n" +
                 "  }\n" +
                 "]";
-        JoltSpecBuilder.buildSpec(specEmptyObject).setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(SpecException.class, event.cause().getClass());
-        });
+        JoltSpecBuilder.buildSpec(specEmptyObject);
+    }
+
+    @Test
+    public void testBuildSpecInvalidSpecWildcardNotAllowed(TestContext context) throws JoltSpecException {
+        thrown.expect( JoltSpecException.class );
+        thrown.expectCause(IsInstanceOf.instanceOf(SpecException.class));
 
         String specWildcardNotAllowed = "[\n" +
                 "  {\n" +
@@ -114,29 +113,21 @@ public class JoltSpecBuilderTest {
                 "    }\n" +
                 "  }\n" +
                 "]";
-        JoltSpecBuilder.buildSpec(specWildcardNotAllowed).setHandler(event -> {
-            context.assertFalse(event.succeeded());
-            context.assertNull(event.result());
-            context.assertEquals(SpecException.class, event.cause().getClass());
-        });
+        JoltSpecBuilder.buildSpec(specWildcardNotAllowed);
     }
 
     @Test
-    public void testBuildSpecValidSpec(TestContext context){
-        String specWildcardNotAllowed = "[\n" +
+    public void testBuildSpecValidSpec(TestContext context) throws JoltSpecException {
+        String specValid = "[\n" +
                 "  {\n" +
                 "    \"operation\": \"shift\",\n" +
                 "    \"spec\": {\n" +
-                "      \"@1\": {\n" +
-                "        \"@\": \"\"\n" +
-                "      }\n" +
+                "      \"@\": \"\"\n" +
                 "    }\n" +
                 "  }\n" +
                 "]";
-        JoltSpecBuilder.buildSpec(specWildcardNotAllowed).setHandler(event -> {
-            context.assertTrue(event.succeeded());
-            context.assertNotNull(event.result());
-            context.assertNotNull(event.result().getChainr());
-        });
+        JoltSpec joltSpec = JoltSpecBuilder.buildSpec(specValid);
+        context.assertNotNull(joltSpec);
+        context.assertNotNull(joltSpec.getChainr());
     }
 }

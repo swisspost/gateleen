@@ -44,6 +44,7 @@ public class DelegateFactoryTest {
     private final String PAYLOAD_TRANSFORM_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_payload_and_transform_property_delegate_resource", true);
     private final String TRANSFORM_PROPERTY_NOT_OBJECT_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_transform_property_not_object_delegate_resource", true);
     private final String VALID_TRANSFORM_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_valid_transform_delegate_resource", true);
+    private final String INVALID_TRANSFORM_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_invalid_transform_delegate_resource", true);
 
     @Before
     public void setUp(){
@@ -127,6 +128,16 @@ public class DelegateFactoryTest {
                 context.assertEquals("integer", jsonObject.getString("found"));
                 context.assertEquals("array", jsonObject.getJsonArray("expected").getString(0));
             }
+        }
+    }
+
+    @Test
+    public void testInvalidTransformDelegateConfig(TestContext context) throws ValidationException {
+        try {
+            delegateFactory.parseDelegate("someDelegate", Buffer.buffer(INVALID_TRANSFORM_PROPERTY_DELEGATE_RESOURCE));
+            context.fail("Should have thrown a ValidationException since 'transform' spec is not valid");
+        } catch(ValidationException ex){
+            context.assertEquals("Could not parse json transform specification of delegate someDelegate", ex.getMessage());
         }
     }
 

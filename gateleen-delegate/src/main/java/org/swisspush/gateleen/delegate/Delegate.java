@@ -35,18 +35,18 @@ public class Delegate {
     private final MonitoringHandler monitoringHandler;
     private final Pattern pattern;
     private final Set<HttpMethod> methods;
-    private final List<JsonObject> requests;
+    private final List<DelegateRequest> requests;
 
     /**
      * Creates a new instance of a Delegate.
-     *  @param monitoringHandler monitoringHandler
+     * @param monitoringHandler monitoringHandler
      * @param selfClient selfClient
      * @param name name of delegate
      * @param pattern pattern for the delegate
      * @param methods methods of the delegate
      * @param requests requests of the delegate
      */
-    public Delegate(final MonitoringHandler monitoringHandler, final HttpClient selfClient, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<JsonObject> requests) {
+    public Delegate(final MonitoringHandler monitoringHandler, final HttpClient selfClient, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
         this.monitoringHandler = monitoringHandler;
         this.selfClient = selfClient;
         this.name = name;
@@ -79,7 +79,7 @@ public class Delegate {
             Matcher matcher = pattern.matcher(request.uri());
             if ( matcher.matches() ) {
                 final Handler<HttpClientResponse> handler = installDoneHandler(request);
-                final JsonObject firstRequest = requests.get(FIRST);
+                final JsonObject firstRequest = requests.get(FIRST).getRequest();
                 createRequest(request.uri(), firstRequest, handler);
                 return;
             }
@@ -178,7 +178,7 @@ public class Delegate {
                             LOG.trace("Done handler - calling next {}", currentIndex.get());
                         }
 
-                        final JsonObject delegateRequest = requests.get(currentIndex.get());
+                        final JsonObject delegateRequest = requests.get(currentIndex.get()).getRequest();
                         createRequest(request.uri(), delegateRequest, this );
                     }
                     // if not, send corresponding respond

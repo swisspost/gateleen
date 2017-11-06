@@ -3,7 +3,6 @@ package org.swisspush.gateleen.core.json.transform;
 import com.bazaarvoice.jolt.exception.JsonUnmarshalException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -23,9 +22,7 @@ public class JoltTransformerTest {
             "  {\n" +
             "    \"operation\": \"shift\",\n" +
             "    \"spec\": {\n" +
-            "      \"@1\": {\n" +
-            "        \"@\": \"\"\n" +
-            "      }\n" +
+            "      \"@\": \"\"\n" +
             "    }\n" +
             "  }\n" +
             "]";
@@ -46,14 +43,8 @@ public class JoltTransformerTest {
 
     @Before
     public void setUp(TestContext context) throws Exception {
-        Async async = context.async();
-        JoltSpecBuilder.buildSpec(IDENTITY_SPEC).setHandler(spec -> {
-            identitySpec = spec.result();
-            JoltSpecBuilder.buildSpec(COPY_TO_ARRAY_SPEC).setHandler(spec2 -> {
-                copyToArraySpec = spec2.result();
-                async.complete();
-            });
-        });
+        identitySpec = JoltSpecBuilder.buildSpec(IDENTITY_SPEC);
+        copyToArraySpec = JoltSpecBuilder.buildSpec(COPY_TO_ARRAY_SPEC);
     }
 
     @Test
