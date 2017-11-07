@@ -110,7 +110,7 @@
             <plugin>
                 <groupId>com.github.eirslett</groupId>
                 <artifactId>frontend-maven-plugin</artifactId>
-                <version>0.0.22</version>
+                <version>1.6</version>
                 <executions>
                     <execution>
                         <id>install node and npm profile trigged</id>
@@ -121,7 +121,7 @@
                         <phase>initialize</phase>
                         <configuration>
                             <!--<skip>${skip.node.install}</skip>-->
-                            <nodeVersion>v0.12.2</nodeVersion>
+                            <nodeVersion>v6.11.5</nodeVersion>
                             <npmVersion>2.7.5</npmVersion>
                         </configuration>
                     </execution>
