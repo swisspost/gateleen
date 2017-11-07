@@ -20,7 +20,7 @@ public final class RequestLoggerFactory {
     }
 
     public static Logger getLogger(Class<?> clazz, MultiMap headers) {
-        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "INFO");
+
         String uid = null;
         if (headers != null) {
             String rid;
