@@ -18,6 +18,7 @@
   "license": "ISC",
   "TODO": "TODO: copy task can be removed when all services updated gateleen-hook-js",
   "devDependencies": {
+    "phantomjs-prebuilt": "2.1.15",
     "autoprefixer-core": "6.0.1",
     "cssnano": "3.7.4",
     "grunt": "0.4.5",
