@@ -26,7 +26,7 @@ script:
    - mvn deploy -PuploadStaticFiles
    - mvn test -PuiIntegrationTests -e -Dorg.slf4j.simpleLogger.defaultLogLevel=info -q
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
-   - mvn test -PnonUiIntegrationTests -e -Dorg.slf4j.simpleLogger.defaultLogLevel=info -q
+   - mvn test -PnonUiIntegrationTests -e -Dorg.slf4j.simpleLogger.defaultLogLevel=info -q &> nonUiIntegrationTests_logs.log &
 #TODO - ./gradlew jacocoTestReport
 
 
