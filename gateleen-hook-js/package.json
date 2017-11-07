@@ -44,7 +44,7 @@
     "karma-ng-html2js-preprocessor": "1.0.0",
     "karma-phantomjs-launcher": "1.0.2",
     "request": "2.81.0",
-    "har-validato": "4.2.1",
+    "har-validator": "4.2.1",
     "har-schema": "1.0.5"
   }
 }
