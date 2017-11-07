@@ -321,7 +321,7 @@ public class LoggingHandler {
                 errorLogRequest(currentDestination, ex);
             }
         } else {
-            log.info("request will not be logged");
+            //log.info("request will not be logged");
         }
     }
 

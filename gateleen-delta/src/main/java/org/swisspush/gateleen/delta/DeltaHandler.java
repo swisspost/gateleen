@@ -362,7 +362,7 @@ public class DeltaHandler {
                 log.warn("Setting Expire-After value to a default of " + DEFAULT_EXPIRE + ", since defined value for header " + EXPIRE_AFTER_HEADER + " is a negative number: " + expireAfterHeaderValue);
                 value = DEFAULT_EXPIRE;
             } else {
-                log.debug("Setting Expire-After value to " + value + " seconds as defined in header " + EXPIRE_AFTER_HEADER);
+                // log.debug("Setting Expire-After value to " + value + " seconds as defined in header " + EXPIRE_AFTER_HEADER);
             }
 
         } catch (Exception e) {
