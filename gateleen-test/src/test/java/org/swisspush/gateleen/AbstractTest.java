@@ -110,6 +110,8 @@ public abstract class AbstractTest {
      */
     @BeforeClass
     public static void setupBeforeClass(TestContext context) {
+        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "INFO");
+
         Async async = context.async();
         vertx = Vertx.vertx();
 
