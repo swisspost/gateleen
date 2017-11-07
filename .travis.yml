@@ -6,6 +6,7 @@ jdk:
 services:
   - redis-server
 before_install:
+  - export PHANTOMJS_VERSION=2.1.1
   - export DISPLAY=:99.0
   - sh -e /etc/init.d/xvfb start
 #  Because newer versions of Chrome are not supported for the deprecated "precise" environment of travis we are using,
