@@ -145,7 +145,7 @@ public class ReducedPropagationManager {
     }
 
     private void processExpiredQueues(String lockToken) {
-        log.debug("Going to process expired queues");
+        //log.debug("Going to process expired queues");
         storage.removeExpiredQueues(System.currentTimeMillis()).setHandler(event -> {
             if (event.failed()) {
                 log.error("Going to release lock because process expired queues failed. Cause: " + event.cause());
@@ -153,7 +153,7 @@ public class ReducedPropagationManager {
                 return;
             }
             List<String> expiredQueues = event.result();
-            log.debug("Got " + expiredQueues.size() + " expired queues to process");
+            // log.debug("Got " + expiredQueues.size() + " expired queues to process");
             for (String expiredQueue : expiredQueues) {
                 log.info("About to notify a consumer to process expired queue '" + expiredQueue + "'");
                 vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {

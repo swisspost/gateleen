@@ -72,14 +72,14 @@ public final class ExpiryCheckHandler {
         if (serverTimestamp == null) {
             String nowAsISO = dfISO8601.print(Instant.now());
 
-            log.debug("Setting " + SERVER_TIMESTAMP_HEADER + " value to " + nowAsISO + "  since header " + SERVER_TIMESTAMP_HEADER + " is not defined");
+            //log.debug("Setting " + SERVER_TIMESTAMP_HEADER + " value to " + nowAsISO + "  since header " + SERVER_TIMESTAMP_HEADER + " is not defined");
 
             headers.set(SERVER_TIMESTAMP_HEADER, nowAsISO);
         } else {
             String updatedTimestamp = localizeTimestamp(serverTimestamp);
 
             if (!updatedTimestamp.equals(serverTimestamp)) {
-                log.debug("Updating" + SERVER_TIMESTAMP_HEADER + " value from " + serverTimestamp + "  to " + updatedTimestamp);
+                //log.debug("Updating" + SERVER_TIMESTAMP_HEADER + " value from " + serverTimestamp + "  to " + updatedTimestamp);
 
                 headers.remove(SERVER_TIMESTAMP_HEADER);
                 headers.set(SERVER_TIMESTAMP_HEADER, updatedTimestamp);
@@ -127,7 +127,7 @@ public final class ExpiryCheckHandler {
 
         // no header set for the given field
         if (expireHeaderValue == null) {
-            log.debug(field + " not defined");
+            // log.debug(field + " not defined");
             value = null;
         } else {
             try {
@@ -135,10 +135,10 @@ public final class ExpiryCheckHandler {
 
                 // redis returns an error if setex is called with negativ values
                 if (value < 0) {
-                    log.debug(field + " is a negative number: " + expireHeaderValue);
+                    //  log.debug(field + " is a negative number: " + expireHeaderValue);
                     value = null;
                 } else {
-                    log.debug("Setting " + field + " value to " + value + " seconds as defined in header " + field);
+                    // log.debug("Setting " + field + " value to " + value + " seconds as defined in header " + field);
                 }
             } catch (Exception e) {
                 log.warn(field + " is not a number: " + expireHeaderValue);
@@ -198,7 +198,7 @@ public final class ExpiryCheckHandler {
                 LocalDateTime expirationTime = getExpirationTime(timestamp, expireAfter);
                 LocalDateTime now = getActualTime();
 
-                log.debug(" > isExpired - timestamp " + timestamp + " | expirationTime " + expirationTime + " | now " + now);
+                // log.debug(" > isExpired - timestamp " + timestamp + " | expirationTime " + expirationTime + " | now " + now);
 
                 // request expired?
                 return expirationTime.isBefore(now);
@@ -229,10 +229,10 @@ public final class ExpiryCheckHandler {
                 long expiredSince = System.currentTimeMillis() - ( timestamp + expireAfter * 1000L );
 
                 if(expiredSince > 0) {
-                    log.debug(" > isExpired - Request expired since {} milliseconds.", expiredSince);
+                    //log.debug(" > isExpired - Request expired since {} milliseconds.", expiredSince);
                     return true;
                 } else {
-                    log.debug(" > isExpired - Request not expired (would expire in {} milliseconds).", -expiredSince);
+                    // log.debug(" > isExpired - Request not expired (would expire in {} milliseconds).", -expiredSince);
                     return false;
                 }
 
@@ -304,7 +304,7 @@ public final class ExpiryCheckHandler {
     private static LocalDateTime getExpirationTime(LocalDateTime timestamp, int expireAfter) {
         LocalDateTime expirationTime = timestamp.plusSeconds(expireAfter);
 
-        log.debug("getExpirationTime: " + expirationTime);
+        // log.debug("getExpirationTime: " + expirationTime);
 
         return expirationTime;
     }

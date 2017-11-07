@@ -32,11 +32,11 @@ public class LockUtil {
             return future;
         }
 
-        log.debug("Trying to acquire lock '"+lock+"' with token '"+token+"' and expiry " + lockExpiryMs + "ms");
+        //log.debug("Trying to acquire lock '"+lock+"' with token '"+token+"' and expiry " + lockExpiryMs + "ms");
         lockImpl.acquireLock(lock, token, lockExpiryMs).setHandler(lockEvent -> {
             if(lockEvent.succeeded()){
                 if(lockEvent.result()){
-                    log.debug("Acquired lock '"+lock+"' with token '"+token+"'");
+                    // log.debug("Acquired lock '"+lock+"' with token '"+token+"'");
                     future.complete(Boolean.TRUE);
                 } else {
                     future.complete(Boolean.FALSE);
@@ -62,11 +62,11 @@ public class LockUtil {
             log.info("No lock implementation defined, going to pretend like we released the lock");
             return;
         }
-        log.debug("Trying to release lock '"+lock+"' with token '"+token+"'");
+        //log.debug("Trying to release lock '"+lock+"' with token '"+token+"'");
         lockImpl.releaseLock(lock, token).setHandler(releaseEvent -> {
             if(releaseEvent.succeeded()){
                 if(releaseEvent.result()){
-                    log.debug("Released lock '"+lock+"' with token '"+token+"'");
+                    // log.debug("Released lock '"+lock+"' with token '"+token+"'");
                 }
             } else {
                 log.error("Could not release lock '"+lock+"'. Message: " + releaseEvent.cause().getMessage());

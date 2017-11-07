@@ -184,7 +184,7 @@ public class HookHandler implements LoggableResource {
                        LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, Handler doneHandler, ResourceStorage hookStorage) {
-        log.debug("Creating HookHandler ...");
+        //log.debug("Creating HookHandler ...");
         this.vertx = vertx;
         this.selfClient = selfClient;
         this.userProfileStorage = userProfileStorage;
@@ -251,7 +251,7 @@ public class HookHandler implements LoggableResource {
                 for (Listener listener : listenerRepository.getListeners()) {
 
                     if (listener.getHook().getExpirationTime().isBefore(nowAsTime)) {
-                        log.debug("Listener " + listener.getListenerId() + " expired at " + listener.getHook().getExpirationTime() + " and actual time is " + nowAsTime);
+                        //log.debug("Listener " + listener.getListenerId() + " expired at " + listener.getHook().getExpirationTime() + " and actual time is " + nowAsTime);
                         listenerRepository.removeListener(listener.getListenerId());
                         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListenerId());
                     }
@@ -282,7 +282,7 @@ public class HookHandler implements LoggableResource {
      * @param readyHandler - the ready handler
      */
     private void loadStoredRoutes(Handler<Void> readyHandler) {
-        log.debug("loadStoredRoutes");
+        // log.debug("loadStoredRoutes");
 
         // load the names of the routes from the hookStorage
         final String routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
@@ -329,7 +329,7 @@ public class HookHandler implements LoggableResource {
      * @param readyHandler - the ready handler
      */
     private void loadStoredListeners(final Handler<Void> readyHandler) {
-        log.debug("loadStoredListeners");
+        //log.debug("loadStoredListeners");
 
         // load the names of the listener from the hookStorage
         final String listenerBase = hookRootUri + HOOK_LISTENER_STORAGE_PATH;
@@ -584,7 +584,7 @@ public class HookHandler implements LoggableResource {
                     }
                     // something's wrong ...
                     else {
-                        log.debug("createListingIfRequested - got response - ERROR");
+                        //  log.debug("createListingIfRequested - got response - ERROR");
                         response.handler(data -> request.response().write(data));
                     }
 
@@ -623,7 +623,7 @@ public class HookHandler implements LoggableResource {
         Route route = routeRepository.getRoute(request.uri());
 
         if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
-            log.debug("Forward request " + request.uri());
+            //log.debug("Forward request " + request.uri());
             route.forward(request);
             return true;
         } else {
@@ -657,7 +657,7 @@ public class HookHandler implements LoggableResource {
      */
     private void callListener(final HttpServerRequest request, final Buffer buffer, final List<Listener> filteredListeners, final Handler<Void> handler) {
         for (Listener listener : filteredListeners) {
-            log.debug("Enqueue request matching " + request.method() + " " + listener.getMonitoredUrl() + " with listener " + listener.getListener());
+            // log.debug("Enqueue request matching " + request.method() + " " + listener.getMonitoredUrl() + " with listener " + listener.getListener());
 
                 /*
                  * url suffix (path) after monitored url
@@ -675,12 +675,12 @@ public class HookHandler implements LoggableResource {
             // internal
             if (listener.getHook().getDestination().startsWith("/")) {
                 targetUri = listener.getListener() + path;
-                log.debug(" > internal target: " + targetUri);
+                //log.debug(" > internal target: " + targetUri);
             }
             // external
             else {
                 targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
-                log.debug(" > external target: " + targetUri);
+                // log.debug(" > external target: " + targetUri);
             }
 
             String queue = LISTENER_QUEUE_PREFIX + "-" + listener.getListenerId();
@@ -787,7 +787,7 @@ public class HookHandler implements LoggableResource {
                     Route route = routeRepository.getRoute(request.uri());
 
                     if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
-                        log.debug("Forward request (consumed) " + request.uri());
+                        //log.debug("Forward request (consumed) " + request.uri());
                         route.forward(request, buffer);
                     } else {
                         // mark the original request as hooked
@@ -850,7 +850,7 @@ public class HookHandler implements LoggableResource {
      * @param request request
      */
     private void handleRouteUnregistration(final HttpServerRequest request) {
-        log.debug("handleRouteUnregistration > " + request.uri());
+        // log.debug("handleRouteUnregistration > " + request.uri());
 
         // eg. /server/hooks/v1/registrations/+my+storage+id+
         final String routeStorageUri = hookRootUri + HOOK_ROUTE_STORAGE_PATH + getStorageIdentifier(request.uri());
@@ -885,7 +885,7 @@ public class HookHandler implements LoggableResource {
      * @param request request
      */
     private void handleRouteRegistration(final HttpServerRequest request) {
-        log.debug("handleRouteRegistration > " + request.uri());
+        //log.debug("handleRouteRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
             // eg. /server/hooks/v1/registrations/+my+storage+id+
@@ -969,7 +969,7 @@ public class HookHandler implements LoggableResource {
      * @param request request
      */
     private void handleListenerUnregistration(final HttpServerRequest request) {
-        log.debug("handleListenerUnregistration > " + request.uri());
+        // log.debug("handleListenerUnregistration > " + request.uri());
 
         // eg. /server/hooks/v1/registrations/listeners/http+myservice+1
         final String listenerStorageUri = hookRootUri + HOOK_LISTENER_STORAGE_PATH + getUniqueListenerId(request.uri());
@@ -1004,7 +1004,7 @@ public class HookHandler implements LoggableResource {
      * @param request request
      */
     private void handleListenerRegistration(final HttpServerRequest request) {
-        log.debug("handleListenerRegistration > " + request.uri());
+        //  log.debug("handleListenerRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
             JsonObject hook;
@@ -1086,7 +1086,7 @@ public class HookHandler implements LoggableResource {
      * @param requestBody - copy of request body
      */
     private void createSelfRequest(final HttpServerRequest request, final Buffer requestBody, final Handler<Void> afterHandler) {
-        log.debug("Create self request for " + request.uri());
+        //  log.debug("Create self request for " + request.uri());
 
         HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
             /*
@@ -1149,7 +1149,7 @@ public class HookHandler implements LoggableResource {
     private void unregisterRoute(String requestUrl) {
         String routedUrl = getRoutedUrlSegment(requestUrl);
 
-        log.debug("Unregister route " + routedUrl);
+        // log.debug("Unregister route " + routedUrl);
 
         routeRepository.removeRoute(routedUrl);
     }
@@ -1162,7 +1162,7 @@ public class HookHandler implements LoggableResource {
     private void unregisterListener(String requestUrl) {
         String listenerId = getUniqueListenerId(requestUrl);
 
-        log.debug("Unregister listener " + listenerId);
+        // log.debug("Unregister listener " + listenerId);
 
         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + getListenerUrlSegment(requestUrl));
         listenerRepository.removeListener(listenerId);
@@ -1252,7 +1252,7 @@ public class HookHandler implements LoggableResource {
             return;
         }
 
-        log.debug("Register listener and  route " + target + " with expiration at " + expirationTime);
+        // log.debug("Register listener and  route " + target + " with expiration at " + expirationTime);
 
         hook.setExpirationTime(expirationTime);
 
@@ -1342,7 +1342,7 @@ public class HookHandler implements LoggableResource {
         String requestUrl = storageObject.getString(REQUESTURL);
         String routedUrl = getRoutedUrlSegment(requestUrl);
 
-        log.debug("Register route to  " + routedUrl);
+        // log.debug("Register route to  " + routedUrl);
 
         // create and add a new Forwarder (or replace an already existing forwarder)
         JsonObject jsonHook = storageObject.getJsonObject(HOOK);
