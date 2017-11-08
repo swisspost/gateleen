@@ -24,7 +24,7 @@ public final class ResponseStatusCodeLogUtil {
      */
     public static void debug(HttpServerRequest request, StatusCode statusCode, Class<?> caller) {
         if (request != null && statusCode != null && caller != null && !request.headers().contains(SELF_REQUEST_HEADER)) {
-            //RequestLoggerFactory.getLogger(caller, request).debug("Responding " + request.method() + " request to " + request.uri() + " with status code " + statusCode);
+            RequestLoggerFactory.getLogger(caller, request).debug("Responding " + request.method() + " request to " + request.uri() + " with status code " + statusCode);
         }
         request.headers().remove(SELF_REQUEST_HEADER);
     }

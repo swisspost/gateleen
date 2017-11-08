@@ -74,17 +74,17 @@ public class Forwarder implements Handler<RoutingContext> {
                 String headerValue = profile.getString(headerKey);
                 if (headerKey != null && headerValue != null) {
                     profileValues.put(USER_HEADER_PREFIX + headerKey, headerValue);
-                    // log.debug("Sending header-information for key " + headerKey + ", value = " + headerValue);
+                    log.debug("Sending header-information for key " + headerKey + ", value = " + headerValue);
                 } else {
                     if (headerKey != null) {
-                        //log.debug("We should send profile information '" + headerKey + "' but this information was not found in profile.");
+                        log.debug("We should send profile information '" + headerKey + "' but this information was not found in profile.");
                     } else {
-                        // log.debug("We should send profile information but header key is null.");
+                        log.debug("We should send profile information but header key is null.");
                     }
                 }
             }
         } else {
-            //log.debug("rule.profile is null, this rule will not send profile information.");
+            log.debug("rule.profile is null, this rule will not send profile information.");
         }
         return profileValues;
     }
@@ -109,11 +109,11 @@ public class Forwarder implements Handler<RoutingContext> {
         monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getMetricName());
         final String targetUri = urlPattern.matcher(req.uri()).replaceFirst(rule.getPath()).replaceAll("\\/\\/", "/");
         final Logger log = RequestLoggerFactory.getLogger(Forwarder.class, req);
-        // log.debug("Forwarding request: " + req.uri() + " to " + rule.getScheme() + "://" + target + targetUri + " with rule " + rule.getRuleIdentifier());
+        log.debug("Forwarding request: " + req.uri() + " to " + rule.getScheme() + "://" + target + targetUri + " with rule " + rule.getRuleIdentifier());
         final String userId = extractUserId(req, log);
 
         if (userId != null && rule.getProfile() != null && userProfilePath != null) {
-            //  log.debug("Get profile information for user '" + userId + "' to append to headers");
+            log.debug("Get profile information for user '" + userId + "' to append to headers");
             String userProfileKey = String.format(userProfilePath, userId);
             req.pause(); // pause the request to avoid problems with starting another async request (storage)
             storage.get(userProfileKey, buffer -> {
@@ -121,10 +121,10 @@ public class Forwarder implements Handler<RoutingContext> {
                 if (buffer != null) {
                     JsonObject profile = new JsonObject(buffer.toString());
                     profileHeaderMap = createProfileHeaderValues(profile, log);
-                    //   log.debug("Got profile information of user '" + userId + "'");
-                    //   log.debug("Going to send parts of the profile in header: " + profileHeaderMap);
+                    log.debug("Got profile information of user '" + userId + "'");
+                    log.debug("Going to send parts of the profile in header: " + profileHeaderMap);
                 } else {
-                    // log.debug("No profile information found in local storage for user '" + userId + "'");
+                    log.debug("No profile information found in local storage for user '" + userId + "'");
                 }
                 handleRequest(req, bodyData, targetUri, log, profileHeaderMap);
             });
@@ -142,7 +142,7 @@ public class Forwarder implements Handler<RoutingContext> {
     private String extractUserId(HttpServerRequest request, Logger log) {
         String onBehalfOf = StringUtils.getStringOrEmpty(request.headers().get(ON_BEHALF_OF_HEADER));
         if (StringUtils.isNotEmpty(onBehalfOf)) {
-            //log.debug("Using values from x-on-behalf-of header instead of taking them from x-rp-usr header");
+            log.debug("Using values from x-on-behalf-of header instead of taking them from x-rp-usr header");
             return onBehalfOf;
         } else {
             return request.headers().get(USER_HEADER);
@@ -230,7 +230,7 @@ public class Forwarder implements Handler<RoutingContext> {
 
     private void setProfileHeaders(Logger log, Map<String, String> profileHeaderMap, HttpClientRequest cReq) {
         if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
-            //log.debug("Putting partial profile to header for the backend request (profileHeaderMap).");
+            log.debug("Putting partial profile to header for the backend request (profileHeaderMap).");
             for (Map.Entry<String, String> entry : profileHeaderMap.entrySet()) {
                 cReq.headers().set(entry.getKey(), entry.getValue());
             }

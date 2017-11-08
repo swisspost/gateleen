@@ -180,9 +180,9 @@ public class QueueProcessor {
     private void executeQueuedRequest(Message<JsonObject> message, Logger logger, HttpRequest queuedRequest,
                                       JsonObject jsonRequest, String queueName, QueueCircuitState state) {
 
-        // logger.debug("performing request " + queuedRequest.getMethod() + " " + queuedRequest.getUri());
+        logger.debug("performing request " + queuedRequest.getMethod() + " " + queuedRequest.getUri());
         if (ExpiryCheckHandler.isExpired(queuedRequest.getHeaders(), jsonRequest.getLong(QueueClient.QUEUE_TIMESTAMP))) {
-            //logger.debug("request expired to " + queuedRequest.getUri());
+            logger.debug("request expired to " + queuedRequest.getUri());
             message.reply(new JsonObject().put(STATUS, OK));
             return;
         }
@@ -193,7 +193,7 @@ public class QueueProcessor {
             }
             if (response.statusCode() >= 200 && response.statusCode() < 300 || response.statusCode() == 409) {
                 if (response.statusCode() != StatusCode.CONFLICT.getStatusCode()) {
-                    //  logger.debug("Successful request to " + queuedRequest.getUri());
+                    logger.debug("Successful request to " + queuedRequest.getUri());
                 } else {
                     logger.warn("Ignoring request conflict to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
                 }

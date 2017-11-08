@@ -121,7 +121,7 @@ public class DeltaHandler {
                 });
 
             } else {
-                // log.debug("skip updating delta, resume request");
+                log.debug("skip updating delta, resume request");
                 request.resume();
                 router.route(request);
             }
@@ -233,7 +233,7 @@ public class DeltaHandler {
         request.pause();
         
         final String targetUri = ExpansionDeltaUtil.constructRequestUri(request.path(), request.params(), null, null, SlashHandling.KEEP);
-        // log.debug("constructed uri for request: " + targetUri);
+        log.debug("constructed uri for request: " + targetUri);
 
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
             request.response().setStatusCode(cRes.statusCode());
@@ -306,7 +306,7 @@ public class DeltaHandler {
         request.handler(cReq::write);
         request.endHandler(v -> {
             cReq.end();
-            //log.debug("Request done. Request : " + cReq);
+            log.debug("Request done. Request : " + cReq);
         });
         cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, targetUri, DeltaHandler.class));
         request.resume();
@@ -350,7 +350,7 @@ public class DeltaHandler {
         MultiMap requestHeaders = request.headers();
         String expireAfterHeaderValue = requestHeaders.get(EXPIRE_AFTER_HEADER);
         if (expireAfterHeaderValue == null) {
-            //  log.debug("Setting Expire-After value to a default of " + DEFAULT_EXPIRE + " seconds since header " + EXPIRE_AFTER_HEADER + " not defined");
+            log.debug("Setting Expire-After value to a default of " + DEFAULT_EXPIRE + " seconds since header " + EXPIRE_AFTER_HEADER + " not defined");
             return value;
         }
 
@@ -362,7 +362,7 @@ public class DeltaHandler {
                 log.warn("Setting Expire-After value to a default of " + DEFAULT_EXPIRE + ", since defined value for header " + EXPIRE_AFTER_HEADER + " is a negative number: " + expireAfterHeaderValue);
                 value = DEFAULT_EXPIRE;
             } else {
-                // log.debug("Setting Expire-After value to " + value + " seconds as defined in header " + EXPIRE_AFTER_HEADER);
+                log.debug("Setting Expire-After value to " + value + " seconds as defined in header " + EXPIRE_AFTER_HEADER);
             }
 
         } catch (Exception e) {
