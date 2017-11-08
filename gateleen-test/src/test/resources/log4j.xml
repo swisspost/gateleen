@@ -18,7 +18,7 @@
         <level value="WARN"/>
     </logger>
     <logger name="org.springframework">
-        <level value="INFO"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.jmxtrans">
         <level value="WARN"/>
@@ -30,16 +30,16 @@
         <level value="WARN"/>
     </logger>
     <logger name="org.swisspush">
-        <level value="INFO"/>
+        <level value="WARN"/>
     </logger>
     <logger name="common.jmx">
-        <level value="INFO"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.jminix">
         <level value="WARN"/>
     </logger>
     <logger name="io.netty.handler.codec.http.websocketx">
-        <level value="INFO"/>
+        <level value="WARN"/>
     </logger>
     <logger name="io.vertx.ext.web.handler.sockjs">
         <level value="WARN"/>
@@ -63,7 +63,7 @@
         <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.event">
-        <level value="INFO"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.scheduler">
         <level value="WARN"/>
@@ -87,7 +87,7 @@
         <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.validation">
-        <level value="INFO"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.logging">
         <level value="WARN"/>
@@ -114,14 +114,14 @@
         <level value="FATAL"/>
     </logger>
     <logger name="Request">
-        <level value="INFO"/>
+        <level value="WARN"/>
     </logger>
     <logger name="Metrics">
         <level value="WARN"/>
     </logger>
 
     <root>
-        <level value="TRACE"/>
+        <level value="WARN"/>
         <appender-ref ref="consoleAppender"/>
     </root>
 
