@@ -2,127 +2,127 @@
 <!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
 
 <log4j:configuration debug="false"
-    xmlns:log4j='http://jakarta.apache.org/log4j/'>
+                     xmlns:log4j='http://jakarta.apache.org/log4j/'>
 
-    <appender name="consoleAppender" class="org.apache.log4j.ConsoleAppender" >
-        <param name="level" value="TRACE" />
-        <param name="Target" value="System.out" />
-        <param name="Encoding" value="UTF-8" />
+    <appender name="consoleAppender" class="org.apache.log4j.ConsoleAppender">
+        <param name="level" value="TRACE"/>
+        <param name="Target" value="System.out"/>
+        <param name="Encoding" value="UTF-8"/>
         <layout class="org.apache.log4j.EnhancedPatternLayout">
             <param name="ConversionPattern"
-                value="%d{ISO8601} gateleen %p %c{1} - %m%n" />
+                   value="%d{ISO8601} gateleen %p %c{1} - %m%n"/>
         </layout>
     </appender>
 
     <logger name="org.vertx">
-        <level value="WARN" />
+        <level value="WARN"/>
     </logger>
     <logger name="org.springframework">
-        <level value="INFO" />
+        <level value="INFO"/>
     </logger>
     <logger name="org.jmxtrans">
-        <level value="WARN" />
+        <level value="WARN"/>
     </logger>
     <logger name="org.jgroups">
-        <level value="WARN" />
+        <level value="WARN"/>
     </logger>
     <logger name="org.apache">
-        <level value="WARN" />
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush">
-        <level value="INFO" />
+        <level value="INFO"/>
     </logger>
     <logger name="common.jmx">
-        <level value="INFO" />
+        <level value="INFO"/>
     </logger>
     <logger name="org.jminix">
-        <level value="WARN" />
+        <level value="WARN"/>
     </logger>
     <logger name="io.netty.handler.codec.http.websocketx">
-        <level value="INFO" />
+        <level value="INFO"/>
     </logger>
     <logger name="io.vertx.ext.web.handler.sockjs">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.security.authorization">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.cors">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.delta">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.expansion">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.http">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.event">
-        <level value="INFO" />
+        <level value="INFO"/>
     </logger>
     <logger name="org.swisspush.gateleen.scheduler">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.monitoring">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.queue">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.queue.queuing.circuitbreaker">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.routing">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.storage">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.user">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.validation">
-        <level value="INFO" />
+        <level value="INFO"/>
     </logger>
     <logger name="org.swisspush.gateleen.logging">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.integrationtest">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.delegate">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.merge">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.hook">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.reststorage">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.redisques">
-        <level value="DEBUG"/>
+        <level value="WARN"/>
     </logger>
     <logger name="org.swisspush.gateleen.logging.Log4jConfiguratorMBean">
-        <level value="FATAL" />
+        <level value="FATAL"/>
     </logger>
     <logger name="Request">
-        <level value="INFO" />
+        <level value="INFO"/>
     </logger>
     <logger name="Metrics">
-        <level value="WARN" />
+        <level value="WARN"/>
     </logger>
 
     <root>
-        <level value="TRACE" />
-        <appender-ref ref="consoleAppender" />
+        <level value="TRACE"/>
+        <appender-ref ref="consoleAppender"/>
     </root>
 
 </log4j:configuration>

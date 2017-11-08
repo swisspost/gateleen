@@ -174,8 +174,12 @@ public class RunConfig {
         requestLog = LoggerFactory.getLogger("Request");
         dfISO8601 = ISODateTimeFormat.dateTime().withZone(DateTimeZone.forID("Europe/Zurich"));
         isoDateTimeParser = ISODateTimeFormat.dateTimeParser();
+        String conf = System.getProperty("log4jConfigFile");
+        if (conf == null) {
+            // use default
+            conf = "classpath:" + SERVER_NAME + "/config/logging/log4j.xml";
+        }
 
-        String conf = "classpath:" + SERVER_NAME + "/config/logging/log4j.xml";
         log.info(SERVER_NAME + " starting with log configuration " + conf);
         try {
             Log4jConfigurer.initLogging(conf);
