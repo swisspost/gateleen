@@ -671,9 +671,9 @@ public class RunConfig {
         }
 
         if (request.uri().endsWith("cleanup") || request.uri().contains("/jmx/")) {
-            requestLog.debug(sb.toString());
+            //requestLog.debug(sb.toString());
         } else {
-            requestLog.info(sb.toString());
+            // requestLog.info(sb.toString());
         }
     }
 
