@@ -271,12 +271,6 @@
                     <plugin>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <systemProperties>
-                                <property>
-                                    <name>java.util.logging.config.file</name>
-                                    <value>src/test/resources/log4j-nonUiTest.properties</value>
-                                </property>
-                            </systemProperties>
                             <excludes>
                                 <exclude>org/swisspush/gateleen/hookjs/**</exclude>
                             </excludes>
