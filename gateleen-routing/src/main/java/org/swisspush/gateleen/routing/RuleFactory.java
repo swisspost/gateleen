@@ -48,7 +48,7 @@ public class RuleFactory {
         Set<String> metricNames = new HashSet<>();
         List<Rule> result = new ArrayList<>();
         for (String urlPattern : rules.fieldNames()) {
-            log.debug("Creating a new rule-object for URL pattern " + urlPattern);
+            //log.debug("Creating a new rule-object for URL pattern " + urlPattern);
 
             Rule ruleObj = new Rule();
             ruleObj.setUrlPattern(urlPattern);
@@ -99,9 +99,9 @@ public class RuleFactory {
                     profileArray[i] = profile.getString(i);
                 }
                 ruleObj.setProfile(profileArray);
-                log.debug("The profile-array is set. Those profile-information will be sent: " + Arrays.toString(ruleObj.getProfile()));
+                // log.debug("The profile-array is set. Those profile-information will be sent: " + Arrays.toString(ruleObj.getProfile()));
             } else {
-                log.debug("The profile-array is not set. So won't send any profile-information when using this rule.");
+                //  log.debug("The profile-array is not set. So won't send any profile-information when using this rule.");
             }
 
             setStorage(ruleObj, rule, path);

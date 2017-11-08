@@ -316,7 +316,7 @@ public class LoggingHandler {
 
             try {
                 aboutToLogRequest(currentDestination);
-                loggers.get(currentDestination).info(logEvent.encode());
+                //  loggers.get(currentDestination).info(logEvent.encode());
             } catch (Exception ex) {
                 errorLogRequest(currentDestination, ex);
             }
