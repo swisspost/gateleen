@@ -301,14 +301,14 @@ public class LoggingHandler {
             responseLog.put(HEADERS, headersAsJson(responseHeaders));
             if (requestPayload != null) {
                 try {
-                    requestLog.put(BODY, new JsonObject(requestPayload.toString("UTF-8")));
+                    //     requestLog.put(BODY, new JsonObject(requestPayload.toString("UTF-8")));
                 } catch (DecodeException e) {
                     // ignore, bogus JSON
                 }
             }
             if (responsePayload != null) {
                 try {
-                    responseLog.put(BODY, new JsonObject(responsePayload.toString("UTF-8")));
+                    //      responseLog.put(BODY, new JsonObject(responsePayload.toString("UTF-8")));
                 } catch (DecodeException e) {
                     // ignore, bogus JSON
                 }
@@ -326,11 +326,11 @@ public class LoggingHandler {
     }
 
     private void aboutToLogRequest(String currentDestination) {
-        log.info("About to log to destination " + currentDestination);
+        //  log.info("About to log to destination " + currentDestination);
     }
 
     private void errorLogRequest(String currentDestination, Exception ex) {
-        log.error("Error logging to destination " + currentDestination + ". Cause: " + ex.toString());
+        //   log.error("Error logging to destination " + currentDestination + ". Cause: " + ex.toString());
     }
 
     private JsonObject headersAsJson(MultiMap headers) {
