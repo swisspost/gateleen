@@ -27,7 +27,6 @@ script:
    - mvn test -PuiIntegrationTests -e -Dorg.slf4j.simpleLogger.defaultLogLevel=info -q
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
    - mvn test -PnonUiIntegrationTests -e -Dorg.slf4j.simpleLogger.defaultLogLevel=info -q
-#TODO - ./gradlew jacocoTestReport
 
 
  #  - ./gradlew :gateleen-playground:uploadStaticFiles
