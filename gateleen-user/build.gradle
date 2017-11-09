@@ -1,7 +1,0 @@
-dependencies {
-    compile project(':gateleen-core')
-    compile project(':gateleen-logging')
-    compile "io.vertx:vertx-core:$vertxVersion"
-    compile "junit:junit:$junitVersion"
-    compile "org.mockito:mockito-core:$mockitoVersion"
-}
