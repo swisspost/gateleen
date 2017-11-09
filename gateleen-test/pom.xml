@@ -286,6 +286,12 @@
             </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <log4jConfigFile>${basedir}/src/test/resources/log4j.xml</log4jConfigFile>
+                        <sel_chrome_driver>${sel_chrome_driver}</sel_chrome_driver>
+                    </systemPropertyVariables>
+                </configuration>
                 <executions>
                     <execution>
                         <id>NonUiIntegrationTests</id>
@@ -293,9 +299,6 @@
                             <skipTests>${skipNonUiTests}</skipTests>
                             <!-- Sets the VM argument line used when unit tests are run. -->
                             <argLine>${surefireArgLine}</argLine>
-                            <systemPropertyVariables>
-                                <log4jConfigFile>${basedir}/src/test/resources/log4j.xml</log4jConfigFile>
-                            </systemPropertyVariables>
                             <excludes>
                                 <exclude>org/swisspush/gateleen/hookjs/**</exclude>
                             </excludes>
@@ -308,9 +311,6 @@
                         <id>UiIntegrationTests</id>
                         <configuration>
                             <skipTests>${skipUiTests}</skipTests>
-                            <systemPropertyVariables>
-                                <sel_chrome_driver>${sel_chrome_driver}</sel_chrome_driver>
-                            </systemPropertyVariables>
                             <includes>
                                 <include>org/swisspush/gateleen/hookjs/**</include>
                             </includes>
