@@ -24,9 +24,9 @@ script:
    - sleep 5s
 
    - mvn deploy -PuploadStaticFiles
-   - mvn test -PuiIntegrationTests -e -Dorg.slf4j.simpleLogger.defaultLogLevel=info -q
+   - mvn install -PuiIntegrationTests
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
-   - mvn test -PnonUiIntegrationTests -e -Dorg.slf4j.simpleLogger.defaultLogLevel=info -q
+   - mvn install -PnonUiIntegrationTests
 
 
  #  - ./gradlew :gateleen-playground:uploadStaticFiles
