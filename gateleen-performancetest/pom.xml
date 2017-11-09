@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.swisspush.gateleen</groupId>
+        <artifactId>gateleen</artifactId>
+        <version>1.1.9-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gateleen-performacetest</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.codehaus.groovy.modules.http-builder</groupId>
+            <artifactId>http-builder</artifactId>
+            <version>0.7.1</version>
+        </dependency>
+        <dependency>
+            <groupId>io.gatling.highcharts</groupId>
+            <artifactId>gatling-charts-highcharts</artifactId>
+            <version>2.1.6</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <scalaVersion>2.11.6</scalaVersion>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.6.0</version>
+
+                <executions>
+                    <execution>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <classpathScope>test</classpathScope>
+                            <executable>java</executable>
+                            <arguments>
+                                <argument>-Dgatling.core.directory.binaries=${project.build.testOutputDirectory}
+                                </argument>
+                                <argument>-Dlogback.configurationFile=logback.xml</argument>
+                                <argument>-DtargetHost=${targetHost}</argument>
+                                <argument>-DtargetPort=${targetPort}</argument>
+                                <argument>-DnumberOfUsers=1</argument>
+                                <argument>-DrampUpTime=1</argument>
+                                <argument>-DloginUser=test</argument>
+                                <argument>-DloginPassword=123</argument>
+                                <argument>-classpath</argument>
+                                <classpath/>
+                                <argument>io.gatling.app.Gatling</argument>
+                                <argument>--results-folder</argument>
+                                <argument>${project.build.directory}/gatling-results</argument>
+                                <argument>--binaries-folder</argument>
+                                <argument>${project.build.testOutputDirectory}</argument>
+                                <argument>--bodies-folder</argument>
+                                <argument>${project.testResources[0].directory}/bodies</argument>
+                                <argument>--data-folder</argument>
+                                <argument>${project.testResources[0].directory}/data</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+
+    </build>
+</project>

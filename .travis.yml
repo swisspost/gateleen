@@ -16,15 +16,17 @@ before_install:
 #  We also download the newest version of Chrome Driver that still supports our old version of Chrome (v. 48).
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
+install:
+   - mvn install -Dmaven.javadoc.skip=true -B -V
 script:
-   - ./gradlew build
-   - java -jar gateleen-playground/build/libs/playground.jar &> playground_logs.log &
+   - java -jar gateleen-playground/target/playground.jar &> playground_logs.log &
 #   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
-   - ./gradlew :gateleen-playground:uploadStaticFiles
-   - ./gradlew :gateleen-test:test -PuiIntegrationTests -Dsel_chrome_driver=src/test/resources/chromedriver
+
+   - mvn deploy -PuploadStaticFiles
+   - mvn install -PuiIntegrationTests
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
-   - ./gradlew :gateleen-test:test -PnonUiIntegrationTests
-   - ./gradlew jacocoTestReport
+   - mvn install -PnonUiIntegrationTests
+
 after_success:
   - bash <(curl -s https://codecov.io/bash)

@@ -42,73 +42,73 @@
         <level value="INFO" />
     </logger>
     <logger name="io.vertx.ext.web.handler.sockjs">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.security.authorization">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.cors">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.delta">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.expansion">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.http">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.event">
         <level value="INFO" />
     </logger>
     <logger name="org.swisspush.gateleen.scheduler">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.monitoring">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.queue">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.queue.queuing.circuitbreaker">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.routing">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.core.storage">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.user">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.validation">
         <level value="INFO" />
     </logger>
     <logger name="org.swisspush.gateleen.logging">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.integrationtest">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.delegate">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.merge">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.hook">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.reststorage">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.redisques">
-        <level value="DEBUG" />
+        <level value="DEBUG"/>
     </logger>
     <logger name="org.swisspush.gateleen.logging.Log4jConfiguratorMBean">
         <level value="FATAL" />
