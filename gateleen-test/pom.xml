@@ -251,7 +251,7 @@
                         is passed as VM argument when Maven the Surefire plugin is executed.
                     -->
                     <execution>
-                        <id>pre-unit-test</id>
+                        <id>default-prepare-agent</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
@@ -270,7 +270,7 @@
                         unit tests have been run.
                     -->
                     <execution>
-                        <id>post-unit-test</id>
+                        <id>default-report</id>
                         <phase>test</phase>
                         <goals>
                             <goal>report</goal>
