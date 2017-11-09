@@ -251,7 +251,7 @@
                         is passed as VM argument when Maven the Surefire plugin is executed.
                     -->
                     <execution>
-                        <id>default-prepare-agent</id>
+                        <id>NonUiIntegrationTests</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
@@ -270,7 +270,7 @@
                         unit tests have been run.
                     -->
                     <execution>
-                        <id>default-report</id>
+                        <id>NonUiIntegrationTests</id>
                         <phase>test</phase>
                         <goals>
                             <goal>report</goal>
@@ -297,6 +297,15 @@
                 <executions>
                     <execution>
                         <id>default-test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skipTests>true</skipTests>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>NonUiIntegrationTests</id>
                         <goals>
                             <goal>test</goal>
                         </goals>
