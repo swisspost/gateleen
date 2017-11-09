@@ -286,32 +286,37 @@
             </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <skipTests>${skipNonUiTests}</skipTests>
-                    <!-- Sets the VM argument line used when unit tests are run. -->
-                    <argLine>${surefireArgLine}</argLine>
-                    <systemPropertyVariables>
-                        <log4jConfigFile>${basedir}/src/test/resources/log4j.xml</log4jConfigFile>
-                    </systemPropertyVariables>
-                    <excludes>
-                        <exclude>org/swisspush/gateleen/hookjs/**</exclude>
-                    </excludes>
-                    <includes>
-                        <include>org/swisspush/gateleen/**</include>
-                    </includes>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <skipTests>${skipUiTests}</skipTests>
-                    <systemPropertyVariables>
-                        <sel_chrome_driver>${sel_chrome_driver}</sel_chrome_driver>
-                    </systemPropertyVariables>
-                    <includes>
-                        <include>org/swisspush/gateleen/hookjs/**</include>
-                    </includes>
-                </configuration>
+                <executions>
+                    <execution>
+                        <id>NonUiIntegrationTests</id>
+                        <configuration>
+                            <skipTests>${skipNonUiTests}</skipTests>
+                            <!-- Sets the VM argument line used when unit tests are run. -->
+                            <argLine>${surefireArgLine}</argLine>
+                            <systemPropertyVariables>
+                                <log4jConfigFile>${basedir}/src/test/resources/log4j.xml</log4jConfigFile>
+                            </systemPropertyVariables>
+                            <excludes>
+                                <exclude>org/swisspush/gateleen/hookjs/**</exclude>
+                            </excludes>
+                            <includes>
+                                <include>org/swisspush/gateleen/**</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>UiIntegrationTests</id>
+                        <configuration>
+                            <skipTests>${skipUiTests}</skipTests>
+                            <systemPropertyVariables>
+                                <sel_chrome_driver>${sel_chrome_driver}</sel_chrome_driver>
+                            </systemPropertyVariables>
+                            <includes>
+                                <include>org/swisspush/gateleen/hookjs/**</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -325,6 +330,7 @@
             <properties>
                 <skipUiTests>true</skipUiTests>
                 <skipNonUiTests>true</skipNonUiTests>
+                <jacoco.skip>true</jacoco.skip>
             </properties>
         </profile>
         <profile>
@@ -332,6 +338,7 @@
             <properties>
                 <skipUiTests>true</skipUiTests>
                 <skipNonUiTests>false</skipNonUiTests>
+                <jacoco.skip>false</jacoco.skip>
             </properties>
 
         </profile>
@@ -340,6 +347,7 @@
             <properties>
                 <skipUiTests>false</skipUiTests>
                 <skipNonUiTests>true</skipNonUiTests>
+                <jacoco.skip>true</jacoco.skip>
             </properties>
         </profile>
     </profiles>
