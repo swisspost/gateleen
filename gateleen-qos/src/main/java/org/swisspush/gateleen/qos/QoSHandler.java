@@ -187,8 +187,8 @@ public class QoSHandler implements LoggableResource {
     }
 
     /**
-     * Processes the request if it’s a request concerning
-     * the updates of the QoS settings or if it’s a request
+     * Processes the request if it's a request concerning
+     * the updates of the QoS settings or if it's a request
      * affected by the QoS rules. In either case the return
      * value will be <code>true</code> otherwise <code>false</code>.
      *
