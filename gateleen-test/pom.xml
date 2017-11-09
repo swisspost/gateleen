@@ -294,7 +294,19 @@
                 </configuration>
                 <executions>
                     <execution>
+                        <id>default-test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skipTests>true</skipTests>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>NonUiIntegrationTests</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
                         <configuration>
                             <skipTests>${skipNonUiTests}</skipTests>
                             <!-- Sets the VM argument line used when unit tests are run. -->
@@ -309,6 +321,9 @@
                     </execution>
                     <execution>
                         <id>UiIntegrationTests</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
                         <configuration>
                             <skipTests>${skipUiTests}</skipTests>
                             <includes>
