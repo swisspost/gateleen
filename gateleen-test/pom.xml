@@ -294,7 +294,7 @@
                                         Sets the name of the property containing the settings
                                         for JaCoCo runtime agent.
                                     -->
-                                    <propertyName>failsafeArgLine</propertyName>
+                                    <propertyName>surefireArgLine</propertyName>
                                 </configuration>
                             </execution>
                             <!--
@@ -312,33 +312,6 @@
                                     <dataFile>${project.build.directory}/coverage-reports/jacoco-it.exec</dataFile>
                                     <!-- Sets the output directory for the code coverage report. -->
                                     <outputDirectory>${project.reporting.outputDirectory}/jacoco-it</outputDirectory>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-failsafe-plugin</artifactId>
-                        <version>2.15</version>
-                        <executions>
-                            <!--
-                                Ensures that both integration-test and verify goals of the Failsafe Maven
-                                plugin are executed.
-                            -->
-                            <execution>
-                                <id>integration-tests</id>
-                                <goals>
-                                    <goal>integration-test</goal>
-                                    <goal>verify</goal>
-                                </goals>
-                                <configuration>
-                                    <!-- Sets the VM argument line used when integration tests are run. -->
-                                    <argLine>${failsafeArgLine}</argLine>
-                                    <!--
-                                        Skips integration tests if the value of skip.integration.tests property
-                                        is true
-                                    -->
-                                    <skipTests>false</skipTests>
                                 </configuration>
                             </execution>
                         </executions>
