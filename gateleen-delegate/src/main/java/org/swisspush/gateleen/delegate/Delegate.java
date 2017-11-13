@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.delegate;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
@@ -8,6 +9,8 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.json.transform.JoltTransformer;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.List;
@@ -36,15 +39,17 @@ public class Delegate {
     private final Pattern pattern;
     private final Set<HttpMethod> methods;
     private final List<DelegateRequest> requests;
+    private boolean delegateContainsJoltSpecRequest = false;
 
     /**
      * Creates a new instance of a Delegate.
+     *
      * @param monitoringHandler monitoringHandler
-     * @param selfClient selfClient
-     * @param name name of delegate
-     * @param pattern pattern for the delegate
-     * @param methods methods of the delegate
-     * @param requests requests of the delegate
+     * @param selfClient        selfClient
+     * @param name              name of delegate
+     * @param pattern           pattern for the delegate
+     * @param methods           methods of the delegate
+     * @param requests          requests of the delegate
      */
     public Delegate(final MonitoringHandler monitoringHandler, final HttpClient selfClient, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
         this.monitoringHandler = monitoringHandler;
@@ -53,6 +58,8 @@ public class Delegate {
         this.pattern = pattern;
         this.methods = methods;
         this.requests = requests;
+
+        this.delegateContainsJoltSpecRequest = doesDelegateContainJoltSpecRequest();
     }
 
     /**
@@ -70,17 +77,26 @@ public class Delegate {
      * @param request original request
      */
     public void handle(final HttpServerRequest request) {
-
-
         // is method handled?
-        if ( methods.contains(request.method()) ) {
+        if (methods.contains(request.method())) {
 
             // check if Pattern matches the given request url
             Matcher matcher = pattern.matcher(request.uri());
-            if ( matcher.matches() ) {
-                final Handler<HttpClientResponse> handler = installDoneHandler(request);
-                final JsonObject firstRequest = requests.get(FIRST).getRequest();
-                createRequest(request.uri(), firstRequest, handler);
+            if (matcher.matches()) {
+                extractDelegateExecutionRequestJsonPayload(request).setHandler(payload -> {
+                    if(payload.failed()){
+                        String message = "Unable to parse payload of delegate execution request. " +
+                                "When a delegate definition with a 'transformation' spec is defined, a valid json payload is required!";
+                        LOG.warn(message);
+                        request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                        request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+                        request.response().end(message);
+                        return;
+                    }
+                    final DelegateRequest firstDelegateRequest = requests.get(FIRST);
+                    final Handler<HttpClientResponse> handler = installDoneHandler(request, payload.result());
+                    createRequest(request, payload.result(), firstDelegateRequest, handler);
+                });
                 return;
             }
         }
@@ -95,59 +111,126 @@ public class Delegate {
      * matching the given delegate pattern. Also the
      * request uri is adapted.
      *
-     * @param uri original request
-     * @param requestObject the delegate request object
-     * @param doneHandler the done handler called as soon as the request is executed
+     * @param originalRequest  original request
+     * @param requestContainer the container holding the request object and optionally a json transform spec
+     * @param doneHandler      the done handler called as soon as the request is executed
      */
-    private void createRequest(final String uri, final JsonObject requestObject, final Handler<HttpClientResponse> doneHandler) {
+    private void createRequest(final HttpServerRequest originalRequest, final String delegateExecutionRequestJsonPayload, final DelegateRequest requestContainer, final Handler<HttpClientResponse> doneHandler) {
+
         // matcher to replace wildcards with matching groups
-        final Matcher matcher = pattern.matcher(uri);
+        final Matcher matcher = pattern.matcher(originalRequest.uri());
 
-        // adapt the request uri if necessary
-        final String requestUri = matcher.replaceAll(requestObject.getString(URI));
+        generatePayload(delegateExecutionRequestJsonPayload, requestContainer, matcher).setHandler(payloadBuffer -> {
 
-        // get the string represantion of the payload object
-        String payloadStr;
-        try {
-            payloadStr = requestObject.getString(PAYLOAD);
-        } catch(ClassCastException e) {
-            payloadStr = requestObject.getJsonObject(PAYLOAD).encode();
-        }
-
-        // replacement of matching groups
-        if(payloadStr != null) {
-            payloadStr = matcher.replaceAll(payloadStr);
-        }
-
-        // headers of the delegate
-        MultiMap headers = new CaseInsensitiveHeaders();
-        JsonArray headersArray = requestObject.getJsonArray(HEADERS);
-        if ( headersArray != null ) {
-            if (LOG.isTraceEnabled()) {
-                LOG.trace("Request headers:");
+            if(payloadBuffer.failed()){
+                String message = "Unable to generate delegate request payload. Cause: " + payloadBuffer.cause().getClass().getName();
+                LOG.warn(message);
+                originalRequest.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                originalRequest.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+                originalRequest.response().end(message);
+                return;
             }
 
-            headersArray.forEach(header -> {
+            final JsonObject requestObject = requestContainer.getRequest();
+
+            // adapt the request uri if necessary
+            final String requestUri = matcher.replaceAll(requestObject.getString(URI));
+
+            // headers of the delegate
+            MultiMap headers = new CaseInsensitiveHeaders();
+            JsonArray headersArray = requestObject.getJsonArray(HEADERS);
+            if (headersArray != null) {
                 if (LOG.isTraceEnabled()) {
-                    LOG.trace(" > Key [{}], Value [{}]", ((JsonArray) header).getString(0), ((JsonArray) header).getString(1) );
+                    LOG.trace("Request headers:");
                 }
 
-                headers.add(((JsonArray) header).getString(0),((JsonArray) header).getString(1));
+                headersArray.forEach(header -> {
+                    if (LOG.isTraceEnabled()) {
+                        LOG.trace(" > Key [{}], Value [{}]", ((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
+                    }
+                    headers.add(((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
+                });
+            }
 
+            HttpClientRequest delegateRequest = selfClient.request(HttpMethod.valueOf(requestObject.getString(METHOD)), requestUri, doneHandler);
+            delegateRequest.headers().setAll(headers);
+            delegateRequest.exceptionHandler(exception -> LOG.warn("Delegate request {} failed: {}", requestUri, exception.getMessage()));
+            delegateRequest.setTimeout(120000); // avoids blocking other requests
+
+            if (payloadBuffer.result() != null) {
+                delegateRequest.end(payloadBuffer.result());
+            } else {
+                delegateRequest.end();
+            }
+        });
+    }
+
+    /**
+     * Extract the json payload of the original request when a delegate request definition with a transformation spec
+     * is defined. If no transformation is found, the payload will not be parsed and <code>null</code> will be returned.
+     * @param request the request to get the payload from
+     * @return returns a parsed json payload as string or null
+     */
+    private Future<String> extractDelegateExecutionRequestJsonPayload(HttpServerRequest request){
+        Future<String> future = Future.future();
+        if(delegateContainsJoltSpecRequest) {
+            request.bodyHandler(bodyHandler -> {
+                try {
+                    future.complete(bodyHandler.toJsonObject().encode());
+                } catch (Exception ex) {
+                    future.fail(ex);
+                }
             });
+        } else {
+            future.complete(null);
         }
+        return future;
+    }
 
-        HttpClientRequest delegateRequest = selfClient.request(HttpMethod.valueOf(requestObject.getString(METHOD)), requestUri, doneHandler);
-        delegateRequest.headers().setAll(headers);
-        delegateRequest.exceptionHandler(exception -> LOG.warn("Delegate request {} failed: {}",requestUri , exception.getMessage()));
-        delegateRequest.setTimeout(120000); // avoids blocking other requests
+    private Future<Buffer> generatePayload(String delegateExecutionRequestJsonPayload, DelegateRequest requestContainer, final Matcher matcher) {
+        Future<Buffer> future = Future.future();
 
-        if ( payloadStr != null ) {
-            delegateRequest.end(Buffer.buffer(payloadStr));
+        if (requestContainer.getJoltSpec() != null) {
+            try {
+                if(delegateExecutionRequestJsonPayload != null){
+                    JoltTransformer.transform(delegateExecutionRequestJsonPayload, requestContainer.getJoltSpec()).setHandler(transformed -> {
+                        if(transformed.failed()){
+                            future.fail(transformed.cause());
+                        } else {
+                            JsonObject transformedJsonObject = transformed.result();
+                            try {
+                                future.complete(Buffer.buffer(transformedJsonObject.encode()));
+                            } catch (Exception ex){
+                                future.fail(ex);
+                            }
+                        }
+                    });
+                } else {
+                    future.fail("nothing to transform");
+                }
+            } catch (Exception ex){
+                future.fail(ex);
+            }
+        } else {
+            // matcher to replace wildcards with matching groups
+            final JsonObject requestObject = requestContainer.getRequest();
+            // get the string represantion of the payload object
+            String payloadStr;
+            try {
+                payloadStr = requestObject.getString(PAYLOAD);
+            } catch (ClassCastException e) {
+                payloadStr = requestObject.getJsonObject(PAYLOAD).encode();
+            }
+
+            // replacement of matching groups
+            if (payloadStr != null) {
+                payloadStr = matcher.replaceAll(payloadStr);
+                future.complete(Buffer.buffer(payloadStr));
+            } else {
+                future.complete(null);
+            }
         }
-        else {
-            delegateRequest.end();
-        }
+        return future;
     }
 
     /**
@@ -156,42 +239,42 @@ public class Delegate {
      * @param request the original request
      * @return a doneHandler
      */
-    private Handler<HttpClientResponse> installDoneHandler(final HttpServerRequest request) {
+    private Handler<HttpClientResponse> installDoneHandler(final HttpServerRequest request, final String delegateExecutionRequestJsonPayload) {
         return new Handler<HttpClientResponse>() {
             private AtomicInteger currentIndex = new AtomicInteger(0);
 
             @Override
             public void handle(HttpClientResponse response) {
-                if ( LOG.isTraceEnabled() ) {
-                   LOG.trace("Done handler - handle");
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("Done handler - handle");
                 }
 
                 // request was fine
-                if ( ( response.statusCode() / 100 ) == STATUS_CODE_2XX  ) {
-                    if ( LOG.isTraceEnabled() ) {
+                if ((response.statusCode() / 100) == STATUS_CODE_2XX) {
+                    if (LOG.isTraceEnabled()) {
                         LOG.trace("Done handler - OK");
                     }
 
                     // is there another request?
-                    if ( currentIndex.incrementAndGet() < requests.size() ) {
-                        if ( LOG.isTraceEnabled() ) {
+                    if (currentIndex.incrementAndGet() < requests.size()) {
+                        if (LOG.isTraceEnabled()) {
                             LOG.trace("Done handler - calling next {}", currentIndex.get());
                         }
 
-                        final JsonObject delegateRequest = requests.get(currentIndex.get()).getRequest();
-                        createRequest(request.uri(), delegateRequest, this );
+                        final DelegateRequest delegateRequest = requests.get(currentIndex.get());
+                        createRequest(request, delegateExecutionRequestJsonPayload, delegateRequest, this);
                     }
                     // if not, send corresponding respond
                     else {
-                        if ( LOG.isTraceEnabled() ) {
-                        LOG.trace("Done handler - not 2XX, create response [{}]", response.statusCode());
+                        if (LOG.isTraceEnabled()) {
+                            LOG.trace("Done handler - not 2XX, create response [{}]", response.statusCode());
                         }
                         createResponse(request, response);
                     }
                 }
                 // request failed
                 else {
-                    if ( LOG.isTraceEnabled() ) {
+                    if (LOG.isTraceEnabled()) {
                         LOG.trace("Done handler - not 200/202, create response [{}]", response.statusCode());
                     }
                     createResponse(request, response);
@@ -203,7 +286,7 @@ public class Delegate {
     /**
      * Create a response.
      *
-     * @param request original request
+     * @param request  original request
      * @param response a response
      */
     private void createResponse(final HttpServerRequest request, final HttpClientResponse response) {
@@ -214,5 +297,17 @@ public class Delegate {
         request.response().headers().remove("Content-Length");
         response.handler(data -> request.response().write(data));
         response.endHandler(v -> request.response().end());
+    }
+
+    private boolean doesDelegateContainJoltSpecRequest(){
+        if(this.requests == null || this.requests.isEmpty()){
+            return false;
+        }
+        for (DelegateRequest request : requests) {
+            if(request.getJoltSpec() != null){
+                return true;
+            }
+        }
+        return false;
     }
 }
