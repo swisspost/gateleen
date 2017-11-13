@@ -30,6 +30,10 @@
   "additionalProperties": false,
   "definitions": {
     "Request": {
+      "oneOf": [
+        { "required": ["payload"] },
+        { "required": ["transform"] }
+      ],
       "properties": {
         "uri": {
           "description": "The target of the request",
@@ -45,7 +49,12 @@
           ]
         },
         "payload": {
-          "description": "The payload to send in requests body"
+          "description": "The payload to send in requests body",
+          "type": "object"
+        },
+        "transform": {
+          "description": "The jolt spec definition to transform the payload",
+          "type": "array"
         },
         "headers": {
           "description": "Headers to send with the request",

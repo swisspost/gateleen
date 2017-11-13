@@ -3,13 +3,17 @@ package org.swisspush.gateleen.delegate;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.json.transform.JoltSpec;
+import org.swisspush.gateleen.core.json.transform.JoltSpecBuilder;
+import org.swisspush.gateleen.core.json.transform.JoltSpecException;
 import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
-import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
 
 import java.util.*;
@@ -26,6 +30,7 @@ public class DelegateFactory {
     private static final String REQUESTS = "requests";
     private static final String METHODS = "methods";
     private static final String PATTERN = "pattern";
+    private static final String TRANSFORM = "transform";
 
     private final MonitoringHandler monitoringHandler;
     private final HttpClient selfClient;
@@ -69,7 +74,7 @@ public class DelegateFactory {
         // validate json
         ValidationResult validationResult = Validator.validateStatic(Buffer.buffer(configString), delegatesSchema, LOG);
         if(!validationResult.isSuccess()){
-            throw new  ValidationException(validationResult);
+            throw new ValidationException(validationResult);
         }
 
         // everything is fine, create Delegate
@@ -100,15 +105,28 @@ public class DelegateFactory {
         }
 
         // requests of the delegate
-        List<JsonObject> requests = new ArrayList<>();
+        List<DelegateRequest> requests = new ArrayList<>();
         for(int i = 0; i< delegateObject.getJsonArray(REQUESTS).size(); i++) {
             if ( LOG.isTraceEnabled() ) {
                 LOG.trace("request of [{}] #: {}", delegateName, i );
             }
-
-            requests.add((JsonObject) delegateObject.getJsonArray(REQUESTS).getValue(i));
+            JsonObject requestJsonObject = (JsonObject) delegateObject.getJsonArray(REQUESTS).getValue(i);
+            JoltSpec joltSpec = parsePayloadTransformSpec(requestJsonObject, delegateName);
+            requests.add(new DelegateRequest(requestJsonObject, joltSpec));
         }
 
         return new Delegate(monitoringHandler, selfClient, delegateName, pattern, methods, requests );
+    }
+
+    private JoltSpec parsePayloadTransformSpec(JsonObject requestJsonObject, String delegateName) throws ValidationException {
+        JsonArray transformArray = requestJsonObject.getJsonArray(TRANSFORM);
+        if(transformArray != null) {
+            try {
+                return JoltSpecBuilder.buildSpec(transformArray.encode());
+            } catch (JoltSpecException e) {
+                throw new ValidationException("Could not parse json transform specification of delegate " + delegateName, e);
+            }
+        }
+        return null;
     }
 }
