@@ -37,7 +37,10 @@ Putting or updating an delegate definition requires a validation against the del
 | headers  |     | Allows to specify extra headers for one specific delegate request. |
 | uri      |  x  | The URI against which one the delegate request will be performed. |
 | method   |  x  | The HTTP method used to perform the given delegate request. |
-| payload  |  x  | The json content of the payload required for processing the delegate request. The payload is dependent on the wished request and can differ from request to request. |
+| payload  |  (x)*  | The json content of the payload required for processing the delegate request. The payload is dependent on the wished request and can differ from request to request. |
+| transform  |  (x)*  | The json-to-json transformation spec defining how to transform the payload of the delegate execution request to the output. See [Jolt library](https://github.com/bazaarvoice/jolt) for more information. |
+
+\* Exactly one of _payload_ or _transform_ is required
 
 ##### Concrete Example
 > ```PUT /gateleen/server/delegate/v1/delegates/resource-zip-copy/definition```
@@ -57,6 +60,93 @@ Putting or updating an delegate definition requires a validation against the del
         }
     ]
 }
+```
+
+### Payload handling types
+As documented in the _Delegate definition_ section, there are two types of payload handling available. The JSON schema ensures that excatly one type is configured.
+
+#### Payload definition
+The payload definition is made for each defined request and uses the _payload_ property. The content of the _payload_ property must be a valid json object and contains the
+payload which will be used in the delegated requests.
+> For this payload handling type, no (or no valid json) payload is required for the delegate execution request, since the payload is not used at all.
+
+Example:
+```
+{
+    "methods": [ "PUT" ],
+    "pattern": ".*/([^/]+.*)",
+    "requests": [
+        {
+            "method": "POST",
+            "uri": "/gateleen/server/v1/copy",
+            "payload": {
+                "source": "/gateleen/$1?expand=100&zip=true",
+                "destination": "/gateleen/zips/users/$1.zip"
+            }
+        }
+    ]
+}
+```
+
+#### Payload transformation
+The payload transformation is made for each defined request and uses the _transform_ property. The content of the _transform_ property must be a valid json-to-json transformation
+specification as documented in the [Jolt library](https://github.com/bazaarvoice/jolt)
+
+Example:
+```
+{
+	"methods": [
+		"PUT"
+	],
+	"pattern": ".*/([^/]+.*)",
+	"requests": [{
+		"method": "PUT",
+		"uri": "/playground/server/tests/delegate",
+		"transform": [{
+			"operation": "shift",
+			"spec": {
+				"@": "records[0].value"
+			}
+		}]
+	}]
+}
+```
+The _Jolt library_ defines the following out-of-the-box transforms which can be extended by implementing a custom _Java Transform_:
+```
+shift       : copy data from the input tree and put it the output tree
+default     : apply default values to the tree
+remove      : remove data from the tree
+sort        : sort the Map key values alphabetically ( for debugging and human readability )
+cardinality : "fix" the cardinality of input data.  Eg, the "urls" element is usually a List, but if there is only one, then it is a String 
+```
+
+Having the _transform_ spec defined as in the example above, the following input
+```
+{
+	"foo": "bar"
+}
+```
+would be transformed into
+```
+{
+  "records" : [ {
+    "value" : {
+      "foo" : "bar"
+    }
+  } ]
+}
+```
+Checkout [Jolt Transform Demo](http://jolt-demo.appspot.com/#inception) for more examples and a handy tool to define the transformation specifications.
+
+##### Identity transformation
+The transformation specification defining the _identity transformation_ or _identity function_ (input equals output) looks like this:
+```
+[{
+	"operation": "shift",
+	"spec": {
+		"@": ""
+	}
+}]
 ```
 
 ### Delegate execution
