@@ -49,7 +49,8 @@
           ]
         },
         "payload": {
-          "description": "The payload to send in requests body"
+          "description": "The payload to send in requests body",
+          "type": "object"
         },
         "transform": {
           "description": "The jolt spec definition to transform the payload",
