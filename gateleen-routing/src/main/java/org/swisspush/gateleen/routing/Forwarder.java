@@ -7,8 +7,11 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.streams.Pump;
+import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
@@ -48,6 +51,8 @@ public class Forwarder implements Handler<RoutingContext> {
     private static final String ETAG_HEADER = "Etag";
     private static final String IF_NONE_MATCH_HEADER = "if-none-match";
     private static final String SELF_REQUEST_HEADER = "x-self-request";
+
+    private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
 
     public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath) {
         this.vertx = vertx;
@@ -200,11 +205,14 @@ public class Forwarder implements Handler<RoutingContext> {
          * the buffer bodyData.
          */
         if (bodyData == null) {
-            req.handler(data -> {
-                cReq.write(data);
-                loggingHandler.appendRequestPayload(data);
-            });
+            final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(cReq, loggingHandler, true);
+            final Pump pump = Pump.pump(req, loggingWriteStream);
             req.endHandler(v -> cReq.end());
+            req.exceptionHandler(t -> {
+                LOG.error("Exception during forwarding - closing (forwarding) client connection", t);
+                cReq.connection().close();
+            });
+            pump.start();
         } else {
             loggingHandler.appendRequestPayload(bodyData);
             cReq.end(bodyData);
@@ -213,6 +221,58 @@ public class Forwarder implements Handler<RoutingContext> {
         loggingHandler.request(cReq.headers());
 
         req.resume();
+    }
+
+    private static class LoggingWriteStream implements WriteStream<Buffer> {
+
+        private final WriteStream<Buffer> wrappedWriteStream;
+        private final LoggingHandler loggingHandler;
+        private final boolean isRequest;
+
+        public LoggingWriteStream(WriteStream<Buffer> wrappedWriteStream, LoggingHandler loggingHandler, boolean isRequest) {
+            this.wrappedWriteStream = wrappedWriteStream;
+            this.loggingHandler = loggingHandler;
+            this.isRequest = isRequest;
+        }
+
+        @Override
+        public io.vertx.core.streams.WriteStream<Buffer> exceptionHandler(Handler<Throwable> handler) {
+            wrappedWriteStream.exceptionHandler(handler);
+            return this;
+        }
+
+        @Override
+        public io.vertx.core.streams.WriteStream<Buffer> write(Buffer data) {
+            wrappedWriteStream.write(data);
+            if(isRequest) {
+                loggingHandler.appendRequestPayload(data);
+            } else {
+                loggingHandler.appendResponsePayload(data);
+            }
+            return this;
+        }
+
+        @Override
+        public void end() {
+            wrappedWriteStream.end();
+        }
+
+        @Override
+        public io.vertx.core.streams.WriteStream<Buffer> setWriteQueueMaxSize(int maxSize) {
+            wrappedWriteStream.setWriteQueueMaxSize(maxSize);
+            return this;
+        }
+
+        @Override
+        public boolean writeQueueFull() {
+            return wrappedWriteStream.writeQueueFull();
+        }
+
+        @Override
+        public io.vertx.core.streams.WriteStream<Buffer> drainHandler(Handler<Void> handler) {
+            wrappedWriteStream.drainHandler(handler);
+            return this;
+        }
     }
 
     private void setStaticHeaders(HttpClientRequest cReq) {
@@ -314,10 +374,8 @@ public class Forwarder implements Handler<RoutingContext> {
                     vertx.runOnContext(event -> loggingHandler.log());
                 });
             } else {
-                cRes.handler(data -> {
-                    req.response().write(data);
-                    loggingHandler.appendResponsePayload(data);
-                });
+                final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(req.response(), loggingHandler, false);
+                final Pump pump = Pump.pump(cRes, loggingWriteStream);
                 cRes.endHandler(v -> {
                     try {
                         req.response().end();
@@ -327,6 +385,7 @@ public class Forwarder implements Handler<RoutingContext> {
                     }
                     vertx.runOnContext(event -> loggingHandler.log());
                 });
+                pump.start();
             }
 
             cRes.exceptionHandler(exception -> {
