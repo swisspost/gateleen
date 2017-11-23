@@ -8,7 +8,6 @@ import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
-import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +18,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.LoggingWriteStream;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.Base64;
@@ -209,7 +209,9 @@ public class Forwarder implements Handler<RoutingContext> {
             final Pump pump = Pump.pump(req, loggingWriteStream);
             req.endHandler(v -> cReq.end());
             req.exceptionHandler(t -> {
-                LOG.error("Exception during forwarding - closing (forwarding) client connection", t);
+                RequestLoggerFactory
+                        .getLogger(Forwarder.class, req)
+                        .warn("Exception during forwarding - closing (forwarding) client connection", t);
                 cReq.connection().close();
             });
             pump.start();
@@ -221,58 +223,6 @@ public class Forwarder implements Handler<RoutingContext> {
         loggingHandler.request(cReq.headers());
 
         req.resume();
-    }
-
-    private static class LoggingWriteStream implements WriteStream<Buffer> {
-
-        private final WriteStream<Buffer> wrappedWriteStream;
-        private final LoggingHandler loggingHandler;
-        private final boolean isRequest;
-
-        public LoggingWriteStream(WriteStream<Buffer> wrappedWriteStream, LoggingHandler loggingHandler, boolean isRequest) {
-            this.wrappedWriteStream = wrappedWriteStream;
-            this.loggingHandler = loggingHandler;
-            this.isRequest = isRequest;
-        }
-
-        @Override
-        public io.vertx.core.streams.WriteStream<Buffer> exceptionHandler(Handler<Throwable> handler) {
-            wrappedWriteStream.exceptionHandler(handler);
-            return this;
-        }
-
-        @Override
-        public io.vertx.core.streams.WriteStream<Buffer> write(Buffer data) {
-            wrappedWriteStream.write(data);
-            if(isRequest) {
-                loggingHandler.appendRequestPayload(data);
-            } else {
-                loggingHandler.appendResponsePayload(data);
-            }
-            return this;
-        }
-
-        @Override
-        public void end() {
-            wrappedWriteStream.end();
-        }
-
-        @Override
-        public io.vertx.core.streams.WriteStream<Buffer> setWriteQueueMaxSize(int maxSize) {
-            wrappedWriteStream.setWriteQueueMaxSize(maxSize);
-            return this;
-        }
-
-        @Override
-        public boolean writeQueueFull() {
-            return wrappedWriteStream.writeQueueFull();
-        }
-
-        @Override
-        public io.vertx.core.streams.WriteStream<Buffer> drainHandler(Handler<Void> handler) {
-            wrappedWriteStream.drainHandler(handler);
-            return this;
-        }
     }
 
     private void setStaticHeaders(HttpClientRequest cReq) {
