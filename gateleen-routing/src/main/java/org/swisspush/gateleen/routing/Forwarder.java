@@ -156,7 +156,10 @@ public class Forwarder implements Handler<RoutingContext> {
 
     private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap) {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req, vertx.eventBus());
-
+        if(targetUri.startsWith("http")) {
+            //ignore routes onto itself
+            GapaOutboundRecord.createFromHttpRequest(req, targetUri).sendOverWebsocket(vertx);
+        }
         final String uniqueId = req.headers().get("x-rp-unique_id");
         final String timeout = req.headers().get("x-timeout");
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());

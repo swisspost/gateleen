@@ -492,7 +492,10 @@ public class RunConfig {
                 }
                 request.exceptionHandler(exception -> LoggerFactory.getLogger(verticleClass).trace("Exception in client", exception));
                 logRequest(request);
-
+                if(request.headers().contains("x-service")) {
+                    //ignore requests without service name header
+                    GapaInboundRecord.createFromHttpRequest(request, "x-service").sendOverWebsocket(vertx);
+                }
                 if (qosHandler != null && qosHandler.handle(request)) {
                     return;
                 }
