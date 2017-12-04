@@ -12,6 +12,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -91,19 +92,30 @@ public class QueueCircuitBreakerImplTest {
                 ruleToCircuitMapping, configResourceManager, queueCircuitBreakerHttpRequestHandler,9999));
     }
 
+    @After
+    public void cleanUp() {
+        vertx.close();
+        Mockito.reset(lock);
+        Mockito.reset(storage);
+        Mockito.reset(queueCircuitBreakerStorage);
+        Mockito.reset(ruleToCircuitMapping);
+        Mockito.reset(configResourceManager);
+        Mockito.reset(queueCircuitBreaker);
+    }
+
     @Test
     public void testLockingForPeriodicTimersSuccess(TestContext context){
-        Async async = context.async(1);
+        Async async = context.async(2);
 
         Mockito.when(queueCircuitBreakerStorage.setOpenCircuitsToHalfOpen()).thenReturn(Future.succeededFuture(0L));
         Mockito.when(queueCircuitBreakerStorage.popQueueToUnlock()).thenReturn(Future.succeededFuture("SomeQueue"));
         Mockito.when(queueCircuitBreakerStorage.unlockSampleQueues()).thenReturn(Future.succeededFuture(new ArrayList<>()));
 
         vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            async.countDown();
             context.assertEquals("deleteLock", event.body().getString("operation"));
             context.assertEquals("SomeQueue", event.body().getJsonObject("payload").getString("queuename"));
             event.reply(new JsonObject().put("status", "ok"));
+            async.countDown();
         });
 
         ArgumentCaptor<String> lockArguments = ArgumentCaptor.forClass(String.class);
@@ -119,7 +131,7 @@ public class QueueCircuitBreakerImplTest {
         Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).setOpenCircuitsToHalfOpen();
         Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).popQueueToUnlock();
         Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).unlockSampleQueues();
-
+        async.countDown();
         async.awaitSuccess();
     }
 
@@ -152,6 +164,7 @@ public class QueueCircuitBreakerImplTest {
         Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).unlockSampleQueues();
 
         async.complete();
+        async.awaitSuccess();
     }
 
     @Test
@@ -181,6 +194,7 @@ public class QueueCircuitBreakerImplTest {
                 async.complete();
             });
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -203,6 +217,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreaker, times(1)).lockQueue("someQueue", req);
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -231,6 +246,7 @@ public class QueueCircuitBreakerImplTest {
                 async.complete();
             });
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -246,6 +262,7 @@ public class QueueCircuitBreakerImplTest {
             context.assertTrue(event.cause().getMessage().contains("no rule to circuit mapping found for queue"));
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -265,6 +282,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreaker, never()).lockQueue(anyString(), any(HttpRequest.class));
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -281,6 +299,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreaker, never()).lockQueue(anyString(), any(HttpRequest.class));
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -303,6 +322,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreaker, times(1)).lockQueue("someQueue", req);
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -317,9 +337,9 @@ public class QueueCircuitBreakerImplTest {
                 .thenReturn(Future.succeededFuture());
 
         vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            async.countDown();
             context.assertEquals("putLock", event.body().getString("operation"));
             event.reply(new JsonObject().put("status", "ok"));
+            async.countDown();
         });
 
         queueCircuitBreaker.lockQueue("someQueue", req).setHandler(event -> {
@@ -343,9 +363,9 @@ public class QueueCircuitBreakerImplTest {
                 .thenReturn(Future.succeededFuture());
 
         vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            async.countDown();
             context.assertEquals("putLock", event.body().getString("operation"));
             event.reply(new JsonObject().put("status", "error"));
+            async.countDown();
         });
 
         queueCircuitBreaker.lockQueue("someQueue", req).setHandler(event -> {
@@ -379,6 +399,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).lockQueue(anyString(), any(PatternAndCircuitHash.class));
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -389,9 +410,9 @@ public class QueueCircuitBreakerImplTest {
                 .thenReturn(Future.succeededFuture("queue_1"));
 
         vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            async.countDown();
             context.assertEquals("deleteLock", event.body().getString("operation"));
             event.reply(new JsonObject().put("status", "ok"));
+            async.countDown();
         });
 
         queueCircuitBreaker.unlockNextQueue().setHandler(event -> {
@@ -400,7 +421,6 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).popQueueToUnlock();
             async.countDown();
         });
-
         async.awaitSuccess();
     }
 
@@ -412,9 +432,9 @@ public class QueueCircuitBreakerImplTest {
                 .thenReturn(Future.succeededFuture("queue_1"));
 
         vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            async.countDown();
             context.assertEquals("deleteLock", event.body().getString("operation"));
             event.reply(new JsonObject().put("status", "error"));
+            async.countDown();
         });
 
         queueCircuitBreaker.unlockNextQueue().setHandler(event -> {
@@ -423,7 +443,6 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).popQueueToUnlock();
             async.countDown();
         });
-
         async.awaitSuccess();
     }
 
@@ -444,7 +463,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).popQueueToUnlock();
             async.complete();
         });
-
+        async.awaitSuccess();
     }
 
     @Test
@@ -455,15 +474,15 @@ public class QueueCircuitBreakerImplTest {
                 .thenReturn(Future.succeededFuture(Arrays.asList("q1", "q2", "q3")));
 
         vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            async.countDown();
             context.assertEquals("deleteLock", event.body().getString("operation"));
             event.reply(new JsonObject().put("status", "ok"));
+            async.countDown();
         });
 
         queueCircuitBreaker.unlockSampleQueues().setHandler(event -> {
-            async.countDown();
             context.assertTrue(event.succeeded());
             context.assertEquals(3L, event.result());
+            async.countDown();
         });
 
         async.awaitSuccess();
@@ -477,19 +496,19 @@ public class QueueCircuitBreakerImplTest {
                 .thenReturn(Future.succeededFuture(Arrays.asList("q1", "q2", "q3")));
 
         vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            async.countDown();
             context.assertEquals("deleteLock", event.body().getString("operation"));
             if(event.body().getJsonObject("payload").getString("queuename").equalsIgnoreCase("q2")){
                 event.reply(new JsonObject().put("status", "error"));
             } else {
                 event.reply(new JsonObject().put("status", "ok"));
             }
+            async.countDown();
         });
 
         queueCircuitBreaker.unlockSampleQueues().setHandler(event -> {
-            async.countDown();
             context.assertTrue(event.failed());
             context.assertTrue(event.cause().getMessage().contains("The following queues could not be unlocked: [q2]"));
+            async.countDown();
         });
 
         async.awaitSuccess();
@@ -511,7 +530,7 @@ public class QueueCircuitBreakerImplTest {
             context.assertTrue(event.cause().getMessage().contains("unable to lock queues"));
             async.complete();
         });
-
+        async.awaitSuccess();
     }
 
     @Test
@@ -530,6 +549,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).closeCircuit(any(PatternAndCircuitHash.class));
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -549,6 +569,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).closeCircuit(any(PatternAndCircuitHash.class));
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -563,6 +584,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).closeAllCircuits();
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -578,6 +600,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).closeAllCircuits();
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -596,6 +619,7 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).reOpenCircuit(any(PatternAndCircuitHash.class));
             async.complete();
         });
+        async.awaitSuccess();
     }
 
     @Test
@@ -615,5 +639,6 @@ public class QueueCircuitBreakerImplTest {
             verify(queueCircuitBreakerStorage, times(1)).reOpenCircuit(any(PatternAndCircuitHash.class));
             async.complete();
         });
+        async.awaitSuccess();
     }
 }
