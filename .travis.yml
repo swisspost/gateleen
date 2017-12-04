@@ -18,22 +18,19 @@ before_install:
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
 install:
-    # Normal build
     - mvn install -Dmaven.javadoc.skip=true -B -V
-
-    # Release Build
-#       - mvn -B -Prelease jgitflow:release-start jgitflow:release-finish --settings settings.xml
 before_script:
   - git config --global user.email "swisspush@post.ch"
   - git config --global user.name "Travis-CI"
 script:
    - java -jar gateleen-playground/target/playground.jar &> playground_logs.log &
-##   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
+  # TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
    - mvn deploy -PuploadStaticFiles
    - mvn install -PuiIntegrationTests
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
    - mvn install -PnonUiIntegrationTests
+   # the exported credentials are needed in the maybe-release.sh
    - git config credential.helper "store --file=.git/credentials"
    - echo "https://${GH_TOKEN}:@github.com" > .git/credentials
    - ./maybe-release.sh
