@@ -6,7 +6,6 @@ import com.jayway.restassured.parsing.Parser;
 import com.jayway.restassured.specification.RequestSpecification;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
@@ -63,8 +62,11 @@ import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
 import redis.clients.jedis.Jedis;
 
+import javax.management.*;
+import java.lang.management.ManagementFactory;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * TestVerticle all Gateleen tests. <br />
@@ -73,17 +75,17 @@ import java.util.Map;
  */
 @RunWith(VertxUnitRunner.class)
 public abstract class AbstractTest {
-    public static final String SERVER_NAME = "gateleen";
-    public static final String PREFIX = SERVER_NAME + ".";
-    public static final String JMX_DOMAIN = "org.swisspush.gateleen";
+    protected static final String SERVER_NAME = "gateleen";
+    protected static final String PREFIX = SERVER_NAME + ".";
+    private static final String JMX_DOMAIN = "org.swisspush.gateleen";
 
     public static final String ROOT = "/playground";
     public static final String SERVER_ROOT = ROOT + "/server";
-    public static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
-    public static final String DELEGATE_ROOT = ROOT + "/server/delegate/v1/delegates/";
+    private static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
+    private static final String DELEGATE_ROOT = ROOT + "/server/delegate/v1/delegates/";
     public static final int MAIN_PORT = 3332;
-    public static final int REDIS_PORT = 6379;
-    public static final int CIRCUIT_BREAKER_REST_API_PORT = 7014;
+    protected static final int REDIS_PORT = 6379;
+    private static final int CIRCUIT_BREAKER_REST_API_PORT = 7014;
 
     /**
      * Basis configuration for RestAssured
@@ -116,7 +118,6 @@ public abstract class AbstractTest {
 
         final JsonObject info = new JsonObject();
         final LocalHttpClient selfClient = new LocalHttpClient(vertx);
-        final HttpClient selfClientExpansionHandler = selfClient;
         props.putAll(RunConfig.buildRedisProps("localhost", REDIS_PORT));
 
         String redisHost = (String) props.get("redis.host");
@@ -126,7 +127,7 @@ public abstract class AbstractTest {
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_SOFT_PROPERTY, "4");
 
         RunConfig.deployModules(vertx, AbstractTest.class, props, success -> {
-            if(success){
+            if (success) {
                 RedisClient redisClient = RedisClient.create(vertx, new RedisOptions().setHost(redisHost).setPort(redisPort));
                 ResourceStorage storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
                 MonitoringHandler monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX);
@@ -191,7 +192,7 @@ public abstract class AbstractTest {
                         RunConfig.with()
                                 .corsHandler(new CORSHandler())
                                 .deltaHandler(new DeltaHandler(redisClient, selfClient))
-                                .expansionHandler(new ExpansionHandler(vertx, storage, selfClientExpansionHandler, props, ROOT, RULES_ROOT))
+                                .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))
                                 .hookHandler(hookHandler)
                                 .qosHandler(qosHandler)
                                 .copyResourceHandler(new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy"))
@@ -215,7 +216,7 @@ public abstract class AbstractTest {
                 vertxRouter.route().handler(routingContextHandlerrNew);
                 mainServer.requestHandler(vertxRouter::accept);
                 mainServer.listen(MAIN_PORT, event -> {
-                    if(event.succeeded()){
+                    if (event.succeeded()) {
                         async.complete();
                     } else {
                         context.fail("Server not listening on port " + MAIN_PORT);
@@ -223,17 +224,36 @@ public abstract class AbstractTest {
                 });
             }
         });
+        async.awaitSuccess();
     }
 
     /**
      * Stopps redis after the test are finished.
      */
     @AfterClass
-    public static void tearDownAfterClass(TestContext context) {
+    public static void tearDownAfterClass(TestContext context) throws MalformedObjectNameException, InstanceNotFoundException, MBeanRegistrationException {
         Async async = context.async();
         jedis.close();
         mainServer.close();
+        removeRegisteredMBean();
         vertx.close(event -> async.complete());
+        async.awaitSuccess();
+    }
+
+    private static void removeRegisteredMBean() throws MalformedObjectNameException, MBeanRegistrationException, InstanceNotFoundException {
+        MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+        if (mbs.getMBeanCount() == 0) {
+            return;
+        }
+        Set<ObjectName> beanNameList = mbs.queryNames(null, null);
+        for (ObjectName beanName : beanNameList) {
+            if (beanName.toString().startsWith("metrics:name=gateleen") || beanName.toString().startsWith("metrics:name=redis.main")) {
+                if (mbs.isRegistered(beanName)) {
+                    mbs.unregisterMBean(beanName);
+                }
+            }
+        }
+
     }
 
     @Before

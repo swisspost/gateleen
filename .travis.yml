@@ -7,6 +7,7 @@ services:
   - redis-server
 before_install:
   - export DISPLAY=:99.0
+  - chmod +x maybe-release.sh
   - sh -e /etc/init.d/xvfb start
 #  Because newer versions of Chrome are not supported for the deprecated "precise" environment of travis we are using,
 #  we download and install an older version of Chrome (v. 48), along with some dependencies.
@@ -16,15 +17,22 @@ before_install:
 #  We also download the newest version of Chrome Driver that still supports our old version of Chrome (v. 48).
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
+install:
+    - mvn install -Dmaven.javadoc.skip=true -B -V
+before_script:
+  - git config --global user.email "swisspush@post.ch"
+  - git config --global user.name "Travis-CI"
 script:
-   - ./gradlew build
-   - java -jar gateleen-playground/build/libs/playground.jar &> playground_logs.log &
-#   TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
+   - java -jar gateleen-playground/target/playground.jar &> playground_logs.log &
+  # TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
-   - ./gradlew :gateleen-playground:uploadStaticFiles
-   - ./gradlew :gateleen-test:test -PuiIntegrationTests -Dsel_chrome_driver=src/test/resources/chromedriver
+   - mvn deploy -PuploadStaticFiles
+   - mvn install -PuiIntegrationTests
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
-   - ./gradlew :gateleen-test:test -PnonUiIntegrationTests
-   - ./gradlew jacocoTestReport
+   - mvn install -PnonUiIntegrationTests
+   # the exported credentials are needed in the maybe-release.sh
+   - git config credential.helper "store --file=.git/credentials"
+   - echo "https://${GH_TOKEN}:@github.com" > .git/credentials
+   - ./maybe-release.sh
 after_success:
   - bash <(curl -s https://codecov.io/bash)

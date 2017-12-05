@@ -1,7 +1,0 @@
-dependencies {
-    compile project(':gateleen-core')
-    compile project(':gateleen-routing')
-    compile "io.vertx:vertx-core:$vertxVersion"
-    compile "io.vertx:vertx-redis-client:$vertxVersion"
-    compile "org.swisspush:rest-storage:$reststorageVersion"
-}
