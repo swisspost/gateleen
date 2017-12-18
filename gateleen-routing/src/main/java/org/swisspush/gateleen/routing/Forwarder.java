@@ -300,43 +300,22 @@ public class Forwarder implements Handler<RoutingContext> {
             if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
                 req.response().headers().addAll(profileHeaderMap);
             }
-            if (req.response().getStatusCode() == StatusCode.NOT_MODIFIED.getStatusCode()) {
-                req.response().headers().add("Content-Length", "0");
-            }
             if (!req.response().headers().contains("Content-Length")) {
                 req.response().setChunked(true);
             }
 
-            final String responseEtag = cRes.headers().get(ETAG_HEADER);
-            if (responseEtag != null && !responseEtag.isEmpty()) {
-                cRes.bodyHandler(data -> {
-                    String ifNoneMatchHeader = req.headers().get(IF_NONE_MATCH_HEADER);
-                    if (responseEtag.equals(ifNoneMatchHeader)) {
-                        req.response().setStatusCode(StatusCode.NOT_MODIFIED.getStatusCode());
-                        req.response().setStatusMessage(StatusCode.NOT_MODIFIED.getStatusMessage());
-                        ResponseStatusCodeLogUtil.debug(req, StatusCode.NOT_MODIFIED, Forwarder.class);
-                        req.response().end();
-                    } else {
-                        ResponseStatusCodeLogUtil.debug(req, StatusCode.fromCode(req.response().getStatusCode()), Forwarder.class);
-                        req.response().end(data);
-                    }
-                    loggingHandler.appendResponsePayload(data);
-                    vertx.runOnContext(event -> loggingHandler.log());
-                });
-            } else {
-                final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(req.response(), loggingHandler, false);
-                final Pump pump = Pump.pump(cRes, loggingWriteStream);
-                cRes.endHandler(v -> {
-                    try {
-                        req.response().end();
-                        ResponseStatusCodeLogUtil.debug(req, StatusCode.fromCode(req.response().getStatusCode()), Forwarder.class);
-                    } catch (IllegalStateException e) {
-                        // ignore because maybe already closed
-                    }
-                    vertx.runOnContext(event -> loggingHandler.log());
-                });
-                pump.start();
-            }
+            final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(req.response(), loggingHandler, false);
+            final Pump pump = Pump.pump(cRes, loggingWriteStream);
+            cRes.endHandler(v -> {
+                try {
+                    req.response().end();
+                    ResponseStatusCodeLogUtil.debug(req, StatusCode.fromCode(req.response().getStatusCode()), Forwarder.class);
+                } catch (IllegalStateException e) {
+                    // ignore because maybe already closed
+                }
+                vertx.runOnContext(event -> loggingHandler.log());
+            });
+            pump.start();
 
             cRes.exceptionHandler(exception -> {
                 error("Problem with backend: " + exception.getMessage(), req, targetUri);
