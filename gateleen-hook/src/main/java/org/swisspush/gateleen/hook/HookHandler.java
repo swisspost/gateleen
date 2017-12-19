@@ -45,6 +45,7 @@ public class HookHandler implements LoggableResource {
     public static final String HOOK_ROUTES_LISTED = "x-hook-routes-listed";
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
     public static final String LISTENER_QUEUE_PREFIX = "listener-hook";
+    private static final String X_QUEUE = "x-queue";
     private static final String LISTENER_HOOK_TARGET_PATH = "listeners/";
 
     public static final String HOOKS_ROUTE_URI_PART = "/_hooks/route";
@@ -683,7 +684,7 @@ public class HookHandler implements LoggableResource {
                 log.debug(" > external target: " + targetUri);
             }
 
-            String queue = LISTENER_QUEUE_PREFIX + "-" + listener.getListenerId();
+            String queue = listener.getDestinationQueue();
 
             // Create a new multimap, copied from the original request,
             // so that the original request is not overridden with the new values.
@@ -1232,6 +1233,16 @@ public class HookHandler implements LoggableResource {
 
         extractAndAddStaticHeadersToHook(jsonHook, hook);
 
+        Map<String, String> staticHeaders = hook.getStaticHeaders();
+        String destinationQueue = null;
+        if (staticHeaders != null) {
+            // remove static x-queue header. Otherwise it will be re-queued at the end of the queue.
+            destinationQueue = hook.getStaticHeaders().remove(X_QUEUE);
+        }
+        if (destinationQueue == null) {
+            destinationQueue = LISTENER_QUEUE_PREFIX + "-" + listenerId;
+        }
+
         /*
          * Despite the fact, that every hook
          * should have an expiration time,
@@ -1281,7 +1292,7 @@ public class HookHandler implements LoggableResource {
         }
 
         // create and add a new listener (or update an already existing listener)
-        listenerRepository.addListener(new Listener(listenerId, getMonitoredUrlSegment(requestUrl), target, hook));
+        listenerRepository.addListener(new Listener(listenerId, getMonitoredUrlSegment(requestUrl), target, hook, destinationQueue));
     }
 
     /**
@@ -1296,7 +1307,7 @@ public class HookHandler implements LoggableResource {
         if (staticHeaders != null && staticHeaders.size() > 0) {
             hook.addStaticHeaders(new LinkedHashMap<>());
             for (Map.Entry<String, Object> entry : staticHeaders.getMap().entrySet()) {
-                hook.getStaticHeaders().put(entry.getKey(), entry.getValue().toString());
+                hook.getStaticHeaders().put(entry.getKey().toLowerCase(), entry.getValue().toString());
             }
         }
     }
