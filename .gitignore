@@ -8,3 +8,6 @@ target
 build
 .gradle
 playground_logs.log
+**/node/
+**/node_modules/
+redis
