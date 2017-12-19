@@ -1234,10 +1234,13 @@ public class HookHandler implements LoggableResource {
         extractAndAddStaticHeadersToHook(jsonHook, hook);
 
         Map<String, String> staticHeaders = hook.getStaticHeaders();
-        String destinationQueue = LISTENER_QUEUE_PREFIX + "-" + listenerId;
+        String destinationQueue = null;
         if (staticHeaders != null) {
             // remove static x-queue header. Otherwise it will be re-queued at the end of the queue.
             destinationQueue = hook.getStaticHeaders().remove(X_QUEUE);
+        }
+        if (destinationQueue == null){
+            destinationQueue = LISTENER_QUEUE_PREFIX + "-" + listenerId;
         }
 
         /*
