@@ -6,7 +6,7 @@ then
     git clean -fd
     git checkout master
     echo 'Master checked out'
-    mvn -B -Prelease jgitflow:release-start jgitflow:release-finish --settings settings.xml
+    mvn -B -Prelease -PpublicNodeRepo jgitflow:release-start jgitflow:release-finish --settings settings.xml
     rc=$?
     if [ $rc -eq 0 ]
     then

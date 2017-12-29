@@ -17,8 +17,9 @@ before_install:
 #  We also download the newest version of Chrome Driver that still supports our old version of Chrome (v. 48).
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
+  - cp gateleen-hook-js/.npmrc-travis gateleen-hook-js/.npmrc
 install:
-    - mvn install -Dmaven.javadoc.skip=true -B -V
+    - mvn install -Dmaven.javadoc.skip=true -PpublicNodeRepo -B -V
 before_script:
   - git config --global user.email "swisspush@post.ch"
   - git config --global user.name "Travis-CI"
