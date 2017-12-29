@@ -15,6 +15,11 @@
             <artifactId>angularjs</artifactId>
         </dependency>
     </dependencies>
+
+    <properties>
+        <nodeDownloadRoot>http://artifactory.pnet.ch/artifactory/list/ext-binaries-local/node/</nodeDownloadRoot>
+        <npmDownloadRoot>http://artifactory.pnet.ch/artifactory/list/ext-binaries-local/node/</npmDownloadRoot>
+    </properties>
     <build>
         <plugins>
             <plugin>
@@ -60,9 +65,10 @@
                         <!-- we need node in phase generate-resources, so do this before-->
                         <phase>initialize</phase>
                         <configuration>
-                            <!--<skip>${skip.node.install}</skip>-->
                             <nodeVersion>v0.12.2</nodeVersion>
                             <npmVersion>2.7.5</npmVersion>
+                            <nodeDownloadRoot>${nodeDownloadRoot}</nodeDownloadRoot>
+                            <npmDownloadRoot>${npmDownloadRoot}</npmDownloadRoot>
                         </configuration>
                     </execution>
 
@@ -146,4 +152,14 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <profile>
+            <id>publicNodeRepo</id>
+            <properties>
+                <nodeDownloadRoot>https://nodejs.org/dist/</nodeDownloadRoot>
+                <npmDownloadRoot>http://registry.npmjs.org/npm/-/</npmDownloadRoot>
+            </properties>
+        </profile>
+    </profiles>
 </project>
