@@ -279,7 +279,7 @@
                                 </goals>
                                 <configuration>
                                     <fromDir>
-                                        ${project.build.directory}/js/hookjs/META-INF/resources/webjars/gateleen-hook-js/${version}/js
+                                        ${project.build.directory}/js/hookjs/META-INF/resources/webjars/gateleen-hook-js/${project.version}/js
                                     </fromDir>
                                     <includes>**</includes>
                                     <url>http://${targetHost}:${targetPort}/playground/js</url>
