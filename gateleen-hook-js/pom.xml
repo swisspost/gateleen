@@ -19,6 +19,7 @@
     <properties>
         <nodeDownloadRoot>http://artifactory.pnet.ch/artifactory/list/ext-binaries-local/node/</nodeDownloadRoot>
         <npmDownloadRoot>http://artifactory.pnet.ch/artifactory/list/ext-binaries-local/node/</npmDownloadRoot>
+        <npmrcFile>.npmrc</npmrcFile>
     </properties>
     <build>
         <plugins>
@@ -80,7 +81,7 @@
                             <goal>npm</goal>
                         </goals>
                         <configuration>
-                            <arguments>--userconfig ${basedir}/.npmrc install</arguments>
+                            <arguments>--userconfig ${basedir}/${npmrcFile} install</arguments>
                         </configuration>
                     </execution>
                     <execution>
@@ -155,10 +156,11 @@
 
     <profiles>
         <profile>
-            <id>publicNodeRepo</id>
+            <id>publicRepos</id>
             <properties>
                 <nodeDownloadRoot>https://nodejs.org/dist/</nodeDownloadRoot>
                 <npmDownloadRoot>http://registry.npmjs.org/npm/-/</npmDownloadRoot>
+                <npmrcFile>.npmrc-public</npmrcFile>
             </properties>
         </profile>
     </profiles>

@@ -6,10 +6,8 @@ then
     git clean -fd
     git checkout master
     echo 'Master checked out'
-    cp gateleen-hook-js/.npmrc-travis gateleen-hook-js/.npmrc
-    echo 'travis specific .npmrc copied'
 
-    mvn -B -Prelease -PpublicNodeRepo jgitflow:release-start jgitflow:release-finish --settings settings.xml
+    mvn -B -Prelease -PpublicRepos jgitflow:release-start jgitflow:release-finish --settings settings.xml
     rc=$?
     if [ $rc -eq 0 ]
     then
