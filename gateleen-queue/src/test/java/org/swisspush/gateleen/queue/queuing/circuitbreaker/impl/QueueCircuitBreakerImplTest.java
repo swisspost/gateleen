@@ -14,6 +14,7 @@ import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -104,6 +105,7 @@ public class QueueCircuitBreakerImplTest {
     }
 
     @Test
+    @Ignore
     public void testLockingForPeriodicTimersSuccess(TestContext context){
         Async async = context.async(2);
 
@@ -136,6 +138,7 @@ public class QueueCircuitBreakerImplTest {
     }
 
     @Test
+    @Ignore
     public void testLockingForPeriodicTimersFail(TestContext context){
         Async async = context.async();
 
