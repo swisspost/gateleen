@@ -96,7 +96,6 @@
                 <module>gateleen-runconfig</module>
                 <module>gateleen-playground</module>
                 <module>gateleen-test</module>
-                <!--<module>gateleen-integrationtest</module>-->
                 <!--<module>gateleen-performancetest</module>-->
             </modules>
         </profile>
@@ -110,7 +109,6 @@
                 <module>gateleen-expansion</module>
                 <module>gateleen-hook</module>
                 <module>gateleen-hook-js</module>
-                <!--<module>gateleen-integrationtest</module>-->
                 <module>gateleen-logging</module>
                 <module>gateleen-merge</module>
                 <module>gateleen-monitoring</module>
