@@ -5,7 +5,6 @@ import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
-import io.vertx.core.VoidHandler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
@@ -17,6 +16,7 @@ import io.vertx.ext.auth.User;
 import io.vertx.ext.web.*;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Map;
@@ -131,6 +131,11 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
+        public SSLSession sslSession() {
+            return null;
+        }
+
+        @Override
         public X509Certificate[] peerCertificateChain() throws SSLPeerUnverifiedException {
             return new X509Certificate[0];
         }
@@ -138,18 +143,6 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         @Override
         public String absoluteURI() {
             return "local:" + uri;
-        }
-
-        @Override
-        public HttpServerRequest bodyHandler(final Handler<Buffer> bodyHandler) {
-            final Buffer body = Buffer.buffer();
-            handler(body::appendBuffer);
-            endHandler(new VoidHandler() {
-                public void handle() {
-                    bodyHandler.handle(body);
-                }
-            });
-            return this;
         }
 
         @Override
@@ -378,6 +371,11 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
+        public ParsedHeaderValues parsedHeaders() {
+            throw new UnsupportedOperationException();
+        }
+
+         @Override
         public int addHeadersEndHandler(Handler<Void> handler) {
             throw new UnsupportedOperationException();
         }
@@ -448,6 +446,16 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
         @Override
         public @Nullable String pathParam(String name) { throw new UnsupportedOperationException(); }
+
+        @Override
+        public MultiMap queryParams() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public @Nullable List<String> queryParam(String query) {
+            throw new UnsupportedOperationException();
+        }
     };
 
     public LocalHttpClientRequest(HttpMethod method, String uri, Vertx vertx, Handler<RoutingContext> routingContextHandler, HttpServerResponse response) {
@@ -478,6 +486,11 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
     @Override
     public HttpClientRequest setRawMethod(String method) { return this; }
+
+    @Override
+    public String absoluteURI() {
+        return null;
+    }
 
     @Override
     public String uri() {
@@ -601,7 +614,14 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
     public HttpClientRequest pushHandler(Handler<HttpClientRequest> handler) { return this; }
 
     @Override
-    public void reset(long code) { }
+    public boolean reset() {
+        return false;
+    }
+
+    @Override
+    public boolean reset(long code) {
+        return false;
+    }
 
     @Override
     public HttpConnection connection() { return null; }
@@ -648,6 +668,11 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
     }
 
     @Override
+    public HttpClientRequest setFollowRedirects(boolean followRedirects) {
+        throw new UnsupportedOperationException();
+    }
+
+     @Override
     public HttpClientRequest exceptionHandler(Handler<Throwable> handler) {
         setExceptionHandler(handler);
         return this;

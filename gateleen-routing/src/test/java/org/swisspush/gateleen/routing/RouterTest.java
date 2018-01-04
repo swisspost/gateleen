@@ -30,6 +30,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * Tests for the Router class
@@ -620,9 +623,10 @@ public class RouterTest {
 
         private Map<String, Object> map = new HashMap<>();
 
+
         @Override
-        public Object get(String key) {
-            return map.get(key);
+        public Object get(Object o) {
+            return map.get(o);
         }
 
         @Override
@@ -631,9 +635,10 @@ public class RouterTest {
         }
 
         @Override
-        public Object remove(String key) {
-            return map.remove(key);
+        public Object remove(Object o) {
+            return map.remove(o);
         }
+
 
         @Override
         public void clear() {
@@ -693,6 +698,71 @@ public class RouterTest {
         @Override
         public Collection<Object> values() {
             return map.values();
+        }
+
+        @Override
+        public Object compute(String s, BiFunction<? super String, ? super Object, ?> biFunction) {
+            return null;
+        }
+
+        @Override
+        public Object computeIfAbsent(String s, Function<? super String, ?> function) {
+            return null;
+        }
+
+        @Override
+        public Object computeIfPresent(String s, BiFunction<? super String, ? super Object, ?> biFunction) {
+            return null;
+        }
+
+        @Override
+        public boolean containsKey(Object o) {
+            return map.containsKey(o);
+        }
+
+        @Override
+        public boolean containsValue(Object o) {
+            return map.containsValue(o);
+        }
+
+        @Override
+        public Set<Entry<String, Object>> entrySet() {
+            return map.entrySet();
+        }
+
+        @Override
+        public void forEach(BiConsumer<? super String, ? super Object> biConsumer) {
+            map.forEach(biConsumer);
+        }
+
+        @Override
+        public Object getOrDefault(Object o, Object o2) {
+            return map.getOrDefault(o, o2);
+        }
+
+        @Override
+        public Object merge(String s, Object o, BiFunction<? super Object, ? super Object, ?> biFunction) {
+            return null;
+        }
+
+        @Override
+        public void putAll(Map<? extends String, ?> map) {
+
+        }
+
+        @Override
+        public boolean remove(Object o, Object o1) {
+            return false;
+        }
+
+        @Override
+        public boolean replace(String s, Object o, Object v1) {
+            return false;
+        }
+
+        @Override
+        public void replaceAll(BiFunction<? super String, ? super Object, ?> biFunction) {
+
         }
     }
 

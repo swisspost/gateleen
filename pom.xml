@@ -34,6 +34,7 @@
         <targetPort>8989</targetPort>
         <sel_chrome_driver>${session.executionRootDirectory}/gateleen-test/src/test/resources/chromedriver
         </sel_chrome_driver>
+        <vertx.version>3.5.0</vertx.version>
     </properties>
 
     <repositories>
@@ -225,27 +226,27 @@
             <dependency>
                 <groupId>io.vertx</groupId>
                 <artifactId>vertx-core</artifactId>
-                <version>3.3.3</version>
+                <version>${vertx.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.vertx</groupId>
                 <artifactId>vertx-web</artifactId>
-                <version>3.3.3</version>
+                <version>${vertx.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.vertx</groupId>
                 <artifactId>vertx-redis-client</artifactId>
-                <version>3.3.3</version>
+                <version>${vertx.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.vertx</groupId>
                 <artifactId>vertx-auth-common</artifactId>
-                <version>3.3.3</version>
+                <version>${vertx.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.vertx</groupId>
                 <artifactId>vertx-codegen</artifactId>
-                <version>3.3.3</version>
+                <version>${vertx.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
@@ -301,7 +302,7 @@
             <dependency>
                 <groupId>io.vertx</groupId>
                 <artifactId>vertx-unit</artifactId>
-                <version>3.3.3</version>
+                <version>${vertx.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.jayway.awaitility</groupId>

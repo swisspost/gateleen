@@ -1,10 +1,12 @@
 package org.swisspush.gateleen.validation.mocks;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.CaseInsensitiveHeaders;
+import io.vertx.core.http.HttpFrame;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
 
@@ -87,6 +89,11 @@ public class HttpServerResponseMock implements HttpServerResponse {
         return null;
     }
 
+    @Override
+    public HttpServerResponse endHandler(@Nullable Handler<Void> handler) {
+        return null;
+    }
+
     @Override public HttpServerResponse write(Buffer chunk) {
         return null;
     }
@@ -121,9 +128,19 @@ public class HttpServerResponseMock implements HttpServerResponse {
         return null;
     }
 
+    @Override
+    public HttpServerResponse sendFile(String filename, long offset) {
+        return null;
+    }
+
     @Override public HttpServerResponse sendFile(String filename, long offset, long length) { return null; }
 
     @Override public HttpServerResponse sendFile(String filename, Handler<AsyncResult<Void>> resultHandler) {
+        return null;
+    }
+
+    @Override
+    public HttpServerResponse sendFile(String filename, long offset, Handler<AsyncResult<Void>> resultHandler) {
         return null;
     }
 
@@ -178,10 +195,20 @@ public class HttpServerResponseMock implements HttpServerResponse {
     }
 
     @Override
+    public void reset() {
+
+    }
+
+    @Override
     public void reset(long code) { }
 
     @Override
     public HttpServerResponse writeCustomFrame(int type, int flags, Buffer payload) { return null; }
+
+    @Override
+    public HttpServerResponse writeCustomFrame(HttpFrame frame) {
+        return null;
+    }
 
     @Override public HttpServerResponse setWriteQueueMaxSize(int maxSize) {
         return null;

@@ -100,6 +100,11 @@ public class HttpServerRequestUtilTest {
 
                 @Override
                 public int port() { return 0; }
+
+                @Override
+                public String path() {
+                    return null;
+                }
             };
         }
     }

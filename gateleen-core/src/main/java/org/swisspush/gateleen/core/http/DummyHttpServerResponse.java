@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.core.http;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -93,6 +94,11 @@ public class DummyHttpServerResponse implements HttpServerResponse {
     }
 
     @Override public HttpServerResponse closeHandler(Handler<Void> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerResponse endHandler(@Nullable Handler<Void> handler) {
         throw new UnsupportedOperationException();
     }
 
