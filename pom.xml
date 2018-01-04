@@ -19,23 +19,6 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-    <developers>
-        <developer>
-            <id>floriankammermann</id>
-            <name>Florian Kammermann</name>
-            <email>florian@kammermann.me</email>
-        </developer>
-        <developer>
-            <id>mcweba</id>
-            <name>Marc-Andre Weber</name>
-            <url>https://github.com/mcweba</url>
-        </developer>
-        <developer>
-            <id>ljucam</id>
-            <name>Mario Aerni</name>
-            <url>https://github.com/ljucam</url>
-        </developer>
-    </developers>
     <scm>
         <url>https://github.com/swisspush/gateleen.git</url>
     </scm>
@@ -90,34 +73,36 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <modules>
+                <module>gateleen-testhelper</module>
                 <module>gateleen-core</module>
-                <module>gateleen-delegate</module>
+                <module>gateleen-validation</module>
+                <module>gateleen-logging</module>
+                <module>gateleen-monitoring</module>
+                <module>gateleen-routing</module>
+                <module>gateleen-packing</module>
                 <module>gateleen-delta</module>
+                <module>gateleen-queue</module>
+                <module>gateleen-delegate</module>
                 <module>gateleen-expansion</module>
+                <module>gateleen-merge</module>
+                <module>gateleen-user</module>
+                <module>gateleen-security</module>
+                <module>gateleen-scheduler</module>
                 <module>gateleen-hook</module>
                 <module>gateleen-hook-js</module>
-                <!--<module>gateleen-integrationtest</module>-->
-                <module>gateleen-logging</module>
-                <module>gateleen-merge</module>
-                <module>gateleen-monitoring</module>
-                <module>gateleen-packing</module>
-                <!--<module>gateleen-performancetest</module>-->
-                <module>gateleen-player</module>
-                <module>gateleen-playground</module>
                 <module>gateleen-qos</module>
-                <module>gateleen-queue</module>
-                <module>gateleen-routing</module>
+                <module>gateleen-player</module>
                 <module>gateleen-runconfig</module>
-                <module>gateleen-scheduler</module>
-                <module>gateleen-security</module>
+                <module>gateleen-playground</module>
                 <module>gateleen-test</module>
-                <module>gateleen-user</module>
-                <module>gateleen-validation</module>
+                <!--<module>gateleen-integrationtest</module>-->
+                <!--<module>gateleen-performancetest</module>-->
             </modules>
         </profile>
         <profile>
             <id>release</id>
             <modules>
+                <module>gateleen-testhelper</module>
                 <module>gateleen-core</module>
                 <module>gateleen-delegate</module>
                 <module>gateleen-delta</module>
