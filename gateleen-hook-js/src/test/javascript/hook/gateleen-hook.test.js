@@ -53,16 +53,30 @@ describe('hook', function(){
       eventBus.onopen();
       expect(eventBus.registerHandler).toHaveBeenCalled();
     });
-    it('should create the hook with HTTP PUT', function(){
+    it('should create the hook with HTTP PUT from context path', function(){
       $httpBackend.expectPUT('/context/path/_hooks/listeners/http/gateleen-hook-js-0123',
         {
           'methods':['PUT', 'POST' ],
           'destination':'/context/server/event/v1/channels/gateleen-hook-js-0123',
           'expireAfter':10,
           'staticHeaders':{'x-queue-mode':'transient'}
-    }
+        }
       ).respond(200,'OK');
       Hook.listen('/context/path', function() {});
+      $httpBackend.flush();
+      $httpBackend.verifyNoOutstandingExpectation();
+      $httpBackend.verifyNoOutstandingRequest();
+    });
+    it('should create the hook with HTTP PUT from complete URL', function(){
+      $httpBackend.expectPUT('http://server/context/path/_hooks/listeners/http/gateleen-hook-js-0123',
+        {
+          'methods':['PUT', 'POST' ],
+          'destination':'/context/server/event/v1/channels/gateleen-hook-js-0123',
+          'expireAfter':10,
+          'staticHeaders':{'x-queue-mode':'transient'}
+        }
+      ).respond(200,'OK');
+      Hook.listen('http://server/context/path', function() {});
       $httpBackend.flush();
       $httpBackend.verifyNoOutstandingExpectation();
       $httpBackend.verifyNoOutstandingRequest();

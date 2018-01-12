@@ -39,7 +39,8 @@
             if (/\/$/.test(path)) {
                 path = path.slice(0, -1);
             }
-            context = '/' + path.split('/')[1];
+            var match = /(.*:\/\/.+?)?\/.+?\//.exec(path);
+            context = match[0].substring(0, match[0].length - 1);
             var queue;
             if (options && options.fetch) {
                 queue = [];
