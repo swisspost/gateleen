@@ -11,6 +11,7 @@ public class Listener {
     private String monitoredUrl;
     private Integer expireAfter;
     private HttpHook hook;
+    private String destinationQueue;
 
     /**
      * Creates a new instance of a HookListener.
@@ -26,11 +27,12 @@ public class Listener {
      * If it's a local listener, this can also be the target url.
      * @param hook - the hook of this listener
      */
-    public Listener(String listenerId, String monitoredUrl, String listener, HttpHook hook) {
+    public Listener(String listenerId, String monitoredUrl, String listener, HttpHook hook, String destinationQueue) {
         this.listenerId = listenerId;
         this.monitoredUrl = monitoredUrl;
         this.listener = listener;
         this.setHook(hook);
+        this.setDestinationQueue(destinationQueue);
     }
 
     /**
@@ -127,4 +129,21 @@ public class Listener {
         this.hook = hook;
     }
 
+    /**
+     * Returns the destinationQueue of this listener.
+     *
+     * @return String
+     */
+    public String getDestinationQueue() {
+        return destinationQueue;
+    }
+
+    /**
+     * Sets the destinationQueue for this listener.
+     *
+     * @param destinationQueue queue name
+     */
+    public void setDestinationQueue(String destinationQueue) {
+        this.destinationQueue = destinationQueue;
+    }
 }

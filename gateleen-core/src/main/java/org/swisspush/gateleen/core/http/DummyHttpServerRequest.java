@@ -9,6 +9,7 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
 
 /**
@@ -57,7 +58,10 @@ public class DummyHttpServerRequest implements HttpServerRequest {
         throw new UnsupportedOperationException();
     }
 
-    @Override public String getHeader(String headerName) { throw new UnsupportedOperationException(); }
+    @Override
+    public String getHeader(String headerName) {
+        return null;
+    }
 
     @Override public String getHeader(CharSequence headerName) { throw new UnsupportedOperationException(); }
 
@@ -72,6 +76,11 @@ public class DummyHttpServerRequest implements HttpServerRequest {
     }
 
     @Override public SocketAddress localAddress() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public SSLSession sslSession() {
         throw new UnsupportedOperationException();
     }
 

@@ -3,8 +3,8 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker.lua;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.swisspush.gateleen.core.lua.AbstractLuaScriptTest;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
+import org.swisspush.gateleen.testhelper.AbstractLuaScriptTest;
 
 import java.util.Arrays;
 import java.util.Collections;

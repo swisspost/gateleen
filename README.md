@@ -21,19 +21,33 @@ Gateleen is a RESTFul middleware toolkit for building API gateways.
   * [Other](http://redis.io/download)
 
 ### Build
-You need Java 8 and gradle.
+You need Java 8 and Maven
 ```
 cd gateleen
-gradle build
+mvn install
 ```
 ### Play
+
+A Redis is needed for this
+```
+redis-server
+```
+
 The `gateleen-playground` module provides a server example.
 ```
-java -jar gateleen-playground/build/libs/playground.jar
+java -jar gateleen-playground/target/playground.jar
 ```
+
 It starts on [http://localhost:7012/playground](http://localhost:7012/playground)
 
 The storage is currently empty, that's why you get `404 Not Found`
+
+Upload some demo stuff using
+```
+mvn deploy -PuploadStaticFiles
+```
+
+The playground module provides a convenient web client for manipulating resources and a basic configuration.
 
 Create your first resource with
 ```
@@ -43,15 +57,25 @@ or any other [REST Client](https://www.google.ch/?q=rest+client)
 
 Now you can see the resource appear in [http://localhost:7012/playground](http://localhost:7012/playground)
 
-The playground module provides a convenient web client for manipulating resources and a basic configuration.
 
-You can push them with
-```
-gradle gateleen-playground:uploadStaticFiles
-```
-This just PUTs all resources from folder `src/main/resources`
+### Run integration tests
 
-Then go again on [http://localhost:7012/playground](http://localhost:7012/playground)
+Once the playground is up the UI based integration tests can be executed using
+
+
+```
+mvn install -PuiIntegrationTests -Dsel_chrome_driver=/usr/local/chromedriver
+```
+
+there are also integration tests that are not based on the playground UI.
+
+Note: Stop the playground prior to running these test:
+
+
+```
+mvn install -PnonUiIntegrationTests 
+```
+
 
 ## Modules
 
