@@ -15,16 +15,6 @@
     <dependencies>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
-            <artifactId>gateleen-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.swisspush.gateleen</groupId>
-            <artifactId>gateleen-validation</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-logging</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -34,37 +24,12 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- TEST dependencies -->
         <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-redis-client</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-unit</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.floreysoft</groupId>
-            <artifactId>jmte</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
+            <groupId>org.swisspush.gateleen</groupId>
+            <artifactId>gateleen-testhelper</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>

@@ -15,22 +15,16 @@
     <dependencies>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
-            <artifactId>gateleen-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-validation</artifactId>
             <version>${project.version}</version>
         </dependency>
 
+        <!-- TEST dependencies -->
         <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.swisspush.gateleen</groupId>
+            <artifactId>gateleen-testhelper</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>

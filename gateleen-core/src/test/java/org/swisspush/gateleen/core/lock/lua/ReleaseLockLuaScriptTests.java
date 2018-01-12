@@ -4,7 +4,7 @@ import com.jayway.awaitility.Duration;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.swisspush.gateleen.core.lua.AbstractLuaScriptTest;
+import org.swisspush.gateleen.testhelper.AbstractLuaScriptTest;
 
 import java.util.Collections;
 import java.util.List;

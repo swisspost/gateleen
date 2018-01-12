@@ -14,31 +14,16 @@
     <dependencies>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
-            <artifactId>gateleen-core</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.swisspush.gateleen</groupId>
-            <artifactId>gateleen-logging</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-queue</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- TEST dependencies -->
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
-            <artifactId>gateleen-routing</artifactId>
+            <artifactId>gateleen-testhelper</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-web</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>

@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.core.lua;
+package org.swisspush.gateleen.testhelper;
 
 import org.junit.After;
 import org.junit.Before;
