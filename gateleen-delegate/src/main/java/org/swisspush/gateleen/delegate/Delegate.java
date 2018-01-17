@@ -293,7 +293,7 @@ public class Delegate {
         request.response().setStatusCode(response.statusCode());
         request.response().setStatusMessage(response.statusMessage());
         request.response().setChunked(true);
-        request.response().headers().addAll(response.headers());
+        request.response().headers().setAll(response.headers());
         request.response().headers().remove("Content-Length");
         response.handler(data -> request.response().write(data));
         response.endHandler(v -> request.response().end());

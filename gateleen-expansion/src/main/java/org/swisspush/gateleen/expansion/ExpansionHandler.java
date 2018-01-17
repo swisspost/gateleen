@@ -340,7 +340,7 @@ public class ExpansionHandler implements RuleChangesObserver{
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
             req.response().setStatusCode(cRes.statusCode());
             req.response().setStatusMessage(cRes.statusMessage());
-            req.response().headers().addAll(cRes.headers());
+            req.response().headers().setAll(cRes.headers());
             req.response().headers().remove("Content-Length");
             req.response().setChunked(true);
 

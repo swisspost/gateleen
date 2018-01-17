@@ -238,7 +238,7 @@ public class DeltaHandler {
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
             request.response().setStatusCode(cRes.statusCode());
             request.response().setStatusMessage(cRes.statusMessage());
-            request.response().headers().addAll(cRes.headers());
+            request.response().headers().setAll(cRes.headers());
             request.response().headers().remove("Content-Length");
             request.response().setChunked(true);
             if(cRes.headers().contains(DELTA_HEADER)) {
