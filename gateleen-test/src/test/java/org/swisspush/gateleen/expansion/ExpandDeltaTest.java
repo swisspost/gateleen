@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.expansion;
 
+import com.jayway.restassured.response.ValidatableResponse;
+import org.junit.Assert;
 import org.swisspush.gateleen.AbstractTest;
 import com.jayway.restassured.RestAssured;
 import com.jayway.restassured.response.Response;
@@ -13,7 +15,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.ByteArrayInputStream;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -36,6 +40,10 @@ public class ExpandDeltaTest extends AbstractTest {
 
     private final String ETAG_HEADER = "Etag";
     private final String IF_NONE_MATCH_HEADER = "if-none-match";
+    private final String ORIGIN_ADDRESS = "http://127.0.0.1:8888";
+    private final String CORS_HEADER_CREDENTIALS = "Access-Control-Allow-Credentials";
+    private final String CORS_HEADER_METHODS = "Access-Control-Allow-Methods";
+    private final String CORS_HEADER_ORIGIN = "Access-Control-Allow-Origin";
 
     @Test
     public void testExpand(TestContext context) {
@@ -447,7 +455,7 @@ public class ExpandDeltaTest extends AbstractTest {
     }
 
     /**
-     * Tests a depp expand with zip and delta
+     * Tests a deep expand with zip and delta
      */
     @Test
     public void testAdvancedDeltaZipExpand(TestContext context) {
@@ -536,6 +544,34 @@ public class ExpandDeltaTest extends AbstractTest {
 
         }
         context.assertEquals(assertedAll, result.size());
+
+        async.complete();
+    }
+
+    @Test
+    public void duplicatedCORSHeaderTest(TestContext context) {
+        Async async = context.async();
+        delete();
+
+        with().body("{ \"foo\": \"bar\" }").put("resources/res1");
+        with().body("{ \"foo\": \"bar\" }").put("resources/res2");
+        with().body("{ \"foo\": \"bar\" }").put("resources/res3");
+
+        // expand parameter
+        Response response = given().param("expand", 1).header("Origin", ORIGIN_ADDRESS).when().get("resources/");
+        response.then().assertThat().header("Access-Control-Allow-Origin", ORIGIN_ADDRESS);
+
+        Assert.assertTrue("Response cannot contain more than one '"+CORS_HEADER_CREDENTIALS+"' header", response.getHeaders().getValues(CORS_HEADER_CREDENTIALS).size() == 1);
+        Assert.assertTrue("Response cannot contain more than one '"+CORS_HEADER_METHODS+"' header", response.getHeaders().getValues(CORS_HEADER_METHODS).size() == 1);
+        Assert.assertTrue("Response cannot contain more than one '"+CORS_HEADER_ORIGIN+"' header", response.getHeaders().getValues(CORS_HEADER_ORIGIN).size() == 1);
+
+        // delta parameter
+        response = given().param("delta", 0).header("Origin", ORIGIN_ADDRESS).when().get("resources/");
+        response.then().assertThat().header("Access-Control-Allow-Origin", ORIGIN_ADDRESS);
+
+        Assert.assertTrue("Response cannot contain more than one '"+CORS_HEADER_CREDENTIALS+"' header", response.getHeaders().getValues(CORS_HEADER_CREDENTIALS).size() == 1);
+        Assert.assertTrue("Response cannot contain more than one '"+CORS_HEADER_METHODS+"' header", response.getHeaders().getValues(CORS_HEADER_METHODS).size() == 1);
+        Assert.assertTrue("Response cannot contain more than one '"+CORS_HEADER_ORIGIN+"' header", response.getHeaders().getValues(CORS_HEADER_ORIGIN).size() == 1);
 
         async.complete();
     }
