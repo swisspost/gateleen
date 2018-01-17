@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.expansion;
 
-import com.jayway.restassured.response.ValidatableResponse;
 import org.junit.Assert;
 import org.swisspush.gateleen.AbstractTest;
 import com.jayway.restassured.RestAssured;
@@ -15,9 +14,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.ByteArrayInputStream;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
