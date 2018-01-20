@@ -14,6 +14,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -293,7 +294,13 @@ public class Delegate {
         request.response().setStatusCode(response.statusCode());
         request.response().setStatusMessage(response.statusMessage());
         request.response().setChunked(true);
-        request.response().headers().addAll(response.headers());
+        for(Map.Entry<String, String> entry : response.headers().entries()) {
+            if(request.headers().names().contains(entry.getKey())) {
+                request.headers().set(entry.getKey(), entry.getValue());
+            } else {
+                request.headers().add(entry.getKey(), entry.getValue());
+            }
+        }
         request.response().headers().remove("Content-Length");
         response.handler(data -> request.response().write(data));
         response.endHandler(v -> request.response().end());

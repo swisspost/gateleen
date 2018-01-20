@@ -25,6 +25,7 @@ import org.swisspush.gateleen.routing.Router;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -238,7 +239,13 @@ public class DeltaHandler {
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
             request.response().setStatusCode(cRes.statusCode());
             request.response().setStatusMessage(cRes.statusMessage());
-            request.response().headers().addAll(cRes.headers());
+            for(Map.Entry<String, String> entry : cRes.headers().entries()) {
+                if(request.headers().names().contains(entry.getKey())) {
+                    request.headers().set(entry.getKey(), entry.getValue());
+                } else {
+                    request.headers().add(entry.getKey(), entry.getValue());
+                }
+            }
             request.response().headers().remove("Content-Length");
             request.response().setChunked(true);
             if(cRes.headers().contains(DELTA_HEADER)) {

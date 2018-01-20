@@ -528,7 +528,13 @@ public class HookHandler implements LoggableResource {
                     request.response().setStatusCode(response.statusCode());
                     request.response().setStatusMessage(response.statusMessage());
                     request.response().setChunked(true);
-                    request.response().headers().addAll(response.headers());
+                    for(Map.Entry<String, String> entry : response.headers().entries()) {
+                        if(request.headers().names().contains(entry.getKey())) {
+                            request.headers().set(entry.getKey(), entry.getValue());
+                        } else {
+                            request.headers().add(entry.getKey(), entry.getValue());
+                        }
+                    }
                     request.response().headers().remove(CONTENT_LENGTH.getName());
                     request.response().headers().remove(HOOK_ROUTES_LISTED);
 
@@ -1098,8 +1104,13 @@ public class HookHandler implements LoggableResource {
             request.response().setStatusCode(response.statusCode());
             request.response().setStatusMessage(response.statusMessage());
             request.response().setChunked(true);
-
-            request.response().headers().addAll(response.headers());
+            for(Map.Entry<String, String> entry : response.headers().entries()) {
+                if(request.headers().names().contains(entry.getKey())) {
+                    request.headers().set(entry.getKey(), entry.getValue());
+                } else {
+                    request.headers().add(entry.getKey(), entry.getValue());
+                }
+            }
             request.response().headers().remove(CONTENT_LENGTH.getName());
 
             response.handler(data -> request.response().write(data));

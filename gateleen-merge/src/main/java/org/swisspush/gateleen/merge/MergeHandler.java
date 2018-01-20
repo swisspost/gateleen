@@ -642,7 +642,13 @@ public class MergeHandler {
         }
 
         final HttpClientRequest directRequest = httpClient.request(HttpMethod.GET, uri, res -> {
-            request.response().headers().addAll(res.headers());
+            for(Map.Entry<String, String> entry : res.headers().entries()) {
+                if(request.headers().names().contains(entry.getKey())) {
+                    request.headers().set(entry.getKey(), entry.getValue());
+                } else {
+                    request.headers().add(entry.getKey(), entry.getValue());
+                }
+            }
             request.response().headers().remove("Content-Length");
             request.response().setStatusCode(res.statusCode());
             request.response().setStatusMessage(res.statusMessage());
