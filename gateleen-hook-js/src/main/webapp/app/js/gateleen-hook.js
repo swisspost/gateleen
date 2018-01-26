@@ -1,7 +1,6 @@
 (function () {
     'use strict';
 
-    console.log('gateleen-hook-js start..');
     angular.module('gateleen.hook', [])
 
     /**********************************************************
@@ -12,7 +11,6 @@
 
     function HookService($timeout, $interval, $http, $window, $rootScope) {
 
-        console.log('HookService');
         var
             hookRefreshInterval = 100000, // ms
             hookTimeToLive = 120, // s
@@ -34,7 +32,7 @@
          * @returns a function removing the hook.
          */
         function listen(path, handler, options) {
-            console.log('gateleen-hook-js listen');
+            console.debug('gateleen-hook-js listen');
             var id = ('gateleen-hook-js-' + Math.random()).replace('.', '');
             if (/\/$/.test(path)) {
                 path = path.slice(0, -1);
@@ -112,7 +110,7 @@
                         'x-expire-after': hookTimeToLive
                     }
                 }).then(function () {
-                    console.log('Placed hook', hookUrl);
+                    console.debug('Placed hook', hookUrl);
                 }, function (e) {
                     console.error('Could not place hook', hookUrl, e);
                 });
@@ -139,7 +137,7 @@
         function initEventBus() {
             eventBus = new $window.vertx.EventBus(context + '/server/event/v1/sock');
             eventBus.onopen = function () {
-                console.log('Opened sock ');
+                console.debug('Opened sock ');
                 if (registrations.length === 0) { // the bus was opened but the listeners already removed -> we can close it again
                     eventBus.close();
                     eventBus = null;
@@ -154,7 +152,7 @@
                 open = true;
             };
             eventBus.onclose = function () { // reconnect automatically
-                console.log('Sock closed ');
+                console.debug('Sock closed ');
                 if (registrations.length > 0) {
                     $timeout(initEventBus, 5000);
                 }
@@ -167,5 +165,3 @@
         };
     }
 })();
-
-console.log('gateleen-hook-js finish');
