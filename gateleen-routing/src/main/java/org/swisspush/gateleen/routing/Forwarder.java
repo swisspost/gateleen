@@ -308,6 +308,7 @@ public class Forwarder implements Handler<RoutingContext> {
             final Pump pump = Pump.pump(cRes, loggingWriteStream);
             cRes.endHandler(v -> {
                 try {
+                    pump.stop();
                     req.response().end();
                     ResponseStatusCodeLogUtil.debug(req, StatusCode.fromCode(req.response().getStatusCode()), Forwarder.class);
                 } catch (IllegalStateException e) {
@@ -318,6 +319,7 @@ public class Forwarder implements Handler<RoutingContext> {
             pump.start();
 
             cRes.exceptionHandler(exception -> {
+                pump.stop();
                 error("Problem with backend: " + exception.getMessage(), req, targetUri);
                 req.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                 req.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
