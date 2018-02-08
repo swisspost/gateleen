@@ -305,7 +305,7 @@ public class Forwarder implements Handler<RoutingContext> {
             }
 
             final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(req.response(), loggingHandler, false);
-            final Pump pump = Pump.pump(cRes, loggingWriteStream);
+            final Pump pump = new ResurrectingPump(vertx, cRes, loggingWriteStream);
             cRes.endHandler(v -> {
                 try {
                     req.response().end();
