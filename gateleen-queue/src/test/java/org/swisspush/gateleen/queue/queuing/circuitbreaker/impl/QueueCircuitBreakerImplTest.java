@@ -105,7 +105,6 @@ public class QueueCircuitBreakerImplTest {
     }
 
     @Test
-    @Ignore
     public void testLockingForPeriodicTimersSuccess(TestContext context){
         Async async = context.async(2);
 
@@ -138,7 +137,6 @@ public class QueueCircuitBreakerImplTest {
     }
 
     @Test
-    @Ignore
     public void testLockingForPeriodicTimersFail(TestContext context){
         Async async = context.async();
 

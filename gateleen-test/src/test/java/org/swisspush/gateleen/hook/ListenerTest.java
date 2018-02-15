@@ -296,7 +296,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, master listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 30);
 
         checkPUTStatusCode(requestUrlMaster, body, 200);
         checkGETStatusCodeWithAwait(requestUrlMaster, 200);
@@ -319,8 +319,8 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, both listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
-        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 4);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 30);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 30);
 
         checkPUTStatusCode(requestUrlMaster, body, 200);
         checkGETStatusCodeWithAwait(requestUrlMaster, 200);
@@ -346,7 +346,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, slave listener hooked
          */
-        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 4);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 30);
 
         checkPUTStatusCode(requestUrlMaster, body, 200);
         checkGETStatusCodeWithAwait(requestUrlMaster, 200);
