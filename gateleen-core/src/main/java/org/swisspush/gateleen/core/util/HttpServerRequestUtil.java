@@ -57,7 +57,7 @@ public class HttpServerRequestUtil {
     public static void prepareResponse(HttpServerRequest request, HttpClientResponse response) {
         request.response().setStatusCode(response.statusCode());
         request.response().setStatusMessage(response.statusMessage());
-        request.response().headers().setAll(response.headers());
+        response.headers().forEach(e -> request.response().headers().set(e.getKey(), e.getValue()));
         request.response().headers().remove(CONTENT_LENGTH.getName());
         request.response().setChunked(true);
     }
