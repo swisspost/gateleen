@@ -18,6 +18,7 @@ import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.CollectionContentComparator;
 import org.swisspush.gateleen.core.util.HttpRequestHeader;
+import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.hook.queueingstrategy.*;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
@@ -525,17 +526,8 @@ public class HookHandler implements LoggableResource {
                 }
 
                 HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
-                    request.response().setStatusCode(response.statusCode());
-                    request.response().setStatusMessage(response.statusMessage());
-                    request.response().setChunked(true);
-                    for(Map.Entry<String, String> entry : response.headers().entries()) {
-                        if(request.headers().names().contains(entry.getKey())) {
-                            request.headers().set(entry.getKey(), entry.getValue());
-                        } else {
-                            request.headers().add(entry.getKey(), entry.getValue());
-                        }
-                    }
-                    request.response().headers().remove(CONTENT_LENGTH.getName());
+                    HttpServerRequestUtil.prepareResponse(request, response);
+
                     request.response().headers().remove(HOOK_ROUTES_LISTED);
 
                     // if everything is fine, we add the listed collections to the given array
@@ -1101,17 +1093,7 @@ public class HookHandler implements LoggableResource {
              * already consumed to write a response.
              */
 
-            request.response().setStatusCode(response.statusCode());
-            request.response().setStatusMessage(response.statusMessage());
-            request.response().setChunked(true);
-            for(Map.Entry<String, String> entry : response.headers().entries()) {
-                if(request.headers().names().contains(entry.getKey())) {
-                    request.headers().set(entry.getKey(), entry.getValue());
-                } else {
-                    request.headers().add(entry.getKey(), entry.getValue());
-                }
-            }
-            request.response().headers().remove(CONTENT_LENGTH.getName());
+            HttpServerRequestUtil.prepareResponse(request, response);
 
             response.handler(data -> request.response().write(data));
 

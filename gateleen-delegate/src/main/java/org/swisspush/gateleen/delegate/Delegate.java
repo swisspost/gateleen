@@ -10,11 +10,11 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.json.transform.JoltTransformer;
+import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -291,17 +291,8 @@ public class Delegate {
      * @param response a response
      */
     private void createResponse(final HttpServerRequest request, final HttpClientResponse response) {
-        request.response().setStatusCode(response.statusCode());
-        request.response().setStatusMessage(response.statusMessage());
-        request.response().setChunked(true);
-        for(Map.Entry<String, String> entry : response.headers().entries()) {
-            if(request.headers().names().contains(entry.getKey())) {
-                request.headers().set(entry.getKey(), entry.getValue());
-            } else {
-                request.headers().add(entry.getKey(), entry.getValue());
-            }
-        }
-        request.response().headers().remove("Content-Length");
+        HttpServerRequestUtil.prepareResponse(request, response);
+
         response.handler(data -> request.response().write(data));
         response.endHandler(v -> request.response().end());
     }

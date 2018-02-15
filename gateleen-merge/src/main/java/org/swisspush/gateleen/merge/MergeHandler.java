@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.CollectionContentComparator;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
+import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.*;
@@ -642,17 +643,7 @@ public class MergeHandler {
         }
 
         final HttpClientRequest directRequest = httpClient.request(HttpMethod.GET, uri, res -> {
-            for(Map.Entry<String, String> entry : res.headers().entries()) {
-                if(request.headers().names().contains(entry.getKey())) {
-                    request.headers().set(entry.getKey(), entry.getValue());
-                } else {
-                    request.headers().add(entry.getKey(), entry.getValue());
-                }
-            }
-            request.response().headers().remove("Content-Length");
-            request.response().setStatusCode(res.statusCode());
-            request.response().setStatusMessage(res.statusMessage());
-            request.response().setChunked(true);
+            HttpServerRequestUtil.prepareResponse(request, res);
 
             res.handler( data -> request.response().write(data));
             res.endHandler( data -> request.response().end());
