@@ -14,12 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
-import org.swisspush.gateleen.core.util.ResourceCollectionException;
-import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
-import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleFeaturesProvider;
 import org.swisspush.gateleen.routing.RuleProvider;
@@ -338,17 +335,7 @@ public class ExpansionHandler implements RuleChangesObserver{
 
         Integer finalExpandLevel = expandLevel;
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
-            req.response().setStatusCode(cRes.statusCode());
-            req.response().setStatusMessage(cRes.statusMessage());
-            for(Map.Entry<String, String> entry : cRes.headers().entries()) {
-                if(req.headers().names().contains(entry.getKey())) {
-                    req.headers().set(entry.getKey(), entry.getValue());
-                } else {
-                    req.headers().add(entry.getKey(), entry.getValue());
-                }
-            }
-            req.response().headers().remove("Content-Length");
-            req.response().setChunked(true);
+            HttpServerRequestUtil.prepareResponse(req, cRes);
 
             if (log.isTraceEnabled()) {
                 log.trace(" x-delta for " + targetUri + " is " + cRes.headers().get("x-delta"));

@@ -1,6 +1,9 @@
 package org.swisspush.gateleen.core.util;
 
+import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpServerRequest;
+
+import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 
 /**
  * Class HttpServerRequestUtil.
@@ -43,5 +46,19 @@ public class HttpServerRequestUtil {
         }
         Integer hops = HttpRequestHeader.getInteger(request.headers(), HttpRequestHeader.X_HOPS, 0);
         return hops > hopsLimit;
+    }
+
+    /**
+     * Prepares the request's response by copying values from response.
+     *
+     * @param request the request to modify
+     * @param response the response containing needed values
+     */
+    public static void prepareResponse(HttpServerRequest request, HttpClientResponse response) {
+        request.response().setStatusCode(response.statusCode());
+        request.response().setStatusMessage(response.statusMessage());
+        response.headers().forEach(e -> request.response().headers().set(e.getKey(), e.getValue()));
+        request.response().headers().remove(CONTENT_LENGTH.getName());
+        request.response().setChunked(true);
     }
 }

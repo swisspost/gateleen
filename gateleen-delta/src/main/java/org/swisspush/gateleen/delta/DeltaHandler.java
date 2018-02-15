@@ -15,17 +15,13 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
-import org.swisspush.gateleen.core.util.ResourceCollectionException;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.routing.Router;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -237,17 +233,8 @@ public class DeltaHandler {
         log.debug("constructed uri for request: " + targetUri);
 
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
-            request.response().setStatusCode(cRes.statusCode());
-            request.response().setStatusMessage(cRes.statusMessage());
-            for(Map.Entry<String, String> entry : cRes.headers().entries()) {
-                if(request.headers().names().contains(entry.getKey())) {
-                    request.headers().set(entry.getKey(), entry.getValue());
-                } else {
-                    request.headers().add(entry.getKey(), entry.getValue());
-                }
-            }
-            request.response().headers().remove("Content-Length");
-            request.response().setChunked(true);
+            HttpServerRequestUtil.prepareResponse(request, cRes);
+
             if(cRes.headers().contains(DELTA_HEADER)) {
                 cRes.handler(data -> request.response().write(data));
                 cRes.endHandler(v -> request.response().end());
