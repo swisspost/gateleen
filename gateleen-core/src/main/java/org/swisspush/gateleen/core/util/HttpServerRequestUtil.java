@@ -49,10 +49,10 @@ public class HttpServerRequestUtil {
     }
 
     /**
-     * Prepares the request's response by copying properties from response.
+     * Prepares the request's response by copying values from response.
      *
      * @param request the request to modify
-     * @param response the response containing the headers
+     * @param response the response containing needed values
      */
     public static void prepareResponse(HttpServerRequest request, HttpClientResponse response) {
         request.response().setStatusCode(response.statusCode());
