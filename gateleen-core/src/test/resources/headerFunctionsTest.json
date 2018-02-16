@@ -1,0 +1,13 @@
+{
+  "headers": {
+    "processor-chain": [
+      { "header": "xxx"    , "value": "111"                                },
+      { "header": "yyy"    , "value": "222"                                },
+      { "header": "yyy"    , "value": "333"           , "mode": "complete" },
+      { "header": "zzz"    , "value": "444"           , "mode": "override" },
+      { "header": "oli"    , "value": "{xxx}-{yyy}"                        },
+      { "header": "xxx"    , "value": null                                 },
+      { "header": "preSuff", "value": "pre-{yyy}-suff"                     }
+    ]
+  }
+}

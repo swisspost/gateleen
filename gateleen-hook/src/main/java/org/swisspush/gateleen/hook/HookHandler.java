@@ -12,6 +12,7 @@ import io.vertx.core.json.JsonObject;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
@@ -27,10 +28,12 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
+import org.swisspush.gateleen.routing.Rule;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
@@ -682,8 +685,6 @@ public class HookHandler implements LoggableResource {
                 log.debug(" > external target: " + targetUri);
             }
 
-            String queue = listener.getDestinationQueue();
-
             // Create a new multimap, copied from the original request,
             // so that the original request is not overridden with the new values.
             MultiMap queueHeaders = new CaseInsensitiveHeaders();
@@ -696,8 +697,24 @@ public class HookHandler implements LoggableResource {
                 ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
             }
 
-            // update request headers with static headers (if available)
-            updateHeadersWithStaticHeaders(queueHeaders, listener.getHook().getStaticHeaders());
+            try {
+                listener.getHook().getHeaderFunction().apply(queueHeaders);  // Apply the header manipulation chain
+            } catch (HeaderFunctions.HeaderNotFoundException hnfEx) {
+                log.warn("Problem invoking Header functions: {}", hnfEx.getMessage());
+                // TODO: what do we do with the request in this case?
+                //       - can / shall we let fail the original request with "400 bad request"? (As we do in routes)?
+                //       - shall we still enqueue - but with uncomplete execution of the header modification chain?
+                //       - shall we enqueue with the original headers?
+                //       - shall we skip this enqueue
+            }
+            // if there is an x-queue header (after applying the header manipulator chain!),
+            // then directly enqueue to this queue - else enqueue to a queue named alike this listener hook
+            String queue = queueHeaders.get(X_QUEUE);
+            if (queue == null) {
+                queue = LISTENER_QUEUE_PREFIX + "-" + listener.getListenerId(); // default queue name for this listener hook
+            } else {
+                queueHeaders.remove(X_QUEUE); // remove the "x-queue" header - otherwise we take a second turn through the queue
+            }
 
             // in order not to block the queue because one client returns a creepy response,
             // we translate all status codes of the listeners to 200.
@@ -819,25 +836,6 @@ public class HookHandler implements LoggableResource {
         return listeners.stream()
                 .filter(listener -> listener.getHook().getHookTriggerType().equals(hookTriggerType))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Updates (and overrides) the given headers with the static headers (if they are available).
-     *
-     * @param queueHeaders the headers for the request to be enqueued
-     * @param staticHeaders the static headers for the given hook
-     */
-    private void updateHeadersWithStaticHeaders(final MultiMap queueHeaders, final Map<String, String> staticHeaders) {
-        if (staticHeaders != null) {
-            for (Map.Entry<String, String> entry : staticHeaders.entrySet()) {
-                String entryValue = entry.getValue();
-                if (entryValue != null && entryValue.length() > 0 ) {
-                    queueHeaders.set(entry.getKey(), entry.getValue());
-                } else {
-                    queueHeaders.remove(entry.getKey());
-                }
-            }
-        }
     }
 
     /**
@@ -1226,16 +1224,6 @@ public class HookHandler implements LoggableResource {
 
         extractAndAddStaticHeadersToHook(jsonHook, hook);
 
-        Map<String, String> staticHeaders = hook.getStaticHeaders();
-        String destinationQueue = null;
-        if (staticHeaders != null) {
-            // remove static x-queue header. Otherwise it will be re-queued at the end of the queue.
-            destinationQueue = hook.getStaticHeaders().remove(X_QUEUE);
-        }
-        if (destinationQueue == null){
-            destinationQueue = LISTENER_QUEUE_PREFIX + "-" + listenerId;
-        }
-
         /*
          * Despite the fact, that every hook
          * should have an expiration time,
@@ -1285,23 +1273,31 @@ public class HookHandler implements LoggableResource {
         }
 
         // create and add a new listener (or update an already existing listener)
-        listenerRepository.addListener(new Listener(listenerId, getMonitoredUrlSegment(requestUrl), target, hook, destinationQueue));
+        listenerRepository.addListener(new Listener(listenerId, getMonitoredUrlSegment(requestUrl), target, hook));
     }
 
     /**
      * Extract staticHeaders attribute from jsonHook and create a
      * appropriate list in the hook object.
      *
+     * This is the same concept as in gateleen-rooting:
+     * {@link org.swisspush.gateleen.routing.RuleFactory#setStaticHeaders(Rule, JsonObject)}}
+     *
      * @param jsonHook the json hook
      * @param hook the hook object
      */
+    @Deprecated
     private void extractAndAddStaticHeadersToHook(final JsonObject jsonHook, final HttpHook hook) {
+        // {@see org.swisspush.gateleen.routing.RuleFactory.setStaticHeaders()}
         JsonObject staticHeaders = jsonHook.getJsonObject(STATIC_HEADERS);
         if (staticHeaders != null && staticHeaders.size() > 0) {
-            hook.addStaticHeaders(new LinkedHashMap<>());
+            log.warn("you use the deprecated \"staticHeaders\" syntax in your hook (" + jsonHook+ "). Please migrate to the more flexible \"headers\" syntax");
+            Function<MultiMap, MultiMap> func = null;
             for (Map.Entry<String, Object> entry : staticHeaders.getMap().entrySet()) {
-                hook.getStaticHeaders().put(entry.getKey().toLowerCase(), entry.getValue().toString());
+                final Function<MultiMap, MultiMap> f = HeaderFunctions.setAlways(entry.getKey(), entry.getValue().toString());
+                func = (func == null) ? f : func.andThen(f);
             }
+            hook.setHeaderFunction(func);
         }
     }
 

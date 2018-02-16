@@ -1,15 +1,5 @@
 package org.swisspush.gateleen.routing;
 
-import org.swisspush.gateleen.core.cors.CORSHandler;
-import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.json.JsonMultiMap;
-import org.swisspush.gateleen.logging.LoggingHandler;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
-import org.swisspush.gateleen.core.util.StatusCode;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -23,8 +13,18 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.cors.CORSHandler;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
+import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.json.JsonMultiMap;
+import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.LoggingHandler;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
-import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -63,10 +63,16 @@ public class StorageForwarder implements Handler<RoutingContext> {
         log.debug("Forwarding request: " + ctx.request().uri() + " to storage " + rule.getStorage() + " " + targetUri + " with rule " + rule.getRuleIdentifier());
         final MultiMap requestHeaders = new CaseInsensitiveHeaders();
         requestHeaders.addAll(ctx.request().headers());
-        if (rule.getStaticHeaders() != null) {
-            for (Map.Entry<String, String> entry : rule.getStaticHeaders().entrySet()) {
-                requestHeaders.set(entry.getKey(), entry.getValue());
-            }
+
+        try {
+            rule.getHeaderFunction().apply(requestHeaders); // Apply the header manipulation chain
+        } catch (HeaderFunctions.HeaderNotFoundException hnfEx) {
+            log.warn("Problem invoking Header functions: {}", hnfEx.getMessage());
+            final HttpServerResponse response = ctx.request().response();
+            response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+            response.end(hnfEx.getMessage());
+            return;
         }
 
         setUniqueIdHeader(requestHeaders);

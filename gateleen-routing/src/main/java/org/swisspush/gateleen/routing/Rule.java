@@ -1,9 +1,12 @@
 package org.swisspush.gateleen.routing;
 
+import io.vertx.core.MultiMap;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
+
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public class Rule {
@@ -24,7 +27,8 @@ public class Rule {
     private int logExpiry;
     private String[] methods;
     private String[] profile;
-    private Map<String, String> staticHeaders = new HashMap<>();
+    private Function<MultiMap, MultiMap> headerFunction = HeaderFunctions.DO_NOTHING; // default avoids NPE and if-not-null checks
+
     private String storage;
 
     public String getRuleIdentifier() {
@@ -164,12 +168,12 @@ public class Rule {
         this.profile = Arrays.copyOf(profile, profile.length);
     }
 
-    public Map<String, String> getStaticHeaders() {
-        return staticHeaders;
+    public Function<MultiMap, MultiMap> getHeaderFunction() {
+        return headerFunction;
     }
 
-    public void addStaticHeaders(Map<String, String> staticHeaders) {
-        this.staticHeaders.putAll(staticHeaders);
+    public void setHeaderFunction(Function<MultiMap, MultiMap> headerFunction) {
+        this.headerFunction = headerFunction;
     }
 
     public String getStorage() {

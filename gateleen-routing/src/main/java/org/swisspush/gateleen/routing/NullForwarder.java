@@ -5,16 +5,16 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.CaseInsensitiveHeaders;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
-
-import java.util.Map;
 
 /**
  * Consumes requests without forwarding them anywhere.
@@ -43,10 +43,18 @@ public class NullForwarder implements Handler<RoutingContext> {
         log.debug("Not forwarding request: " + ctx.request().uri() + " with rule " + rule.getRuleIdentifier());
         final MultiMap requestHeaders = new CaseInsensitiveHeaders();
         requestHeaders.addAll(ctx.request().headers());
-        if (rule.getStaticHeaders() != null) {
-            for (Map.Entry<String, String> entry : rule.getStaticHeaders().entrySet()) {
-                requestHeaders.set(entry.getKey(), entry.getValue());
-            }
+
+        // probably useless, as the request is discarded anyway
+        // but we write the headers also to the request log - so juest to be complete:
+        try {
+            rule.getHeaderFunction().apply(requestHeaders); // Apply the header manipulation chain
+        } catch (HeaderFunctions.HeaderNotFoundException hnfEx) {
+            log.warn("Problem invoking Header functions: {}", hnfEx.getMessage());
+            final HttpServerResponse response = ctx.request().response();
+            response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+            response.end(hnfEx.getMessage());
+            return;
         }
 
         final Buffer header = Buffer.buffer(new HttpRequest(ctx.request().method(), ctx.request().uri(), requestHeaders, null).toJsonObject().encode());
