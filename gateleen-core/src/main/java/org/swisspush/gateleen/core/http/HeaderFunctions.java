@@ -6,6 +6,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,7 +21,9 @@ public class HeaderFunctions {
 
     private static final Logger LOG = LoggerFactory.getLogger(HeaderFunctions.class);
 
-    public static final Function<MultiMap, MultiMap> DO_NOTHING = (header) -> header;
+    private static final EvalScope NO_ERROR_SCOPE = new EvalScope(null);
+
+    public static final HeaderFunction DO_NOTHING = (headers) -> NO_ERROR_SCOPE;
 
 
     private static final Pattern VARIABLE_PATTERN = Pattern.compile("[{](.+?)[}]"); // Search variable, pattern "[xyz}"
@@ -51,28 +54,36 @@ public class HeaderFunctions {
      *
      * @param config the JSON configuration for the header manipulator chain
      */
-    public static Function<MultiMap, MultiMap> parseFromJson(JsonArray config) throws IllegalArgumentException {
+    public static HeaderFunction parseFromJson(JsonArray config) throws IllegalArgumentException {
         LOG.debug("creating header function chain from " + config);
 
-        Function<MultiMap, MultiMap> chain = null;
+        Consumer<EvalScope> chain = null;
         for (int pos = 0; pos < config.size(); pos++) {
             JsonObject rule = config.getJsonObject(pos);
-            Function<MultiMap, MultiMap> f = getMultiMapMultiMapFunction(config, rule);
+            Consumer<EvalScope> c = parseOneFromJason(config, rule);
 
             if (chain == null) {
-                chain = f;
+                chain = c;
             } else {
-                chain = chain.andThen(f);
+                chain = chain.andThen(c);
             }
         }
         if (chain == null) {
-            // fallback if no rules defined: fast 'identity' function
-            chain = (headers) -> headers;
+            // if no rules defined: do nothing and just return a fix 'no error' indicating result
+            return (headers) -> NO_ERROR_SCOPE;
         }
-        return chain;
+        return wrapConsumerChain(chain);
     }
 
-    private static Function<MultiMap, MultiMap> getMultiMapMultiMapFunction(JsonArray config, JsonObject rule) throws IllegalArgumentException {
+    public static HeaderFunction wrapConsumerChain(Consumer<EvalScope> chain) {
+        return (headers) ->{
+            EvalScope scope = new EvalScope(headers);
+            chain.accept(scope);
+            return scope;
+        };
+    }
+
+    private static Consumer<EvalScope> parseOneFromJason(JsonArray config, JsonObject rule) throws IllegalArgumentException {
         String headerName = rule.getString("header");
         String expression = rule.getString("value");
         String mode       = rule.getString("mode");
@@ -101,111 +112,112 @@ public class HeaderFunctions {
     }
 
 
-    public static Function<MultiMap, MultiMap> setAlways(String headerName, String expression) {
-        final Function<MultiMap, String> exprEval = newExpressionEvaluator(expression);
-        return (headers) -> {
-            String value = exprEval.apply(headers);
-            headers.set(headerName, value);
-            return headers;
+    public static Consumer<EvalScope> remove(String headerName) {
+        return (scope) -> {
+            scope.headers.remove(headerName);
         };
     }
 
-    public static Function<MultiMap, MultiMap> setIfPresent(String headerName, String expression) {
-        final Function<MultiMap, String> exprEval = newExpressionEvaluator(expression);
-        return (headers) -> {
-            if (headers.contains(headerName)) {
-                String value = exprEval.apply(headers);
-                headers.set(headerName, value);
+    public static Consumer<EvalScope> setAlways(String headerName, String expression) {
+        final Function<EvalScope, String> exprEval = newExpressionEvaluator(expression);
+        return (scope) -> {
+            String value = exprEval.apply(scope);
+            scope.headers.set(headerName, value);
+        };
+    }
+
+    public static Consumer<EvalScope> setIfAbsent(String headerName, String expression) {
+        final Function<EvalScope, String> exprEval = newExpressionEvaluator(expression);
+        return (scope) -> {
+            if (!scope.headers.contains(headerName)) {
+                String value = exprEval.apply(scope);
+                scope.headers.set(headerName, value);
             }
-            return headers;
         };
     }
 
-    public static Function<MultiMap, MultiMap> setIfAbsent(String headerName, String expression) {
-        final Function<MultiMap, String> exprEval = newExpressionEvaluator(expression);
-        return (headers) -> {
-            if (!headers.contains(headerName)) {
-                String value = exprEval.apply(headers);
-                headers.set(headerName, value);
+    public static Consumer<EvalScope> setIfPresent(String headerName, String expression) {
+        final Function<EvalScope, String> exprEval = newExpressionEvaluator(expression);
+        return (scope) -> {
+            if (scope.headers.contains(headerName)) {
+                String value = exprEval.apply(scope);
+                scope.headers.set(headerName, value);
             }
-            return headers;
         };
     }
 
-    public static Function<MultiMap, MultiMap> remove(String headerName) {
-        return (headers) -> {
-            headers.remove(headerName);
-            return headers;
-        };
-    }
-
-    private static Function<MultiMap, String> newExpressionEvaluator(String expression) {
+    private static Function<EvalScope, String> newExpressionEvaluator(String expression) {
         // return fast 'identity' function if there are no variables in the expression
         if (expression.indexOf('{') < 0) {
-            return (headers) -> expression;
+            return (scope) -> expression;
         }
 
-        Function<EvalScope, EvalScope> f = (scope) -> scope;
+        Consumer<EvalScope> chain = (scope) -> {};
         Matcher matcher = VARIABLE_PATTERN.matcher(expression);
         int idx = 0;
         while (matcher.find()) {
             int from = matcher.start();
             int to = matcher.end();
             String fix = expression.substring(idx, from); // can be empty string - optimized in andThenFix()
-            f = andThenFix(f, fix);
+            chain = andThenFix(chain, fix);
             String varName = matcher.group(1); // This is the variable name without curly braces
-            f = andThenVar(f, varName);
+            chain = andThenVar(chain, varName, expression);
             idx = to;
         }
         String fix = expression.substring(idx);
-        f = andThenFix(f, fix);
+        chain = andThenFix(chain, fix);
 
-        final Function<EvalScope, EvalScope> evaluatorChain = f;
-        return (headers) -> {
-            LOG.debug("evaluating '{}' on headers '{}'", expression, headers);
-            EvalScope scope = new EvalScope();
-            scope.headers = headers;
-            scope.expression = expression;
-            evaluatorChain.apply(scope);
+        final Consumer<EvalScope> finalEvaluatorChain = chain;
+        return (scope) -> {
+            LOG.debug("evaluating '{}' on headers '{}'", expression, scope.headers);
+            scope.initBuffer();
+            finalEvaluatorChain.accept(scope);
             String result = scope.sb.toString();
-            LOG.debug("evaluating '{}' on headers '{}' results to '{}'", expression, headers, result);
+            LOG.debug("evaluating '{}' on headers '{}' results to '{}'", expression, scope.headers, result);
             return result;
         };
     }
 
-    private static Function<EvalScope, EvalScope> andThenFix(Function<EvalScope, EvalScope> f, String fix) {
+    private static Consumer<EvalScope> andThenFix(Consumer<EvalScope> c, String fix) {
         if (fix.length() == 0) {
-            return f;
+            return c;
         }
-//        System.out.println("Fix: " + fix);
-        return f.andThen((scope) -> {
+        return c.andThen((scope) -> {
             scope.sb.append(fix);
-            return scope;
         });
     }
 
-    private static Function<EvalScope, EvalScope> andThenVar(Function<EvalScope, EvalScope> f, String varName) {
-//        System.out.println("Var: " + varName);
-        return f.andThen((scope) -> {
+    private static Consumer<EvalScope> andThenVar(Consumer<EvalScope> c, String varName, String expression) {
+        return c.andThen((scope) -> {
             String value = scope.headers.get(varName);
             if (value == null) {
-                throw new HeaderNotFoundException("Header with name " + varName + " (from expression '" + scope.expression + "') not found in '" + scope.headers + "'");
+                scope.sb.append('{').append(varName).append('}');
+                scope.errorMessage = "unresolvable '{" + varName + "}' in exprssion '" + expression + "'";
             } else {
                 scope.sb.append(value);
             }
-            return scope;
         });
     }
 
-    private static class EvalScope {
-        StringBuilder sb = new StringBuilder();
-        MultiMap headers;
-        String expression; // needed only for debugging purposes
-    }
+    public static class EvalScope {
+        public final MultiMap headers;
+        private StringBuilder sb;
+        private String errorMessage;
 
-    public static class HeaderNotFoundException extends RuntimeException {
-        HeaderNotFoundException(String msg) {
-            super(msg);
+        EvalScope(MultiMap headers) {
+            this.headers = headers;
+        }
+
+        private void initBuffer() {
+            if (sb == null) {
+                sb = new StringBuilder();
+            } else {
+                sb.setLength(0);
+            }
+        }
+
+        public String getErrorMessage() {
+            return errorMessage;
         }
     }
 }

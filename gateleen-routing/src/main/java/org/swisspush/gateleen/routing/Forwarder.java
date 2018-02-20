@@ -193,14 +193,15 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.headers().set("Authorization", "Basic " + base64UsernamePassword);
         }
 
-        try {
-            applyHeaderFunctionChain(cReq);
-        } catch (HeaderFunctions.HeaderNotFoundException hnfEx) {
-            log.warn("Problem invoking Header functions: {}", hnfEx.getMessage());
+
+        MultiMap headers = cReq.headers();
+        final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
+        if (evalScope.getErrorMessage() != null) {
+            log.warn("Problem invoking Header functions: {}", evalScope.getErrorMessage());
             final HttpServerResponse response = req.response();
             response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
             response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-            response.end(hnfEx.getMessage());
+            response.end(evalScope.getErrorMessage());
             return;
         }
 
@@ -235,11 +236,6 @@ public class Forwarder implements Handler<RoutingContext> {
         loggingHandler.request(cReq.headers());
 
         req.resume();
-    }
-
-    private void applyHeaderFunctionChain(HttpClientRequest cReq) {
-        MultiMap headers = cReq.headers();
-        rule.getHeaderFunction().apply(headers);  // Apply the header manipulation chain
     }
 
     private void setProfileHeaders(Logger log, Map<String, String> profileHeaderMap, HttpClientRequest cReq) {

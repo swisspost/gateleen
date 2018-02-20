@@ -1,14 +1,13 @@
 package org.swisspush.gateleen.hook;
 
-import io.vertx.core.MultiMap;
 import org.joda.time.LocalDateTime;
+import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
 import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
@@ -25,7 +24,7 @@ public class HttpHook {
     private QueueingStrategy queueingStrategy = new DefaultQueueingStrategy();
     private Pattern filter = null;
     private int queueExpireAfter;
-    private Function<MultiMap, MultiMap> headerFunction = HeaderFunctions.DO_NOTHING; // default avoids NPE and if-not-null checks
+    private HeaderFunction headerFunction = HeaderFunctions.DO_NOTHING; // default avoids NPE and if-not-null checks
     private HookTriggerType hookTriggerType;
     private boolean listable = false;
     private boolean collection = true;
@@ -193,11 +192,11 @@ public class HttpHook {
         this.queueExpireAfter = queueExpireAfter;
     }
 
-    public Function<MultiMap, MultiMap> getHeaderFunction() {
+    public HeaderFunction getHeaderFunction() {
         return headerFunction;
     }
 
-    public void setHeaderFunction(Function<MultiMap, MultiMap> headerFunction) {
+    public void setHeaderFunction(HeaderFunction headerFunction) {
         this.headerFunction = headerFunction;
     }
 

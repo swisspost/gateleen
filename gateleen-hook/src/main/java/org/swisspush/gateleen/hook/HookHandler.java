@@ -1,5 +1,10 @@
 package org.swisspush.gateleen.hook;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.github.fge.jsonschema.util.JsonLoader;
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.ValidationMessage;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -12,6 +17,7 @@ import io.vertx.core.json.JsonObject;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.logging.LoggableResource;
@@ -30,10 +36,10 @@ import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Rule;
 
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
@@ -100,6 +106,8 @@ public class HookHandler implements LoggableResource {
     private boolean logHookConfigurationResourceChanges = false;
 
     private Handler<Void> doneHandler;
+
+    private final JsonSchema jsonSchemaHook;
 
 
     /**
@@ -205,6 +213,9 @@ public class HookHandler implements LoggableResource {
         collectionContentComparator = new CollectionContentComparator();
         this.doneHandler = doneHandler;
         this.hookStorage = hookStorage;
+
+        URL url = HookHandler.class.getResource("/gateleen_hooking_schema_hook");
+        jsonSchemaHook = JsonSchemaFactory.getInstance().getSchema(url);
     }
 
     public void init() {
@@ -697,16 +708,12 @@ public class HookHandler implements LoggableResource {
                 ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
             }
 
-            try {
-                listener.getHook().getHeaderFunction().apply(queueHeaders);  // Apply the header manipulation chain
-            } catch (HeaderFunctions.HeaderNotFoundException hnfEx) {
-                log.warn("Problem invoking Header functions: {}", hnfEx.getMessage());
-                // TODO: what do we do with the request in this case?
-                //       - can / shall we let fail the original request with "400 bad request"? (As we do in routes)?
-                //       - shall we still enqueue - but with uncomplete execution of the header modification chain?
-                //       - shall we enqueue with the original headers?
-                //       - shall we skip this enqueue
+            // Apply the header manipulation chain - errors (unresolvable references) will just be WARN logged - but we still enqueue
+            final HeaderFunctions.EvalScope evalScope = listener.getHook().getHeaderFunction().apply(queueHeaders);
+            if (evalScope.getErrorMessage() != null) {
+                log.warn("problem applying header manipulator chain {} in listener {}", evalScope.getErrorMessage(), listener.getListenerId());
             }
+
             // if there is an x-queue header (after applying the header manipulator chain!),
             // then directly enqueue to this queue - else enqueue to a queue named alike this listener hook
             String queue = queueHeaders.get(X_QUEUE);
@@ -885,6 +892,10 @@ public class HookHandler implements LoggableResource {
         log.debug("handleRouteRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
+            if(isHookJsonInvalid(request, hookData)) {
+                return;
+            }
+
             // eg. /server/hooks/v1/registrations/+my+storage+id+
             final String routeStorageUri = hookRootUri + HOOK_ROUTE_STORAGE_PATH + getStorageIdentifier(request.uri());
 
@@ -909,26 +920,17 @@ public class HookHandler implements LoggableResource {
              * "hook" : { ... }
              * }
              */
-            JsonObject storageObject = new JsonObject();
-            storageObject.put(REQUESTURL, request.uri());
-            storageObject.put(EXPIRATION_TIME, ExpiryCheckHandler.printDateTime(expirationTime));
             JsonObject hook;
             try {
                 hook = new JsonObject(hookData.toString());
             } catch (DecodeException e) {
-                request.response().setStatusCode(400);
-                final String msg = "Cannot decode JSON";
-                request.response().setStatusMessage(msg);
-                request.response().end(msg);
+                badRequest(request, "Cannot decode JSON", e.getMessage());
                 return;
             }
-            if(hook.getString("destination")==null) {
-                request.response().setStatusCode(400);
-                final String msg = "Property 'destination' must be set";
-                request.response().setStatusMessage(msg);
-                request.response().end(msg);
-                return;
-            }
+
+            JsonObject storageObject = new JsonObject();
+            storageObject.put(REQUESTURL, request.uri());
+            storageObject.put(EXPIRATION_TIME, ExpiryCheckHandler.printDateTime(expirationTime));
             storageObject.put(HOOK, hook);
             Buffer buffer = Buffer.buffer(storageObject.toString());
             hookStorage.put(routeStorageUri, request.headers(), buffer, status -> {
@@ -1004,30 +1006,22 @@ public class HookHandler implements LoggableResource {
         log.debug("handleListenerRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
+            if(isHookJsonInvalid(request, hookData)) {
+                return;
+            }
+
             JsonObject hook;
             try {
-                hook = new JsonObject(hookData.toString());
+                hook = new JsonObject(hookData);
             } catch (DecodeException e) {
-                request.response().setStatusCode(400);
-                final String msg = "Cannot decode JSON";
-                request.response().setStatusMessage(msg);
-                request.response().end(msg);
+                log.error("Cannot decode JSON", e);
+                badRequest(request, "Cannot decode JSON", e.getMessage());
                 return;
             }
             String destination = hook.getString("destination");
-            if(destination==null) {
-                request.response().setStatusCode(400);
-                final String msg = "Property 'destination' must be set";
-                request.response().setStatusMessage(msg);
-                request.response().end(msg);
-                return;
-            }
             String hookOnUri = getMonitoredUrlSegment(request.uri());
             if (destination.startsWith(hookOnUri)) {
-                request.response().setStatusCode(400);
-                final String msg = "Destination-URI should not be within subtree of your hooked resource. This would lead to an infinite loop.";
-                request.response().setStatusMessage(msg);
-                request.response().end(msg);
+                badRequest(request, "illegal destination", "Destination-URI should not be within subtree of your hooked resource. This would lead to an infinite loop.");
                 return;
             }
 
@@ -1073,6 +1067,29 @@ public class HookHandler implements LoggableResource {
                 request.response().end();
             });
         });
+    }
+
+    public boolean isHookJsonInvalid(HttpServerRequest request, Buffer hookData) {
+        try {
+            JsonNode hook = JsonLoader.fromString(hookData.toString());
+            final Set<ValidationMessage> valMsgs = jsonSchemaHook.validate(hook);
+            if (valMsgs.size() > 0) {
+                badRequest(request, "Hook JSON invalid", valMsgs.toString());
+                return true;
+            }
+        } catch (Exception ex) {
+            log.error("Cannot decode JSON", ex);
+            badRequest(request, "Cannot decode JSON", ex.getMessage());
+            return true;
+        }
+        return false;
+    }
+
+    private void badRequest(HttpServerRequest request, String statusMsg, String longMsg) {
+        HttpServerResponse response = request.response();
+        response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        request.response().setStatusMessage(statusMsg);
+        request.response().end(longMsg);
     }
 
     /**
@@ -1198,10 +1215,6 @@ public class HookHandler implements LoggableResource {
             hook.setFilter(jsonHook.getString("filter"));
         }
 
-        if (jsonHook.containsKey("filter")) {
-            hook.setFilter(jsonHook.getString("filter"));
-        }
-
         if (jsonHook.getInteger(EXPIRE_AFTER) != null) {
             hook.setExpireAfter(jsonHook.getInteger(EXPIRE_AFTER));
         } else {
@@ -1286,18 +1299,27 @@ public class HookHandler implements LoggableResource {
      * @param jsonHook the json hook
      * @param hook the hook object
      */
-    @Deprecated
     private void extractAndAddStaticHeadersToHook(final JsonObject jsonHook, final HttpHook hook) {
+        final JsonArray headers = jsonHook.getJsonArray("headers");
+        if (headers != null) {
+            final HeaderFunction headerFunction = HeaderFunctions.parseFromJson(headers);
+            hook.setHeaderFunction(headerFunction);
+            return;
+        }
+
         // {@see org.swisspush.gateleen.routing.RuleFactory.setStaticHeaders()}
+        // in previous Gateleen versions we only had the "staticHeaders" to unconditionally add headers with fix values
+        // We now have a more dynamic concept of a "manipulator chain" - which is also configured different in JSON syntax
+        // For backward compatibility we still parse the old "staticHeaders" - but now create a manipulator chain accordingly
         JsonObject staticHeaders = jsonHook.getJsonObject(STATIC_HEADERS);
         if (staticHeaders != null && staticHeaders.size() > 0) {
             log.warn("you use the deprecated \"staticHeaders\" syntax in your hook (" + jsonHook+ "). Please migrate to the more flexible \"headers\" syntax");
-            Function<MultiMap, MultiMap> func = null;
+            Consumer<HeaderFunctions.EvalScope> chain = null;
             for (Map.Entry<String, Object> entry : staticHeaders.getMap().entrySet()) {
-                final Function<MultiMap, MultiMap> f = HeaderFunctions.setAlways(entry.getKey(), entry.getValue().toString());
-                func = (func == null) ? f : func.andThen(f);
+                final Consumer<HeaderFunctions.EvalScope> c = HeaderFunctions.setAlways(entry.getKey(), entry.getValue().toString());
+                chain = (chain == null) ? c : chain.andThen(c);
             }
-            hook.setHeaderFunction(func);
+            hook.setHeaderFunction(HeaderFunctions.wrapConsumerChain(chain));
         }
     }
 
@@ -1492,4 +1514,5 @@ public class HookHandler implements LoggableResource {
     private boolean isHookRouteUnregistration(HttpServerRequest request) {
         return request.uri().contains(HOOKS_ROUTE_URI_PART) && HttpMethod.DELETE == request.method();
     }
+
 }

@@ -64,14 +64,13 @@ public class StorageForwarder implements Handler<RoutingContext> {
         final MultiMap requestHeaders = new CaseInsensitiveHeaders();
         requestHeaders.addAll(ctx.request().headers());
 
-        try {
-            rule.getHeaderFunction().apply(requestHeaders); // Apply the header manipulation chain
-        } catch (HeaderFunctions.HeaderNotFoundException hnfEx) {
-            log.warn("Problem invoking Header functions: {}", hnfEx.getMessage());
+        final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(requestHeaders);// Apply the header manipulation chain
+        if (evalScope.getErrorMessage() != null) {
+            log.warn("Problem invoking Header functions: {}", evalScope.getErrorMessage());
             final HttpServerResponse response = ctx.request().response();
             response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
             response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-            response.end(hnfEx.getMessage());
+            response.end(evalScope.getErrorMessage());
             return;
         }
 

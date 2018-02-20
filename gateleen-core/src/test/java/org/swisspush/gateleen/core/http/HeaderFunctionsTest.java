@@ -6,7 +6,7 @@ import io.vertx.core.json.JsonArray;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 import static org.swisspush.gateleen.core.http.HeaderFunctions.*;
 
@@ -14,7 +14,7 @@ public class HeaderFunctionsTest {
 
     @Test
     public void testHeaderFunctionChain() {
-        Function<MultiMap, MultiMap> chain = (headers) -> headers;
+        Consumer<EvalScope> chain = (scope) -> {};
         chain = chain.andThen(setAlways   ("xxx", "111"             ));
         chain = chain.andThen(setAlways   ("yyy", "222"             ));
         chain = chain.andThen(setIfAbsent ("yyy", "333"             )); // yyy should stay on value 222
@@ -25,7 +25,8 @@ public class HeaderFunctionsTest {
 
         // Execute the Header manipulator chain
         MultiMap headers = new CaseInsensitiveHeaders();
-        headers = chain.apply(headers);
+        EvalScope evalScope = new EvalScope(headers);
+        chain.accept(evalScope);
         System.out.println(headers);
 
         Assert.assertFalse(headers.contains("xxx")); // explicit removed
@@ -33,13 +34,16 @@ public class HeaderFunctionsTest {
         Assert.assertEquals("222"         , headers.get("yyy"    ));
         Assert.assertEquals("111-222"     , headers.get("oli"    ));
         Assert.assertEquals("pre-222-suff", headers.get("preSuff"));
+        Assert.assertNull("no eval error occured", evalScope.getErrorMessage());
     }
 
-    @Test(expected = HeaderNotFoundException.class)
+    @Test
     public void testUnresolvableHeaderName() {
-        Function<MultiMap, MultiMap> f = setAlways("gugus","{no-exist}");
+        Consumer<EvalScope> c = setAlways("gugus","{no-exist}");
         MultiMap headers = new CaseInsensitiveHeaders();
-        f.apply(headers);
+        EvalScope evalScope = new EvalScope(headers);
+        c.accept(evalScope);
+        Assert.assertNotNull("eval error message present", evalScope.getErrorMessage());
     }
 
     @Test
@@ -55,15 +59,16 @@ public class HeaderFunctionsTest {
                 "]";
         json = json.replace('\'', '"');
         JsonArray config = new JsonArray(json);
-        Function<MultiMap, MultiMap> chain = HeaderFunctions.parseFromJson(config);
+        HeaderFunction chain = HeaderFunctions.parseFromJson(config);
 
         MultiMap headers = new CaseInsensitiveHeaders();
-        headers = chain.apply(headers);
+        final EvalScope evalScope = chain.apply(headers);
 
         Assert.assertFalse(headers.contains("xxx")); // explicit removed
         Assert.assertFalse(headers.contains("zzz")); // never added
         Assert.assertEquals("222"         , headers.get("yyy"    ));
         Assert.assertEquals("111-222"     , headers.get("oli"    ));
         Assert.assertEquals("pre-222-suff", headers.get("preSuff"));
+        Assert.assertNull("no eval error occured", evalScope.getErrorMessage());
     }
 }

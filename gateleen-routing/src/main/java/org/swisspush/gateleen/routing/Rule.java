@@ -1,12 +1,11 @@
 package org.swisspush.gateleen.routing;
 
-import io.vertx.core.MultiMap;
+import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public class Rule {
@@ -27,7 +26,7 @@ public class Rule {
     private int logExpiry;
     private String[] methods;
     private String[] profile;
-    private Function<MultiMap, MultiMap> headerFunction = HeaderFunctions.DO_NOTHING; // default avoids NPE and if-not-null checks
+    private HeaderFunction headerFunction = HeaderFunctions.DO_NOTHING; // default avoids NPE and if-not-null checks
 
     private String storage;
 
@@ -168,11 +167,11 @@ public class Rule {
         this.profile = Arrays.copyOf(profile, profile.length);
     }
 
-    public Function<MultiMap, MultiMap> getHeaderFunction() {
+    public HeaderFunction getHeaderFunction() {
         return headerFunction;
     }
 
-    public void setHeaderFunction(Function<MultiMap, MultiMap> headerFunction) {
+    public void setHeaderFunction(HeaderFunction headerFunction) {
         this.headerFunction = headerFunction;
     }
 

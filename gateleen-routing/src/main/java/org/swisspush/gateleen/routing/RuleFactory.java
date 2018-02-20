@@ -1,11 +1,11 @@
 package org.swisspush.gateleen.routing;
 
-import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.core.validation.ValidationResult;
@@ -13,7 +13,7 @@ import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.Validator;
 
 import java.util.*;
-import java.util.function.Function;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -139,18 +139,25 @@ public class RuleFactory {
 
     @Deprecated
     private void setStaticHeaders(Rule ruleObj, JsonObject rule) {
+        final JsonArray headers = rule.getJsonArray("headers");
+        if (headers != null) {
+            final HeaderFunction headerFunction = HeaderFunctions.parseFromJson(headers);
+            ruleObj.setHeaderFunction(headerFunction);
+            return;
+        }
+
         // in previous Gateleen versions we only had the "staticHeaders" to unconditionally add headers with fix values
         // We now have a more dynamic concept of a "manipulator chain" - which is also configured different in JSON syntax
         // For backward compatibility we still parse the old "staticHeaders" - but now create a manipulator chain accordingly
         JsonObject staticHeaders = rule.getJsonObject("staticHeaders");
         if (staticHeaders != null && staticHeaders.size() > 0) {
             log.warn("you use the deprecated \"staticHeaders\" syntax in your routing rule JSON (" + rule + "). Please migrate to the more flexible \"headers\" syntax");
-            Function<MultiMap, MultiMap> func = null;
+            Consumer<HeaderFunctions.EvalScope> chain = null;
             for (Map.Entry<String, Object> entry : staticHeaders.getMap().entrySet()) {
-                final Function<MultiMap, MultiMap> f = HeaderFunctions.setAlways(entry.getKey(), entry.getValue().toString());
-                func = (func == null) ? f : func.andThen(f);
+                final Consumer<HeaderFunctions.EvalScope> c = HeaderFunctions.setAlways(entry.getKey(), entry.getValue().toString());
+                chain = (chain == null) ? c : chain.andThen(c);
             }
-            ruleObj.setHeaderFunction(func);
+            ruleObj.setHeaderFunction(HeaderFunctions.wrapConsumerChain(chain));
         }
     }
 
