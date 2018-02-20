@@ -1,0 +1,119 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "Hook",
+    "properties": {
+        "methods": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "OPTIONS",
+                    "GET",
+                    "HEAD",
+                    "POST",
+                    "PUT",
+                    "DELETE",
+                    "PATCH"
+                ]
+            }
+        },
+        "filter": {
+            "type": "string"
+        },
+        "staticHeaders": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "headers": {
+            "description": "Manipulate (set / remove / replace) request headers - option to reference other header vales",
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/HeaderFunction"
+            }
+        },
+        "destination": {
+            "type": "string"
+        },
+        "expireAfter": {
+            "type": "integer",
+            "minimum": -1
+        },
+        "queueExpireAfter": {
+            "type": "integer",
+            "minimum": -1
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "before",
+                "after"
+            ]
+        },
+        "fullUrl": {
+            "type": "boolean"
+        },
+        "queueingStrategy": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "discardPayload",
+                        "reducedPropagation"
+                    ]
+                },
+                "intervalMs": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "destination"
+    ],
+    "not": {
+        "title": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time",
+        "description": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time",
+        "anyOf": [
+            {
+                "required": [
+                    "staticHeaders",
+                    "headers"
+                ]
+            }
+        ]
+    },
+    "definitions": {
+        "HeaderFunction": {
+            "properties": {
+                "header": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "value": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "minLength": 1
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "complete",
+                        "override"
+                    ]
+                }
+            },
+            "required": [
+                "header",
+                "value"
+            ]
+        }
+    }
+}
