@@ -22,7 +22,8 @@ During the instantiation of the [HookHandler](src/main/java/org/swisspush/gatele
 | destination       | yes | A valid URL (absolute) where the requests should be redirected to. |
 | methods           | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
 | expireAfter       | no  | This property indicates how long a resource should live. After the given time, the resource will be removed from the storage. This property will only be used, if the incoming request does not have a 'X-Expire-After' header. If the given header exists, this property will be ignored for the given request!  |
-| staticHeaders     | no  | This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
+| staticHeaders     | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
+| headers           | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)|
 | collection        | no  | This property specifies if the given URL is a resource or a collection. If this property is not set, the default is true (collection). |
 | listable          | no  | This property specifies if a route is listed if a GET is performed on its parent or not. The default is false or set by the value passed during the initialization. | 
 
@@ -132,7 +133,8 @@ GET http://myserver:7012/gateleen/example/
 | methods           | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
 | expireAfter       | no  | This property indicates how long a resource should live. After the given time, the resource will be removed from the storage. This property will only be used, if the incoming request does not have a 'X-Expire-After' header. If the given header exists, this property will be ignored for the given request!  |
 | queueExpireAfter  | no  | A copied and forwarded request to a listener is always putted into a queue. To ensure to have an expiration time for each request within the given listener queue, you can set a default value (in seconds) with this property. This way you can prevent a queue overflow. The property will only be used for requests, which doesn’t have a _x-queue-expire-after_ header. |
-| staticHeaders     | no  | This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
+| staticHeaders     | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
+| headers           | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)|
 | filter            | no  | This property allows you to refine the requests with a regular expression, which you want to receive for the given destination. |
 | type              | no  | Default: before <br> This property allows you to set, if the request to a listener will be sent before or after the original request was performed.<br /> <br /> The valid settings are: <br /> after => request will be forwarded to listener after the original request was performed <br /><br />before => (default) request will be forwarded to a listener before the original request was performed <br /> <br /> This can be useful if you want to use your listeners with the delegate feature and expect a request to be already executed as soon as you execute a delegate. |  
 | fullUrl           | no  | Default: false <br> <br /> Defines whether the hook forwards using the full initial url or only the appendix <br/><br/> Example: <br/><br/> hooked url = http://a/b/c <br/> request.uri() = http://a/b/c/d/e.x <br/> url appendix = /d/e.x |
@@ -151,9 +153,9 @@ PUT http://myserver7012/gateleen/everything/_hooks/listeners/http/myexample
     ],
     "destination": "/gateleen/example/thePosition",
     "filter": "/gateleen/everything/.*/position.*",
-    "staticHeaders": {
-        "X-Expire-After": "3600"
-    }    
+    "headers": [
+        { "header":"X-Expire-After", "value":"3600", mode:"complete"}
+    ]    
 }
 ```
 

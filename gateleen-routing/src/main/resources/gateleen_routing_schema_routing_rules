@@ -135,10 +135,12 @@
 		"HeaderFunction": {
 			"properties": {
 				"header": {
+					"description": "the request-header name to manupulate (set, remove or conditional set)",
 					"type": "string",
 					"minLength": 1
 				},
 				"value": {
+					"description": "the value to be set. null means 'remove the header'. value can containing other header names between single angular brackets which resolve to theit values accordingly",
 					"type": [
 						"null",
 						"string"
@@ -146,6 +148,7 @@
 					"minLength": 1
 				},
 				"mode": {
+					"description": "define a condition-mode. 'conplete' sets the header value only if this header is not yet presen. 'overwrite' sets the header value only if the header is already present. Ignored iv value is null",
 					"type": "string",
 					"enum": [
 						"complete",
