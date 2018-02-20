@@ -700,18 +700,19 @@ public class HookHandler implements LoggableResource {
             // so that the original request is not overridden with the new values.
             MultiMap queueHeaders = new CaseInsensitiveHeaders();
             queueHeaders.addAll(request.headers());
+
+            // Apply the header manipulation chain - errors (unresolvable references) will just be WARN logged - but we still enqueue
+            final HeaderFunctions.EvalScope evalScope = listener.getHook().getHeaderFunction().apply(queueHeaders);
+            if (evalScope.getErrorMessage() != null) {
+                log.warn("problem applying header manipulator chain {} in listener {}", evalScope.getErrorMessage(), listener.getListenerId());
+            }
+
             if (ExpiryCheckHandler.getExpireAfter(queueHeaders) == null) {
                 ExpiryCheckHandler.setExpireAfter(queueHeaders, listener.getHook().getExpireAfter());
             }
 
             if(ExpiryCheckHandler.getQueueExpireAfter(queueHeaders) == null && listener.getHook().getQueueExpireAfter() != -1 ) {
                 ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
-            }
-
-            // Apply the header manipulation chain - errors (unresolvable references) will just be WARN logged - but we still enqueue
-            final HeaderFunctions.EvalScope evalScope = listener.getHook().getHeaderFunction().apply(queueHeaders);
-            if (evalScope.getErrorMessage() != null) {
-                log.warn("problem applying header manipulator chain {} in listener {}", evalScope.getErrorMessage(), listener.getListenerId());
             }
 
             // if there is an x-queue header (after applying the header manipulator chain!),
