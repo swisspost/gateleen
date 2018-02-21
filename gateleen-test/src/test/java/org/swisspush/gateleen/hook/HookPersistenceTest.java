@@ -424,10 +424,10 @@ public class HookPersistenceTest extends AbstractTest {
      * @param requestUrl
      * @param target
      * @param methods
-     * @param expireTime
+     * @param expireAfter
      * @param resourceExpireTime of hook resource
      */
-    private void registerHook(final String requestUrl, final String target, String[] methods, Integer expireTime, int resourceExpireTime) {
+    private void registerHook(final String requestUrl, final String target, String[] methods, Integer expireAfter, int resourceExpireTime) {
         String body = "{ \"destination\":\"" + target + "\"";
 
         String m = null;
@@ -438,7 +438,7 @@ public class HookPersistenceTest extends AbstractTest {
             m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
             m = "\"methods\": [" + m + "]";
         }
-        body += expireTime != null ? ", \"expireTime\" : " + expireTime : "";
+        body += expireAfter != null ? ", \"expireAfter\" : " + expireAfter : "";
         body = body + "}";
 
         with().body(body).header("x-expire-after", String.valueOf(resourceExpireTime)).put(requestUrl).then().assertThat().statusCode(200);
