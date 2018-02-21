@@ -70,6 +70,14 @@
                 }
             },
             "additionalProperties": false
+        },
+        "collection": {
+            "description": "only used for route hook",
+            "type": "boolean"
+        },
+        "listable": {
+            "description": "only used for route hook",
+            "type": "boolean"
         }
     },
     "additionalProperties": false,
