@@ -34,7 +34,24 @@ public class HookSchemaTest {
                 "  'queueExpireAfter':30," +
                 "  'type':'after'," +
                 "  'fullUrl':true," +
-                "  'queueingStrategy':{'type':'reducedPropagation','intervalMs':1000}" +
+                "  'queueingStrategy':{'type':'reducedPropagation','intervalMs':1000}," +
+                "  'collection':false," +
+                "  'listable':true" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("No validation messages", 0, valMsgs.size());
+    }
+
+    @Test
+    public void validWithLegacyStaticHeaders() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'staticHeaders':{" +
+                "    'header-a':'value-a'," +
+                "    'header-b':true" +            // implementation allows any type, especially boolean ...
+                "  }" +
                 "}");
 
         Set<ValidationMessage> valMsgs = schema.validate(json);
@@ -48,6 +65,19 @@ public class HookSchemaTest {
         Set<ValidationMessage> valMsgs = schema.validate(json);
         dumpValidationMessages(valMsgs);
         Assert.assertEquals("No validation messages", 0, valMsgs.size());
+    }
+
+    @Test
+    public void invalidWhenMixingHeadersAndStaticHeaders() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'staticHeaders':{}," +
+                "  'headers':[]" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("One validation messages", 1, valMsgs.size());
     }
 
     @Test

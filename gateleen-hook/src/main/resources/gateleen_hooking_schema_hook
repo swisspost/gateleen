@@ -23,7 +23,8 @@
         "staticHeaders": {
             "type": "object",
             "additionalProperties": {
-                "type": "string"
+                "description": "we should only accept string - but for backward compatibility we must also accept other types (which are converted to stings in HookHandler)",
+                "type": ["string", "boolean", "number", "integer"]
             }
         },
         "headers": {
