@@ -6,6 +6,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -61,22 +62,37 @@ public class HeaderFunctions {
         for (int pos = 0; pos < config.size(); pos++) {
             JsonObject rule = config.getJsonObject(pos);
             Consumer<EvalScope> c = parseOneFromJason(config, rule);
-
-            if (chain == null) {
-                chain = c;
-            } else {
-                chain = chain.andThen(c);
-            }
-        }
-        if (chain == null) {
-            // if no rules defined: do nothing and just return a fix 'no error' indicating result
-            return (headers) -> NO_ERROR_SCOPE;
+            chain = (chain == null) ? c : chain.andThen(c);
         }
         return wrapConsumerChain(chain);
     }
 
-    public static HeaderFunction wrapConsumerChain(Consumer<EvalScope> chain) {
-        return (headers) ->{
+    /**
+     * Support for the legacy "staticHeaders" syntax
+     */
+    @Deprecated
+    public static HeaderFunction parseStaticHeadersFromJson(JsonObject staticHeaders) {
+        Consumer<HeaderFunctions.EvalScope> chain = null;
+        for (Map.Entry<String, Object> entry : staticHeaders.getMap().entrySet()) {
+            String headerName = entry.getKey();
+            Object value = entry.getValue();
+            Consumer<HeaderFunctions.EvalScope> c;
+            if (value == null || value.toString().isEmpty()) {
+                c = HeaderFunctions.remove(headerName);
+            } else {
+                c = HeaderFunctions.setAlways(headerName, value.toString());
+            }
+            chain = (chain == null) ? c : chain.andThen(c);
+        }
+        return wrapConsumerChain(chain);
+    }
+
+    private static HeaderFunction wrapConsumerChain(Consumer<EvalScope> chain) {
+        if (chain == null) {
+            // if no rules defined: do nothing and just return a fix 'no error' indicating result
+            return DO_NOTHING;
+        }
+        return (headers) -> {
             EvalScope scope = new EvalScope(headers);
             chain.accept(scope);
             return scope;

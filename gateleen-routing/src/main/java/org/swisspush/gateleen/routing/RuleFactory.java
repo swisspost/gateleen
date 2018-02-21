@@ -150,14 +150,9 @@ public class RuleFactory {
         // We now have a more dynamic concept of a "manipulator chain" - which is also configured different in JSON syntax
         // For backward compatibility we still parse the old "staticHeaders" - but now create a manipulator chain accordingly
         JsonObject staticHeaders = rule.getJsonObject("staticHeaders");
-        if (staticHeaders != null && staticHeaders.size() > 0) {
+        if (staticHeaders != null) {
             log.warn("you use the deprecated \"staticHeaders\" syntax in your routing rule JSON (" + rule + "). Please migrate to the more flexible \"headers\" syntax");
-            Consumer<HeaderFunctions.EvalScope> chain = null;
-            for (Map.Entry<String, Object> entry : staticHeaders.getMap().entrySet()) {
-                final Consumer<HeaderFunctions.EvalScope> c = HeaderFunctions.setAlways(entry.getKey(), entry.getValue().toString());
-                chain = (chain == null) ? c : chain.andThen(c);
-            }
-            ruleObj.setHeaderFunction(HeaderFunctions.wrapConsumerChain(chain));
+            ruleObj.setHeaderFunction(HeaderFunctions.parseStaticHeadersFromJson(staticHeaders));
         }
     }
 
