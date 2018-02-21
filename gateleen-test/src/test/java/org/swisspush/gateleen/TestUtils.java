@@ -364,6 +364,7 @@ public class TestUtils {
         body = body + "}";
 
         with().body(body).put(requestUrl).then().assertThat().statusCode(200);
+        waitSomeTime(1);
     }
 
     /**
