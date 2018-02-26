@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.routing;
 
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
@@ -296,7 +297,14 @@ public class Forwarder implements Handler<RoutingContext> {
 
             req.response().setStatusCode(statusCode);
 
-            req.response().headers().addAll(cRes.headers());
+            // Add received headers to original request except the 'Connection'
+            // headers. See RFC "https://tools.ietf.org/html/rfc2616#section-14.10".
+            // HINT: This manipulates the originally received headers.
+            final MultiMap headersFromServer = cRes.headers();
+            headersFromServer.getAll("connection").forEach(headersFromServer::remove);
+            headersFromServer.remove("connection");
+            req.response().headers().addAll(headersFromServer);
+
             if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
                 req.response().headers().addAll(profileHeaderMap);
             }
