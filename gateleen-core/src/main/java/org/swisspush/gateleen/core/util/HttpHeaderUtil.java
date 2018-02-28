@@ -18,8 +18,8 @@ public class HttpHeaderUtil {
      * @param headers
      *      The headers to check.
      */
-    public <T extends MultiMap> T removeNonForwardHeaders( T headers ) {
-        final String CONNECTION = HttpRequestHeader.CONECTION.getName();
+    public static <T extends MultiMap> T removeNonForwardHeaders( T headers ) {
+        final String CONNECTION = HttpRequestHeader.CONNECTION.getName();
 
         // Remove all headers named by connection-token.
         headers.getAll(CONNECTION).forEach(headers::remove);

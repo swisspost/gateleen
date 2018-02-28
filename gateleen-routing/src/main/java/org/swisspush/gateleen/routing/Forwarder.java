@@ -46,7 +46,6 @@ public class Forwarder implements Handler<RoutingContext> {
     private MonitoringHandler monitoringHandler;
     private ResourceStorage storage;
     private Vertx vertx;
-    private final HttpHeaderUtil httpHeaderUtil;
 
     private static final String ON_BEHALF_OF_HEADER = "x-on-behalf-of";
     private static final String USER_HEADER = "x-rp-usr";
@@ -57,7 +56,7 @@ public class Forwarder implements Handler<RoutingContext> {
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
 
-    public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, HttpHeaderUtil httpHeaderUtil) {
+    public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath) {
         this.vertx = vertx;
         this.client = client;
         this.rule = rule;
@@ -67,7 +66,6 @@ public class Forwarder implements Handler<RoutingContext> {
         this.urlPattern = Pattern.compile(rule.getUrlPattern());
         this.target = rule.getHost() + ":" + rule.getPort();
         this.userProfilePath = userProfilePath;
-        this.httpHeaderUtil = httpHeaderUtil;
         if (rule.getUsername() != null && !rule.getUsername().isEmpty()) {
             String password = rule.getPassword() == null ? null : rule.getPassword().trim();
             base64UsernamePassword = Base64.getEncoder().encodeToString((rule.getUsername().trim() + ":" + password).getBytes());
@@ -175,7 +173,7 @@ public class Forwarder implements Handler<RoutingContext> {
 
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
         MultiMap headersToForward = req.headers();
-        headersToForward = httpHeaderUtil.removeNonForwardHeaders(headersToForward);
+        headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
         cReq.headers().setAll(headersToForward);
 
         if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
@@ -300,9 +298,9 @@ public class Forwarder implements Handler<RoutingContext> {
             req.response().setStatusCode(statusCode);
 
             // Add received headers to original request but remove headers that should not get forwarded.
-            MultiMap receivedHeaders = httpHeaderUtil.removeNonForwardHeaders(cRes.headers());
-            receivedHeaders = httpHeaderUtil.removeNonForwardHeaders(receivedHeaders);
-            req.response().headers().addAll(receivedHeaders);
+            MultiMap headersToForward = HttpHeaderUtil.removeNonForwardHeaders(cRes.headers());
+            headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
+            req.response().headers().addAll(headersToForward);
 
             if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
                 req.response().headers().addAll(profileHeaderMap);

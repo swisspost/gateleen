@@ -10,13 +10,10 @@ import org.junit.runner.RunWith;
 @RunWith(VertxUnitRunner.class)
 public class HttpHeaderUtilTest {
 
-    private static String CONNECTION = HttpRequestHeader.CONECTION.getName();
+    private static String CONNECTION = HttpRequestHeader.CONNECTION.getName();
 
     @Test
     public void removeNonForwardHeadersTest(TestContext testContext) {
-
-        // Prepare instance to test
-        final HttpHeaderUtil httpHeaderUtil = new HttpHeaderUtil();
 
         // Mock an example header
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
@@ -29,7 +26,7 @@ public class HttpHeaderUtilTest {
         headers.add("three", "other stuff");
 
         // Apply filter
-        headers = httpHeaderUtil.removeNonForwardHeaders(headers);
+        headers = HttpHeaderUtil.removeNonForwardHeaders(headers);
 
         // Assert unrelated still exists
         testContext.assertTrue(headers.contains("an-unrelated-one"));

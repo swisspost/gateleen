@@ -1,12 +1,5 @@
 package org.swisspush.gateleen.hook;
 
-import org.swisspush.gateleen.core.util.HttpHeaderUtil;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.routing.Forwarder;
-import org.swisspush.gateleen.routing.Rule;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
@@ -14,6 +7,11 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServerRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.routing.Forwarder;
+import org.swisspush.gateleen.routing.Rule;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,7 +37,6 @@ public class Route {
     private static Pattern URL_PARSE_PATTERN = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>[0-9]+))?(?<path>/.*)$");
     private static Logger LOG = LoggerFactory.getLogger(Route.class);
 
-    private final HttpHeaderUtil httpHeaderUtil = new HttpHeaderUtil();
     private Vertx vertx;
     private LoggingResourceManager loggingResourceManager;
     private MonitoringHandler monitoringHandler;
@@ -86,7 +83,7 @@ public class Route {
      * Creates the forwarder for this hook.
      */
     private void createForwarder() {
-        forwarder = new Forwarder(vertx, client, rule, storage, loggingResourceManager, monitoringHandler, userProfilePath, httpHeaderUtil);
+        forwarder = new Forwarder(vertx, client, rule, storage, loggingResourceManager, monitoringHandler, userProfilePath);
     }
 
     /**
