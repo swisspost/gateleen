@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.hook;
 
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -38,6 +39,7 @@ public class Route {
     private static Pattern URL_PARSE_PATTERN = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>[0-9]+))?(?<path>/.*)$");
     private static Logger LOG = LoggerFactory.getLogger(Route.class);
 
+    private final HttpHeaderUtil httpHeaderUtil = new HttpHeaderUtil();
     private Vertx vertx;
     private LoggingResourceManager loggingResourceManager;
     private MonitoringHandler monitoringHandler;
@@ -84,7 +86,7 @@ public class Route {
      * Creates the forwarder for this hook.
      */
     private void createForwarder() {
-        forwarder = new Forwarder(vertx, client, rule, storage, loggingResourceManager, monitoringHandler, userProfilePath);
+        forwarder = new Forwarder(vertx, client, rule, storage, loggingResourceManager, monitoringHandler, userProfilePath, httpHeaderUtil);
     }
 
     /**

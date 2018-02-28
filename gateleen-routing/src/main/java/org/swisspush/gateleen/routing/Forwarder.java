@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
@@ -45,6 +46,7 @@ public class Forwarder implements Handler<RoutingContext> {
     private MonitoringHandler monitoringHandler;
     private ResourceStorage storage;
     private Vertx vertx;
+    private final HttpHeaderUtil httpHeaderUtil;
 
     private static final String ON_BEHALF_OF_HEADER = "x-on-behalf-of";
     private static final String USER_HEADER = "x-rp-usr";
@@ -55,7 +57,7 @@ public class Forwarder implements Handler<RoutingContext> {
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
 
-    public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath) {
+    public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, HttpHeaderUtil httpHeaderUtil) {
         this.vertx = vertx;
         this.client = client;
         this.rule = rule;
@@ -65,6 +67,7 @@ public class Forwarder implements Handler<RoutingContext> {
         this.urlPattern = Pattern.compile(rule.getUrlPattern());
         this.target = rule.getHost() + ":" + rule.getPort();
         this.userProfilePath = userProfilePath;
+        this.httpHeaderUtil = httpHeaderUtil;
         if (rule.getUsername() != null && !rule.getUsername().isEmpty()) {
             String password = rule.getPassword() == null ? null : rule.getPassword().trim();
             base64UsernamePassword = Base64.getEncoder().encodeToString((rule.getUsername().trim() + ":" + password).getBytes());
@@ -170,11 +173,10 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.setTimeout(rule.getTimeout());
         }
 
-        // Fix unique ID header name for backends not able to handle underscore in header names.
-        cReq.headers().setAll(req.headers());
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
-        cReq.headers().getAll("connection").stream().forEach(cReq.headers()::remove);
-        cReq.headers().remove("connection");
+        MultiMap headersToForward = req.headers();
+        headersToForward = httpHeaderUtil.removeNonForwardHeaders(headersToForward);
+        cReq.headers().setAll(headersToForward);
 
         if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
             cReq.headers().set(SELF_REQUEST_HEADER, "true");
@@ -297,13 +299,10 @@ public class Forwarder implements Handler<RoutingContext> {
 
             req.response().setStatusCode(statusCode);
 
-            // Add received headers to original request except the 'Connection'
-            // headers. See RFC "https://tools.ietf.org/html/rfc2616#section-14.10".
-            // HINT: This manipulates the originally received headers.
-            final MultiMap headersFromServer = cRes.headers();
-            headersFromServer.getAll("connection").forEach(headersFromServer::remove);
-            headersFromServer.remove("connection");
-            req.response().headers().addAll(headersFromServer);
+            // Add received headers to original request but remove headers that should not get forwarded.
+            MultiMap receivedHeaders = httpHeaderUtil.removeNonForwardHeaders(cRes.headers());
+            receivedHeaders = httpHeaderUtil.removeNonForwardHeaders(receivedHeaders);
+            req.response().headers().addAll(receivedHeaders);
 
             if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
                 req.response().headers().addAll(profileHeaderMap);

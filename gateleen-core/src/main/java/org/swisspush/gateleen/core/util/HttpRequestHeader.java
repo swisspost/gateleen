@@ -8,6 +8,7 @@ import io.vertx.core.MultiMap;
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public enum HttpRequestHeader {
+    CONECTION("connection"),
     CONTENT_LENGTH("Content-Length"),
     X_HOPS("x-hops");
 

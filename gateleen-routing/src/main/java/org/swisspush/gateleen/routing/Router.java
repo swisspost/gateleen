@@ -44,6 +44,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     public static final String ROUTER_STATE_MAP = "router_state_map";
     public static final String ROUTER_BROKEN_KEY = "router_broken";
     public static final String REQUEST_HOPS_LIMIT_PROPERTY = "request.hops.limit";
+    private final HttpHeaderUtil httpHeaderUtil = new HttpHeaderUtil();
     private String rulesUri;
     private String userProfileUri;
     private String serverUri;
@@ -358,9 +359,9 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             } else if (rule.getStorage() != null) {
                 forwarder = new StorageForwarder(vertx.eventBus(), rule, loggingResourceManager, monitoringHandler);
             } else if (rule.getScheme().equals("local")) {
-                forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
+                forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri, httpHeaderUtil);
             } else {
-                forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
+                forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri, httpHeaderUtil);
             }
 
             if (rule.getMethods() == null) {
