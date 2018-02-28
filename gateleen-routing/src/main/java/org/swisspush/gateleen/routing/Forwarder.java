@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.routing;
 
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
@@ -13,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
@@ -169,11 +171,10 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.setTimeout(rule.getTimeout());
         }
 
-        // Fix unique ID header name for backends not able to handle underscore in header names.
-        cReq.headers().setAll(req.headers());
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
-        cReq.headers().getAll("connection").stream().forEach(cReq.headers()::remove);
-        cReq.headers().remove("connection");
+        MultiMap headersToForward = req.headers();
+        headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
+        cReq.headers().setAll(headersToForward);
 
         if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
             cReq.headers().set(SELF_REQUEST_HEADER, "true");
@@ -296,7 +297,11 @@ public class Forwarder implements Handler<RoutingContext> {
 
             req.response().setStatusCode(statusCode);
 
-            req.response().headers().addAll(cRes.headers());
+            // Add received headers to original request but remove headers that should not get forwarded.
+            MultiMap headersToForward = HttpHeaderUtil.removeNonForwardHeaders(cRes.headers());
+            headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
+            req.response().headers().addAll(headersToForward);
+
             if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
                 req.response().headers().addAll(profileHeaderMap);
             }

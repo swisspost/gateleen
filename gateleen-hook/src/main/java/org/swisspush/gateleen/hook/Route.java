@@ -1,11 +1,5 @@
 package org.swisspush.gateleen.hook;
 
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.routing.Forwarder;
-import org.swisspush.gateleen.routing.Rule;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
@@ -13,6 +7,11 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServerRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.routing.Forwarder;
+import org.swisspush.gateleen.routing.Rule;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
