@@ -298,7 +298,7 @@ public class Forwarder implements Handler<RoutingContext> {
             req.response().setStatusCode(statusCode);
 
             // Add received headers to original request but remove headers that should not get forwarded.
-            MultiMap headersToForward = HttpHeaderUtil.removeNonForwardHeaders(cRes.headers());
+            MultiMap headersToForward = cRes.headers();
             headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
             req.response().headers().addAll(headersToForward);
 
