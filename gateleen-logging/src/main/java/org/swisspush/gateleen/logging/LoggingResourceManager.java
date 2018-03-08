@@ -17,6 +17,7 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.validation.RegexpValidator;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
@@ -24,6 +25,7 @@ import org.swisspush.gateleen.validation.Validator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
@@ -208,7 +210,10 @@ public class LoggingResourceManager implements LoggableResource {
                     JsonObject filterObject = (JsonObject) filterEntry;
                     Map<String, String> filterEntries = new HashMap<>();
                     for (String filterName : filterObject.fieldNames()) {
-                        filterEntries.put(filterName, filterObject.getString(filterName));
+                        final String filterValue = filterObject.getString( filterName );
+                        // Ensure value is a valid regular expression (See issue #206).
+                        RegexpValidator.throwIfPatternInvalid( filterValue );
+                        filterEntries.put(filterName, filterValue );
                     }
                     getLoggingResource().addPayloadFilter(filterEntries);
                 }
@@ -218,4 +223,5 @@ public class LoggingResourceManager implements LoggableResource {
             throw new ValidationException(ex);
         }
     }
+
 }

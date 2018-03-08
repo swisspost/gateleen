@@ -5,6 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
@@ -17,6 +18,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
@@ -24,6 +27,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +45,7 @@ public class LoggingResourceManagerTest {
     private static final String TRANSMISSION = "transmission";
     private static final String ADDRESS = "address";
     private static final String EVENT_BUS = "eventBus";
+    private static final Logger logger = LoggerFactory.getLogger( LoggingResourceManagerTest.class );
     private Vertx vertx;
     private ResourceStorage storage;
 
@@ -141,6 +146,66 @@ public class LoggingResourceManagerTest {
                 async.complete();
             });
         });
+    }
+
+    @Test
+    public void invalidRegexGetsRejected( TestContext testContext ) {
+        // Wire up victim instance
+        final String loggingUrl = "/houston/server/admin/v1/logging";
+        final LoggingResourceManager loggingResourceManager = new LoggingResourceManager( vertx , storage , loggingUrl );
+
+        // Mock a request
+        final Integer[] responseStatusCode = new Integer[]{ null };
+        final DummyHttpServerResponse httpServerResponse = new DummyHttpServerResponse(){
+            @Override public synchronized HttpServerResponse setStatusCode( int statusCode ) {
+                if( responseStatusCode[0] != null ) logger.debug("Status code "+responseStatusCode[0]+" got overridden with "+statusCode+".");
+                // Keep status code to assert it later.
+                responseStatusCode[0] = statusCode;
+                return this;
+            }
+        };
+        final HttpServerRequest request = new DummyHttpServerRequest(){
+            @Override public String uri() {
+                return loggingUrl;
+            }
+            @Override public HttpMethod method() {
+                return HttpMethod.PUT;
+            }
+            @Override public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+                Buffer buffer = new BufferImpl();
+                buffer.setBytes( 0 , ("{\n" +
+                        "  \"payload\": {\n" +
+                        "    \"filters\": [\n" +
+                        "      {\n" +
+                        "        \"url\": \"/houston/services/.*(?<!(all/position)$\",\n" +
+                        "        \"method\": \"PUT|DELETE\"\n" +
+                        "      }\n" +
+                        "    ]\n" +
+                        "  }\n" +
+                        "}\n").getBytes(StandardCharsets.UTF_8));
+                bodyHandler.handle( buffer );
+                return null;
+            }
+            @Override public MultiMap headers() {
+                return new CaseInsensitiveHeaders();
+            }
+            @Override public HttpServerResponse response() {
+                return httpServerResponse;
+            }
+        };
+
+        // Trigger victim to do its work.
+        final boolean returnValue = loggingResourceManager.handleLoggingResource( request );
+
+        // Assert victim accepted our request.
+        testContext.assertTrue( returnValue );
+        // did set a response code,
+        testContext.assertNotNull( responseStatusCode[0] );
+        // responded with a status code of 4xx,
+        testContext.assertTrue( responseStatusCode[0] >= 400 );
+        testContext.assertTrue( responseStatusCode[0] <= 499 );
+        // and wrote a ValidationException to the body.
+        testContext.assertTrue( httpServerResponse.getResultBuffer().startsWith("ValidationException: ") );
     }
 
     private void assertFilterProperty(TestContext context, Map<String, String> entries, String property, String value){
