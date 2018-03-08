@@ -7,11 +7,13 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.HttpHeaderUtil;
@@ -191,7 +193,17 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.headers().set("Authorization", "Basic " + base64UsernamePassword);
         }
 
-        setStaticHeaders(cReq);
+
+        MultiMap headers = cReq.headers();
+        final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
+        if (evalScope.getErrorMessage() != null) {
+            log.warn("Problem invoking Header functions: {}", evalScope.getErrorMessage());
+            final HttpServerResponse response = req.response();
+            response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+            response.end(evalScope.getErrorMessage());
+            return;
+        }
 
         cReq.setChunked(true);
 
@@ -224,19 +236,6 @@ public class Forwarder implements Handler<RoutingContext> {
         loggingHandler.request(cReq.headers());
 
         req.resume();
-    }
-
-    private void setStaticHeaders(HttpClientRequest cReq) {
-        if (rule.getStaticHeaders() != null) {
-            for (Map.Entry<String, String> entry : rule.getStaticHeaders().entrySet()) {
-                String entryValue = entry.getValue();
-                if (entryValue != null && entryValue.length() > 0 ) {
-                    cReq.headers().set(entry.getKey(), entry.getValue());
-                } else {
-                    cReq.headers().remove(entry.getKey());
-                }
-            }
-        }
     }
 
     private void setProfileHeaders(Logger log, Map<String, String> profileHeaderMap, HttpClientRequest cReq) {

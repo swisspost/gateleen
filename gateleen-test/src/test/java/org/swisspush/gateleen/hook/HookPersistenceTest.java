@@ -237,72 +237,56 @@ public class HookPersistenceTest extends AbstractTest {
         int requestExpireTime = 4; // 4 seconds
 
         /*
-         * Register a few listeners (3).
+         * Register a few listeners (two are enough).
          */
         String listener1 = requestUrlBase + SERVER_ROOT + "/tests/gateleen" + "/hookPersistanceTest" + TestUtils.getHookListenersUrlSuffix() + "service11/1";
         String listener2 = requestUrlBase + SERVER_ROOT + "/tests/gateleen" + "/hookPersistanceTest" + TestUtils.getHookListenersUrlSuffix() + "service12/2";
-        String listener3 = requestUrlBase + SERVER_ROOT + "/tests/gateleen" + "/hookPersistanceTest" + TestUtils.getHookListenersUrlSuffix() + "service13/3";
         String request1 = resourceStorageBase + SERVER_ROOT + "/hooks/v1/registrations/listeners/" + getUniqueListenerId(listener1);
         String request2 = resourceStorageBase + SERVER_ROOT + "/hooks/v1/registrations/listeners/" + getUniqueListenerId(listener2);
-        String request3 = resourceStorageBase + SERVER_ROOT + "/hooks/v1/registrations/listeners/" + getUniqueListenerId(listener3);
         System.out.println(request1);
 
         unregisterHook(listener1);
         unregisterHook(listener2);
-        unregisterHook(listener3);
 
         /*
          * Check if no hook is stored
          */
         when().get(request1).then().assertThat().statusCode(404);
         when().get(request2).then().assertThat().statusCode(404);
-        when().get(request3).then().assertThat().statusCode(404);
 
         /*
          * Register Listener
-         * 1 - TTL 15
-         * 2 - TTL 30
-         * 3 - TTL 45
+         * 1 - TTL 8
+         * 2 - TTL 16
          */
-        registerHook(listener1, fakeTarget, null, requestExpireTime, 15);
-        registerHook(listener2, fakeTarget, null, requestExpireTime, 30);
-        registerHook(listener3, fakeTarget, null, requestExpireTime, 45);
+        registerHook(listener1, fakeTarget, null, requestExpireTime, 8);
+        registerHook(listener2, fakeTarget, null, requestExpireTime, 16);
 
         TestUtils.waitSomeTime(2);
 
         /*
-         * all 3 must be stored
+         * both must be stored
          */
         checkGETStatusCodeWithAwait(request1, 200);
         checkGETStatusCodeWithAwait(request2, 200);
-        checkGETStatusCodeWithAwait(request3, 200);
 
-        // wait 15 s
-        TestUtils.waitSomeTime(15);
+        // wait 8 s
+        TestUtils.waitSomeTime(8);
 
         /*
-         * 2 must be stored
+         * only one must be stored
          */
         checkGETStatusCodeWithAwait(request1, 404);
         checkGETStatusCodeWithAwait(request2, 200);
-        checkGETStatusCodeWithAwait(request3, 200);
 
-        // wait 15s
-        TestUtils.waitSomeTime(15);
-
-        /*
-         * 1 must be stored
-         */
-        checkGETStatusCodeWithAwait(request2, 404);
-        checkGETStatusCodeWithAwait(request3, 200);
-
-        // wait 15s
-        TestUtils.waitSomeTime(15);
+        // wait again 8 s
+        TestUtils.waitSomeTime(8);
 
         /*
          * none must be stored
          */
-        checkGETStatusCodeWithAwait(request3, 404);
+        checkGETStatusCodeWithAwait(request1, 404);
+        checkGETStatusCodeWithAwait(request2, 404);
 
         async.complete();
     }
@@ -333,72 +317,56 @@ public class HookPersistenceTest extends AbstractTest {
         int requestExpireTime = 4; // 4 seconds
 
         /*
-         * Register a few routes (3).
+         * Register a few routes (two are enough).
          */
         String route1 = requestUrlBase + SERVER_ROOT + "/tests/gateleen" + "/hookPersistanceTest11" + TestUtils.getHookRouteUrlSuffix();
         String route2 = requestUrlBase + SERVER_ROOT + "/tests/gateleen" + "/hookPersistanceTest12" + TestUtils.getHookRouteUrlSuffix();
-        String route3 = requestUrlBase + SERVER_ROOT + "/tests/gateleen" + "/hookPersistanceTest13" + TestUtils.getHookRouteUrlSuffix();
 
         String request1 = resourceStorageBase + SERVER_ROOT + "/hooks/v1/registrations/routes/" + getRouteStorageId(route1);
         String request2 = resourceStorageBase + SERVER_ROOT + "/hooks/v1/registrations/routes/" + getRouteStorageId(route2);
-        String request3 = resourceStorageBase + SERVER_ROOT + "/hooks/v1/registrations/routes/" + getRouteStorageId(route3);
 
         unregisterHook(route1);
         unregisterHook(route2);
-        unregisterHook(route3);
 
         /*
          * Check if no hook is stored
          */
         when().get(request1).then().assertThat().statusCode(404);
         when().get(request2).then().assertThat().statusCode(404);
-        when().get(request3).then().assertThat().statusCode(404);
 
         /*
          * Register Listener
-         * 1 - TTL 15
-         * 2 - TTL 30
-         * 3 - TTL 45
+         * 1 - TTL 8
+         * 2 - TTL 16
          */
-        registerHook(route1, fakeTarget, null, requestExpireTime, 15);
-        registerHook(route2, fakeTarget, null, requestExpireTime, 30);
-        registerHook(route3, fakeTarget, null, requestExpireTime, 45);
+        registerHook(route1, fakeTarget, null, requestExpireTime,  8);
+        registerHook(route2, fakeTarget, null, requestExpireTime, 16);
 
         TestUtils.waitSomeTime(2);
 
         /*
-         * all 3 must be stored
+         * both must be stored
          */
         checkGETStatusCodeWithAwait(request1, 200);
         checkGETStatusCodeWithAwait(request2, 200);
-        checkGETStatusCodeWithAwait(request3, 200);
 
-        // wait 15 s
-        TestUtils.waitSomeTime(15);
+        // wait 8 s
+        TestUtils.waitSomeTime(8);
 
         /*
-         * 2 must be stored
+         * only one must be stored
          */
         checkGETStatusCodeWithAwait(request1, 404);
         checkGETStatusCodeWithAwait(request2, 200);
-        checkGETStatusCodeWithAwait(request3, 200);
 
-        // wait 15s
-        TestUtils.waitSomeTime(15);
-
-        /*
-         * 1 must be stored
-         */
-        checkGETStatusCodeWithAwait(request2, 404);
-        checkGETStatusCodeWithAwait(request3, 200);
-
-        // wait 15s
-        TestUtils.waitSomeTime(15);
+        // wait another 8 s
+        TestUtils.waitSomeTime(8);
 
         /*
          * none must be stored
          */
-        checkGETStatusCodeWithAwait(request3, 404);
+        checkGETStatusCodeWithAwait(request1, 404);
+        checkGETStatusCodeWithAwait(request2, 404);
 
         async.complete();
     }
@@ -424,10 +392,10 @@ public class HookPersistenceTest extends AbstractTest {
      * @param requestUrl
      * @param target
      * @param methods
-     * @param expireTime
+     * @param expireAfter
      * @param resourceExpireTime of hook resource
      */
-    private void registerHook(final String requestUrl, final String target, String[] methods, Integer expireTime, int resourceExpireTime) {
+    private void registerHook(final String requestUrl, final String target, String[] methods, Integer expireAfter, int resourceExpireTime) {
         String body = "{ \"destination\":\"" + target + "\"";
 
         String m = null;
@@ -438,7 +406,7 @@ public class HookPersistenceTest extends AbstractTest {
             m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
             m = "\"methods\": [" + m + "]";
         }
-        body += expireTime != null ? ", \"expireTime\" : " + expireTime : "";
+        body += expireAfter != null ? ", \"expireAfter\" : " + expireAfter : "";
         body = body + "}";
 
         with().body(body).header("x-expire-after", String.valueOf(resourceExpireTime)).put(requestUrl).then().assertThat().statusCode(200);
