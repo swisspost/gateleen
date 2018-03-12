@@ -201,9 +201,8 @@ public class LoggingResourceManagerTest {
         testContext.assertTrue( returnValue );
         // did set a response code,
         testContext.assertNotNull( responseStatusCode[0] );
-        // responded with a status code of 4xx,
-        testContext.assertTrue( responseStatusCode[0] >= 400 );
-        testContext.assertTrue( responseStatusCode[0] <= 499 );
+        // responded with a status code of 400,
+        testContext.assertEquals( 400 , responseStatusCode[0] );
         // and wrote a ValidationException to the body.
         testContext.assertTrue( httpServerResponse.getResultBuffer().startsWith("ValidationException: ") );
     }
