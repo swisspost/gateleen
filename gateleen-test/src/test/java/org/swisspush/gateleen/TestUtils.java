@@ -32,7 +32,12 @@ public class TestUtils {
         given().body(routing.toString()).put("http://localhost:" + AbstractTest.MAIN_PORT + AbstractTest.SERVER_ROOT + "/admin/v1/routing/rules").then().assertThat().statusCode(200);
 
         // wait for the routing to take effect
-        waitSomeTime(3);
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+        }
+        // 13m20s with wait 3   seconds for whole test suite
+        //  9m15s with wait 0.5 seconds for whole test suite
     }
 
     /**
@@ -359,6 +364,7 @@ public class TestUtils {
         body = body + "}";
 
         with().body(body).put(requestUrl).then().assertThat().statusCode(200);
+        waitSomeTime(1);
     }
 
     /**

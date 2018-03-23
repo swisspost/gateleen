@@ -1,12 +1,13 @@
 package org.swisspush.gateleen.hook;
 
 import org.joda.time.LocalDateTime;
+import org.swisspush.gateleen.core.http.HeaderFunction;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
 import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -23,7 +24,7 @@ public class HttpHook {
     private QueueingStrategy queueingStrategy = new DefaultQueueingStrategy();
     private Pattern filter = null;
     private int queueExpireAfter;
-    private Map<String, String> staticHeaders = null;
+    private HeaderFunction headerFunction = HeaderFunctions.DO_NOTHING; // default avoids NPE and if-not-null checks
     private HookTriggerType hookTriggerType;
     private boolean listable = false;
     private boolean collection = true;
@@ -191,24 +192,12 @@ public class HttpHook {
         this.queueExpireAfter = queueExpireAfter;
     }
 
-    /**
-     * Adds a new map with static headers.
-     *
-     * @param staticHeaders - a map with static headers
-     */
-    public void addStaticHeaders(Map<String, String> staticHeaders) {
-        this.staticHeaders = staticHeaders;
+    public HeaderFunction getHeaderFunction() {
+        return headerFunction;
     }
 
-    /**
-     * Returns the map with the static headers for this
-     * hook.
-     *
-     * @return map with static headers or null if
-     * no static headers were defined
-     */
-    public Map<String, String> getStaticHeaders() {
-        return this.staticHeaders;
+    public void setHeaderFunction(HeaderFunction headerFunction) {
+        this.headerFunction = headerFunction;
     }
 
     /**

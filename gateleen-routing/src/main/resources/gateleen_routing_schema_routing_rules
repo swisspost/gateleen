@@ -82,6 +82,13 @@
 						"type": "string"
 					}
 				},
+				"headers": {
+					"description": "Manipulate (set / remove / replace) request headers - option to reference other header vales",
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/HeaderFunction"
+					}
+				},
 				"metricName": {
 					"description": "Activates metric collection (JMX and crush-metrics.log) under this name. The metricName has to be unique over all rules",
 					"type": "string",
@@ -96,7 +103,19 @@
 					"type": "boolean"
 				}
 			},
-			"additionalProperties": false
+			"additionalProperties": false,
+			"not": {
+				"title": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time",
+				"description": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time",
+				"anyOf": [
+					{
+						"required": [
+							"staticHeaders",
+							"headers"
+						]
+					}
+				]
+			}
 		},
 		"BasicAuth": {
 			"properties": {
@@ -112,6 +131,35 @@
 				"password"
 			],
 			"additionalProperties": false
+		},
+		"HeaderFunction": {
+			"properties": {
+				"header": {
+					"description": "the request-header name to manupulate (set, remove or conditional set)",
+					"type": "string",
+					"minLength": 1
+				},
+				"value": {
+					"description": "the value to be set. null means 'remove the header'. value can containing other header names between single angular brackets which resolve to theit values accordingly",
+					"type": [
+						"null",
+						"string"
+					],
+					"minLength": 1
+				},
+				"mode": {
+					"description": "define a condition-mode. 'conplete' sets the header value only if this header is not yet presen. 'overwrite' sets the header value only if the header is already present. Ignored iv value is null",
+					"type": "string",
+					"enum": [
+						"complete",
+						"override"
+					]
+				}
+			},
+			"required": [
+				"header",
+				"value"
+			]
 		}
 	}
 }

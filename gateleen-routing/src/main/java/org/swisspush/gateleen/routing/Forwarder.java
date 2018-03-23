@@ -1,18 +1,22 @@
 package org.swisspush.gateleen.routing;
 
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
@@ -169,11 +173,10 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.setTimeout(rule.getTimeout());
         }
 
-        // Fix unique ID header name for backends not able to handle underscore in header names.
-        cReq.headers().setAll(req.headers());
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
-        cReq.headers().getAll("connection").stream().forEach(cReq.headers()::remove);
-        cReq.headers().remove("connection");
+        MultiMap headersToForward = req.headers();
+        headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
+        cReq.headers().setAll(headersToForward);
 
         if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
             cReq.headers().set(SELF_REQUEST_HEADER, "true");
@@ -190,7 +193,17 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.headers().set("Authorization", "Basic " + base64UsernamePassword);
         }
 
-        setStaticHeaders(cReq);
+
+        MultiMap headers = cReq.headers();
+        final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
+        if (evalScope.getErrorMessage() != null) {
+            log.warn("Problem invoking Header functions: {}", evalScope.getErrorMessage());
+            final HttpServerResponse response = req.response();
+            response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+            response.end(evalScope.getErrorMessage());
+            return;
+        }
 
         cReq.setChunked(true);
 
@@ -223,19 +236,6 @@ public class Forwarder implements Handler<RoutingContext> {
         loggingHandler.request(cReq.headers());
 
         req.resume();
-    }
-
-    private void setStaticHeaders(HttpClientRequest cReq) {
-        if (rule.getStaticHeaders() != null) {
-            for (Map.Entry<String, String> entry : rule.getStaticHeaders().entrySet()) {
-                String entryValue = entry.getValue();
-                if (entryValue != null && entryValue.length() > 0 ) {
-                    cReq.headers().set(entry.getKey(), entry.getValue());
-                } else {
-                    cReq.headers().remove(entry.getKey());
-                }
-            }
-        }
     }
 
     private void setProfileHeaders(Logger log, Map<String, String> profileHeaderMap, HttpClientRequest cReq) {
@@ -296,7 +296,11 @@ public class Forwarder implements Handler<RoutingContext> {
 
             req.response().setStatusCode(statusCode);
 
-            req.response().headers().addAll(cRes.headers());
+            // Add received headers to original request but remove headers that should not get forwarded.
+            MultiMap headersToForward = cRes.headers();
+            headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
+            req.response().headers().addAll(headersToForward);
+
             if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
                 req.response().headers().addAll(profileHeaderMap);
             }
@@ -305,7 +309,7 @@ public class Forwarder implements Handler<RoutingContext> {
             }
 
             final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(req.response(), loggingHandler, false);
-            final Pump pump = new ResurrectingPump(vertx, cRes, loggingWriteStream);
+            final Pump pump = Pump.pump(cRes, loggingWriteStream);
             cRes.endHandler(v -> {
                 try {
                     req.response().end();

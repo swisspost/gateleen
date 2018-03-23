@@ -110,7 +110,7 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
                 try {
                     node.setObject(new JsonObject(((Buffer) node.getObject()).toString("UTF-8")));
                 } catch (Exception e) {
-                    log.error("Error in result of sub resource '" + node.getNodeName() + "' Message: " + e.getMessage());
+                    log.error("Error in result of sub resource with path '" + node.getPath() + "' Message: " + e.getMessage());
                     node.setObject(new ResourceCollectionException(e.getMessage()));
                 }
             }
