@@ -12,12 +12,15 @@ then
     then
       echo 'problem when trying to drop, ignored'
     fi
-    mvn -B -Prelease -PpublicRepos jgitflow:release-start jgitflow:release-finish --settings settings.xml
+     echo 'starting a new nexus repository ...'
+     OUTPUT=$(groovy staging.groovy start)
+     echo "repository Id: $OUTPUT"
+     mvn -B -Prelease -PpublicRepos jgitflow:release-start jgitflow:release-finish --settings settings.xml -DrepositoryId=${OUTPUT}
     rc=$?
     if [ $rc -eq 0 ]
     then
-        groovy staging.groovy close
-        groovy staging.groovy promote
+        groovy staging.groovy close ${OUTPUT}
+        groovy staging.groovy promote ${OUTPUT}
         rc=$?
         if [ $rc -ne 0 ]
         then

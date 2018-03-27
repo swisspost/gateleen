@@ -45,6 +45,7 @@
             https://oss.sonatype.org/content/repositories/snapshots/
         </sonatypeOssDistMgmtSnapshotsUrl>
         <arguments />
+        <repositoryId />
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <targetHost>localhost</targetHost>
@@ -79,7 +80,7 @@
             <id>sonatype-nexus-staging</id>
             <name>Nexus Release Repository</name>
             <url>
-                https://oss.sonatype.org/service/local/staging/deploy/maven2/
+                https://oss.sonatype.org/service/local/staging/deployByRepositoryId/${repositoryId}
             </url>
         </repository>
     </distributionManagement>

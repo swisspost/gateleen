@@ -12,21 +12,50 @@ class Staging {
     }
 
     static void main(String[] args) {
+        def cmdArg = ""
+        def repositoryIdArg = ""
+        //check arguments
+        if (args == null || args.length < 1) {
+            println "Usage: staging [CMD] [repositoryId]"
+            return
+        }
+        cmdArg = args[0]
+        switch (cmdArg) {
+            case "start":
+            case "drop":
+                break
+            case "close":
+            case "promote":
+                if (args.length != 2) {
+                    println "Invalid argument supplied for: " + args[0]
+                    println "Usage: staging [CMD] [repositoryId]"
+                    return
+                }
+                repositoryIdArg = args[1]
+                break
+            default:
+                println "Unknown command: args[0]"
+                return
+        }
+
         def stagingHelper = new Staging(System.getenv("CI_DEPLOY_USERNAME"), System.getenv("CI_DEPLOY_PASSWORD"))
-        stagingHelper.run(args[0])
+        stagingHelper.run(cmdArg, repositoryIdArg)
     }
 
-    private void run(String cmd) {
+    private void run(String cmd, String repositoryId) {
         switch (cmd) {
+            case "start":
+                start()
+                break
             case "close":
                 println "trying to close nexus repository ..."
-                doWithRetry(this.&close)
+                doWithRetry(this.&close, repositoryId)
                 println " > done"
                 break
             case "drop":
                 println "trying to drop nexus repository ..."
                 try {
-                    doWithRetry(this.&drop)
+                    doWithRetry(this.&drop, "")
                 } catch (Exception e) {
                     println "No repository to drop found? " + e
                 }
@@ -34,19 +63,19 @@ class Staging {
                 break
             case "promote":
                 println "trying to promote nexus repository ..."
-                doWithRetry(this.&promote)
+                doWithRetry(this.&promote, repositoryId)
                 println " > done"
                 break
         }
     }
 
-    int doWithRetry(Closure operation) {
+    int doWithRetry(Closure operation, String repositoryId) {
         int counter = 0
         int numberOfAttempts = Integer.valueOf(numberOfRetries)
         while (true) {
             try {
                 println "Attempt $counter/$numberOfAttempts..."
-                if (operation() == 0) {
+                if (operation.call(repositoryId) == 0) {
                     return 0
                 }
             } catch (Exception e) {
@@ -66,9 +95,11 @@ class Staging {
         sleep(Integer.valueOf(delayBetweenRetries))
     }
 
-    int drop() {
-        def stagingProfileId = getStagingProfileId()
-        def repositoryId = getRepositoryId(stagingProfileId, "released")
+    int drop(String repositoryId) {
+        def stagingProfileId = getStagingProfileId(false)
+        if (repositoryId.isEmpty()) {
+            repositoryId = getRepositoryId(stagingProfileId, "released")
+        }
         if (repositoryId == null) {
             println("No more action.")
             return 0
@@ -82,13 +113,12 @@ class Staging {
         if (Integer.valueOf(response) > 299) {
             throw new IllegalArgumentException("HTTP request failed, getting status code: ${response}")
         }
-        return Integer.valueOf(response)
+        return 0
     }
 
 
-    int close() {
-        def stagingProfileId = getStagingProfileId()
-        def repositoryId = getRepositoryId(stagingProfileId, "open")
+    int close(String repositoryId) {
+        def stagingProfileId = getStagingProfileId(false)
         if (repositoryId == null) {
             println("No more action.")
             return 0
@@ -102,12 +132,20 @@ class Staging {
         if (Integer.valueOf(response) > 299) {
             throw new IllegalArgumentException("HTTP request failed, getting status code: ${response}")
         }
-        return Integer.valueOf(response)
+        return 0
     }
 
-    int promote() {
-        def stagingProfileId = getStagingProfileId()
-        def repositoryId = getRepositoryId(stagingProfileId, "closed")
+    int start() {
+        def stagingProfileId = getStagingProfileId(true)
+        def stagingRepoDescription = "<promoteRequest><data><description>Auto Release Staging</description></data></promoteRequest>"
+        def response = ['bash', '-c', "curl -s -H \"Content-Type: application/xml\" -X POST -d '" + stagingRepoDescription + "' https://" + ossUserName + ":" + ossPassword + "@oss.sonatype.org/service/local/staging/profiles/" + stagingProfileId + "/start"].execute().text
+        def rootNode = new XmlSlurper().parseText(response)
+        println rootNode.data.stagedRepositoryId
+        return 0
+    }
+
+    int promote(String repositoryId) {
+        def stagingProfileId = getStagingProfileId(false)
         if (repositoryId == null) {
             println("No more action.")
             return 0
@@ -119,10 +157,10 @@ class Staging {
         if (Integer.valueOf(response) > 299) {
             throw new IllegalArgumentException("HTTP request failed, getting status code: ${response}")
         }
-        return Integer.valueOf(response)
+        return 0
     }
 
-    String getStagingProfileId() {
+    String getStagingProfileId(boolean slient) {
         def response = ['bash', '-c', "curl -s -H \"Accept: application/json\" -X GET https://" + ossUserName + ":" + ossPassword + "@oss.sonatype.org/service/local/staging/profiles"].execute().text
 
         def json = new JsonSlurper().parseText(response)
@@ -141,9 +179,9 @@ class Staging {
         } else if (found > 1) {
             throw new IllegalArgumentException("Multiple stagingProfileId's found!")
         }
-
-        println "Found stagingProfileId: " + stagingProfileId
-
+        if (!slient) {
+            println "Found stagingProfileId: " + stagingProfileId
+        }
         return stagingProfileId
     }
 
