@@ -74,7 +74,6 @@ public class HookHandler implements LoggableResource {
     private static final int DEFAULT_HOOK_LISTENERS_EXPIRE_AFTER_TIME = 30; // 30 seconds
 
     private static final int DEFAULT_CLEANUP_TIME = 15000; // 15 seconds
-    private static final String EXPIRATION_TIME_NEVER = "never";
     public static final String REQUESTURL = "requesturl";
     public static final String EXPIRATION_TIME = "expirationTime";
     public static final String HOOK = "hook";
@@ -268,8 +267,13 @@ public class HookHandler implements LoggableResource {
                 // Loop through listeners first
                 for (Listener listener : listenerRepository.getListeners()) {
 
-                    if (listener.getHook().getExpirationTime().isBefore(nowAsTime)) {
-                        log.debug("Listener " + listener.getListenerId() + " expired at " + listener.getHook().getExpirationTime() + " and actual time is " + nowAsTime);
+                    final LocalDateTime expirationTime = listener.getHook().getExpirationTime();
+                    if( expirationTime == null ){
+                        if(log.isTraceEnabled()){
+                            log.trace( "Listener " + listener.getListenerId() + " will never expire.");
+                        }
+                    }else if (expirationTime.isBefore(nowAsTime)) {
+                        log.debug("Listener " + listener.getListenerId() + " expired at " + expirationTime + " and actual time is " + nowAsTime);
                         listenerRepository.removeListener(listener.getListenerId());
                         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListenerId());
                     }
@@ -279,7 +283,12 @@ public class HookHandler implements LoggableResource {
                 Map<String, Route> routes = routeRepository.getRoutes();
                 for (String key : routes.keySet()) {
                     Route route = routes.get(key);
-                    if (route.getHook().getExpirationTime().isBefore(nowAsTime)) {
+                    final LocalDateTime expirationTime = route.getHook().getExpirationTime();
+                    if( expirationTime == null ){
+                        if( log.isTraceEnabled() ){
+                            log.trace( "Route "+ key +" will never expire." );
+                        }
+                    }else if ( expirationTime.isBefore(nowAsTime) ){
                         routeRepository.removeRoute(key);
                     }
                 }
@@ -1032,23 +1041,33 @@ public class HookHandler implements LoggableResource {
             final String listenerStorageUri = hookRootUri + HOOK_LISTENER_STORAGE_PATH + getUniqueListenerId(request.uri());
 
             // Extract expireAfter from the registration header.
-            final String myExpireAfter = request.headers().get( X_EXPIRE_AFTER );
             final String expirationTime;
-            if( "-1".equals(myExpireAfter) ){
-                expirationTime = EXPIRATION_TIME_NEVER;
-            }else{
-                Integer expireAfter = ExpiryCheckHandler.getExpireAfter(request.headers());
-                if (expireAfter == null) {
+
+            { // Evaluate expiration time
+                Integer expireAfter;
+                try{
+                    expireAfter = ExpiryCheckHandler.getExpireAfter2( request.headers() );
+                    // Use default if header is not set.
+                    if( expireAfter == null ) expireAfter = DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME;
+                }catch( NumberFormatException e ){
+                    // In my opinion we should answer with 400 in this case. But lets simply hide this error to keep backward compatibility.
+                    log.warn( "Using default expireAfter ("+DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME+") due to: "+e.getClass().getSimpleName()+": "+ e.getMessage() );
                     expireAfter = DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME;
                 }
-
                 // Update the PUT header
                 ExpiryCheckHandler.setExpireAfter(request, expireAfter);
-
                 // calculate the expiration time for the listener / routes
-                LocalDateTime expirationTimeAsLocalDate = ExpiryCheckHandler.getExpirationTime(expireAfter);
-
-                expirationTime = ExpiryCheckHandler.printDateTime( expirationTimeAsLocalDate );
+                if( expireAfter < 0 ){
+                    // Expiry will be infinite.
+                    expirationTime = null;
+                }else{
+                    // Calculate expiration time.
+                    final LocalDateTime expirationTimeAsLocalDateTime = ExpiryCheckHandler.getExpirationTime( expireAfter );
+                    expirationTime = ExpiryCheckHandler.printDateTime( expirationTimeAsLocalDateTime );
+                }
+                if( log.isDebugEnabled() ){
+                    log.debug( "Hook "+ request.uri() +" expirationTime is "+expirationTime+"." );
+                }
             }
 
             /*
@@ -1248,27 +1267,24 @@ public class HookHandler implements LoggableResource {
 
         extractAndAddStaticHeadersToHook(jsonHook, hook);
 
-        /*
-         * Despite the fact, that every hook
-         * should have an expiration time,
-         * we check if the value is present.
-         */
-        final String expirationTimeExpression = storageObject.getString(EXPIRATION_TIME);
-        final LocalDateTime expirationTime;
-        try {
-            expirationTime = parseExpirationTime( expirationTimeExpression );
-        } catch (RuntimeException e) {
-            log.warn("Listener " + listenerId + " for target " + target + " has an invalid expiration time " + expirationTimeExpression + " and will not be registred!", e);
-            return;
-        }
-        if( expirationTime == null ){
-            log.warn("Listener " + listenerId + " for target " + target + " has no expiration time and will not be registred!");
-            return;
-        }
+        { // Set expiration time
+            final String expirationTimeExpression = storageObject.getString(EXPIRATION_TIME);
 
-        log.debug("Register listener and  route " + target + " with expiration at " + expirationTime);
-
-        hook.setExpirationTime(expirationTime);
+            if( expirationTimeExpression == null ){
+                log.debug("Register listener and route " + target + " with infinite expiration." );
+                hook.setExpirationTime( null );
+            }else{
+                LocalDateTime expirationTime;
+                try {
+                    expirationTime = ExpiryCheckHandler.parseDateTime( expirationTimeExpression );
+                } catch (RuntimeException e) {
+                    log.warn("Listener " + listenerId + " for target " + target + " has an invalid expiration time " + expirationTimeExpression + " and will not be registred!", e);
+                    return;
+                }
+                log.debug("Register listener and route " + target + " with expiration at " + expirationTime);
+                hook.setExpirationTime(expirationTime);
+            }
+        }
 
         hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
         hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(jsonHook));
@@ -1296,31 +1312,6 @@ public class HookHandler implements LoggableResource {
 
         // create and add a new listener (or update an already existing listener)
         listenerRepository.addListener(new Listener(listenerId, getMonitoredUrlSegment(requestUrl), target, hook));
-    }
-
-    /**
-     * Parses passed ISO date. The special value EXPIRATION_TIME_NEVER will
-     * result in a date near year 3000 (See: #208).
-     *
-     * @param expirationTimeExpression
-     *      ISO date to parse.
-     * @return
-     *      The parsed date or null if null got passed.
-     * @throws RuntimeException
-     *      In case of problems while parsing the value. This will most
-     *      probably be an {@link IllegalArgumentException}.
-     */
-    private LocalDateTime parseExpirationTime(String expirationTimeExpression ) {
-        LocalDateTime expirationTime;
-        if( EXPIRATION_TIME_NEVER.equals(expirationTimeExpression) ){
-            // No. Not every hook has an expiration time. (See: ISAGD-4839)
-            expirationTime = new LocalDateTime( 32_503_334_400_000L ); // Somewhere near year 3000
-        }else if (expirationTimeExpression != null) {
-            expirationTime = ExpiryCheckHandler.parseDateTime(expirationTimeExpression);
-        } else {
-            expirationTime = null;
-        }
-        return expirationTime;
     }
 
     /**

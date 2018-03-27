@@ -4,6 +4,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -15,15 +16,22 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
+import org.swisspush.gateleen.hook.mocks.FastFailHttpServerRequest;
+import org.swisspush.gateleen.hook.mocks.FastFailHttpServerResponse;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
@@ -40,6 +48,8 @@ import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
 @RunWith(VertxUnitRunner.class)
 public class HookHandlerTest {
 
+    private static final String HOOK_ROOT_URI = "hookRootURI/";
+    private static final Logger logger = LoggerFactory.getLogger( HookHandlerTest.class );
     private Vertx vertx;
     private HttpClient httpClient;
     private MockResourceStorage storage;
@@ -50,8 +60,23 @@ public class HookHandlerTest {
 
     private HookHandler hookHandler;
 
+    private static final Method registerListenerMethod;
+    private ListenerRepository listenerRepository;
+
+    static {
+        // Lever out access restrictions to make this a true unit test and not an integration
+        // test testing through hundreds of layers.
+        try{
+            registerListenerMethod = HookHandler.class.getDeclaredMethod( "registerListener" , Buffer.class );
+            registerListenerMethod.setAccessible( true );
+        }catch(Exception e ){
+            throw new RuntimeException( e );
+        }
+    }
+
+
     @Before
-    public void setUp(){
+    public void setUp() throws IllegalAccessException, NoSuchFieldException {
         vertx = Vertx.vertx();
         httpClient = Mockito.mock(HttpClient.class);
         Mockito.when(httpClient.request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any())).thenReturn(Mockito.mock(HttpClientRequest.class));
@@ -63,8 +88,15 @@ public class HookHandlerTest {
 
 
         hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, monitoringHandler,
-                "userProfilePath", "hookRootUri", requestQueue, false, reducedPropagationManager);
+                "userProfilePath", HOOK_ROOT_URI, requestQueue, false, reducedPropagationManager);
         hookHandler.init();
+
+        { // Provide access to private instance.
+            final Field listenerRepositoryField;
+            listenerRepositoryField = HookHandler.class.getDeclaredField( "listenerRepository" );
+            listenerRepositoryField.setAccessible( true );
+            listenerRepository = (ListenerRepository)listenerRepositoryField.get( hookHandler );
+        }
     }
 
     private void setListenerStorageEntryAndTriggerUpdate(JsonObject listenerConfig){
@@ -197,7 +229,7 @@ public class HookHandlerTest {
     @Test
     public void testListenerEnqueueWithReducedPropagationQueueingStrategyButNoManager(TestContext context) throws InterruptedException {
         hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, monitoringHandler,
-                "userProfilePath", "hookRootUri", requestQueue, false, null);
+                "userProfilePath", HOOK_ROOT_URI, requestQueue, false, null);
         hookHandler.init();
 
         // trigger listener update via event bus
@@ -284,6 +316,187 @@ public class HookHandlerTest {
         assert400(uri, "{");
     }
 
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // Tests for hook registration
+    ///////////////////////////////////////////////////////////////////////////////
+
+    @Test
+    public void hookRegistration_usesDefaultExpiryIfExpireAfterHeaderIsNegativeNumber(TestContext testContext) {
+        // Initialize mock
+        final int[] statusCodePtr = new int[]{ 0 };
+        final String[] statusMessagePtr = new String[]{ null };
+        final HttpServerRequest request;
+        {  // Mock request
+            final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+            // Do NOT set to -1. Because that would be a valid value representing 'infinite'.
+            requestHeaders.set( ExpiryCheckHandler.EXPIRE_AFTER_HEADER , "-42" );
+            final Buffer requestBody = createMinimalHookBodyAsBuffer();
+            request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/listeners/http/my-service/my-hook",
+                    requestHeaders, requestBody, statusCodePtr, statusMessagePtr
+            );
+        }
+
+        // Trigger work
+        hookHandler.handle( request );
+
+        // Assert request was ok
+        testContext.assertEquals( 200 , statusCodePtr[0] );
+
+        { // Assert expiration time have same length as a valid date.
+            final String storedHook = storage.getMockData().get( HOOK_ROOT_URI +"registrations/listeners/http+my-service+my-hook+gateleen+example" );
+            testContext.assertNotNull( storedHook );
+            final String expirationTime = new JsonObject(storedHook).getString( "expirationTime" );
+            testContext.assertNotNull( expirationTime );
+            testContext.assertEquals( "____-__-__T__:__:__.___".length() , expirationTime.length() );
+        }
+    }
+
+    @Test
+    public void hookRegistration_usesDefaultExpiryWhenHeaderContainsCorruptValue(TestContext testContext) {
+        // In my opinion gateleen should answer with 400 in this case. But that's another topic.
+
+        // Initialize mock
+        /* Reference to retrieve statusCode */
+        final int[] statusCodePtr = new int[]{ 0 };
+        /* Reference to retrieve statusMessage */
+        final String[] statusMessagePtr = new String[]{ null };
+        final HttpServerRequest request;
+        {  // Mock request
+            final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+            requestHeaders.set( ExpiryCheckHandler.EXPIRE_AFTER_HEADER , "This is definitively not a number :)" );
+            final Buffer requestBody = createMinimalHookBodyAsBuffer();
+            request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/listeners/http/my-service/my-fancy-hook",
+                    requestHeaders, requestBody, statusCodePtr, statusMessagePtr
+            );
+        }
+
+        // Trigger work
+        hookHandler.handle( request );
+
+        // Assert request was ok
+        testContext.assertEquals( 200 , statusCodePtr[0] );
+
+        { // Assert expiration time has same length as a valid date.
+            final String storedHook = storage.getMockData().get( HOOK_ROOT_URI +"registrations/listeners/http+my-service+my-fancy-hook+gateleen+example" );
+            testContext.assertNotNull( storedHook );
+            final String expirationTime = new JsonObject(storedHook).getString( "expirationTime" );
+            testContext.assertNotNull( expirationTime );
+            testContext.assertEquals( "____-__-__T__:__:__.___".length() , expirationTime.length() );
+        }
+    }
+
+    @Test
+    public void hookRegistration_usesDefaultExpiryIfHeaderIsMissing(TestContext testContext) {
+        // Initialize mock
+        final int[] statusCodePtr = new int[]{ 0 };
+        final String[] statusMessagePtr = new String[]{ null };
+        final HttpServerRequest request;
+        {  // Mock request
+            final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+            // Do NOT set any header here.
+            final Buffer requestBody = createMinimalHookBodyAsBuffer();
+            request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/listeners/http/my-service/yet-another-hook",
+                    requestHeaders, requestBody, statusCodePtr, statusMessagePtr
+            );
+        }
+
+        // Trigger work
+        hookHandler.handle( request );
+
+        // Assert request was ok
+        testContext.assertEquals( 200 , statusCodePtr[0] );
+
+        { // Assert expiration time has same length as a valid date.
+            final String storedHook = storage.getMockData().get( HOOK_ROOT_URI +"registrations/listeners/http+my-service+yet-another-hook+gateleen+example" );
+            testContext.assertNotNull( storedHook );
+            final String expirationTime = new JsonObject(storedHook).getString( "expirationTime" );
+            testContext.assertNotNull( expirationTime );
+            testContext.assertEquals( "____-__-__T__:__:__.___".length() , expirationTime.length() );
+        }
+    }
+
+    @Test
+    public void hookRegistration_usesMinusOneIfExpireAfterIsSetToMinusOne(TestContext testContext) {
+        // Initialize mock
+        final int[] statusCodePtr = new int[]{ 0 };
+        final String[] statusMessagePtr = new String[]{ null };
+        final HttpServerRequest request;
+        {  // Mock request
+            final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+            requestHeaders.set( ExpiryCheckHandler.EXPIRE_AFTER_HEADER , "-1" );
+            final Buffer requestBody = createMinimalHookBodyAsBuffer();
+            request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/listeners/http/my-service/and-one-more-again-hook",
+                    requestHeaders, requestBody, statusCodePtr, statusMessagePtr
+            );
+        }
+
+        // Trigger work
+        hookHandler.handle( request );
+
+        // Assert request was ok
+        testContext.assertEquals( 200 , statusCodePtr[0] );
+
+        { // Assert expiration time is set to -1 (infinite)
+            final String storedHook = storage.getMockData().get( HOOK_ROOT_URI +"registrations/listeners/http+my-service+and-one-more-again-hook+gateleen+example" );
+            testContext.assertNotNull( storedHook );
+            final String expirationTime = new JsonObject(storedHook).getString( "expirationTime" );
+            logger.debug( "expirationTime is '"+expirationTime+"'" );
+            testContext.assertNull( expirationTime );
+        }
+    }
+
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // Tests for method:
+    // registerListener(Buffer)
+    ///////////////////////////////////////////////////////////////////////////////
+
+    @Test
+    public void registerListener_usesSpecifiedExpirationTime(TestContext testContext) throws Exception {
+        // Mock
+        final String expirationTime = "2199-03-23T16:33:38.687";
+        final Buffer buffer = create_hooksV1RegistrationsListeners_myTestHook( expirationTime );
+
+        // Prepare state
+        listenerRepository.getListeners().forEach( listener -> listenerRepository.removeListener(listener.getListenerId()) );
+
+        // Trigger work
+        registerListenerMethod.invoke( hookHandler , buffer );
+
+        // Assert there's now exactly one listener.
+        testContext.assertEquals( 1 , listenerRepository.size() );
+
+        // Get first listener (actually the only existing one).
+        final Listener listener = listenerRepository.getListeners().iterator().next();
+
+        testContext.assertEquals( expirationTime , listener.getHook().getExpirationTime().toString() );
+    }
+
+    @Test
+    public void registerListener_usesNullIfExpirationTimeIsNull(TestContext testContext) throws Exception {
+        // Mock
+        final String expirationTime = null;
+        final Buffer buffer = create_hooksV1RegistrationsListeners_myTestHook( expirationTime );
+
+        // Prepare state (remove all the listeners)
+        listenerRepository.getListeners().forEach( listener -> listenerRepository.removeListener(listener.getListenerId()) );
+
+        // Trigger work
+        registerListenerMethod.invoke( hookHandler , buffer );
+
+        // Get first listener (actually the only one which should exist).
+        final Listener listener = listenerRepository.getListeners().iterator().next();
+
+        // Assert expiration time of hook is set to null.
+        testContext.assertNull( listener.getHook().getExpirationTime() );
+    }
+
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // Helpers
+    ///////////////////////////////////////////////////////////////////////////////
+
     private void assert400(final String uri, final String payload) throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         DummyHttpServerResponse response = new DummyHttpServerResponse() {
@@ -303,6 +516,80 @@ public class HookHandlerTest {
         hookHandler.handle(putRequest);
         latch.await();
         assertEquals(400, response.getStatusCode());
+    }
+
+    /**
+     * Creates a simple {@link HttpServerRequest} mock.
+     */
+    private HttpServerRequest createSimpleRequest(final HttpMethod method , final String uri , final MultiMap requestHeaders , final Buffer requestBody , final int[] statusCodePtr , final String[] statusMessagePtr ) {
+        if( statusCodePtr==null ) throw new IllegalArgumentException("Arg 'statusCodePtr' useless when null");
+        if( statusMessagePtr==null ) throw new IllegalArgumentException("Arg 'statusMessagePtr' useless when null");
+
+        // Set implicit defaults
+        statusCodePtr[0] = 200;
+        statusMessagePtr[0] = "OK";
+
+        final HttpServerResponse response = new FastFailHttpServerResponse(){
+            @Override public HttpServerResponse setStatusCode(int statusCode) {
+                statusCodePtr[0] = statusCode;
+                return this;
+            }
+            @Override public HttpServerResponse setStatusMessage(String statusMessage) {
+                statusMessagePtr[0] = statusMessage;
+                return this;
+            }
+            @Override public void end(String chunk) {/* ignore */}
+            @Override public void end() {/* ignore */}
+        };
+        final HttpServerRequest request = new FastFailHttpServerRequest(){
+            @Override public HttpMethod method() { return method; }
+            @Override public String uri() { return uri; }
+            @Override public MultiMap headers() {
+                return requestHeaders;
+            }
+            @Override public HttpServerRequest handler(Handler<Buffer> handler) {
+                handler.handle( requestBody );
+                return null;
+            }
+            @Override public HttpServerRequest endHandler(Handler<Void> endHandler) {
+                endHandler.handle( null );
+                return null;
+            }
+            @Override public HttpServerResponse response() {
+                return response;
+            }
+        };
+        return request;
+    }
+
+    /**
+     * @return
+     *      A simple hook body as a JSON wrapped in a {@link Buffer}.
+     */
+    private Buffer createMinimalHookBodyAsBuffer() {
+        final Buffer requestBody = new BufferImpl();
+        requestBody.setBytes( 0 , ("{" +
+                "    \"methods\": [ \"PUT\" , \"DELETE\" ]," +
+                "    \"destination\": \"/an/example/destination/\"" +
+                "}").getBytes() );
+        return requestBody;
+    }
+
+    private Buffer create_hooksV1RegistrationsListeners_myTestHook( String expirationTime ) {
+        Buffer buffer = new BufferImpl();
+        buffer.setBytes( 0 , ("{\n" +
+                "  \"requesturl\": \"/houston/from/vehicles/_hooks/listeners/http/my-test-hook\",\n" +
+                "  \"expirationTime\": "+ (expirationTime==null?"null":("\""+expirationTime+"\"")) +",\n" +
+                "  \"hook\": {\n" +
+                "    \"methods\": [\n" +
+                "      \"PUT\",\n" +
+                "      \"POST\"\n" +
+                "    ],\n" +
+                "    \"filter\": \".*/vehicleoperation/recording/v1/event\",\n" +
+                "    \"destination\": \"/houston/my/fancy/location/\"\n" +
+                "  }\n" +
+                "}").getBytes());
+        return buffer;
     }
 
     class PUTRequest extends DummyHttpServerRequest {

@@ -98,9 +98,9 @@ public class HttpHook {
     }
 
     /**
-     * Returns the expiration time of this hook.
-     * 
-     * @return expirationTime
+     * @return
+     *      Expiration time of this hook. This is null for hooks with infinite
+     *      expiration.
      */
     public LocalDateTime getExpirationTime() {
         return expirationTime;
