@@ -711,7 +711,7 @@ public class HookHandler implements LoggableResource {
                 ExpiryCheckHandler.setExpireAfter(queueHeaders, listener.getHook().getExpireAfter());
             }
 
-            if(ExpiryCheckHandler.getQueueExpireAfter(queueHeaders) == null && listener.getHook().getQueueExpireAfter() != -1 ) {
+            if (ExpiryCheckHandler.getQueueExpireAfter(queueHeaders) == null && listener.getHook().getQueueExpireAfter() != -1) {
                 ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
             }
 
@@ -723,11 +723,6 @@ public class HookHandler implements LoggableResource {
             } else {
                 queueHeaders.remove(X_QUEUE); // remove the "x-queue" header - otherwise we take a second turn through the queue
             }
-
-            // in order not to block the queue because one client returns a creepy response,
-            // we translate all status codes of the listeners to 200.
-            // Therefor we set the header x-translate-status-4xx
-            queueHeaders.add("x-translate-status-4xx", "200");
 
             QueueingStrategy queueingStrategy = listener.getHook().getQueueingStrategy();
 

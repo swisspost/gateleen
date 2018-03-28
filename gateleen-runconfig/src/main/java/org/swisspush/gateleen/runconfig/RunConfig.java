@@ -384,11 +384,9 @@ public class RunConfig {
      * Builds a standard storage configuration.
      */
     public static JsonObject buildStorageConfig(){
-        return ModuleConfiguration
-                .with()
+        return new ModuleConfiguration()
                 .storageType(ModuleConfiguration.StorageType.redis)
                 .storageAddress(Address.storageAddress() + "-main")
-                .build()
                 .asJsonObject();
     }
 
