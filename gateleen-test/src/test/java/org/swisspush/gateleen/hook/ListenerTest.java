@@ -162,7 +162,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String targetListener1 = targetUrlBase + "/" + listenerName;
-        String[] methodsListener1 = new String[]{"GET", "PUT", "DELETE", "POST"};
+        String[] methodsListener1 = new String[]{"PUT", "DELETE", "POST"};
         final String targetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + "test";
 
         listenerNo = "2";
@@ -170,7 +170,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrlListener2 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String targetListener2 = targetUrlBase + "/" + listenerName;
-        String[] methodsListener2 = new String[]{"GET", "PUT", "DELETE", "POST"};
+        String[] methodsListener2 = new String[]{"PUT", "DELETE", "POST"};
         final String targetUrlListener2 = targetUrlBase + "/" + listenerName + "/" + "test";
         // -------
 
@@ -248,7 +248,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String targetListener1 = targetUrlBase + "/" + listenerName;
-        String[] methodsListener1 = new String[]{"GET", "PUT", "DELETE", "POST"};
+        String[] methodsListener1 = new String[]{"PUT", "DELETE", "POST"};
         final String masterTargetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + "test";
         final String slaveTargetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + additionalSubResource + "/" + "test";
 
@@ -257,7 +257,7 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrlListener2 = requestUrlBase + "/" + subresource + "/" + additionalSubResource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String targetListener2 = targetUrlBase + "/" + listenerName;
-        String[] methodsListener2 = new String[]{"GET", "PUT", "DELETE", "POST"};
+        String[] methodsListener2 = new String[]{"PUT", "DELETE", "POST"};
         final String slaveTargetUrlListener2 = targetUrlBase + "/" + listenerName + "/" + "test";
         // -------
 
@@ -568,7 +568,7 @@ public class ListenerTest extends AbstractTest {
         final String target = targetUrlBase + "/deadlock";
 
         // register listener
-        TestUtils.registerListener(registerUrlListener, target, null, null);
+        TestUtils.registerListener(registerUrlListener, target, new String[]{"PUT"}, null);
 
         String url = requestUrlBase + "/deadLockTest/atest";
         String body = "{ \"name\" : \"test\" }";

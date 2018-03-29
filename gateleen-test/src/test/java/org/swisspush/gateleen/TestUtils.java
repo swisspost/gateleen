@@ -332,13 +332,14 @@ public class TestUtils {
     public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type) {
         String body = "{ \"destination\":\"" + target + "\"";
 
-        String m = null;
         if (methods != null) {
+            String m = "";
             for (String method : methods) {
                 m += "\"" + method + "\", ";
             }
             m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
-            m = "\"methods\": [" + m + "]";
+            m = ",\"methods\": [" + m + "]";
+            body += m;
         }
         body += expireTime != null ? ", \""+ HookHandler.EXPIRE_AFTER + "\" : " + expireTime : "";
         body += queueExpireTime != null ? ", \""+ HookHandler.QUEUE_EXPIRE_AFTER + "\" : " + queueExpireTime : "";
