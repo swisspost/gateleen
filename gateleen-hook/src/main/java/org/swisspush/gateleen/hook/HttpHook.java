@@ -8,6 +8,7 @@ import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -102,8 +103,8 @@ public class HttpHook {
      *      Expiration time of this hook. This is null for hooks with infinite
      *      expiration.
      */
-    public LocalDateTime getExpirationTime() {
-        return expirationTime;
+    public Optional<LocalDateTime> getExpirationTime() {
+        return Optional.ofNullable( expirationTime );
     }
 
     /**

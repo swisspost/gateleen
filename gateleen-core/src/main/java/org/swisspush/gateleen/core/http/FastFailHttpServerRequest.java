@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.hook.mocks;
+package org.swisspush.gateleen.core.http;
 
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;

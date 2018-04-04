@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.mocks;
+package org.swisspush.gateleen.core.util;
 
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.MultiMap;
