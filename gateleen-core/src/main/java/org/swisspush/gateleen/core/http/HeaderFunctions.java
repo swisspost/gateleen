@@ -112,7 +112,7 @@ public class HeaderFunctions {
             throw new IllegalArgumentException("missing attribute \"value\" in " + rule + " (part of " + config + ")");
         }
 
-        if (expression == null) {
+        if (expression == null || expression.length() == 0) {
             return remove(headerName);
         }
         if (mode == null) {

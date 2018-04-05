@@ -21,7 +21,7 @@ public class HeaderFunctionsTest {
         chain = chain.andThen(setIfPresent("zzz", "444"             )); // zzz should not be there
         chain = chain.andThen(setAlways   ("oli", "{xxx}-{yyy}"     ));
         chain = chain.andThen(remove      ("xxx"                              ));
-        chain = chain.andThen(setAlways   ("preSuff", "pre-{yyy}-suff")); // test constant prefix and suffix
+        chain = chain.andThen(setAlways   ("preSuff","pre-{yyy}-suff")); // test constant prefix and suffix
 
         // Execute the Header manipulator chain
         MultiMap headers = new CaseInsensitiveHeaders();
@@ -55,7 +55,9 @@ public class HeaderFunctionsTest {
                 " { 'header': 'zzz'    , 'value': '444'           , 'mode': 'override' }," + // not set as not (yet) there
                 " { 'header': 'oli'    , 'value': '{xxx}-{yyy}'                        }," + // use variable replacement
                 " { 'header': 'xxx'    , 'value': null                                 }," + // remove
-                " { 'header': 'preSuff', 'value': 'pre-{yyy}-suff'                     } " + // test constant prefix and suffix
+                " { 'header': 'preSuff', 'value': 'pre-{yyy}-suff'                     }," + // test constant prefix and suffix
+                " { 'header': 'aaa'    , 'value': 'yes'                                }," +
+                " { 'header': 'aaa'    , 'value': ''                                   } " + // test that value = empty string also deletes the header
                 "]";
         json = json.replace('\'', '"');
         JsonArray config = new JsonArray(json);
@@ -70,5 +72,6 @@ public class HeaderFunctionsTest {
         Assert.assertEquals("111-222"     , headers.get("oli"    ));
         Assert.assertEquals("pre-222-suff", headers.get("preSuff"));
         Assert.assertNull("no eval error occured", evalScope.getErrorMessage());
+        Assert.assertFalse(headers.contains("aaa"));
     }
 }
