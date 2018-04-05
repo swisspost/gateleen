@@ -106,15 +106,14 @@
                     "minLength": 1
                 },
                 "value": {
-                    "description": "the value to be set. null means 'remove the header'. value can containing other header names between single angular brackets which resolve to theit values accordingly",
+                    "description": "the value to be set. null and empty string means 'remove the header'. value can contain other header names between single angular brackets which resolves to their values accordingly",
                     "type": [
                         "null",
                         "string"
-                    ],
-                    "minLength": 1
+                    ]
                 },
                 "mode": {
-                    "description": "define a condition-mode. 'conplete' sets the header value only if this header is not yet presen. 'overwrite' sets the header value only if the header is already present. Ignored iv value is null",
+                    "description": "define a condition-mode. 'conplete' sets the header value only if this header is not yet presen. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
                     "type": "string",
                     "enum": [
                         "complete",
