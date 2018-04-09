@@ -33,14 +33,14 @@
             self.messages = [];
             self.handlers = [];
 
-            self.install = function (path, fetch) {
+            self.install = function (path, fetch, filter) {
                 var id = handlerId++;
                 path = HOOK_TEST_URL + path;
                 var remover = Hook.listen(path, function (message, request) {
                     var resource = /\/$/.test(path) ? request.uri.split('/').pop() : '';
                     message.info = 'Listener ' + id + ' received:' + (resource.length > 0 ? '[' + resource + '] ' : '');
                     self.messages.push(message);
-                }, {fetch: fetch});
+                }, {fetch: fetch, filter: filter});
                 self.messages.push({text: 'Installing listener ' + id});
                 self.handlers.push({remover: remover, id: id});
             };
@@ -84,6 +84,10 @@
                         </br>
                         <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Single Fetching Hook"
                                 ng-click="hookJs.install('hook-demo', 'single')">Place Single Fetching Hook
+                        </button>
+                        </br>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Single Hook with Filter"
+                                ng-click="hookJs.install('messages/public', false, '.*/messages/public')">Place Single Hook with Filter
                         </button>
                         </br>
                         <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Collection Hook"

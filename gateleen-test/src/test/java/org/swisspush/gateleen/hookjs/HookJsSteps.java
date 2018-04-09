@@ -9,12 +9,14 @@
 package org.swisspush.gateleen.hookjs;
 
 import com.jayway.awaitility.Duration;
-import cucumber.api.PendingException;
+import com.jayway.restassured.RestAssured;
+import com.jayway.restassured.http.ContentType;
 import cucumber.api.java.After;
 import cucumber.api.java.en.And;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
+import io.vertx.core.json.JsonObject;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -26,6 +28,8 @@ import static org.hamcrest.core.IsEqual.equalTo;
 public class HookJsSteps {
 
     private static WebDriver webDriver;
+    
+    private static final String PLAYGROUND_URL = "http://localhost:7012/playground";
 
     @After
     public static void quitBrowser(){
@@ -40,7 +44,7 @@ public class HookJsSteps {
 
     @And("^the hook-js UI is displayed$")
     public void theHookJsUIIsDisplayed() throws Throwable {
-        webDriver.get("http://localhost:7012/playground/hooktest.html");
+        webDriver.get(PLAYGROUND_URL + "/hooktest.html");
         given().await().atMost(Duration.TWO_SECONDS).until(() ->
                         webDriver.findElement(By.xpath("/html/body/div/div/div/div[1]")).getText(),
                 equalTo("Hook JS Demo")
@@ -66,5 +70,14 @@ public class HookJsSteps {
         given().await().atMost(Duration.TWO_SECONDS).until(() ->
                 webDriver.findElements(By.xpath("//*[@id=\"hookjs messages\"]/li[" + indexOfMessage + "]")).size(),
                 equalTo(0));
+    }
+    
+    @When("^we put \"(.+)\" to \"(.+)\"$")
+    public void wePutTextToPath(String text, String path) {
+        JsonObject message = new JsonObject();
+        message.put("text", text);
+        RestAssured.given().contentType(ContentType.JSON)
+                .body(message.getMap())
+                .put(PLAYGROUND_URL + "/server/tests/hooktest" + path);
     }
 }
