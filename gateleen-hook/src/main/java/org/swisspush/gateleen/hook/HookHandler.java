@@ -271,7 +271,7 @@ public class HookHandler implements LoggableResource {
                     if (!expirationTime.isPresent()) {
                         log.trace("Listener " + listener.getListenerId() + " will never expire.");
                     } else if (expirationTime.get().isBefore(nowAsTime)) {
-                        log.debug("Listener " + listener.getListenerId() + " expired at " + expirationTime + " and actual time is " + nowAsTime);
+                        log.debug("Listener " + listener.getListenerId() + " expired at " + expirationTime.get() + " and actual time is " + nowAsTime);
                         listenerRepository.removeListener(listener.getListenerId());
                         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListenerId());
                     }
