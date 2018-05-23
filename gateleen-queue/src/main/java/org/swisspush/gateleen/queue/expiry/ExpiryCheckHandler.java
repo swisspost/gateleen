@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.queue.expiry;
 
+import io.vertx.core.MultiMap;
 import io.vertx.core.http.CaseInsensitiveHeaders;
+import io.vertx.core.http.HttpServerRequest;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
@@ -9,9 +11,9 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.vertx.core.MultiMap;
-import io.vertx.core.http.HttpServerRequest;
 import org.swisspush.gateleen.core.http.HttpRequest;
+
+import java.util.Optional;
 
 /**
  * The ExpiryCheckHandler allows you to check the expiry
@@ -96,7 +98,39 @@ public final class ExpiryCheckHandler {
      * @return expire-after time in seconds or null if nothing is found
      */
     public static Integer getExpireAfter(MultiMap headers) {
-        return getExpireValue(headers, EXPIRE_AFTER_HEADER);
+        try {
+            Integer ans = getExpireValue(headers.get(EXPIRE_AFTER_HEADER));
+            // Convert -1 to null
+            return (ans != null && ans == -1) ? null : ans;
+        } catch (NumberFormatException e) {
+            // Treat corrupt header same as it were not set at all.
+            // This is to keep backward compatibility to previous version of getExpireValue(MultiMap,String).
+            return null;
+        }
+    }
+
+    /**
+     * Delegates to {@link #getExpireValue(String)}
+     *
+     * This is extended version of {@link #getExpireAfter(MultiMap)} but also
+     * returning -1 for infinite.
+     *
+     * @param headers
+     *      Headers to fetch value from.
+     * @return
+     *      <p>The parsed expire-after value.</p>
+     *      <p>Returns empty in case {@link #getExpireValue(String)} returned null.</p>
+     */
+    public static Optional<Integer> getExpireAfterConcerningCaseOfCorruptHeaderAndInfinite(MultiMap headers) {
+        try {
+            final Integer expireValue = getExpireValue(headers.get(EXPIRE_AFTER_HEADER));
+            return Optional.ofNullable(expireValue);
+        } catch (NumberFormatException e) {
+            // Throwing exceptions is not allowed by design.
+            // See: "https://github.com/swisspush/gateleen/pull/209#discussion_r177712751"
+            log.warn("Conceal exception (because we're not allowed to throw by design): " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            return Optional.empty();
+        }
     }
 
     /**
@@ -108,45 +142,43 @@ public final class ExpiryCheckHandler {
      * @return queue-expire-after time in seconds or null if nothing is found
      */
     public static Integer getQueueExpireAfter(MultiMap headers) {
-        return getExpireValue(headers, QUEUE_EXPIRE_AFTER_HEADER);
+        try {
+            final Integer ans = getExpireValue(headers.get(QUEUE_EXPIRE_AFTER_HEADER));
+            // Convert -1 to null
+            return (ans != null && ans == -1) ? null : ans;
+        } catch (NumberFormatException e) {
+            // Treat corrupt header same as it were not set at all.
+            // This is to keep backward compatibility to previous version of getExpireValue(MultiMap,String).
+            return null;
+        }
     }
 
     /**
-     * Extracts the value of the given header field.
-     * If the value can't be extracted (not found, invalid, and so on),
-     * null is returned.
-     *
-     * @param headers headers
-     * @param field the header field
-     * @return expire-after time in seconds or null if nothing is found
+     * @param expirationTimeout
+     *      Value as provided in the X-Expire-After header for example.
+     * @return
+     *      Expire-after time in seconds or null if header not present. This
+     *      possibly returns value -1 indicating "never expires".
+     * @throws NumberFormatException
+     *      In case the value contained in the header is not a valid
+     *      'X-Expire-After' value. A negative number or a non-numeric value
+     *      for example.
      */
-    private static Integer getExpireValue(MultiMap headers, String field) {
-        String expireHeaderValue = headers.get(field);
-
-        Integer value;
-
-        // no header set for the given field
-        if (expireHeaderValue == null) {
-            log.debug(field + " not defined");
-            value = null;
+    private static Integer getExpireValue( final String expirationTimeout ) throws NumberFormatException {
+        final Integer ans;
+        if (expirationTimeout == null) {
+            // If we get null we'll answer with null.
+            ans = null;
         } else {
-            try {
-                value = Integer.parseInt(expireHeaderValue);
-
-                // redis returns an error if setex is called with negativ values
-                if (value < 0) {
-                    log.debug(field + " is a negative number: " + expireHeaderValue);
-                    value = null;
-                } else {
-                    log.debug("Setting " + field + " value to " + value + " seconds as defined in header " + field);
-                }
-            } catch (Exception e) {
-                log.warn(field + " is not a number: " + expireHeaderValue);
-                value = null;
+            // Value exists. Try parsing it (this will throw specified exception on failure).
+            ans = Integer.parseInt(expirationTimeout);
+            // Further, treat numbers below -1 as invalid. -1 itself is accepted indicating
+            // "infinite".
+            if (ans < -1) {
+                throw new NumberFormatException("Values less than -1 aren't valid expireAfter values.");
             }
         }
-
-        return value;
+        return ans;
     }
 
     /**
@@ -272,6 +304,21 @@ public final class ExpiryCheckHandler {
      */
     public static LocalDateTime getExpirationTime(String serverTimestamp, int expireAfter) {
         return getExpirationTime(parseDateTime(serverTimestamp), expireAfter);
+    }
+
+    /**
+     * @return
+     *      Expiration time based on passed expireAfter or empty in case of an infinite
+     *      expiration.
+     */
+    public static Optional<String> getExpirationTimeAsString(int expireAfter) {
+        final String expirationTime;
+        if (expireAfter == -1) {
+            expirationTime = null;
+        } else {
+            expirationTime = printDateTime(getExpirationTime(expireAfter));
+        }
+        return Optional.ofNullable(expirationTime);
     }
 
     /**

@@ -104,7 +104,8 @@
                     methods: (options && options.methods) || ['PUT', 'POST'],
                     destination: context + '/server/event/v1/channels/' + id,
                     expireAfter: 10, // notifications are queued for max 10 seconds
-                    staticHeaders: {'x-queue-mode': 'transient'}
+                    staticHeaders: {'x-queue-mode': 'transient'},
+                    filter: (options && options.filter)
                 }, {
                     headers: {
                         'x-expire-after': hookTimeToLive

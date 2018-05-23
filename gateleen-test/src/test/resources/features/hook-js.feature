@@ -56,3 +56,11 @@ Feature: Hooking for JavaScript clients
     And we click on the button "Place Collection Fetching Hook"
     Then we see the message "Installing listener 2" at position 3
     And we see no message at position 4
+
+  Scenario: Place a single hook with filter and put a single PUT
+    When we click on the button "Place Single Hook with Filter"
+    Then we see the message "Installing listener 1" at position 1
+    When we put "Public Message" to "/messages/public"
+    Then we see the message "Listener 1 received:Public Message" at position 2
+    When we put "Private Message" to "/messages/private"
+    And we see no message at position 3
