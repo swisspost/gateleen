@@ -1,15 +1,14 @@
 package org.swisspush.gateleen.routing;
 
+import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
+import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -205,8 +204,6 @@ public class Forwarder implements Handler<RoutingContext> {
             return;
         }
 
-        cReq.setChunked(true);
-
         installExceptionHandler(req, targetUri, startTime, cReq);
 
         /*
@@ -218,7 +215,62 @@ public class Forwarder implements Handler<RoutingContext> {
          * the buffer bodyData.
          */
         if (bodyData == null) {
-            final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(cReq, loggingHandler, true);
+
+            // Gateleen internal requests (e.g. from scedulers or delegates) often have neither "Content-Length" nor "Transfer-Encoding: chunked"
+            // header - so we must wait for a body buffer to know: Is there a body or not? Only looking on the headers and/or the http-method is not
+            // sustainable to know "has body or not"
+            // But: if there is a body, then we need to either setChunked or a Content-Length header (otherwise Vertx complains with an Exception)
+            //
+            // Setting 'chunked' always has the downside that we use it also for GET, HEAD, OPTIONS etc... Those request methods normally have no body at all
+            // But still it's allowed - so they 'could' have one. So using http-method to decide "chunked or not" is also not a sustainable solution.
+            //
+            // --> we need to wrap the client-Request to catch up the first (body)-buffer and "setChucked(true)" in advance and just-in-time.
+            WriteStream<Buffer> cReqWrapped = new WriteStream<Buffer>() {
+                private boolean firstBuffer = true;
+
+                @Override
+                public WriteStream<Buffer> exceptionHandler(Handler<Throwable> handler) {
+                    cReq.exceptionHandler(handler);
+                    return this;
+                }
+
+                @Override
+                public WriteStream<Buffer> write(Buffer data) {
+                    // only now we know for sure that there IS a body.
+                    if (firstBuffer) {
+                        // avoid multiple calls due to a 'syncronized' block in HttpClient's implementation
+                        firstBuffer = false;
+                        cReq.setChunked(true);
+                    }
+                    cReq.write(data);
+                    return this;
+                }
+
+                @Override
+                public void end() {
+                    cReq.end();
+                }
+
+                @Override
+                public WriteStream<Buffer> setWriteQueueMaxSize(int maxSize) {
+                    cReq.setWriteQueueMaxSize(maxSize);
+                    return this;
+                }
+
+                @Override
+                public boolean writeQueueFull() {
+                    return cReq.writeQueueFull();
+                }
+
+                @Override
+                public WriteStream<Buffer> drainHandler(@Nullable Handler<Void> handler) {
+                    cReq.drainHandler(handler);
+                    return this;
+                }
+            };
+
+
+            final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(cReqWrapped, loggingHandler, true);
             final Pump pump = Pump.pump(req, loggingWriteStream);
             req.endHandler(v -> cReq.end());
             req.exceptionHandler(t -> {
@@ -230,6 +282,8 @@ public class Forwarder implements Handler<RoutingContext> {
             pump.start();
         } else {
             loggingHandler.appendRequestPayload(bodyData);
+            // we already have the body complete in-memory - so we can use Content-Length header and avoid chunked transfer
+            cReq.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(bodyData.length()));
             cReq.end(bodyData);
         }
 
