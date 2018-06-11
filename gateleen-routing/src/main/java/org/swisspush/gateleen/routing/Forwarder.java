@@ -316,6 +316,12 @@ public class Forwarder implements Handler<RoutingContext> {
                 }
             } else {
                 error(exception.getMessage(), req, targetUri);
+                if (req.response().ended() || req.response().headWritten()) {
+                    error("Response already written. Not sure about the state. Closing server connection for stability reason", req, targetUri);
+                    req.response().close();
+                    return;
+                }
+
                 req.response().setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
                 req.response().setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
                 try {
