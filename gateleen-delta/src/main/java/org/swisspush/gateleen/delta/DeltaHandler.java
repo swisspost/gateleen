@@ -35,7 +35,6 @@ public class DeltaHandler {
     // used as marker header to know that we should let the request continue to the router
     private static final String DELTA_BACKEND_HEADER = "x-delta-backend";
     private static final String EXPIRE_AFTER_HEADER = "X-Expire-After";
-    private static final long DEFAULT_EXPIRE = 1728000; // 20 days
     private static final String SLASH = "/";
     private static final int TIMEOUT = 120000;
 
@@ -101,11 +100,11 @@ public class DeltaHandler {
                     }
 
                     final String resourceKey = getResourceKey(request.path(), false);
-                    long expireAfter = getExpireAfterValue(request, log);
-                    long updateId = reply.result();
+                    Long expireAfter = getExpireAfterValue(request, log);
+                    String updateId = reply.result().toString();
 
                     // save to storage
-                    redisClient.setex(resourceKey, expireAfter, String.valueOf(updateId), event -> {
+                    saveDelta(resourceKey, updateId, expireAfter, event -> {
                         if(event.failed()){
                             log.error("setex command for redisKey " + resourceKey + " failed with cause: " + logCause(event));
                             handleError(request, "error saving delta information");
@@ -168,13 +167,21 @@ public class DeltaHandler {
 
     private void saveOrUpdateDeltaEtag(final String etagResourceKey, final HttpServerRequest request, final Logger log, final Handler<Boolean> updateCallback){
         final String requestEtag = request.headers().get(IF_NONE_MATCH_HEADER);
-        long expireAfter = getExpireAfterValue(request, log);
-        redisClient.setex(etagResourceKey, expireAfter, requestEtag, event -> {
+        Long expireAfter = getExpireAfterValue(request, log);
+        saveDelta(etagResourceKey, requestEtag, expireAfter, event ->{
             if(event.failed()){
                 log.error("setex command for redisKey " + etagResourceKey + " failed with cause: " + logCause(event));
             }
             updateCallback.handle(Boolean.TRUE);
         });
+    }
+
+    private void saveDelta(String deltaKey, String deltaValue, Long expireAfter, Handler<AsyncResult<Object>> handler) {
+        if (expireAfter == null) {
+            redisClient.set(deltaKey, deltaValue, (Handler) handler);
+        } else {
+            redisClient.setex(deltaKey, expireAfter, deltaValue, (Handler) handler);
+        }
     }
 
     private String extractStringDeltaParameter(HttpServerRequest request, Logger log) {
@@ -339,31 +346,28 @@ public class DeltaHandler {
         return Joiner.on(":").skipNulls().join(pathSegments);
     }
 
-    private long getExpireAfterValue(HttpServerRequest request, Logger log) {
-        long value = DEFAULT_EXPIRE;
+    private Long getExpireAfterValue(HttpServerRequest request, Logger log) {
         MultiMap requestHeaders = request.headers();
         String expireAfterHeaderValue = requestHeaders.get(EXPIRE_AFTER_HEADER);
         if (expireAfterHeaderValue == null) {
-            log.debug("Setting Expire-After value to a default of " + DEFAULT_EXPIRE + " seconds since header " + EXPIRE_AFTER_HEADER + " not defined");
-            return value;
+            log.debug("Setting NO expiry on delta key because header " + EXPIRE_AFTER_HEADER + " not defined");
+            return null; // no expiry
         }
 
         try {
-            value = Long.parseLong(expireAfterHeaderValue);
+            long value = Long.parseLong(expireAfterHeaderValue);
 
             // redis returns an error if setex is called with negativ values
-            if(value < 0) {
-                log.warn("Setting Expire-After value to a default of " + DEFAULT_EXPIRE + ", since defined value for header " + EXPIRE_AFTER_HEADER + " is a negative number: " + expireAfterHeaderValue);
-                value = DEFAULT_EXPIRE;
-            } else {
-                log.debug("Setting Expire-After value to " + value + " seconds as defined in header " + EXPIRE_AFTER_HEADER);
+            if (value < 0) {
+                log.warn("Setting NO expiry on delta key because because defined value for header " + EXPIRE_AFTER_HEADER + " is a negative number: {}", expireAfterHeaderValue);
+                return null; // no expiry
             }
-
+            log.debug("Setting expiry on delta key to {} seconds as defined in header " + EXPIRE_AFTER_HEADER, value);
+            return value;
         } catch (Exception e) {
-            log.warn("Setting Expire-After value to a default of " + DEFAULT_EXPIRE + ", since defined value for header " + EXPIRE_AFTER_HEADER + " is not a number: " + expireAfterHeaderValue);
+            log.warn("Setting NO expiry on delta key becase header " + EXPIRE_AFTER_HEADER + " is not a number: {}", expireAfterHeaderValue);
+            return null; // default: no expiry
         }
-
-        return value;
     }
 
     private class DeltaResourcesContainer {
