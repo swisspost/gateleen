@@ -288,7 +288,8 @@ public class HookHandler implements LoggableResource {
                         routeRepository.removeRoute(key);
                     }
                 }
-
+                monitoringHandler.updateListenerCount(listenerRepository.size());
+                monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
                 log.trace("done");
             }
         });
@@ -1158,6 +1159,7 @@ public class HookHandler implements LoggableResource {
         log.debug("Unregister route " + routedUrl);
 
         routeRepository.removeRoute(routedUrl);
+        monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
     }
 
     /**
@@ -1172,6 +1174,7 @@ public class HookHandler implements LoggableResource {
 
         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + getListenerUrlSegment(requestUrl));
         listenerRepository.removeListener(listenerId);
+        monitoringHandler.updateListenerCount(listenerRepository.size());
     }
 
     /**
@@ -1279,6 +1282,7 @@ public class HookHandler implements LoggableResource {
 
         // create and add a new listener (or update an already existing listener)
         listenerRepository.addListener(new Listener(listenerId, getMonitoredUrlSegment(requestUrl), target, hook));
+        monitoringHandler.updateListenerCount(listenerRepository.size());
     }
 
     /**
@@ -1408,6 +1412,7 @@ public class HookHandler implements LoggableResource {
         hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(storageObject));
 
         routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook));
+        monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
     }
 
     /**

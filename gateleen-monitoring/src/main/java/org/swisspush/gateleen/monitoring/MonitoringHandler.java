@@ -59,6 +59,9 @@ public class MonitoringHandler {
     public static final String ENQUEUE_METRIC = "queues.enqueue";
     public static final String DEQUEUE_METRIC = "queues.dequeue";
 
+    public static final String LISTENER_COUNT_METRIC = "hooks.listener.count";
+    public static final String ROUTE_COUNT_METRIC = "hooks.route.count";
+
     @Deprecated
     public static final String QUEUES_KEY_PREFIX = "redisques:queues";
     @Deprecated
@@ -459,6 +462,15 @@ public class MonitoringHandler {
 
     public void updateDequeue() {
         vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + DEQUEUE_METRIC).put(METRIC_ACTION, MARK));
+    }
+
+    public void updateListenerCount(long count){
+        vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LISTENER_COUNT_METRIC).put(METRIC_ACTION, SET).put("n",count));
+    }
+
+    public void updateRoutesCount(long count){
+        vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ROUTE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n",count));
+
     }
 
     private void sortResultMap(List<Map.Entry<String, Long>> input) {
