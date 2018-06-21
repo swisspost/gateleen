@@ -22,6 +22,8 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
     private Handler<HttpClientResponse> responseHandler;
     private MultiMap headers = new CaseInsensitiveHeaders();
     private boolean bound = false;
+    private boolean closed = false;
+    private boolean written = false;
 
     private HttpClientResponse clientResponse = new HttpClientResponse() {
         @Override
@@ -294,6 +296,7 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
 
     @Override
     public void end() {
+        written = true;
         ensureBound();
         doEnd();
     }
@@ -325,22 +328,27 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
 
     @Override
     public void close() {
-
+        // makes not really sense as we have no underlying TCP connection which can be closed
+        // nevertheless we simulate the behaviour of a 'real' HttpServerResponse
+        closed = true;
     }
 
     @Override
     public boolean ended() {
-        throw new UnsupportedOperationException();
+        return written;
     }
 
     @Override
     public boolean closed() {
-        throw new UnsupportedOperationException();
+        return closed;
     }
 
     @Override
     public boolean headWritten() {
-        throw new UnsupportedOperationException();
+//        // we have no stream
+//        // --> headers can be manipulated even when we already have written body bytes
+//        // but when the last body bytes where written, then we 'simulate' that the headers are also written (and therefore should not be manipulated any more)
+        return written;
     }
 
     @Override
