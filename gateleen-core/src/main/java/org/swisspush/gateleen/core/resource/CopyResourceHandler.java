@@ -7,6 +7,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StatusCodeTranslator;
 
@@ -183,6 +184,8 @@ public class CopyResourceHandler {
         }
 
         MultiMap headers = StatusCodeTranslator.getTranslateFreeHeaders(request.headers());
+        headers = HttpHeaderUtil.removeNonForwardHeaders(headers);
+        headers.remove("content-length");
 
         // create copy task
         return new CopyTask(task.getString("source"), task.getString("destination"), headers, staticHeaders);
