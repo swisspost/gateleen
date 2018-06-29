@@ -270,10 +270,9 @@ public class TestUtils {
      * @param requestUrl
      * @param target
      * @param methods
-     * @param expireTime
      */
-    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime) {
-        registerListener(requestUrl, target, methods, expireTime, null);
+    public static void registerListener(final String requestUrl, final String target, String[] methods) {
+        registerListener(requestUrl, target, methods, null);
     }
 
     /**
@@ -282,11 +281,10 @@ public class TestUtils {
      * @param requestUrl
      * @param target
      * @param methods
-     * @param expireTime
      * @param filter
      */
-    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter) {
-        registerListener(requestUrl, target, methods, expireTime, filter, null);
+    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter) {
+        registerListener(requestUrl, target, methods, filter, null);
     }
 
     /**
@@ -295,12 +293,11 @@ public class TestUtils {
      * @param requestUrl
      * @param target
      * @param methods
-     * @param expireTime
      * @param filter
      * @param queueExpireTime
      */
-    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime) {
-        registerListener(requestUrl, target, methods, expireTime, filter, queueExpireTime, null);
+    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter, Integer queueExpireTime) {
+        registerListener(requestUrl, target, methods, filter, queueExpireTime, null);
     }
 
     /**
@@ -309,13 +306,12 @@ public class TestUtils {
      * @param requestUrl
      * @param target
      * @param methods
-     * @param expireTime
      * @param filter
      * @param queueExpireTime
      * @param staticHeaders
      */
-    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders) {
-        registerListener(requestUrl, target, methods, expireTime, filter, queueExpireTime, staticHeaders, null);
+    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter, Integer queueExpireTime, Map<String, String> staticHeaders) {
+        registerListener(requestUrl, target, methods, filter, queueExpireTime, staticHeaders, null);
     }
 
     /**
@@ -324,12 +320,11 @@ public class TestUtils {
      * @param requestUrl
      * @param target
      * @param methods
-     * @param expireTime
      * @param filter
      * @param queueExpireTime
      * @param staticHeaders
      */
-    public static void registerListener(final String requestUrl, final String target, String[] methods, Integer expireTime, String filter, Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type) {
+    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter, Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type) {
         String body = "{ \"destination\":\"" + target + "\"";
 
         if (methods != null) {
@@ -341,7 +336,6 @@ public class TestUtils {
             m = ",\"methods\": [" + m + "]";
             body += m;
         }
-        body += expireTime != null ? ", \""+ HookHandler.EXPIRE_AFTER + "\" : " + expireTime : "";
         body += queueExpireTime != null ? ", \""+ HookHandler.QUEUE_EXPIRE_AFTER + "\" : " + queueExpireTime : "";
         body += filter != null ? ", \"filter\" : \"" + filter + "\"" : "";
         body += type != null ? ", \"type\" : \"" + type.text() + "\"" : "";
