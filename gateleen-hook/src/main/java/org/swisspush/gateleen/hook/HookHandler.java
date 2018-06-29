@@ -71,13 +71,11 @@ public class HookHandler implements LoggableResource {
     private static final String REMOVE_ROUTE_ADDRESS = "gateleen.hook-route-remove";
 
     private static final int DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME = 1 * 60 * 60; // 1h in seconds
-    private static final int DEFAULT_HOOK_LISTENERS_EXPIRE_AFTER_TIME = 30; // 30 seconds
 
     private static final int DEFAULT_CLEANUP_TIME = 15000; // 15 seconds
     public static final String REQUESTURL = "requesturl";
     public static final String EXPIRATION_TIME = "expirationTime";
     public static final String HOOK = "hook";
-    public static final String EXPIRE_AFTER = "expireAfter";
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
@@ -715,10 +713,6 @@ public class HookHandler implements LoggableResource {
                 log.warn("problem applying header manipulator chain {} in listener {}", evalScope.getErrorMessage(), listener.getListenerId());
             }
 
-            if (ExpiryCheckHandler.getExpireAfter(queueHeaders) == null) {
-                ExpiryCheckHandler.setExpireAfter(queueHeaders, listener.getHook().getExpireAfter());
-            }
-
             if (ExpiryCheckHandler.getQueueExpireAfter(queueHeaders) == null && listener.getHook().getQueueExpireAfter() != -1) {
                 ExpiryCheckHandler.setQueueExpireAfter(queueHeaders, listener.getHook().getQueueExpireAfter());
             }
@@ -1215,12 +1209,6 @@ public class HookHandler implements LoggableResource {
             hook.setFilter(jsonHook.getString("filter"));
         }
 
-        if (jsonHook.getInteger(EXPIRE_AFTER) != null) {
-            hook.setExpireAfter(jsonHook.getInteger(EXPIRE_AFTER));
-        } else {
-            hook.setExpireAfter(DEFAULT_HOOK_LISTENERS_EXPIRE_AFTER_TIME);
-        }
-
         if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
             hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
         }
@@ -1364,12 +1352,6 @@ public class HookHandler implements LoggableResource {
         HttpHook hook = new HttpHook(jsonHook.getString("destination"));
         if (jsonMethods != null) {
             hook.setMethods(jsonMethods.getList());
-        }
-
-        if (jsonHook.getInteger(EXPIRE_AFTER) != null) {
-            hook.setExpireAfter(jsonHook.getInteger(EXPIRE_AFTER));
-        } else {
-            hook.setExpireAfter(DEFAULT_HOOK_LISTENERS_EXPIRE_AFTER_TIME);
         }
 
         if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {

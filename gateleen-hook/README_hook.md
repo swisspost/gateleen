@@ -21,7 +21,7 @@ During the instantiation of the [HookHandler](src/main/java/org/swisspush/gatele
 |:----------------- | :------: | :--------------------------------------- | 
 | destination       | yes | A valid URL (absolute) where the requests should be redirected to. |
 | methods           | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
-| expireAfter       | no  | This property indicates how long a resource should live. After the given time, the resource will be removed from the storage. This property will only be used, if the incoming request does not have a 'X-Expire-After' header. If the given header exists, this property will be ignored for the given request!  |
+| *expireAfter*     | no  | *DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead* |
 | staticHeaders     | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
 | headers           | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)|
 | collection        | no  | This property specifies if the given URL is a resource or a collection. If this property is not set, the default is true (collection). |
@@ -131,7 +131,7 @@ GET http://myserver:7012/gateleen/example/
 |:----------------- | :------: | :--------------------------------------- | 
 | destination       | yes | A valid URL (relative) where the requests should be redirected to. |
 | methods           | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
-| expireAfter       | no  | This property indicates how long a resource should live. After the given time, the resource will be removed from the storage. This property will only be used, if the incoming request does not have a 'X-Expire-After' header. If the given header exists, this property will be ignored for the given request!  |
+| *expireAfter*     | no  | *DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead* |
 | queueExpireAfter  | no  | A copied and forwarded request to a listener is always putted into a queue. To ensure to have an expiration time for each request within the given listener queue, you can set a default value (in seconds) with this property. This way you can prevent a queue overflow. The property will only be used for requests, which doesn’t have a _x-queue-expire-after_ header. |
 | staticHeaders     | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
 | headers           | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)|

@@ -118,7 +118,7 @@ public class ListenerTest extends AbstractTest {
         delete(targetUrl);
 
         // register a listener
-        TestUtils.registerListener(registerUrl, target, methods, 4);
+        TestUtils.registerListener(registerUrl, target, methods);
 
         // send request
         checkPUTStatusCode(requestUrl, body, 200);
@@ -194,7 +194,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, one listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -209,8 +209,8 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, both listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4);
-        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 4);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -296,7 +296,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, master listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 30);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1);
 
         checkPUTStatusCode(requestUrlMaster, body, 200);
         checkGETStatusCodeWithAwait(requestUrlMaster, 200);
@@ -319,8 +319,8 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, both listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 30);
-        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 30);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2);
 
         checkPUTStatusCode(requestUrlMaster, body, 200);
         checkGETStatusCodeWithAwait(requestUrlMaster, 200);
@@ -346,7 +346,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, slave listener hooked
          */
-        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 30);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2);
 
         checkPUTStatusCode(requestUrlMaster, body, 200);
         checkGETStatusCodeWithAwait(requestUrlMaster, 200);
@@ -443,7 +443,7 @@ public class ListenerTest extends AbstractTest {
         String target2 = target + "/456/notfiltered/v1/body";
 
         // register listener
-        TestUtils.registerListener(registerUrlListener, target, null, null, pattern);
+        TestUtils.registerListener(registerUrlListener, target, null, pattern);
 
         // Put1
         checkPUTStatusCode(put1, body, 200);
@@ -486,7 +486,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, both listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4, null, null, null, HookTriggerType.AFTER);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null, null, HookTriggerType.AFTER);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -536,8 +536,8 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, both listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, 4, null, null, null, HookTriggerType.AFTER);
-        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, 4, null, null, null, HookTriggerType.BEFORE);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null, null, HookTriggerType.AFTER);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, null, null, null, HookTriggerType.BEFORE);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -616,7 +616,7 @@ public class ListenerTest extends AbstractTest {
         // ----
 
         // register Listener
-        TestUtils.registerListener(requestUrl, targetUrl, null, 10, null, 5);
+        TestUtils.registerListener(requestUrl, targetUrl, null, null, 5);
 
         // lock queue
         String lockRequestUrl = "queuing/locks/" + queueName;
@@ -684,7 +684,7 @@ public class ListenerTest extends AbstractTest {
         delete(targetUrl);
 
         // register a listener
-        TestUtils.registerListener(registerUrl, target, methods, null, null, null, staticHeaders);
+        TestUtils.registerListener(registerUrl, target, methods, null, null, staticHeaders);
 
         // prepare WireMock (stateful)
         WireMock.stubFor(WireMock.put(WireMock.urlEqualTo(targetUrlPart)).inScenario(scenario)

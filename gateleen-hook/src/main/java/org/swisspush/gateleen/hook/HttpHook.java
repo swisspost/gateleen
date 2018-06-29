@@ -19,7 +19,6 @@ import java.util.regex.Pattern;
 public class HttpHook {
     private String destination;
     private List<String> methods;
-    private int expireAfter;
     private LocalDateTime expirationTime;
     private boolean fullUrl = false;
     private QueueingStrategy queueingStrategy = new DefaultQueueingStrategy();
@@ -76,26 +75,6 @@ public class HttpHook {
      */
     public void setMethods(List<String> methods) {
         this.methods = methods;
-    }
-
-    /**
-     * Gets the expiry (x-expire-after header)
-     * for the requests send to the listener.
-     * 
-     * @return a value in seconds
-     */
-    public int getExpireAfter() {
-        return expireAfter;
-    }
-
-    /**
-     * Sets the expiry (x-expire-after header)
-     * for the requests send to the listener.
-     * 
-     * @param expireAfter - a value in seconds
-     */
-    public void setExpireAfter(int expireAfter) {
-        this.expireAfter = expireAfter;
     }
 
     /**
