@@ -38,6 +38,7 @@
             "type": "string"
         },
         "expireAfter": {
+            "description": "DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead",
             "type": "integer",
             "minimum": -1
         },
