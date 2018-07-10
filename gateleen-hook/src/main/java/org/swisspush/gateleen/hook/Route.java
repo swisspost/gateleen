@@ -157,7 +157,19 @@ public class Route {
         }
         // url request
         else {
-            HttpClientOptions options = new HttpClientOptions().setDefaultHost(rule.getHost()).setDefaultPort(rule.getPort()).setMaxPoolSize(5000).setKeepAlive(true).setPipelining(false);
+            Integer connectionPoolSize = httpHook.getConnectionPoolSize();
+            if (connectionPoolSize == null) {
+                connectionPoolSize = HttpHook.CONNECTION_POOL_SIZE_DEFAULT_VALUE;
+                LOG.debug("No connectionPoolSize specified for route '{}' using default of {}.", rule.getRuleIdentifier(), connectionPoolSize);
+            } else {
+                LOG.debug("Using connectionPoolSize of {} for route '{}'.", connectionPoolSize, rule.getRuleIdentifier());
+            }
+            HttpClientOptions options = new HttpClientOptions()
+                    .setDefaultHost(rule.getHost())
+                    .setDefaultPort(rule.getPort())
+                    .setMaxPoolSize(connectionPoolSize)
+                    .setKeepAlive(true)
+                    .setPipelining(false);
             if (rule.getScheme().equals("https")) {
                 options.setSsl(true).setVerifyHost(false).setTrustAll(true);
             }

@@ -73,6 +73,11 @@
             },
             "additionalProperties": false
         },
+        "connectionPoolSize": {
+            "description": "The maximum number of concurrent connections to the destination.",
+            "type": "integer",
+            "default": 50
+        },
         "collection": {
             "description": "only used for route hook",
             "type": "boolean"
