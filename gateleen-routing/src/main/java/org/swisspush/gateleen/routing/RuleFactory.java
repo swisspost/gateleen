@@ -13,7 +13,6 @@ import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.Validator;
 
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -80,7 +79,7 @@ public class RuleFactory {
 
             int defaultTimeoutSec = 30;
             ruleObj.setTimeout(1000 * rule.getInteger("timeout", defaultTimeoutSec));
-            ruleObj.setPoolSize(rule.getInteger("connectionPoolSize", 50));
+            ruleObj.setPoolSize(rule.getInteger(Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME, Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE));
             ruleObj.setKeepAlive(rule.getBoolean("keepAlive", true));
             ruleObj.setExpandOnBackend(rule.getBoolean("expandOnBackend", false));
             ruleObj.setStorageExpand(rule.getBoolean("storageExpand", false));

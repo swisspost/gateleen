@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.routing;
 
+import io.vertx.core.http.HttpClientOptions;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 
@@ -9,6 +10,8 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 public class Rule {
+    public static final String CONNECTION_POOL_SIZE_PROPERTY_NAME = "connectionPoolSize";
+    public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = 50;
     private String scheme;
     private String host;
     private String metricName;
@@ -182,4 +185,20 @@ public class Rule {
     public void setStorage(String storage) {
         this.storage = storage;
     }
+
+    public HttpClientOptions buildHttpClientOptions() {
+        final HttpClientOptions options = new HttpClientOptions()
+                .setDefaultHost   (getHost    ())
+                .setDefaultPort   (getPort    ())
+                .setMaxPoolSize   (getPoolSize())
+                .setConnectTimeout(getTimeout ())
+                .setKeepAlive     (isKeepAlive())
+                .setPipelining    (false        )
+        ;
+        if ("https".equals(getScheme())) {
+            options.setSsl(true).setVerifyHost(false).setTrustAll(true);
+        }
+        return options;
+    }
+
 }
