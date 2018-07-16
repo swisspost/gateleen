@@ -329,24 +329,10 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         return sharedData;
     }
 
-    private HttpClientOptions buildHttpClientOptions(Rule rule) {
-        HttpClientOptions options = new HttpClientOptions()
-                .setDefaultHost(rule.getHost())
-                .setDefaultPort(rule.getPort())
-                .setMaxPoolSize(rule.getPoolSize())
-                .setConnectTimeout(rule.getTimeout())
-                .setKeepAlive(rule.isKeepAlive())
-                .setPipelining(false);
-
-        if (rule.getScheme().equals("https")) {
-            options.setSsl(true).setVerifyHost(false).setTrustAll(true);
-        }
-        return options;
-    }
-
     private void createForwarders(List<Rule> rules, io.vertx.ext.web.Router newRouter, Set<HttpClient> newClients) {
         for (Rule rule : rules) {
-            HttpClient client = vertx.createHttpClient(buildHttpClientOptions(rule));
+            // TODO: Could we move that into the only if branch where it actually is used?
+            HttpClient client = vertx.createHttpClient( rule.buildHttpClientOptions() );
             /*
              * in case of a null - routing
              * the host field of the rule
@@ -369,6 +355,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             } else {
                 installMethodForwarder(newRouter, rule, forwarder);
             }
+            // TODO: Could we do that only in the if branch where it actually is used?
             newClients.add(client);
         }
     }
