@@ -308,6 +308,9 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
+        public @Nullable Cookie removeCookie(String s, boolean b) { throw new UnsupportedOperationException(); }
+
+        @Override
         public int cookieCount() {
             throw new UnsupportedOperationException();
         }
@@ -439,7 +442,13 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
+        public List<LanguageHeader> acceptableLanguages() { throw new UnsupportedOperationException(); }
+
+        @Override
         public Locale preferredLocale() { throw new UnsupportedOperationException(); }
+
+        @Override
+        public LanguageHeader preferredLanguage() { throw new UnsupportedOperationException(); }
 
         @Override
         public Map<String, String> pathParams() { throw new UnsupportedOperationException(); }
