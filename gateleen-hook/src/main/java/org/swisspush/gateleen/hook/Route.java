@@ -28,7 +28,6 @@ public class Route {
     /** How long to let the http clients live before closing them after a update on the forwarder */
     private static final int GRACE_PERIOD = 30000;
     private static final int CLIENT_DEFAULT_TIMEOUT_SEC = 30;
-    private static final int CLIENT_DEFAULT_POOL_SIZE = 5000;
     private static final boolean CLIENT_DEFAULT_KEEP_ALIVE = true;
     private static final boolean CLIENT_DEFAULT_EXPAND_ON_BACKEND = false;
     private static final boolean CLIENT_DEFAULT_EXPAND_IN_STORAGE = false;
@@ -97,12 +96,22 @@ public class Route {
         prepareUrl(rule, httpHook);
 
         rule.setTimeout(1000 * CLIENT_DEFAULT_TIMEOUT_SEC);
-        rule.setPoolSize(CLIENT_DEFAULT_POOL_SIZE);
         rule.setKeepAlive(CLIENT_DEFAULT_KEEP_ALIVE);
         rule.setExpandOnBackend(CLIENT_DEFAULT_EXPAND_ON_BACKEND);
         rule.setStorageExpand(CLIENT_DEFAULT_EXPAND_IN_STORAGE);
         rule.setLogExpiry(CLIENT_DEFAULT_LOG_EXPIRY);
         rule.setHeaderFunction(httpHook.getHeaderFunction());
+
+        { // Evaluate connection pool size
+            Integer connectionPoolSize = httpHook.getConnectionPoolSize();
+            if (connectionPoolSize == null) {
+                LOG.trace("No connectionPoolSize specified for route '{}' using default of {}.", rule.getRuleIdentifier(), HttpHook.CONNECTION_POOL_SIZE_DEFAULT_VALUE);
+                rule.setPoolSize(HttpHook.CONNECTION_POOL_SIZE_DEFAULT_VALUE);
+            } else {
+                LOG.trace("Using connectionPoolSize {} for route '{}'.", connectionPoolSize, rule.getRuleIdentifier());
+                rule.setPoolSize(connectionPoolSize);
+            }
+        }
 
         if (!httpHook.getMethods().isEmpty()) {
             rule.setMethods(httpHook.getMethods().toArray(new String[httpHook.getMethods().size()]));
@@ -157,10 +166,7 @@ public class Route {
         }
         // url request
         else {
-            HttpClientOptions options = new HttpClientOptions().setDefaultHost(rule.getHost()).setDefaultPort(rule.getPort()).setMaxPoolSize(5000).setKeepAlive(true).setPipelining(false);
-            if (rule.getScheme().equals("https")) {
-                options.setSsl(true).setVerifyHost(false).setTrustAll(true);
-            }
+            HttpClientOptions options = rule.buildHttpClientOptions();
             client = vertx.createHttpClient(options);
         }
     }

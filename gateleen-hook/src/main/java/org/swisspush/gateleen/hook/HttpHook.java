@@ -5,6 +5,7 @@ import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
 import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
+import org.swisspush.gateleen.routing.Rule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,8 @@ import java.util.regex.Pattern;
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 public class HttpHook {
+    public static final String CONNECTION_POOL_SIZE_PROPERTY_NAME = Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME;
+    public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE;
     private String destination;
     private List<String> methods;
     private LocalDateTime expirationTime;
@@ -28,6 +31,7 @@ public class HttpHook {
     private HookTriggerType hookTriggerType;
     private boolean listable = false;
     private boolean collection = true;
+    private Integer connectionPoolSize = null;
 
     /**
      * Creates a new hook.
@@ -236,5 +240,24 @@ public class HttpHook {
      */
     public void setCollection(boolean collection) {
         this.collection = collection;
+    }
+
+    /**
+     * @return Max count of connections made to configured destination. This may
+     *      returning null in case there's no value specified. Callers may catch
+     *      that by fall back to a default.
+     */
+    public Integer getConnectionPoolSize() {
+        return connectionPoolSize;
+    }
+
+    /**
+     * See {@link #getConnectionPoolSize()}.
+     */
+    public void setConnectionPoolSize(Integer connectionPoolSize) {
+        if (connectionPoolSize != null && connectionPoolSize < 1){
+            throw new IllegalArgumentException("Values below 1 not valid.");
+        }
+        this.connectionPoolSize = connectionPoolSize;
     }
 }
