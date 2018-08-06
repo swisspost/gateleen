@@ -15,6 +15,7 @@ public enum StatusCode {
     METHOD_NOT_ALLOWED(405, "Method Not Allowed"),
     CONFLICT(409, "Conflict"),
     INTERNAL_SERVER_ERROR(500, "Internal Server Error"),
+    BAD_GATEWAY(502, "Bad Gateway"),
     SERVICE_UNAVAILABLE(503, "Service Unavailable"),
     TIMEOUT(504,"Gateway Timeout"),
     INSUFFICIENT_STORAGE(507, "Insufficient Storage");

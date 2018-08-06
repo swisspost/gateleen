@@ -1,11 +1,16 @@
 package org.swisspush.gateleen.core.http;
 
 import io.vertx.codegen.annotations.Nullable;
-import io.vertx.core.http.*;
-import org.swisspush.gateleen.core.util.StatusCode;
-import io.vertx.core.*;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.*;
 import io.vertx.core.net.NetSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.List;
 
@@ -16,6 +21,7 @@ import java.util.List;
  */
 public class LocalHttpServerResponse extends BufferBridge implements HttpServerResponse {
 
+    private static final Logger logger = LoggerFactory.getLogger(LocalHttpServerResponse.class);
     private int statusCode;
     private String statusMessage;
     private static final String EMPTY = "";
@@ -130,6 +136,10 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
 
     public LocalHttpServerResponse(Vertx vertx, Handler<HttpClientResponse> responseHandler) {
         super(vertx);
+        // Attach most simple possible exception handler to base.
+        setExceptionHandler(thr -> {
+            logger.error("Processing of response failed.", thr);
+        });
         this.responseHandler = responseHandler;
     }
 
