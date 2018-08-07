@@ -286,15 +286,17 @@ public final class ExpansionDeltaUtil {
         try {
             obj = new JsonObject(dataAsString);
         } catch (DecodeException e) {
-            final int MAX_CHARS_TO_PRINT = 4096;
-            final String msgHead = "Failed to decode data as JSON.";
-            final String msgTail = "First " + MAX_CHARS_TO_PRINT + " characters were:\n" +
-                    // Append first n characters from malformed data
-                    dataAsString.substring(0, Math.min(MAX_CHARS_TO_PRINT, dataAsString.length())) + "\n";
-            // Log as INFO only because this situation is not our fault and we can continue
-            // our service with no problems.
-            log.info(msgHead, e);
-            throw new ResourceCollectionException(msgHead + "\n\n" + msgTail, StatusCode.BAD_GATEWAY, e);
+            final int MAX_CHARS_TO_REPORT = 65536;
+            final StringBuilder msg = new StringBuilder(4096);
+            msg.append("Failed to decode JSON");
+            if (MAX_CHARS_TO_REPORT < dataAsString.length()) {
+                // State that we shortened the printed response body.
+                msg.append(". First " + MAX_CHARS_TO_REPORT + " chars were");
+            }
+            msg.append(":\n\n");
+            // Attach only up to max allowed characters.
+            msg.append(dataAsString, 0, Math.min(MAX_CHARS_TO_REPORT, dataAsString.length())).append("\n");
+            throw new ResourceCollectionException(msg.toString(), StatusCode.BAD_GATEWAY, e);
         }
 
         JsonArray collectionEntries = obj.getJsonArray(collectionName);
