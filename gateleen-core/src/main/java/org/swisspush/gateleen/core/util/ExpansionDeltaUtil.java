@@ -1,20 +1,23 @@
 package org.swisspush.gateleen.core.util;
 
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import com.google.common.base.Joiner;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * <p>
@@ -277,7 +280,25 @@ public final class ExpansionDeltaUtil {
             throw new ResourceCollectionException("Request did not return data. Invalid usage of params " + params + " ?", StatusCode.BAD_REQUEST);
         }
 
-        JsonObject obj = new JsonObject(data.toString("UTF-8"));
+        // Parse payload
+        final String dataAsString = data.toString(UTF_8);
+        final JsonObject obj;
+        try {
+            obj = new JsonObject(dataAsString);
+        } catch (DecodeException e) {
+            final int MAX_CHARS_TO_REPORT = 65536;
+            final StringBuilder msg = new StringBuilder(4096);
+            msg.append("Failed to decode JSON");
+            if (MAX_CHARS_TO_REPORT < dataAsString.length()) {
+                // State that we shortened the printed response body.
+                msg.append(". First " + MAX_CHARS_TO_REPORT + " chars were");
+            }
+            msg.append(":\n\n");
+            // Attach only up to max allowed characters.
+            msg.append(dataAsString, 0, Math.min(MAX_CHARS_TO_REPORT, dataAsString.length())).append("\n");
+            throw new ResourceCollectionException(msg.toString(), StatusCode.BAD_GATEWAY, e);
+        }
+
         JsonArray collectionEntries = obj.getJsonArray(collectionName);
         if (collectionEntries == null) {
             throw new ResourceCollectionException("Collection with name '" + collectionName + "' not found in result of request " + targetPath, StatusCode.BAD_REQUEST);
