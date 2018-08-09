@@ -6,10 +6,7 @@ import com.google.common.collect.Lists;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.RedisClient;
@@ -235,11 +232,12 @@ public class DeltaHandler {
 
     private void handleCollectionGET(final HttpServerRequest request, final String updateId, final Logger log) {
         request.pause();
-        
+
+        final HttpMethod method = HttpMethod.GET;
         final String targetUri = ExpansionDeltaUtil.constructRequestUri(request.path(), request.params(), null, null, SlashHandling.KEEP);
         log.debug("constructed uri for request: " + targetUri);
 
-        final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
+        final HttpClientRequest cReq = httpClient.request(method, targetUri, cRes -> {
             HttpServerRequestUtil.prepareResponse(request, cRes);
 
             if(cRes.headers().contains(DELTA_HEADER)) {
@@ -290,9 +288,15 @@ public class DeltaHandler {
                             request.response().end(data);
                         }
                     } catch (ResourceCollectionException exception) {
-                        request.response().setStatusCode(exception.getStatusCode().getStatusCode());
-                        request.response().setStatusMessage(exception.getStatusCode().getStatusMessage());
-                        request.response().end(exception.getMessage());
+                        final HttpServerResponse response = request.response();
+                        log.error("Failed to handle get for collection", exception);
+                        response.setStatusCode(exception.getStatusCode().getStatusCode());
+                        response.setStatusMessage(exception.getStatusCode().getStatusMessage());
+                        response.putHeader("Content-Type", "text/plain");
+                        if (StatusCode.BAD_GATEWAY.equals(exception.getStatusCode())) {
+                            response.write("Failed to handle upstream response for \"" + method.name() + " " + targetUri + "\".\nCAUSED BY: ");
+                        }
+                        response.end(exception.getMessage());
                     }
                 });
             }
