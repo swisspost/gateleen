@@ -62,7 +62,7 @@ public class QueueProcessor {
     public void startQueueProcessing(){
         if(this.consumer == null || !this.consumer.isRegistered()) {
             log.info("about to register consumer to start queue processing");
-            this.consumer = vertx.eventBus().localConsumer(getQueueProcessorAddress(), (Handler<Message<JsonObject>>) message -> {
+            this.consumer = vertx.eventBus().consumer(getQueueProcessorAddress(), (Handler<Message<JsonObject>>) message -> {
                 HttpRequest queuedRequestTry = null;
                 JsonObject jsonRequest = new JsonObject(message.body().getString("payload"));
                 try {
