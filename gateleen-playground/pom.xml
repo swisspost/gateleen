@@ -110,11 +110,6 @@
             <groupId>org.swisspush</groupId>
             <artifactId>mod-metrics</artifactId>
         </dependency>
-
-        <dependency>
-            <groupId>com.codahale.metrics</groupId>
-            <artifactId>metrics-core</artifactId>
-        </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>

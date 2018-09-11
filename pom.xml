@@ -431,15 +431,8 @@
             <dependency>
                 <groupId>org.swisspush</groupId>
                 <artifactId>mod-metrics</artifactId>
-                <version>2.1.0</version>
+                <version>2.1.2</version>
             </dependency>
-
-            <dependency>
-                <groupId>com.codahale.metrics</groupId>
-                <artifactId>metrics-core</artifactId>
-                <version>3.0.2</version>
-            </dependency>
-
             <dependency>
                 <groupId>commons-lang</groupId>
                 <artifactId>commons-lang</artifactId>
