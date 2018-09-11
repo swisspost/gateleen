@@ -15,7 +15,10 @@ import org.swisspush.gateleen.core.util.HttpRequestHeader;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 import static org.swisspush.gateleen.core.util.LockUtil.acquireLock;
@@ -39,7 +42,12 @@ public class ReducedPropagationManager {
     public static final String PROCESSOR_ADDRESS = "gateleen.hook-expired-queues-processor";
     public static final String MANAGER_QUEUE_PREFIX = "manager_";
 
+    private static final int MAX_QUEUE_RETRY_COUNT = 50;
+
     private long processExpiredQueuesTimerId = -1;
+
+    private Map<String, Integer> failedQueueRetries = new HashMap<>();
+    private Random random = new Random();
 
     private Logger log = LoggerFactory.getLogger(ReducedPropagationManager.class);
 
@@ -157,14 +165,46 @@ public class ReducedPropagationManager {
             for (String expiredQueue : expiredQueues) {
                 log.info("About to notify a consumer to process expired queue '" + expiredQueue + "'");
                 vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {
-                    if (!OK.equals(event1.result().body().getString(STATUS))) {
-                        log.error("Failed to process expired queue. Message: " + event1.result().body().getString(MESSAGE));
+                    if(event1.failed()){
+                        log.error("Failed to process expired queue '"+expiredQueue+"'. Cause: " + event1.cause());
+                        handleFailedQueueRetry(expiredQueue);
                     } else {
-                        log.info(event1.result().body().getString(MESSAGE));
+                        failedQueueRetries.remove(expiredQueue);
+                        if (!OK.equals(event1.result().body().getString(STATUS))) {
+                            log.error("Failed to process expired queue '"+expiredQueue+"'. Message: " + event1.result().body().getString(MESSAGE));
+                        } else {
+                            log.info(event1.result().body().getString(MESSAGE));
+                        }
                     }
                 });
             }
         });
+    }
+
+    private void handleFailedQueueRetry(String expiredQueue){
+        int failedQueueRetryCount = getFailedQueueRetryCount(expiredQueue);
+        if(failedQueueRetryCount < MAX_QUEUE_RETRY_COUNT){
+            int updatedRetryCount = failedQueueRetryCount + 1;
+            failedQueueRetries.put(expiredQueue, updatedRetryCount);
+            int randomExpiry = random.nextInt(30000 - 2000) + 2000; // expiry between 2sec and 30sec
+            log.info("Retry attempt #" + updatedRetryCount + " to process expired queue '"+expiredQueue+"' again in " + randomExpiry + "ms");
+            storage.addQueue(expiredQueue, System.currentTimeMillis() + randomExpiry).setHandler(addQueueReply -> {
+                if(addQueueReply.failed()){
+                    log.error("attempt #" + updatedRetryCount + " failed to add queue '"+expiredQueue+"' again for a later retry. Cause: " + addQueueReply.cause());
+                }
+            });
+        } else {
+            log.warn("Too many retries for expired queue '"+expiredQueue+"'. Not going to retry again");
+            failedQueueRetries.remove(expiredQueue);
+        }
+    }
+
+    private int getFailedQueueRetryCount(String expiredQueue){
+        Integer retryCount = failedQueueRetries.get(expiredQueue);
+        if(retryCount == null){
+            return 0;
+        }
+        return retryCount;
     }
 
     private long getLockExpiry(long interval){
@@ -183,13 +223,14 @@ public class ReducedPropagationManager {
     }
 
     private void processExpiredQueue(String queue, Message<String> event) {
-
+        log.info("about to process expired queue '"+queue+"'");
         if(StringUtils.isEmpty(queue)){
             event.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, "Tried to process an expired queue without a valid queue name. Going to stop here"));
             return;
         }
 
         // 1. get queue request from storage
+        log.debug("get queue request for queue '"+queue+"'");
         storage.getQueueRequest(queue).setHandler(getQueuedRequestResult -> {
             if(getQueuedRequestResult.failed()){
                 event.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, getQueuedRequestResult.cause().getMessage()));
@@ -201,6 +242,7 @@ public class ReducedPropagationManager {
 
                 // 2a. deleteAllQueueItems of manager queue
                 String managerQueue = MANAGER_QUEUE_PREFIX + queue;
+                log.debug("going to delete all queue items of manager queue '"+managerQueue+"'");
                 requestQueue.deleteAllQueueItems(managerQueue, false).setHandler(managerQueueDeleteAllResult -> {
                     if(managerQueueDeleteAllResult.failed()){
                         event.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, managerQueueDeleteAllResult.cause().getMessage()));
@@ -213,17 +255,20 @@ public class ReducedPropagationManager {
                             event.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, ex.getMessage()));
                             return;
                         }
+                        log.debug("going to enqueue into manager queue '"+managerQueue+"'");
                         requestQueue.enqueueFuture(request, managerQueue).setHandler(enqueueResult -> {
                             if(enqueueResult.failed()){
                                 event.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, enqueueResult.cause().getMessage()));
                             } else {
                                 // 3. remove queue request from storage
+                                log.debug("going to remove queue request from storage of queue '"+queue+"'");
                                 storage.removeQueueRequest(queue).setHandler(removeQueueRequestResult -> {
                                     if(removeQueueRequestResult.failed()){
                                         log.error("Failed to remove request for queue '"+queue+"'. Remove it manually to remove expired data from storage");
                                     }
 
                                     // 4. deleteAllQueueItems + deleteLock of original queue
+                                    log.debug("going to unlock and delete all queue items of queue '"+queue+"'");
                                     requestQueue.deleteAllQueueItems(queue, true).setHandler(deleteAllQueueItemsResult -> {
                                         if (deleteAllQueueItemsResult.succeeded()) {
                                             event.reply(new JsonObject().put(STATUS, OK).put(MESSAGE, "Successfully deleted lock and all queue items of queue " + queue));
