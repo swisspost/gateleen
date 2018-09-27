@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.core.storage;
 
-import org.swisspush.gateleen.core.http.HttpRequest;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -9,12 +8,16 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HttpRequest;
 
 /**
  * Created by bovetl on 26.01.2015.
  */
 public class EventBusResourceStorage implements ResourceStorage {
 
+    private static final Logger log = LoggerFactory.getLogger(EventBusResourceStorage.class);
     private EventBus eventBus;
     private String address;
 
@@ -31,6 +34,11 @@ public class EventBusResourceStorage implements ResourceStorage {
         eventBus.send(address, request, new Handler<AsyncResult<Message<Buffer>>>() {
             @Override
             public void handle(AsyncResult<Message<Buffer>> message) {
+                if (message.failed()) {
+                    log.warn("Got failed msg from event bus while GET. Lets run into NPE now.", message.cause());
+                    // Would be best to stop processing now. But we don't to keep backward
+                    // compatibility (Will run into NPE anyway).
+                }
                 Buffer buffer = message.result().body();
                 int headerLength = buffer.getInt(0);
                 JsonObject header = new JsonObject(buffer.getString(4, headerLength+4));
@@ -51,6 +59,11 @@ public class EventBusResourceStorage implements ResourceStorage {
         eventBus.send(address, request, new Handler<AsyncResult<Message<Buffer>>>() {
             @Override
             public void handle(AsyncResult<Message<Buffer>> message) {
+                if (message.failed()) {
+                    log.warn("Got failed msg from event bus while PUT. Lets run into NPE now.", message.cause());
+                    // Would be best to stop processing now. But we don't to keep backward
+                    // compatibility (Will run into NPE anyway).
+                }
                 Buffer buffer = message.result().body();
                 int headerLength = buffer.getInt(0);
                 JsonObject header = new JsonObject(buffer.getString(4, headerLength+4));
@@ -72,12 +85,17 @@ public class EventBusResourceStorage implements ResourceStorage {
         eventBus.send(address, request, new Handler<AsyncResult<Message<Buffer>>>() {
             @Override
             public void handle(AsyncResult<Message<Buffer>> message) {
-                    Buffer buffer = message.result().body();
-                    int headerLength = buffer.getInt(0);
-                    JsonObject header = new JsonObject(buffer.getString(4, headerLength+4));
-                    doneHandler.handle(header.getInteger("statusCode"));
+                if (message.failed()) {
+                    log.warn("Got failed msg from event bus while DELETE. Lets run into NPE now.", message.cause());
+                    // Would be best to stop processing now. But we don't to keep backward
+                    // compatibility (Will run into NPE anyway).
                 }
-            });
+                Buffer buffer = message.result().body();
+                int headerLength = buffer.getInt(0);
+                JsonObject header = new JsonObject(buffer.getString(4, headerLength + 4));
+                doneHandler.handle(header.getInteger("statusCode"));
+            }
+        });
     }
 
 }
