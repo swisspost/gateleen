@@ -1421,8 +1421,8 @@ public class HookHandler implements LoggableResource {
     private boolean mustCreateNewRouteForHook(Route existingRoute, HttpHook newHook) {
         HttpHook oldHook = existingRoute.getHook();
         boolean same;
-        same  =                oldHook.getDestination()       .equals(newHook.getDestination       ());
-        same &=                oldHook.getMethods           ().equals(newHook.getMethods           ());
+        same  = Objects.equals(oldHook.getDestination()       ,       newHook.getDestination       ());
+        same &= Objects.equals(oldHook.getMethods           (),       newHook.getMethods           ());
         same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
         same &=                oldHook.isFullUrl            () ==     newHook.isFullUrl            () ;
         same &=                oldHook.isListable           () ==     newHook.isListable           () ;
