@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
  * hook. Each source (eg. listener) has its own Route!
  * The Route forwards a request for a source (eg. listener) to
  * the destination specified by the HttpHook.
- * 
+ *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 public class Route {
@@ -52,7 +52,7 @@ public class Route {
 
     /**
      * Creates a new instance of a Route.
-     * 
+     *
      * @param vertx vertx
      * @param storage storage
      * @param loggingResourceManager loggingResourceManager
@@ -118,6 +118,10 @@ public class Route {
         }
     }
 
+    public Rule getRule() {
+        return rule;
+    }
+
     /**
      * Checks if the given destination either is a valid url or a valid path.
      * If neither is the case, an exception is thrown.
@@ -174,7 +178,7 @@ public class Route {
     /**
      * Handles the request (consumed) and forwards it
      * to the hook specific destination.
-     * 
+     *
      * @param request - the original but already consumed request
      * @param requestBody - saved buffer with the data of body from the original request
      */
@@ -194,7 +198,7 @@ public class Route {
     /**
      * Handles the request and forwards it
      * to the hook specific destination.
-     * 
+     *
      * @param request request
      */
     public void forward(HttpServerRequest request) {

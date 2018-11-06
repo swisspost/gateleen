@@ -1396,8 +1396,44 @@ public class HookHandler implements LoggableResource {
         // Configure connection pool size
         hook.setConnectionPoolSize(jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME));
 
-        routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook));
+        boolean mustCreateNewRoute = true;
+        Route existingRoute = routeRepository.getRoutes().get(routedUrl);
+        if (existingRoute != null) {
+            mustCreateNewRoute = mustCreateNewRouteForHook(existingRoute, hook);
+        }
+        if (mustCreateNewRoute) {
+            routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook));
+        } else {
+            // see comment in #mustCreateNewRouteForHook()
+            existingRoute.getRule().setHeaderFunction(hook.getHeaderFunction());
+            existingRoute.getHook().setExpirationTime(hook.getExpirationTime().orElse(null));
+        }
         monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+    }
+
+    /**
+     * check if an existing route must be thrown away because the new Hook does not match the config of the exising Route
+     *
+     * @param existingRoute
+     * @param newHook
+     * @return true if something is different between old existing Route and new hook
+     */
+    private boolean mustCreateNewRouteForHook(Route existingRoute, HttpHook newHook) {
+        HttpHook oldHook = existingRoute.getHook();
+        boolean same;
+        same  = Objects.equals(oldHook.getDestination()       ,       newHook.getDestination       ());
+        same &= Objects.equals(oldHook.getMethods           (),       newHook.getMethods           ());
+        same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
+        same &=                oldHook.isFullUrl            () ==     newHook.isFullUrl            () ;
+        same &=                oldHook.isListable           () ==     newHook.isListable           () ;
+        same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
+        same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
+        same &= Objects.equals(oldHook.getConnectionPoolSize() ,      newHook.getConnectionPoolSize());
+
+        // queueingStrategy, filter, queueExpireAfter and hookTriggerType are not relevant for Route-Hooks
+        // Though, headerFunction WOULD BE relevant - but we can't compare them for equality
+        // so we simply set the new HeaderFunction to the exising Rule
+        return !same;
     }
 
     /**
