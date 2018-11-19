@@ -5,6 +5,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
@@ -20,6 +22,7 @@ import static org.swisspush.redisques.util.RedisquesAPI.*;
  */
 public class QueueClient implements RequestQueue {
     public static final String QUEUE_TIMESTAMP = "queueTimestamp";
+    public static final Logger log = LoggerFactory.getLogger(QueueClient.class);
     private MonitoringHandler monitoringHandler;
     private Vertx vertx;
 
@@ -205,6 +208,11 @@ public class QueueClient implements RequestQueue {
      * @param doneHandler   a handler which is called as soon as the request is written into the queue.
      */
     private void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Void> doneHandler) {
+        if( !QueueProcessor.httpMethodIsQueueable(queuedRequest.getMethod()) ){
+            log.warn( "Ignore enqueue of unsupported HTTP method in '{} {}'.", queuedRequest.getMethod() , queuedRequest.getUri());
+            if( doneHandler != null ) doneHandler.handle(null);
+            return;
+        }
         vertx.eventBus().send(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                     if (OK.equals(event.result().body().getString(STATUS))) {

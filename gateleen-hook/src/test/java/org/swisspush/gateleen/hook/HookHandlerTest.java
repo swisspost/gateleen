@@ -8,7 +8,6 @@ import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -19,24 +18,21 @@ import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
-import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
-import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.http.*;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
-import org.swisspush.gateleen.core.http.FastFailHttpServerRequest;
-import org.swisspush.gateleen.core.http.FastFailHttpServerResponse;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+import static io.vertx.core.http.HttpMethod.PUT;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.*;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
@@ -426,6 +422,73 @@ public class HookHandlerTest {
         }
     }
 
+    @Test
+    public void listenerRegistration_acceptOnlyWhitelistedHttpMethods(TestContext testContext) {
+
+        // Mock a request using all allowed request methods.
+        final int[] statusCodePtr = new int[]{ 0 };
+        final String[] statusMessagePtr = new String[]{ null };
+        final HttpServerRequest request;
+        {
+            final Buffer requestBody = toBuffer(new JsonObject("{" +
+                    "    \"methods\": [ \"OPTIONS\" , \"HEAD\" , \"GET\" , \"POST\" , \"PUT\" , \"DELETE\" , \"PATCH\" ]," +
+                    "    \"destination\": \"/an/example/destination/\"" +
+                    "}"
+            ));
+            request = createSimpleRequest(PUT, "/gateleen/example/_hooks/listeners/http/my-service/a-random-hook-8518ul4st8d6944r6k",
+                    requestBody, statusCodePtr, statusMessagePtr
+            );
+        }
+
+        // Trigger
+        hookHandler.handle( request );
+
+        { // Assert request got accepted.
+            testContext.assertEquals( 200 , statusCodePtr[0] );
+        }
+    }
+
+    @Test
+    public void listenerRegistration_rejectNotWhitelistedHttpMethods(TestContext testContext) {
+        final List<String> badMethods = Collections.unmodifiableList(new ArrayList<String>() {{
+            // Some valid HTTP methods gateleen not accepts.
+            add("CONNECT"); add("TRACE");
+            // Some methods available in postman gateleen doesn't care about.
+            add("COPY"); add("LINK"); add("UNLINK"); add("PURGE"); add("LOCK");
+            add("UNLOCK"); add("PROPFIND"); add("VIEW");
+            // Some random, hopefully invalid methods.
+            add("FOO"); add("BAR"); add("ASDF"); add("ASSRGHAWERTH");
+        }});
+
+        // Test every method.
+        for (String method : badMethods) {
+
+            // Mock a request using current method.
+            final int[] statusCodePtr = new int[]{ 0 };
+            final String[] statusMessagePtr = new String[]{ null };
+            final HttpServerRequest request;
+            {
+                final Buffer requestBody = toBuffer(new JsonObject("{" +
+                        "    \"methods\": [ \""+ method +"\" ]," +
+                        "    \"destination\": \"/an/example/destination/\"" +
+                        "}"
+                ));
+                request = createSimpleRequest(PUT, "/gateleen/example/_hooks/listeners/http/my-service/a-random-hook-8518ul4st8d6944r6k",
+                        requestBody, statusCodePtr, statusMessagePtr
+                );
+            }
+
+            // Trigger
+            hookHandler.handle( request );
+
+            { // Assert request got rejected.
+                testContext.assertTrue( statusCodePtr[0] >= 400 );
+                testContext.assertTrue( statusCodePtr[0] <= 499 );
+            }
+
+        }
+    }
+
 
     ///////////////////////////////////////////////////////////////////////////////
     // Helpers
@@ -450,6 +513,10 @@ public class HookHandlerTest {
         hookHandler.handle(putRequest);
         latch.await();
         assertEquals(400, response.getStatusCode());
+    }
+
+    private HttpServerRequest createSimpleRequest(final HttpMethod method , final String uri , final Buffer requestBody , final int[] statusCodePtr , final String[] statusMessagePtr ) {
+        return createSimpleRequest( method , uri  ,new CaseInsensitiveHeaders(), requestBody , statusCodePtr , statusMessagePtr );
     }
 
     /**
@@ -503,6 +570,12 @@ public class HookHandlerTest {
                 "    \"destination\": \"/an/example/destination/\"" +
                 "}").getBytes());
         return requestBody;
+    }
+
+    private Buffer toBuffer(JsonObject jsonObject) {
+        final Buffer buffer = new BufferImpl();
+        buffer.setBytes(0, jsonObject.toString().getBytes() );
+        return buffer;
     }
 
     class PUTRequest extends DummyHttpServerRequest {
