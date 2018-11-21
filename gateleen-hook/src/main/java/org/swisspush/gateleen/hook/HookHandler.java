@@ -1005,7 +1005,7 @@ public class HookHandler implements LoggableResource {
         log.debug("handleListenerRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
-            if(isListenerJsonInvalid(request, hookData)) {
+            if (isListenerJsonInvalid(request, hookData)) {
                 return;
             }
 
@@ -1063,7 +1063,7 @@ public class HookHandler implements LoggableResource {
     }
 
     private boolean isListenerJsonInvalid(HttpServerRequest request, Buffer hookData) {
-        if( isHookJsonInvalid(request, hookData)){
+        if (isHookJsonInvalid(request, hookData)) {
             // No further checks required. hook definitively is invalid.
             return true;
         }
@@ -1078,12 +1078,12 @@ public class HookHandler implements LoggableResource {
             return true;
         }
         final JsonArray methods = hook.getJsonArray("methods");
-        if( methods != null ){
+        if (methods != null) {
             for (Object method : methods) {
-                if( !QueueProcessor.httpMethodIsQueueable( HttpMethod.valueOf((String)method) ) ){
-                    final String msg = "Listener registration request tries to hook for forbidden '"+method+"' method.";
-                    log.error( msg );
-                    badRequest(request, "Bad Request", msg+"\n" );
+                if (!QueueProcessor.httpMethodIsQueueable(HttpMethod.valueOf((String) method))) {
+                    final String msg = "Listener registration request tries to hook for not allowed '" + method + "' method.";
+                    log.error(msg);
+                    badRequest(request, "Bad Request", msg + "\n");
                     return true;
                 }
             }

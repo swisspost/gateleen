@@ -130,7 +130,7 @@ GET http://myserver:7012/gateleen/example/
 | Property          | Required | Description                              | 
 |:----------------- | :------: | :--------------------------------------- | 
 | destination       | yes | A valid URL (relative) where the requests should be redirected to. |
-| methods           | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
+| methods           | no  | An array of HTTP methods (namely: GET, HEAD, PUT, POST, DELETE, OPTIONS and PATCH) to define for which requests the redirection should be performed. As a default all requests will be redirected. Requests with not whitelisted methods will not be redirected and get dropped instead. |
 | *expireAfter*     | no  | *DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead* |
 | queueExpireAfter  | no  | A copied and forwarded request to a listener is always putted into a queue. To ensure to have an expiration time for each request within the given listener queue, you can set a default value (in seconds) with this property. This way you can prevent a queue overflow. The property will only be used for requests, which doesn’t have a _x-queue-expire-after_ header. |
 | staticHeaders     | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |

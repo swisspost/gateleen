@@ -1,10 +1,10 @@
 package org.swisspush.gateleen.core.http;
 
-import org.swisspush.gateleen.core.json.JsonMultiMap;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.swisspush.gateleen.core.json.JsonMultiMap;
 
 import java.util.Arrays;
 
@@ -63,14 +63,14 @@ public class HttpRequest {
             throw new IllegalArgumentException("Request fields 'uri' and 'method' must be set");
         }
         switch (method) {
-        // We accept those methods:
+            // We accept those methods:
         case GET:
-        case HEAD:
+            case HEAD:
         case PUT:
         case POST:
         case DELETE:
-        case OPTIONS:
-        case PATCH:
+            case OPTIONS:
+            case PATCH:
             break;
         default:
             // This (default branch) gets reached when:

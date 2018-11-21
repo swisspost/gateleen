@@ -426,8 +426,8 @@ public class HookHandlerTest {
     public void listenerRegistration_acceptOnlyWhitelistedHttpMethods(TestContext testContext) {
 
         // Mock a request using all allowed request methods.
-        final int[] statusCodePtr = new int[]{ 0 };
-        final String[] statusMessagePtr = new String[]{ null };
+        final int[] statusCodePtr = new int[]{0};
+        final String[] statusMessagePtr = new String[]{null};
         final HttpServerRequest request;
         {
             final Buffer requestBody = toBuffer(new JsonObject("{" +
@@ -441,10 +441,10 @@ public class HookHandlerTest {
         }
 
         // Trigger
-        hookHandler.handle( request );
+        hookHandler.handle(request);
 
         { // Assert request got accepted.
-            testContext.assertEquals( 200 , statusCodePtr[0] );
+            testContext.assertEquals(200, statusCodePtr[0]);
         }
     }
 
@@ -452,24 +452,34 @@ public class HookHandlerTest {
     public void listenerRegistration_rejectNotWhitelistedHttpMethods(TestContext testContext) {
         final List<String> badMethods = Collections.unmodifiableList(new ArrayList<String>() {{
             // Some valid HTTP methods gateleen not accepts.
-            add("CONNECT"); add("TRACE");
+            add("CONNECT");
+            add("TRACE");
             // Some methods available in postman gateleen doesn't care about.
-            add("COPY"); add("LINK"); add("UNLINK"); add("PURGE"); add("LOCK");
-            add("UNLOCK"); add("PROPFIND"); add("VIEW");
+            add("COPY");
+            add("LINK");
+            add("UNLINK");
+            add("PURGE");
+            add("LOCK");
+            add("UNLOCK");
+            add("PROPFIND");
+            add("VIEW");
             // Some random, hopefully invalid methods.
-            add("FOO"); add("BAR"); add("ASDF"); add("ASSRGHAWERTH");
+            add("FOO");
+            add("BAR");
+            add("ASDF");
+            add("ASSRGHAWERTH");
         }});
 
         // Test every method.
         for (String method : badMethods) {
 
             // Mock a request using current method.
-            final int[] statusCodePtr = new int[]{ 0 };
-            final String[] statusMessagePtr = new String[]{ null };
+            final int[] statusCodePtr = new int[]{0};
+            final String[] statusMessagePtr = new String[]{null};
             final HttpServerRequest request;
             {
                 final Buffer requestBody = toBuffer(new JsonObject("{" +
-                        "    \"methods\": [ \""+ method +"\" ]," +
+                        "    \"methods\": [ \"" + method + "\" ]," +
                         "    \"destination\": \"/an/example/destination/\"" +
                         "}"
                 ));
@@ -479,13 +489,11 @@ public class HookHandlerTest {
             }
 
             // Trigger
-            hookHandler.handle( request );
+            hookHandler.handle(request);
 
             { // Assert request got rejected.
-                testContext.assertTrue( statusCodePtr[0] >= 400 );
-                testContext.assertTrue( statusCodePtr[0] <= 499 );
+                testContext.assertEquals(400, statusCodePtr[0]);
             }
-
         }
     }
 
@@ -515,8 +523,8 @@ public class HookHandlerTest {
         assertEquals(400, response.getStatusCode());
     }
 
-    private HttpServerRequest createSimpleRequest(final HttpMethod method , final String uri , final Buffer requestBody , final int[] statusCodePtr , final String[] statusMessagePtr ) {
-        return createSimpleRequest( method , uri  ,new CaseInsensitiveHeaders(), requestBody , statusCodePtr , statusMessagePtr );
+    private HttpServerRequest createSimpleRequest(final HttpMethod method, final String uri, final Buffer requestBody, final int[] statusCodePtr, final String[] statusMessagePtr) {
+        return createSimpleRequest(method, uri, new CaseInsensitiveHeaders(), requestBody, statusCodePtr, statusMessagePtr);
     }
 
     /**
@@ -574,7 +582,7 @@ public class HookHandlerTest {
 
     private Buffer toBuffer(JsonObject jsonObject) {
         final Buffer buffer = new BufferImpl();
-        buffer.setBytes(0, jsonObject.toString().getBytes() );
+        buffer.setBytes(0, jsonObject.toString().getBytes());
         return buffer;
     }
 
