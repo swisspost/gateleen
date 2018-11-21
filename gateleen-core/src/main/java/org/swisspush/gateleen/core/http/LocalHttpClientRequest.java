@@ -2,6 +2,7 @@ package org.swisspush.gateleen.core.http;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -36,6 +37,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
     private String path;
     private String query;
     private HttpServerResponse response;
+    private final HttpConnection connection;
     private Handler<RoutingContext> routingContextHandler;
     private boolean bound = false;
 
@@ -191,7 +193,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
-        public HttpConnection connection() { throw new UnsupportedOperationException(); }
+        public HttpConnection connection() { return connection; }
 
         @Override
         public HttpServerRequest endHandler(Handler<Void> handler) {
@@ -473,6 +475,111 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         this.uri = uri;
         this.routingContextHandler = routingContextHandler;
         this.response = response;
+        this.connection = new HttpConnection() {
+            @Override
+            public HttpConnection goAway(long errorCode, int lastStreamId, Buffer debugData) {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection goAwayHandler(@Nullable Handler<GoAway> handler) {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection shutdownHandler(@Nullable Handler<Void> handler) {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection shutdown() {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection shutdown(long timeoutMs) {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection closeHandler(Handler<Void> handler) {
+                return this;
+            }
+
+            @Override
+            public void close() {
+            }
+
+            @Override
+            public Http2Settings settings() {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection updateSettings(Http2Settings settings) {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection updateSettings(Http2Settings settings, Handler<AsyncResult<Void>> completionHandler) {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public Http2Settings remoteSettings() {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection remoteSettingsHandler(Handler<Http2Settings> handler) {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection ping(Buffer data, Handler<AsyncResult<Buffer>> pongHandler) {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection pingHandler(@Nullable Handler<Buffer> handler) {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public HttpConnection exceptionHandler(Handler<Throwable> handler) {
+                return this;
+            }
+
+            @Override
+            public SocketAddress remoteAddress() {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public SocketAddress localAddress() {
+                throw new UnsupportedOperationException("LocalConnection don't support this");
+            }
+
+            @Override
+            public boolean isSsl() {
+                return false;
+            }
+
+            @Override
+            public SSLSession sslSession() {
+                return null;
+            }
+
+            @Override
+            public X509Certificate[] peerCertificateChain() throws SSLPeerUnverifiedException {
+                return null;
+            }
+
+            @Override
+            public String indicatedServerName() {
+                return null;
+            }
+        };
     }
 
     @Override

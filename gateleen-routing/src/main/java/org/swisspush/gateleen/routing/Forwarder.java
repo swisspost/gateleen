@@ -364,7 +364,10 @@ public class Forwarder implements Handler<RoutingContext> {
             if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
                 req.response().headers().addAll(profileHeaderMap);
             }
-            if (!req.response().headers().contains("Content-Length")) {
+            // if we receive a chunked transfer then we also use chunked
+            // otherwise, upstream must have sent a Content-Length - or no body at all (e.g. for "304 not modified" responses)
+            if ("chunked".equals(req.response().headers().get(HttpHeaders.TRANSFER_ENCODING))) {
+//            if (!req.response().headers().contains("Content-Length")) {
                 req.response().setChunked(true);
             }
 
@@ -382,6 +385,7 @@ public class Forwarder implements Handler<RoutingContext> {
             pump.start();
 
             cRes.exceptionHandler(exception -> {
+                cRes.resume();
                 error("Problem with backend: " + exception.getMessage(), req, targetUri);
                 req.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                 req.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
@@ -391,6 +395,9 @@ public class Forwarder implements Handler<RoutingContext> {
                 } catch (IllegalStateException e) {
                     // ignore because maybe already closed
                 }
+            });
+            req.connection().closeHandler(closed -> {
+                cRes.resume();
             });
         });
     }
