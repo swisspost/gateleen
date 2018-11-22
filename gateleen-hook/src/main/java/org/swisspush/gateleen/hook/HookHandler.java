@@ -33,6 +33,7 @@ import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
+import org.swisspush.gateleen.queue.queuing.QueueProcessor;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Rule;
 
@@ -1004,7 +1005,7 @@ public class HookHandler implements LoggableResource {
         log.debug("handleListenerRegistration > " + request.uri());
 
         request.bodyHandler(hookData -> {
-            if(isHookJsonInvalid(request, hookData)) {
+            if (isListenerJsonInvalid(request, hookData)) {
                 return;
             }
 
@@ -1059,6 +1060,35 @@ public class HookHandler implements LoggableResource {
                 request.response().end();
             });
         });
+    }
+
+    private boolean isListenerJsonInvalid(HttpServerRequest request, Buffer hookData) {
+        if (isHookJsonInvalid(request, hookData)) {
+            // No further checks required. hook definitively is invalid.
+            return true;
+        }
+
+        final JsonObject hook;
+        try {
+            // Badly we need to parse that JSON one more time.
+            hook = new JsonObject(hookData);
+        } catch (DecodeException e) {
+            log.error("Cannot decode JSON", e);
+            badRequest(request, "Cannot decode JSON", e.getMessage());
+            return true;
+        }
+        final JsonArray methods = hook.getJsonArray("methods");
+        if (methods != null) {
+            for (Object method : methods) {
+                if (!QueueProcessor.httpMethodIsQueueable(HttpMethod.valueOf((String) method))) {
+                    final String msg = "Listener registration request tries to hook for not allowed '" + method + "' method.";
+                    log.error(msg);
+                    badRequest(request, "Bad Request", msg + "\n");
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public boolean isHookJsonInvalid(HttpServerRequest request, Buffer hookData) {

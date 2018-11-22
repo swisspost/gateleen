@@ -7,6 +7,7 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,6 +129,43 @@ public class QueueProcessor {
 
     private boolean isStatisticsUpdateEnabled() {
         return queueCircuitBreaker != null && queueCircuitBreaker.isStatisticsUpdateEnabled();
+    }
+
+    /**
+     * <p>Answers if specified method is valid for queueing.</p>
+     *
+     * <p>{@link QueueProcessor} will only be able to deliver requests where
+     * {@link HttpRequest#HttpRequest(JsonObject)} will NOT throw. Therefore
+     * there's no sense to enqueue a request which we cannot process in
+     * {@link #startQueueProcessing()}.</p>
+     *
+     * @return
+     *      True if method is allowed to be enqueued. Not all methods are allowed
+     *      here because we deliver only whitelisted methods.
+     */
+    public static boolean httpMethodIsQueueable(HttpMethod method) {
+        final boolean result;
+        switch (method) {
+            // We accept those methods:
+            case GET:
+            case HEAD:
+            case PUT:
+            case POST:
+            case DELETE:
+            case OPTIONS:
+            case PATCH:
+                result = true;
+                break;
+            // We do NOT accept all other methods.
+            default:
+                // This (default branch) gets reached when:
+                // 1. Someone is using a (for us) unknown http method (eg someone added a new
+                //    one in the enum since this here was written).
+                // 2. We explicitly forbid CONNECT, TRACE and OTHER.
+                //    See "https://github.com/swisspush/gateleen/issues/249".
+                result = false;
+        }
+        return result;
     }
 
     private void performCircuitBreakerActions(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType, QueueCircuitState state) {
