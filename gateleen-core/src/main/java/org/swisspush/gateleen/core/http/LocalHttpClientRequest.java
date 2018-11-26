@@ -475,6 +475,8 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         this.uri = uri;
         this.routingContextHandler = routingContextHandler;
         this.response = response;
+        // this is a mock-connection object which silently ignores (nearly) HTTP/1.1 relevant method calls and never throws exceptions
+        // we need this to be able to set appropriate exception- and close-handlers in e.g. Gateleen's Forwarder (gateleen-routing)
         this.connection = new HttpConnection() {
             @Override
             public HttpConnection goAway(long errorCode, int lastStreamId, Buffer debugData) {
