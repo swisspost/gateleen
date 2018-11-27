@@ -680,6 +680,7 @@ public class MergeHandler {
             request.response().headers().addAll(headers);
         }
 
+        request.response().setChunked(true);
         if ( freetext != null ) {
             request.response().end(freetext);
         }

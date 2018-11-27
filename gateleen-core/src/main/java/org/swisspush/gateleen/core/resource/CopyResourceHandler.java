@@ -162,7 +162,10 @@ public class CopyResourceHandler {
 
         request.response().setStatusCode(StatusCodeTranslator.translateStatusCode(response.statusCode(), request.headers()));
         request.response().setStatusMessage(response.statusMessage());
-        response.bodyHandler(buffer -> request.response().end(buffer));
+        response.bodyHandler(buffer -> {
+            request.response().putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(buffer.length()));
+            request.response().end(buffer);
+        });
     }
 
     /**
