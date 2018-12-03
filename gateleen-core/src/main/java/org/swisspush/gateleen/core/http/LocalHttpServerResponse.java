@@ -27,6 +27,7 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
     private static final String EMPTY = "";
     private Handler<HttpClientResponse> responseHandler;
     private MultiMap headers = new CaseInsensitiveHeaders();
+    private boolean chunked = false;
     private boolean bound = false;
     private boolean closed = false;
     private boolean written = false;
@@ -175,12 +176,15 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
 
     @Override
     public HttpServerResponse setChunked(boolean chunked) {
+        // Note that we don't really need to distinguish between 'chunked' of 'content-length' as we all make in-memory without network
+        // Though, as this response can go though e.g. Gateleen's Forwarder, we must help it to construct a syntactially correct http-Response
+        this.chunked = chunked;
         return this;
     }
 
     @Override
     public boolean isChunked() {
-        return false;
+        return chunked;
     }
 
     @Override
@@ -253,17 +257,25 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
 
     @Override
     public HttpServerResponse write(Buffer chunk) {
+        // emulate Vertx's HttpServerResponseImpl
+        if (!chunked && !headers.contains(HttpHeaders.CONTENT_LENGTH)) {
+            throw new IllegalStateException("You must set the Content-Length header to be the total size of the message "
+                    + "body BEFORE sending any data if you are not using HTTP chunked encoding.");
+        }
         ensureBound();
         doWrite(chunk);
         return this;
     }
 
     private void ensureBound() {
-        if(!bound) {
-            bound=true;
-            if(statusCode == 0) {
+        if (!bound) {
+            bound = true;
+            if (statusCode == 0) {
                 statusCode = 200;
                 statusMessage = "OK";
+            }
+            if (chunked) {
+                headers.set(HttpHeaders.TRANSFER_ENCODING, HttpHeaders.CHUNKED);
             }
             responseHandler.handle(clientResponse);
         }

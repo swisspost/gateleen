@@ -196,9 +196,10 @@ public class EventBusHandler implements ConfigurationResourceObserver {
                                             }
                                             requestLog.debug("Response content type is {}", responseContentType);
                                             try {
-                                                if (responseContentType.contains(APPLICATION_JSON)) {
+                                                request.response().setChunked(true);
+                                                if (responseContentType != null && responseContentType.contains(APPLICATION_JSON)) {
                                                     request.response().end(response.getJsonObject(PAYLOAD).encode());
-                                                } else if (responseContentType.contains(TEXT)) {
+                                                } else if (responseContentType != null && responseContentType.contains(TEXT)) {
                                                     request.response().end(response.getString(PAYLOAD));
                                                 } else {
                                                     request.response().end(Buffer.buffer(response.getBinary(PAYLOAD)));
@@ -215,6 +216,7 @@ public class EventBusHandler implements ConfigurationResourceObserver {
                                     } else {
                                         requestLog.debug("Timeout");
                                         request.response().setStatusCode(GATEWAY_TIMEOUT);
+                                        request.response().setChunked(true);
                                         request.response().end("Gateway Timeout");
                                     }
                                 }
