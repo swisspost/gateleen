@@ -2,6 +2,7 @@ package org.swisspush.gateleen.core.http;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -36,6 +37,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
     private String path;
     private String query;
     private HttpServerResponse response;
+    private final HttpConnection connection;
     private Handler<RoutingContext> routingContextHandler;
     private boolean bound = false;
 
@@ -191,7 +193,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
-        public HttpConnection connection() { throw new UnsupportedOperationException(); }
+        public HttpConnection connection() { return connection; }
 
         @Override
         public HttpServerRequest endHandler(Handler<Void> handler) {
@@ -473,6 +475,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         this.uri = uri;
         this.routingContextHandler = routingContextHandler;
         this.response = response;
+        this.connection = new LocalHttpConnection();
     }
 
     @Override

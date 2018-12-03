@@ -158,8 +158,10 @@ public class Delegate {
             delegateRequest.exceptionHandler(exception -> LOG.warn("Delegate request {} failed: {}", requestUri, exception.getMessage()));
             delegateRequest.setTimeout(120000); // avoids blocking other requests
 
-            if (payloadBuffer.result() != null) {
-                delegateRequest.end(payloadBuffer.result());
+            Buffer buf = payloadBuffer.result();
+            if (buf != null) {
+                delegateRequest.putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(buf.length()));
+                delegateRequest.end(buf);
             } else {
                 delegateRequest.end();
             }
