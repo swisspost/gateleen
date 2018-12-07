@@ -123,13 +123,13 @@ public class MergeHandler {
                         }
                         else {
                             // write the data back
-                            request.response().write(Buffer.buffer(dataObject.toString()));
-                            request.response().end();
+                            request.response().end(dataObject.toBuffer());
                         }
                     });
                 }
                 // something is odd
                 else {
+                    request.response().setChunked(true);
                     cRes.handler(data -> request.response().write(data));
                     cRes.endHandler(v -> request.response().end());
                 }
