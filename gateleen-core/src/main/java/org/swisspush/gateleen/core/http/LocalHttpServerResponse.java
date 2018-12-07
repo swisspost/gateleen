@@ -259,8 +259,10 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
     public HttpServerResponse write(Buffer chunk) {
         // emulate Vertx's HttpServerResponseImpl
         if (!chunked && !headers.contains(HttpHeaders.CONTENT_LENGTH)) {
-            throw new IllegalStateException("You must set the Content-Length header to be the total size of the message "
+            IllegalStateException ex = new IllegalStateException("You must set the Content-Length header to be the total size of the message "
                     + "body BEFORE sending any data if you are not using HTTP chunked encoding.");
+            logger.error("non-proper HttpServerResponse occured", ex);
+            throw ex;
         }
         ensureBound();
         doWrite(chunk);
@@ -300,18 +302,24 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
 
     @Override
     public void end(String chunk) {
-        write(chunk);
-        end();
+        end(Buffer.buffer(chunk));
     }
 
     @Override
     public void end(String chunk, String enc) {
-        write(chunk, enc);
-        end();
+        end(Buffer.buffer(chunk, enc));
     }
 
     @Override
     public void end(Buffer chunk) {
+        if (!bound) {
+            // this is a call to 'end(...)' without calling any 'write(...)' before
+            // in this case it is allows to _not_ setChunked(true) and _not_ set a content-length header.
+            // we will then set the content-length header automatically to the size of this one-and-only buffer
+            if (!chunked && !headers.contains(HttpHeaders.CONTENT_LENGTH)) {
+                headers.set(HttpHeaders.CONTENT_LENGTH, String.valueOf(chunk.length()));
+            }
+        }
         write(chunk);
         end();
     }
