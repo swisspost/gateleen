@@ -142,6 +142,9 @@ public class Validator {
             }
             try {
                 JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
+                if (jsonNode == null) {
+                    throw new IOException("no vaild JSON object: " + jsonBuffer.toString());
+                }
                 final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
                 if(valMsgs.isEmpty()) {
                     log.debug("Valid ("+type+")");

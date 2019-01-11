@@ -53,6 +53,7 @@
         <sel_chrome_driver>${session.executionRootDirectory}/gateleen-test/src/test/resources/chromedriver
         </sel_chrome_driver>
         <vertx.version>3.5.3</vertx.version>
+        <jackson.version>2.9.8</jackson.version>
     </properties>
 
     <repositories>
@@ -407,8 +408,18 @@
 
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-                <version>2.8.5</version>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson.version}</version>
             </dependency>
 
             <dependency>
