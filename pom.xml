@@ -77,14 +77,14 @@
             <name>Sonatype Nexus Snapshots</name>
             <url>${sonatypeOssDistMgmtSnapshotsUrl}</url>
         </snapshotRepository>
-   		<repository>
+        <repository>
             <id>sonatype-nexus-staging</id>
             <name>Nexus Release Repository</name>
             <url>
                 https://oss.sonatype.org/service/local/staging/deployByRepositoryId/${repositoryId}
             </url>
-   		</repository>
-   	</distributionManagement>
+        </repository>
+    </distributionManagement>
 
     <profiles>
         <profile>
