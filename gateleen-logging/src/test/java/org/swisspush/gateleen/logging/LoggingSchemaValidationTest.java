@@ -39,8 +39,7 @@ public class LoggingSchemaValidationTest {
         context.assertNotNull(validationResult);
         context.assertEquals(ValidationStatus.VALIDATED_NEGATIV, validationResult.getValidationStatus());
         context.assertEquals("Validation failed", validationResult.getMessage());
-        context.assertEquals("instance does not match any enum value", extractErrorMessage(validationResult));
-        context.assertEquals("invalid_transmission", extractErrorValue(validationResult));
+        context.assertEquals("$.payload.destinations[0].transmission: does not have a value in the enumeration [publish, send]", extractErrorMessage(validationResult));
     }
 
     private String extractErrorMessage(ValidationResult validationResult){

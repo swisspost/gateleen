@@ -76,14 +76,14 @@
             <name>Sonatype Nexus Snapshots</name>
             <url>${sonatypeOssDistMgmtSnapshotsUrl}</url>
         </snapshotRepository>
-        <repository>
+   		<repository>
             <id>sonatype-nexus-staging</id>
             <name>Nexus Release Repository</name>
             <url>
                 https://oss.sonatype.org/service/local/staging/deployByRepositoryId/${repositoryId}
             </url>
-        </repository>
-    </distributionManagement>
+   		</repository>
+   	</distributionManagement>
 
     <profiles>
         <profile>
@@ -280,9 +280,9 @@
                 <version>22.0</version>
             </dependency>
             <dependency>
-                <groupId>com.github.fge</groupId>
+                <groupId>com.networknt</groupId>
                 <artifactId>json-schema-validator</artifactId>
-                <version>2.0.1</version>
+                <version>0.1.15</version>
             </dependency>
             <dependency>
                 <groupId>commons-codec</groupId>

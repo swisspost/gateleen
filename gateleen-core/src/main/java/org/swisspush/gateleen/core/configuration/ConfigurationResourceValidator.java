@@ -1,12 +1,10 @@
 package org.swisspush.gateleen.core.configuration;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.github.fge.jsonschema.exceptions.ProcessingException;
-import com.github.fge.jsonschema.main.JsonSchema;
-import com.github.fge.jsonschema.main.JsonSchemaFactory;
-import com.github.fge.jsonschema.report.ProcessingMessage;
-import com.github.fge.jsonschema.report.ProcessingReport;
-import com.github.fge.jsonschema.util.JsonLoader;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.ValidationMessage;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -22,7 +20,7 @@ import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.core.validation.ValidationStatus;
 
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.Set;
 
 /**
  * Validates the configuration resources
@@ -32,7 +30,6 @@ import java.util.Iterator;
 class ConfigurationResourceValidator {
 
     private static final String SCHEMA_DECLARATION = "http://json-schema.org/draft-04/schema#";
-    private static JsonSchemaFactory factory = JsonSchemaFactory.byDefault();
     private Logger log = LoggerFactory.getLogger(ConfigurationResourceValidator.class);
 
     private Vertx vertx;
@@ -70,23 +67,21 @@ class ConfigurationResourceValidator {
             if(SCHEMA_DECLARATION.equals(schemaObject.getString("$schema"))) {
                 JsonSchema schema;
                 try {
-                    schema = factory.getJsonSchema(JsonLoader.fromString(resourceSchema));
-                } catch (ProcessingException | IOException e) {
+                    schema = JsonSchemaFactory.getInstance().getSchema(resourceSchema);
+                } catch (Exception e) {
                     String message = "Cannot load schema";
                     log.warn(message, e);
                     future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
                     return;
                 }
                 try {
-                    ProcessingReport report = schema.validateUnchecked(JsonLoader.fromString(configurationResource.toString()));
-                    if(report.isSuccess()) {
+                    JsonNode jsonNode = new ObjectMapper().readTree(configurationResource.toString());
+                    final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
+                    if(valMsgs.isEmpty()) {
                         log.info("validated positive");
                         future.complete(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
                     } else {
-                        JsonArray validationDetails = extractMessagesAsJson(report);
-                        for(ProcessingMessage message: report) {
-                            log.warn(message.getMessage());
-                        }
+                        JsonArray validationDetails = extractMessagesAsJson(valMsgs);
                         future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Validation failed", validationDetails));
                     }
                 } catch (IOException e) {
@@ -102,14 +97,12 @@ class ConfigurationResourceValidator {
         }, resultHandler);
     }
 
-    private JsonArray extractMessagesAsJson(ProcessingReport report){
+    private JsonArray extractMessagesAsJson(Set<ValidationMessage> valMsgs){
         JsonArray resultArray = new JsonArray();
-        Iterator it = report.iterator();
-        while (it.hasNext()) {
-            ProcessingMessage msg = (ProcessingMessage) it.next();
-            JsonNode node = msg.asJson();
-            resultArray.add(new JsonObject(node.toString()));
-        }
+        valMsgs.forEach(msg -> {
+            log.warn(msg.toString());
+            resultArray.add(JsonObject.mapFrom(msg));
+        });
         return resultArray;
     }
 }

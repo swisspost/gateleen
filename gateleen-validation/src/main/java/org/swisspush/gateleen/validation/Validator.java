@@ -1,16 +1,15 @@
 package org.swisspush.gateleen.validation;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.ValidationMessage;
+import io.vertx.core.json.Json;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StringUtils;
-import com.github.fge.jsonschema.exceptions.ProcessingException;
-import com.github.fge.jsonschema.main.JsonSchema;
-import com.github.fge.jsonschema.main.JsonSchemaFactory;
-import com.github.fge.jsonschema.report.ProcessingMessage;
-import com.github.fge.jsonschema.report.ProcessingReport;
-import com.github.fge.jsonschema.util.JsonLoader;
 import com.google.common.base.Joiner;
 import org.slf4j.Logger;
 import io.vertx.core.Handler;
@@ -22,10 +21,7 @@ import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.core.validation.ValidationStatus;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
@@ -35,7 +31,6 @@ public class Validator {
     private static final String SCHEMA_DECLARATION = "http://json-schema.org/draft-04/schema#";
     private String schemaRoot;
 	private ResourceStorage storage;
-	private static JsonSchemaFactory factory = JsonSchemaFactory.byDefault();
 
 	public Validator(ResourceStorage storage, String schemaRoot) {
         this.storage = storage;
@@ -107,21 +102,19 @@ public class Validator {
         if(SCHEMA_DECLARATION.equals(schemaObject.getString("$schema"))) {
             JsonSchema schema;
             try {
-                schema = factory.getJsonSchema(JsonLoader.fromString(schemaAsString));
-            } catch (ProcessingException | IOException e) {
+                schema = JsonSchemaFactory.getInstance().getSchema(schemaAsString);
+            } catch (Exception e) {
                 String message = "Cannot load schema";
                 log.warn(message, e);
                 return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message);
             }
             try {
-                ProcessingReport report = schema.validateUnchecked(JsonLoader.fromString(dataToBeValidated.toString()));
-                if(report.isSuccess()) {
+                JsonNode jsonNode = new ObjectMapper().readTree(dataToBeValidated.getBytes());
+                final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
+                if(valMsgs.isEmpty()) {
                     return new ValidationResult(ValidationStatus.VALIDATED_POSITIV);
                 } else {
-                    JsonArray validationDetails = extractMessagesAsJson(report);
-                    for(ProcessingMessage message: report) {
-                        log.warn(message.getMessage());
-                    }
+                    JsonArray validationDetails = extractMessagesAsJson(valMsgs, log);
                     return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Validation failed", validationDetails);
                 }
             } catch (IOException e) {
@@ -140,28 +133,29 @@ public class Validator {
         if(SCHEMA_DECLARATION.equals(data.getString("$schema"))) {
             JsonSchema schema;
             try {
-                schema = factory.getJsonSchema(JsonLoader.fromString(dataString));
-            } catch (ProcessingException | IOException e) {
+                schema = JsonSchemaFactory.getInstance().getSchema(dataString);
+            } catch (Exception e) {
                 String message = "Cannot load schema " + base;
                 log.warn(message, e);
                 callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
                 return;
             }
             try {
-                ProcessingReport report = schema.validateUnchecked(JsonLoader.fromString(jsonBuffer.toString()));
-                if(report.isSuccess()) {
+                JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
+                final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
+                if(valMsgs.isEmpty()) {
                     log.debug("Valid ("+type+")");
                     log.debug("Used schema: "+base);
                     callback.handle(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
                 } else {
-                    JsonArray validationDetails = extractMessagesAsJson(report);
-                    String messages = StringUtils.getStringOrEmpty(extractMessages(report));
+                    JsonArray validationDetails = extractMessagesAsJson(valMsgs, log);
+                    String messages = StringUtils.getStringOrEmpty(extractMessages(valMsgs));
                     StringBuilder msgBuilder = new StringBuilder();
                     msgBuilder.append("Invalid JSON for ")
                             .append(path).append(" (")
                             .append(type).append("). Messages: ")
                             .append(messages)
-                            .append(" | Report: ").append(getReportAsString(report));
+                            .append(" | Report: ").append(getReportAsString(valMsgs));
 
                     if(log.isDebugEnabled()){
                         msgBuilder.append(" | Validated JSON: ").append(jsonBuffer.toString());
@@ -170,9 +164,6 @@ public class Validator {
                     log.warn(msgBuilder.toString());
 
                     callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString(), validationDetails));
-                    for(ProcessingMessage message: report) {
-                        log.warn(message.getMessage());
-                    }
                     log.warn("Used schema: "+base);
                 }
             } catch (IOException e) {
@@ -187,26 +178,24 @@ public class Validator {
         }
     }
 
-    private static JsonArray extractMessagesAsJson(ProcessingReport report){
+    private static JsonArray extractMessagesAsJson(Set<ValidationMessage> valMsgs, Logger log){
         JsonArray resultArray = new JsonArray();
-        Iterator it = report.iterator();
-        while (it.hasNext()) {
-            ProcessingMessage msg = (ProcessingMessage) it.next();
-            JsonNode node = msg.asJson();
-            resultArray.add(new JsonObject(node.toString()));
-        }
+        valMsgs.forEach(msg -> {
+            if (log != null) {
+                log.warn(msg.toString());
+            }
+            resultArray.add(JsonObject.mapFrom(msg));
+        });
         return resultArray;
     }
 
-    private static String extractMessages(ProcessingReport report){
+    private static String extractMessages(Set<ValidationMessage> valMsgs){
         List<String> messages = new ArrayList<>();
-        Iterator it = report.iterator();
-        while (it.hasNext()) {
-            ProcessingMessage msg = (ProcessingMessage) it.next();
-            if(StringUtils.isNotEmpty(msg.getMessage())){
+        valMsgs.forEach(msg -> {
+            if (StringUtils.isNotEmpty(msg.getMessage())) {
                 messages.add(msg.getMessage());
             }
-        }
+        });
         if(messages.isEmpty()){
             return null;
         }
@@ -214,15 +203,13 @@ public class Validator {
         return joiner.join(messages);
     }
 
-    private static String getReportAsString(ProcessingReport report){
+    private static String getReportAsString(Set<ValidationMessage> valMsgs){
         List<String> messages = new ArrayList<>();
-        Iterator it = report.iterator();
-        while (it.hasNext()) {
-            ProcessingMessage msg = (ProcessingMessage) it.next();
-            if(StringUtils.isNotEmpty(msg.getMessage())){
-                messages.add(msg.asJson().toString());
+        valMsgs.forEach(msg -> {
+            if (StringUtils.isNotEmpty(msg.getMessage())) {
+                messages.add(Json.encodePrettily(msg));
             }
-        }
+        });
         if(messages.isEmpty()){
             return "no report available";
         }
