@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.hook;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.github.fge.jsonschema.util.JsonLoader;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
@@ -87,6 +87,8 @@ public class HookHandler implements LoggableResource {
 
     private final Comparator<String> collectionContentComparator;
     private static final Logger log = LoggerFactory.getLogger(HookHandler.class);
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private Vertx vertx;
     private final ResourceStorage userProfileStorage;
@@ -1093,7 +1095,7 @@ public class HookHandler implements LoggableResource {
 
     public boolean isHookJsonInvalid(HttpServerRequest request, Buffer hookData) {
         try {
-            JsonNode hook = JsonLoader.fromString(hookData.toString());
+            JsonNode hook = OBJECT_MAPPER.readTree(hookData.getBytes());
             final Set<ValidationMessage> valMsgs = jsonSchemaHook.validate(hook);
             if (valMsgs.size() > 0) {
                 badRequest(request, "Hook JSON invalid", valMsgs.toString());

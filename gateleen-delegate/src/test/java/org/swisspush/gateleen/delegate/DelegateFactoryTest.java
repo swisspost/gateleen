@@ -80,7 +80,8 @@ public class DelegateFactoryTest {
             context.assertEquals(1, ex.getValidationDetails().size());
             for(Object obj : ex.getValidationDetails()){
                 JsonObject jsonObject = (JsonObject) obj;
-                context.assertEquals("pattern", jsonObject.getJsonArray("missing").getString(0));
+                context.assertEquals("required", jsonObject.getString("type"));
+                context.assertEquals("pattern", jsonObject.getJsonArray("arguments").getString(0));
             }
         }
     }
@@ -95,7 +96,8 @@ public class DelegateFactoryTest {
             context.assertEquals(1, ex.getValidationDetails().size());
             for(Object obj : ex.getValidationDetails()){
                 JsonObject jsonObject = (JsonObject) obj;
-                context.assertEquals("foo", jsonObject.getJsonArray("unwanted").getString(0));
+                context.assertEquals("additionalProperties", jsonObject.getString("type"));
+                context.assertEquals("foo", jsonObject.getJsonArray("arguments").getString(0));
             }
         }
     }
@@ -110,7 +112,7 @@ public class DelegateFactoryTest {
             context.assertEquals(1, ex.getValidationDetails().size());
             for(Object obj : ex.getValidationDetails()){
                 JsonObject jsonObject = (JsonObject) obj;
-                context.assertEquals("oneOf", jsonObject.getString("keyword"));
+                context.assertEquals("oneOf", jsonObject.getString("type"));
             }
         }
     }
@@ -125,8 +127,9 @@ public class DelegateFactoryTest {
             context.assertEquals(1, ex.getValidationDetails().size());
             for(Object obj : ex.getValidationDetails()){
                 JsonObject jsonObject = (JsonObject) obj;
-                context.assertEquals("integer", jsonObject.getString("found"));
-                context.assertEquals("array", jsonObject.getJsonArray("expected").getString(0));
+                context.assertEquals("type", jsonObject.getString("type"));
+                context.assertEquals("integer", jsonObject.getJsonArray("arguments").getString(0));
+                context.assertEquals("array", jsonObject.getJsonArray("arguments").getString(1));
             }
         }
     }
