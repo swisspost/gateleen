@@ -25,22 +25,6 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
-
-        <!--
-            Using this instead of gateleen-validator. Reasons:
-            1. gateleen-validator is based on FGE's json-schema-validator (https://github.com/java-json-tools/json-schema-validator/)
-               This project is stale since years (last remarkable activity January 2014)
-            2. NetworkNT's validator is 10 times faster than FGE's one
-            3. gateleen-validator does no offer API to pre-parse and reuse schema instance. Schema has to be parsed for every validation run
-               This is another performance isse
-            As we now wat to halidate every set of a hook we must be more aware of performance - so we take another approach.
-            And I don't want to refactor gateleen-validator at the moment.
-        -->
-        <dependency>
-            <groupId>com.networknt</groupId>
-            <artifactId>json-schema-validator</artifactId>
-            <version>0.1.15</version>
-        </dependency>
     </dependencies>
     <build>
         <plugins>

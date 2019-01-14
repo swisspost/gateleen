@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.hook;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.github.fge.jsonschema.util.JsonLoader;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
@@ -135,7 +135,7 @@ public class HookSchemaTest {
     private JsonNode parse(String s) {
         s = s.replace('\'', '"');
         try {
-            return JsonLoader.fromString(s);
+            return new ObjectMapper().readTree(s);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }

@@ -107,8 +107,8 @@ public class ValidatorTest {
             String message = validationResult.getMessage();
             context.assertFalse(message.contains("Could not get path"), message);
             context.assertFalse(message.contains("No schema for"), message);
-            context.assertTrue(message.contains("missing required property"), message);
-            context.assertTrue(message.contains("\"missing\":[\"lastName\"]"), message);
+            context.assertTrue(message.contains("Invalid JSON for /foo/mediadata/v1/specials/03"), message);
+            context.assertTrue(message.contains("\"message\" : \"$.lastName: is missing but it is required\""), message);
             async.complete();
         });
     }

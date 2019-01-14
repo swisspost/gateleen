@@ -27,6 +27,10 @@
             <groupId>org.swisspush</groupId>
             <artifactId>redisques</artifactId>
         </dependency>
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+        </dependency>
 
         <!-- TEST dependencies -->
         <dependency>

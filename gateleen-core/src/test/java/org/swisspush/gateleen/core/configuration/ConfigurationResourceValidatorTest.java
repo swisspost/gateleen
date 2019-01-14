@@ -98,8 +98,7 @@ public class ConfigurationResourceValidatorTest extends ConfigurationResourceTes
 
             context.assertNotNull(event.result().getValidationDetails());
             JsonArray validationDetails = event.result().getValidationDetails();
-            context.assertTrue(validationDetails.getJsonObject(0).encode().contains("\"missing\":[\"lastName\"]"));
-            context.assertTrue(validationDetails.getJsonObject(0).encode().contains("\"message\":\"missing required property(ies)\""));
+            context.assertEquals("$.lastName: is missing but it is required", validationDetails.getJsonObject(0).getString("message"));
 
             async.complete();
         });
