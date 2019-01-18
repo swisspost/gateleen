@@ -2,20 +2,20 @@ package org.swisspush.gateleen.core.http;
 
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 
 /**
  * Dummy class implementing {@link HttpServerResponse}. Override this class for your needs.
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class DummyHttpServerResponse extends FastFailHttpServerResponse {
+public class DummyHttpServerResponse implements FastFailHttpServerResponse {
     private int statusCode;
     private String statusMessage;
     private String resultBuffer;
 
-    private MultiMap headers = new CaseInsensitiveHeaders();
+    private VertxHttpHeaders headers = new VertxHttpHeaders();
 
     public String getResultBuffer(){
         return resultBuffer;

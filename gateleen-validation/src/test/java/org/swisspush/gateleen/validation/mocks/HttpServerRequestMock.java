@@ -7,9 +7,9 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
+import org.swisspush.gateleen.core.http.FastFailHttpServerRequest;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
 
 /**
@@ -17,7 +17,7 @@ import javax.security.cert.X509Certificate;
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class HttpServerRequestMock implements HttpServerRequest {
+public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     private String bodyContent;
 
@@ -108,11 +108,6 @@ public class HttpServerRequestMock implements HttpServerRequest {
     @Override
     public SocketAddress localAddress() {
         return null;
-    }
-
-    @Override
-    public SSLSession sslSession() {
-        throw new UnsupportedOperationException();
     }
 
     @Override
