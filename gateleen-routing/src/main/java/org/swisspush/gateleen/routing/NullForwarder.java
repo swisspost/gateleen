@@ -4,8 +4,8 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
@@ -41,7 +41,7 @@ public class NullForwarder implements Handler<RoutingContext> {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), eventBus);
         final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
         log.debug("Not forwarding request: " + ctx.request().uri() + " with rule " + rule.getRuleIdentifier());
-        final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+        final VertxHttpHeaders requestHeaders = new VertxHttpHeaders();
         requestHeaders.addAll(ctx.request().headers());
 
         // probably useless, as the request is discarded anyway
@@ -76,7 +76,7 @@ public class NullForwarder implements Handler<RoutingContext> {
             loggingHandler.appendRequestPayload(buffer, requestHeaders);
             requestBuffer.appendBuffer(buffer);
             MultiMap responseHeaders = ctx.response().headers();
-            loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage, requestHeaders, responseHeaders != null ? responseHeaders : new CaseInsensitiveHeaders());
+            loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage, requestHeaders, responseHeaders != null ? responseHeaders : new VertxHttpHeaders());
         });
 
         ctx.response().end();

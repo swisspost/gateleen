@@ -272,7 +272,15 @@ public class Forwarder implements Handler<RoutingContext> {
 
             final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(cReqWrapped, loggingHandler, true);
             final Pump pump = Pump.pump(req, loggingWriteStream);
-            req.endHandler(v -> cReq.end());
+            if (req.isEnded()) {
+                // since Vert.x 3.6.0 it can happen that requests without body (e.g. a GET) are ended even while in paused-State
+                // Setting the endHandler would then lead to an Exception
+                // see also https://github.com/eclipse-vertx/vert.x/issues/2763
+                // so we now check if the request already is ended before installing an endHandler
+                cReq.end();
+            } else {
+                req.endHandler(v -> cReq.end());
+            }
             req.exceptionHandler(t -> {
                 RequestLoggerFactory
                         .getLogger(Forwarder.class, req)

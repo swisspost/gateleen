@@ -22,183 +22,160 @@ import javax.security.cert.X509Certificate;
  * methods you need to mock.
  *
  */
-public class FastFailHttpServerRequest implements HttpServerRequest {
+public interface FastFailHttpServerRequest extends HttpServerRequest {
 
-    private static final String msg = "Mock: Override this method to mock your expected behaviour.";
+    String msg = "Mock: Override this method to mock your expected behaviour.";
 
 
-    @Override
-    public HttpServerRequest exceptionHandler(Handler<Throwable> handler) {
+    default HttpServerRequest exceptionHandler(Handler<Throwable> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerRequest handler(Handler<Buffer> handler) {
+    default HttpServerRequest handler(Handler<Buffer> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerRequest pause() {
+    default HttpServerRequest pause() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerRequest resume() {
+    default HttpServerRequest resume() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerRequest endHandler(Handler<Void> endHandler) {
+    default HttpServerRequest fetch(long amount) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpVersion version() {
+    default HttpServerRequest endHandler(Handler<Void> endHandler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpMethod method() {
+    default HttpVersion version() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public String rawMethod() {
+    default HttpMethod method() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public boolean isSSL() {
+    default String rawMethod() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public @Nullable String scheme() {
+    default boolean isSSL() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public String uri() {
+    default @Nullable String scheme() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public @Nullable String path() {
+    default String uri() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public @Nullable String query() {
+    default @Nullable String path() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public @Nullable String host() {
+    default @Nullable String query() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse response() {
+    default @Nullable String host() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public MultiMap headers() {
+    default long bytesRead() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public @Nullable String getHeader(String headerName) {
+    default HttpServerResponse response() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public String getHeader(CharSequence headerName) {
+    default MultiMap headers() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public MultiMap params() {
+    default @Nullable String getHeader(String headerName) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public @Nullable String getParam(String paramName) {
+    default String getHeader(CharSequence headerName) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public SocketAddress remoteAddress() {
+    default MultiMap params() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public SocketAddress localAddress() {
+    default @Nullable String getParam(String paramName) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public SSLSession sslSession() {
+    default SocketAddress remoteAddress() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public X509Certificate[] peerCertificateChain() throws SSLPeerUnverifiedException {
+    default SocketAddress localAddress() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public String absoluteURI() {
+    default SSLSession sslSession() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public NetSocket netSocket() {
+    default X509Certificate[] peerCertificateChain() throws SSLPeerUnverifiedException {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerRequest setExpectMultipart(boolean expect) {
+    default String absoluteURI() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public boolean isExpectMultipart() {
+    default NetSocket netSocket() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerRequest uploadHandler(@Nullable Handler<HttpServerFileUpload> uploadHandler) {
+    default HttpServerRequest setExpectMultipart(boolean expect) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public MultiMap formAttributes() {
+    default boolean isExpectMultipart() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public @Nullable String getFormAttribute(String attributeName) {
+    default HttpServerRequest uploadHandler(@Nullable Handler<HttpServerFileUpload> uploadHandler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public ServerWebSocket upgrade() {
+    default MultiMap formAttributes() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public boolean isEnded() {
+    default @Nullable String getFormAttribute(String attributeName) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerRequest customFrameHandler(Handler<HttpFrame> handler) {
+    default ServerWebSocket upgrade() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpConnection connection() {
+    default boolean isEnded() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+    default HttpServerRequest customFrameHandler(Handler<HttpFrame> handler) {
+        throw new UnsupportedOperationException( msg );
+    }
+
+    default HttpConnection connection() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+    default HttpServerRequest streamPriorityHandler(Handler<StreamPriority> handler) {
         throw new UnsupportedOperationException( msg );
     }
 }

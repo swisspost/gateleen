@@ -2,12 +2,12 @@ package org.swisspush.gateleen.core.http;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.codegen.annotations.Nullable;
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
+import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetSocket;
@@ -16,7 +16,6 @@ import io.vertx.core.net.impl.SocketAddressImpl;
 import io.vertx.ext.auth.User;
 import io.vertx.ext.web.*;
 
-import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
 import java.util.List;
@@ -28,22 +27,22 @@ import java.util.Set;
  *
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class LocalHttpClientRequest extends BufferBridge implements HttpClientRequest  {
+public class LocalHttpClientRequest extends BufferBridge implements FastFailHttpClientRequest {
 
-    private MultiMap headers = new CaseInsensitiveHeaders();
+    private MultiMap headers = new VertxHttpHeaders();
     private MultiMap params;
     private HttpMethod method;
     private String uri;
     private String path;
     private String query;
-    private HttpServerResponse response;
+    private HttpServerResponse serverResponse;
     private final HttpConnection connection;
     private Handler<RoutingContext> routingContextHandler;
     private boolean bound = false;
 
     private static final SocketAddress address = new SocketAddressImpl(0, "localhost");
 
-    private HttpServerRequest serverRequest = new HttpServerRequest() {
+    private HttpServerRequest serverRequest = new FastFailHttpServerRequest() {
         @Override
         public HttpVersion version() {
             return HttpVersion.HTTP_1_0;
@@ -55,13 +54,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
-        public String rawMethod() { throw new UnsupportedOperationException(); }
-
-        @Override
         public boolean isSSL() { return false; }
-
-        @Override
-        public @Nullable String scheme() { throw new UnsupportedOperationException(); }
 
         @Override
         public String uri() {
@@ -85,14 +78,11 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
-        public @Nullable String host() { throw new UnsupportedOperationException(); }
-
-        @Override
         public MultiMap params() {
             if (params == null) {
                 QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri());
                 Map<String, List<String>> prms = queryStringDecoder.parameters();
-                params = new CaseInsensitiveHeaders();
+                params = new VertxHttpHeaders();
                 if (!prms.isEmpty()) {
                     for (Map.Entry<String, List<String>> entry: prms.entrySet()) {
                         params.add(entry.getKey(), entry.getValue());
@@ -138,7 +128,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
-        public X509Certificate[] peerCertificateChain() throws SSLPeerUnverifiedException {
+        public X509Certificate[] peerCertificateChain() {
             return new X509Certificate[0];
         }
 
@@ -160,36 +150,6 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         @Override
         public boolean isExpectMultipart() {
             return false;
-        }
-
-        @Override
-        public HttpServerRequest uploadHandler(Handler< HttpServerFileUpload > uploadHandler) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public MultiMap formAttributes() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public String getFormAttribute(String attributeName) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public ServerWebSocket upgrade() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean isEnded() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public HttpServerRequest customFrameHandler(Handler<HttpFrame> handler) {
-            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -221,12 +181,17 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
         @Override
         public HttpServerResponse response() {
-            return response;
+            return serverResponse;
         }
 
         @Override
         public HttpServerRequest exceptionHandler(Handler<Throwable> handler) {
             return this;
+        }
+
+        @Override
+        public boolean isEnded() {
+            return false;
         }
     };
 
@@ -238,7 +203,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
         @Override
         public HttpServerResponse response() {
-            return response;
+            return serverResponse;
         }
 
         @Override
@@ -474,7 +439,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         this.method = method;
         this.uri = uri;
         this.routingContextHandler = routingContextHandler;
-        this.response = response;
+        this.serverResponse = response;
         this.connection = new LocalHttpConnection();
     }
 
@@ -490,7 +455,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
     @Override
     public HttpMethod method() {
-        return null;
+        return method;
     }
 
     @Override
@@ -506,7 +471,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
     @Override
     public String uri() {
-        return null;
+        return uri;
     }
 
     @Override
@@ -581,11 +546,6 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
     }
 
     @Override
-    public HttpClientRequest continueHandler(Handler<Void> handler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public HttpClientRequest sendHead() {
         return this;
     }
@@ -657,31 +617,6 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
     @Override
     public HttpClientRequest drainHandler(Handler<Void> handler) {
         return this;
-    }
-
-    @Override
-    public HttpClientRequest handler(Handler<HttpClientResponse> handler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest pause() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest resume() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest endHandler(Handler<Void> endHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest setFollowRedirects(boolean followRedirects) {
-        throw new UnsupportedOperationException();
     }
 
      @Override
