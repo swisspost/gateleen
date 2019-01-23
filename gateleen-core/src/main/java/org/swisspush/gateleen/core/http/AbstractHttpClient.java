@@ -519,6 +519,11 @@ public abstract class AbstractHttpClient implements HttpClient {
     }
 
     @Override
+    public HttpClient connectionHandler(Handler<HttpConnection> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public HttpClientRequest request(HttpMethod method, RequestOptions options) {
         throw new UnsupportedOperationException();
     }

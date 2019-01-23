@@ -7,8 +7,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
@@ -61,7 +61,7 @@ public class StorageForwarder implements Handler<RoutingContext> {
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), ctx.request().uri());
         log.debug("Forwarding request: " + ctx.request().uri() + " to storage " + rule.getStorage() + " " + targetUri + " with rule " + rule.getRuleIdentifier());
-        final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+        final VertxHttpHeaders requestHeaders = new VertxHttpHeaders();
         requestHeaders.addAll(ctx.request().headers());
 
         final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(requestHeaders);// Apply the header manipulation chain
@@ -134,7 +134,7 @@ public class StorageForwarder implements Handler<RoutingContext> {
                             loggingHandler.appendResponsePayload(data, responseHeaders);
                         }
                         loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage,
-                                requestHeaders, responseHeaders != null ? responseHeaders : new CaseInsensitiveHeaders());
+                                requestHeaders, responseHeaders != null ? responseHeaders : new VertxHttpHeaders());
                     }
                 }));
     }

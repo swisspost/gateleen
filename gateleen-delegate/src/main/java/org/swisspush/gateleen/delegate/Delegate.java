@@ -2,9 +2,9 @@ package org.swisspush.gateleen.delegate;
 
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
+import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -138,7 +138,7 @@ public class Delegate {
             final String requestUri = matcher.replaceAll(requestObject.getString(URI));
 
             // headers of the delegate
-            MultiMap headers = new CaseInsensitiveHeaders();
+            VertxHttpHeaders headers = new VertxHttpHeaders();
             JsonArray headersArray = requestObject.getJsonArray(HEADERS);
             if (headersArray != null) {
                 if (LOG.isTraceEnabled()) {

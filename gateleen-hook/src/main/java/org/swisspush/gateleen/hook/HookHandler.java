@@ -6,11 +6,11 @@ import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
 import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.*;
+import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -707,7 +707,7 @@ public class HookHandler implements LoggableResource {
 
             // Create a new multimap, copied from the original request,
             // so that the original request is not overridden with the new values.
-            MultiMap queueHeaders = new CaseInsensitiveHeaders();
+            VertxHttpHeaders queueHeaders = new VertxHttpHeaders();
             queueHeaders.addAll(request.headers());
 
             // Apply the header manipulation chain - errors (unresolvable references) will just be WARN logged - but we still enqueue
@@ -815,7 +815,7 @@ public class HookHandler implements LoggableResource {
                         route.forward(request, buffer);
                     } else {
                         // mark the original request as hooked
-                        request.headers().add(HOOKED_HEADER, "true");
+                        request.headers().set(HOOKED_HEADER, "true");
 
                         /*
                          * self requests are only made for original

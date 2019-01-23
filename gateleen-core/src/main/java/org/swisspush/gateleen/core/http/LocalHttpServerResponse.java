@@ -1,38 +1,34 @@
 package org.swisspush.gateleen.core.http;
 
-import io.vertx.codegen.annotations.Nullable;
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
-import io.vertx.core.net.NetSocket;
+import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
-
-import java.util.List;
 
 /**
  * Bridges the reponses of a LocalHttpClientRequest.
  *
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class LocalHttpServerResponse extends BufferBridge implements HttpServerResponse {
+public class LocalHttpServerResponse extends BufferBridge implements FastFailHttpServerResponse {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalHttpServerResponse.class);
     private int statusCode;
     private String statusMessage;
     private static final String EMPTY = "";
     private Handler<HttpClientResponse> responseHandler;
-    private MultiMap headers = new CaseInsensitiveHeaders();
+    private MultiMap headers = new VertxHttpHeaders();
     private boolean chunked = false;
     private boolean bound = false;
     private boolean closed = false;
     private boolean written = false;
 
-    private HttpClientResponse clientResponse = new HttpClientResponse() {
+    private HttpClientResponse clientResponse = new FastFaiHttpClientResponse () {
         @Override
         public int statusCode() {
             return statusCode;
@@ -67,21 +63,6 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
         }
 
         @Override
-        public String getTrailer(String trailerName) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public MultiMap trailers() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public List<String> cookies() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
         public HttpClientResponse bodyHandler(final Handler<Buffer> bodyHandler) {
             final Buffer body = Buffer.buffer();
             handler(body::appendBuffer);
@@ -93,11 +74,6 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
         public HttpClientResponse customFrameHandler(Handler<HttpFrame> handler) { return this; }
 
         @Override
-        public NetSocket netSocket() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
         public HttpClientRequest request() {
             return null;
         }
@@ -107,9 +83,6 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
             setEndHandler(handler);
             return this;
         }
-
-        @Override
-        public HttpVersion version() { throw new UnsupportedOperationException(); }
 
         @Override
         public HttpClientResponse handler(Handler<Buffer> handler) {
@@ -221,38 +194,8 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
     }
 
     @Override
-    public MultiMap trailers() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse putTrailer(String name, String value) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse putTrailer(CharSequence name, CharSequence value) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse putTrailer(String name, Iterable<String> values) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse putTrailer(CharSequence name, Iterable<CharSequence> value) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public HttpServerResponse closeHandler(Handler<Void> handler) {
         return this;
-    }
-
-    @Override
-    public HttpServerResponse endHandler(@Nullable Handler<Void> handler) {
-        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -296,11 +239,6 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
     }
 
     @Override
-    public HttpServerResponse writeContinue() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void end(String chunk) {
         end(Buffer.buffer(chunk));
     }
@@ -332,31 +270,6 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
     }
 
     @Override
-    public HttpServerResponse sendFile(String filename) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse sendFile(String filename, long offset) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse sendFile(String filename, long offset, long length) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse sendFile(String filename, Handler<AsyncResult<Void>> resultHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse sendFile(String filename, long offset, long length, Handler<AsyncResult<Void>> resultHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void close() {
         // makes not really sense as we have no underlying TCP connection which can be closed
         // nevertheless we simulate the behaviour of a 'real' HttpServerResponse
@@ -382,54 +295,6 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
     }
 
     @Override
-    public HttpServerResponse headersEndHandler(Handler<Void> handler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse bodyEndHandler(Handler<Void> handler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public long bytesWritten() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int streamId() { throw new UnsupportedOperationException(); }
-
-    @Override
-    public HttpServerResponse push(HttpMethod method, String host, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse push(HttpMethod method, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse push(HttpMethod method, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse push(HttpMethod method, String host, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void reset(long code) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse writeCustomFrame(int type, int flags, Buffer payload) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public HttpServerResponse setWriteQueueMaxSize(int maxSize) {
         return this;
     }
@@ -437,11 +302,6 @@ public class LocalHttpServerResponse extends BufferBridge implements HttpServerR
     @Override
     public boolean writeQueueFull() {
         return false;
-    }
-
-    @Override
-    public HttpServerResponse drainHandler(Handler<Void> handler) {
-        throw new UnsupportedOperationException();
     }
 
     @Override

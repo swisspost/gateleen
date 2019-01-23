@@ -11,7 +11,7 @@ import javax.security.cert.X509Certificate;
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class DummyHttpServerRequest extends FastFailHttpServerRequest {
+public class DummyHttpServerRequest implements FastFailHttpServerRequest {
 
     @Override public boolean isSSL() { return false; }
 

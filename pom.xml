@@ -6,7 +6,7 @@
 
     <groupId>org.swisspush.gateleen</groupId>
     <artifactId>gateleen</artifactId>
-    <version>1.1.40-SNAPSHOT</version>
+    <version>1.1.41-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>gateleen</name>
     <description>Middleware library based on Vert.x to build advanced JSON/REST communication servers</description>
@@ -52,7 +52,7 @@
         <targetPort>8989</targetPort>
         <sel_chrome_driver>${session.executionRootDirectory}/gateleen-test/src/test/resources/chromedriver
         </sel_chrome_driver>
-        <vertx.version>3.5.3</vertx.version>
+        <vertx.version>3.6.2</vertx.version>
         <jackson.version>2.9.8</jackson.version>
     </properties>
 

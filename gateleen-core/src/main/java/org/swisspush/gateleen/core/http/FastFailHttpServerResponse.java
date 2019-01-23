@@ -19,237 +19,191 @@ import io.vertx.core.http.HttpServerResponse;
  * methods you need to mock.
  *
  */
-public class FastFailHttpServerResponse implements HttpServerResponse {
+public interface FastFailHttpServerResponse extends HttpServerResponse {
 
-    private static final String msg = "Do override this method to mock expected behaviour.";
+    String msg = "Do override this method to mock expected behaviour.";
 
-    @Override
-    public HttpServerResponse exceptionHandler(Handler<Throwable> handler) {
+    default HttpServerResponse exceptionHandler(Handler<Throwable> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse write(Buffer data) {
+    default HttpServerResponse write(Buffer data) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse setWriteQueueMaxSize(int maxSize) {
+    default HttpServerResponse setWriteQueueMaxSize(int maxSize) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public boolean writeQueueFull() {
+    default boolean writeQueueFull() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse drainHandler(Handler<Void> handler) {
+    default HttpServerResponse drainHandler(Handler<Void> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public int getStatusCode() {
+    default int getStatusCode() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse setStatusCode(int statusCode) {
+    default HttpServerResponse setStatusCode(int statusCode) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public String getStatusMessage() {
+    default String getStatusMessage() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse setStatusMessage(String statusMessage) {
+    default HttpServerResponse setStatusMessage(String statusMessage) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse setChunked(boolean chunked) {
+    default HttpServerResponse setChunked(boolean chunked) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public boolean isChunked() {
+    default boolean isChunked() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public MultiMap headers() {
+    default MultiMap headers() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse putHeader(String name, String value) {
+    default HttpServerResponse putHeader(String name, String value) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse putHeader(CharSequence name, CharSequence value) {
+    default HttpServerResponse putHeader(CharSequence name, CharSequence value) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse putHeader(String name, Iterable<String> values) {
+    default HttpServerResponse putHeader(String name, Iterable<String> values) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse putHeader(CharSequence name, Iterable<CharSequence> values) {
+    default HttpServerResponse putHeader(CharSequence name, Iterable<CharSequence> values) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public MultiMap trailers() {
+    default MultiMap trailers() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse putTrailer(String name, String value) {
+    default HttpServerResponse putTrailer(String name, String value) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse putTrailer(CharSequence name, CharSequence value) {
+    default HttpServerResponse putTrailer(CharSequence name, CharSequence value) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse putTrailer(String name, Iterable<String> values) {
+    default HttpServerResponse putTrailer(String name, Iterable<String> values) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse putTrailer(CharSequence name, Iterable<CharSequence> value) {
+    default HttpServerResponse putTrailer(CharSequence name, Iterable<CharSequence> value) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse closeHandler(@Nullable Handler<Void> handler) {
+    default HttpServerResponse closeHandler(@Nullable Handler<Void> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse endHandler(@Nullable Handler<Void> handler) {
+    default HttpServerResponse endHandler(@Nullable Handler<Void> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse write(String chunk, String enc) {
+    default HttpServerResponse write(String chunk, String enc) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse write(String chunk) {
+    default HttpServerResponse write(String chunk) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse writeContinue() {
+    default HttpServerResponse writeContinue() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public void end(String chunk) {
+    default void end(String chunk) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public void end(String chunk, String enc) {
+    default void end(String chunk, String enc) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public void end(Buffer chunk) {
+    default void end(Buffer chunk) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public void end() {
+    default void end() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse sendFile(String filename, long offset, long length) {
+    default HttpServerResponse sendFile(String filename, long offset, long length) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse sendFile(String filename, long offset, long length, Handler<AsyncResult<Void>> resultHandler) {
+    default HttpServerResponse sendFile(String filename, long offset, long length, Handler<AsyncResult<Void>> resultHandler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public void close() {
+    default void close() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public boolean ended() {
+    default boolean ended() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public boolean closed() {
+    default boolean closed() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public boolean headWritten() {
+    default boolean headWritten() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse headersEndHandler(@Nullable Handler<Void> handler) {
+    default HttpServerResponse headersEndHandler(@Nullable Handler<Void> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse bodyEndHandler(@Nullable Handler<Void> handler) {
+    default HttpServerResponse bodyEndHandler(@Nullable Handler<Void> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public long bytesWritten() {
+    default long bytesWritten() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public int streamId() {
+    default int streamId() {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse push(HttpMethod method, String host, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
+    default HttpServerResponse push(HttpMethod method, String host, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse push(HttpMethod method, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
+    default HttpServerResponse push(HttpMethod method, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse push(HttpMethod method, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
+    default HttpServerResponse push(HttpMethod method, String path, Handler<AsyncResult<HttpServerResponse>> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse push(HttpMethod method, String host, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
+    default HttpServerResponse push(HttpMethod method, String host, String path, MultiMap headers, Handler<AsyncResult<HttpServerResponse>> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public void reset(long code) {
+    default void reset(long code) {
         throw new UnsupportedOperationException( msg );
     }
 
-    @Override
-    public HttpServerResponse writeCustomFrame(int type, int flags, Buffer payload) {
+    default HttpServerResponse writeCustomFrame(int type, int flags, Buffer payload) {
         throw new UnsupportedOperationException( msg );
     }
 }
