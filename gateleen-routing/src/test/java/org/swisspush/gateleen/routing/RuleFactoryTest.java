@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.routing;
 
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.net.ProxyType;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -370,5 +371,84 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testInvalidProxyOptions() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Validation failed");
+
+        String rules = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"proxyOptions\": {\n" +
+                "      \"type\": \"not_supported_type\",\n" +
+                "      \"host\": \"dd\",\n" +
+                "      \"port\": 123\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testValidProxyOptions(TestContext context) throws ValidationException {
+
+        String rules = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"proxyOptions\": {\n" +
+                "      \"type\": \"HTTP\",\n" +
+                "      \"host\": \"someHost\",\n" +
+                "      \"port\": 1234\n" +
+                "    }\n" +
+                "  },\n" +
+                "  \"/gateleen/rule/2\": {\n" +
+                "    \"description\": \"Test rule 2\",\n" +
+                "    \"proxyOptions\": {\n" +
+                "      \"type\": \"SOCKS5\",\n" +
+                "      \"host\": \"someHost\",\n" +
+                "      \"port\": 1234,\n" +
+                "      \"username\": \"johndoe\",\n" +
+                "      \"password\": \"secret\"\n" +
+                "    }\n" +
+                "  },\n" +
+                "  \"/gateleen/rule/3\": {\n" +
+                "    \"description\": \"Test rule 3\",\n" +
+                "    \"proxyOptions\": {}\n" +
+                "  },\n" +
+                "  \"/gateleen/rule/4\": {\n" +
+                "    \"description\": \"Test rule 4 (without proxyOptions)\"\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rulesList = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+
+        context.assertEquals(4, rulesList.size());
+
+        context.assertNotNull(rulesList.get(0).getProxyOptions());
+        context.assertEquals(ProxyType.HTTP, rulesList.get(0).getProxyOptions().getType());
+        context.assertEquals("someHost", rulesList.get(0).getProxyOptions().getHost());
+        context.assertEquals(1234, rulesList.get(0).getProxyOptions().getPort());
+        context.assertNull(rulesList.get(0).getProxyOptions().getUsername());
+        context.assertNull(rulesList.get(0).getProxyOptions().getPassword());
+
+        context.assertNotNull(rulesList.get(1).getProxyOptions());
+        context.assertEquals(ProxyType.SOCKS5, rulesList.get(1).getProxyOptions().getType());
+        context.assertEquals("someHost", rulesList.get(1).getProxyOptions().getHost());
+        context.assertEquals(1234, rulesList.get(1).getProxyOptions().getPort());
+        context.assertEquals("johndoe", rulesList.get(1).getProxyOptions().getUsername());
+        context.assertEquals("secret", rulesList.get(1).getProxyOptions().getPassword());
+
+        // default proxy options
+        context.assertNotNull(rulesList.get(2).getProxyOptions());
+        context.assertEquals(ProxyType.HTTP, rulesList.get(2).getProxyOptions().getType());
+        context.assertEquals("localhost", rulesList.get(2).getProxyOptions().getHost());
+        context.assertEquals(3128, rulesList.get(2).getProxyOptions().getPort());
+        context.assertNull(rulesList.get(2).getProxyOptions().getUsername());
+        context.assertNull(rulesList.get(2).getProxyOptions().getPassword());
+
+        context.assertNull(rulesList.get(3).getProxyOptions());
     }
 }

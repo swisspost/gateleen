@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.hook;
 
+import io.vertx.core.net.ProxyOptions;
 import org.joda.time.LocalDateTime;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
@@ -32,6 +33,7 @@ public class HttpHook {
     private boolean listable = false;
     private boolean collection = true;
     private Integer connectionPoolSize = null;
+    private ProxyOptions proxyOptions = null;
 
     /**
      * Creates a new hook.
@@ -260,4 +262,18 @@ public class HttpHook {
         }
         this.connectionPoolSize = connectionPoolSize;
     }
+
+    /**
+     * Get custom proxy options for this hook
+     *
+     * @return Custom proxy options or <code>null</code>
+     */
+    public ProxyOptions getProxyOptions() { return proxyOptions; }
+
+    /**
+     * Set custom proxy options for this hook
+     *
+     * @param proxyOptions the custom proxy options to set
+     */
+    public void setProxyOptions(ProxyOptions proxyOptions) { this.proxyOptions = proxyOptions; }
 }

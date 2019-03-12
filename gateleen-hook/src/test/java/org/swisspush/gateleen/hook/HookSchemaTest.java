@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Set;
 
 public class HookSchemaTest {
@@ -36,12 +37,26 @@ public class HookSchemaTest {
                 "  'fullUrl':true," +
                 "  'queueingStrategy':{'type':'reducedPropagation','intervalMs':1000}," +
                 "  'collection':false," +
-                "  'listable':true" +
+                "  'listable':true," +
+                "  'proxyOptions':{'type':'HTTP', 'host':'someHost', 'port':1234, 'username':'johndoe', 'password':'secret'}" +
                 "}");
 
         Set<ValidationMessage> valMsgs = schema.validate(json);
         dumpValidationMessages(valMsgs);
         Assert.assertEquals("No validation messages", 0, valMsgs.size());
+    }
+
+    @Test
+    public void invalidProxyOptions() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'proxyOptions':{'type':'unknown', 'host':'someHost', 'port':1234, 'username':'johndoe', 'password':'secret'}" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("One validation message", 1, valMsgs.size());
+        Assert.assertEquals("$.proxyOptions.type: does not have a value in the enumeration [HTTP, SOCKS4, SOCKS5]", new ArrayList<>(valMsgs).get(0).getMessage());
     }
 
     @Test

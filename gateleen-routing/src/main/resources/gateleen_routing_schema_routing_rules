@@ -41,6 +41,10 @@
 					"description": "To authenticate against the backend.",
 					"$ref": "#/definitions/BasicAuth"
 				},
+				"proxyOptions": {
+					"description": "Custom proxy options for this rule (forwarding)",
+					"$ref": "#/definitions/ProxyOptions"
+				},
 				"profile": {
 					"description": "The user profile fields to forward to backend as `X-User-*` HTTP header. Has o effect for local/storage forwarding.",
 					"type": "array",
@@ -130,6 +134,32 @@
 				"username",
 				"password"
 			],
+			"additionalProperties": false
+		},
+		"ProxyOptions": {
+			"properties": {
+				"type": {
+                    "type": "string",
+                    "enum": [
+                        "HTTP",
+                        "SOCKS4",
+                        "SOCKS5"
+                    ]
+				},
+				"host": {
+					"type": "string"
+				},
+				"port": {
+					"type": "integer",
+					"minimum": 0
+				},
+				"username": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				}
+			},
 			"additionalProperties": false
 		},
 		"HeaderFunction": {

@@ -85,6 +85,10 @@
         "listable": {
             "description": "only used for route hook",
             "type": "boolean"
+        },
+        "proxyOptions": {
+            "description": "Custom proxy options for this rule (forwarding)",
+            "$ref": "#/definitions/ProxyOptions"
         }
     },
     "additionalProperties": false,
@@ -131,6 +135,32 @@
                 "header",
                 "value"
             ]
-        }
+        },
+		"ProxyOptions": {
+			"properties": {
+				"type": {
+                    "type": "string",
+                    "enum": [
+                        "HTTP",
+                        "SOCKS4",
+                        "SOCKS5"
+                    ]
+				},
+				"host": {
+					"type": "string"
+				},
+				"port": {
+					"type": "integer",
+					"minimum": 0
+				},
+				"username": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				}
+			},
+			"additionalProperties": false
+		}
     }
 }

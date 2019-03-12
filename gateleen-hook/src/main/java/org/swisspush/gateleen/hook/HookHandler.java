@@ -14,6 +14,7 @@ import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.ProxyOptions;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1257,6 +1258,8 @@ public class HookHandler implements LoggableResource {
 
         extractAndAddStaticHeadersToHook(jsonHook, hook);
 
+        extractAndAddProxyOptionsToHook(jsonHook, hook);
+
         { // Set expiration time
             final String expirationTimeExpression = storageObject.getString(EXPIRATION_TIME);
 
@@ -1306,10 +1309,27 @@ public class HookHandler implements LoggableResource {
     }
 
     /**
+     * Extract proxyOptions attribute from jsonHook and create a
+     * appropriate property in the hook object.
+     *
+     * This is the same concept as in gateleen-routing:
+     * {@link org.swisspush.gateleen.routing.RuleFactory#setProxyOptions(Rule, JsonObject)}}
+     *
+     * @param jsonHook the json hook
+     * @param hook the hook object
+     */
+    private void extractAndAddProxyOptionsToHook(final JsonObject jsonHook, final HttpHook hook) {
+        JsonObject proxyOptions = jsonHook.getJsonObject("proxyOptions");
+        if(proxyOptions != null){
+            hook.setProxyOptions(new ProxyOptions(proxyOptions));
+        }
+    }
+
+    /**
      * Extract staticHeaders attribute from jsonHook and create a
      * appropriate list in the hook object.
      *
-     * This is the same concept as in gateleen-rooting:
+     * This is the same concept as in gateleen-routing:
      * {@link org.swisspush.gateleen.routing.RuleFactory#setStaticHeaders(Rule, JsonObject)}}
      *
      * @param jsonHook the json hook

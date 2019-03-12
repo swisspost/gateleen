@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.routing;
 
 import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.net.ProxyOptions;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 
@@ -30,6 +31,7 @@ public class Rule {
     private String[] methods;
     private String[] profile;
     private HeaderFunction headerFunction = HeaderFunctions.DO_NOTHING; // default avoids NPE and if-not-null checks
+    private ProxyOptions proxyOptions;
 
     private String storage;
 
@@ -182,9 +184,11 @@ public class Rule {
         return storage;
     }
 
-    public void setStorage(String storage) {
-        this.storage = storage;
-    }
+    public void setStorage(String storage) { this.storage = storage; }
+
+    public ProxyOptions getProxyOptions() { return proxyOptions; }
+
+    public void setProxyOptions(ProxyOptions proxyOptions) { this.proxyOptions = proxyOptions; }
 
     public HttpClientOptions buildHttpClientOptions() {
         final HttpClientOptions options = new HttpClientOptions()
@@ -198,6 +202,11 @@ public class Rule {
         if ("https".equals(getScheme())) {
             options.setSsl(true).setVerifyHost(false).setTrustAll(true);
         }
+
+        if(getProxyOptions() != null){
+            options.setProxyOptions(getProxyOptions());
+        }
+
         return options;
     }
 
