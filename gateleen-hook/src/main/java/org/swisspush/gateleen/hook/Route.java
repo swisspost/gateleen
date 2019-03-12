@@ -101,6 +101,7 @@ public class Route {
         rule.setStorageExpand(CLIENT_DEFAULT_EXPAND_IN_STORAGE);
         rule.setLogExpiry(CLIENT_DEFAULT_LOG_EXPIRY);
         rule.setHeaderFunction(httpHook.getHeaderFunction());
+        rule.setProxyOptions(httpHook.getProxyOptions());
 
         { // Evaluate connection pool size
             Integer connectionPoolSize = httpHook.getConnectionPoolSize();

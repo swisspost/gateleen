@@ -3,6 +3,7 @@ package org.swisspush.gateleen.routing;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.ProxyOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HeaderFunction;
@@ -109,6 +110,7 @@ public class RuleFactory {
             setStorage(ruleObj, rule, path);
             setTranslateStatus(ruleObj, rule);
             setStaticHeaders(ruleObj, rule);
+            setProxyOptions(ruleObj, rule);
 
             result.add(ruleObj);
         }
@@ -133,6 +135,13 @@ public class RuleFactory {
             for (String pattern : translateStatus.fieldNames()) {
                 ruleObj.getTranslateStatus().put(Pattern.compile(pattern), translateStatus.getInteger(pattern));
             }
+        }
+    }
+
+    private void setProxyOptions(Rule ruleObj, JsonObject rule) {
+        JsonObject proxyOptions = rule.getJsonObject("proxyOptions");
+        if(proxyOptions != null){
+            ruleObj.setProxyOptions(new ProxyOptions(proxyOptions));
         }
     }
 
