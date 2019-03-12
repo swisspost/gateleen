@@ -139,19 +139,20 @@
 		"ProxyOptions": {
 			"properties": {
 				"type": {
-                    "type": "string",
-                    "enum": [
-                        "HTTP",
-                        "SOCKS4",
-                        "SOCKS5"
-                    ]
+					"type": "string",
+					"enum": [
+						"HTTP",
+						"SOCKS4",
+						"SOCKS5"
+					]
 				},
 				"host": {
 					"type": "string"
 				},
 				"port": {
 					"type": "integer",
-					"minimum": 0
+					"minimum": 0,
+					"maximum": 65535
 				},
 				"username": {
 					"type": "string"
@@ -160,6 +161,10 @@
 					"type": "string"
 				}
 			},
+			"required": [
+				"host",
+				"port"
+			],
 			"additionalProperties": false
 		},
 		"HeaderFunction": {

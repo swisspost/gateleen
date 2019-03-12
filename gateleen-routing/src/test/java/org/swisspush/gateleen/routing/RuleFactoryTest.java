@@ -393,6 +393,23 @@ public class RuleFactoryTest {
     }
 
     @Test
+    public void testInvalidProxyOptionsSinceHostIsMissing() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Validation failed");
+
+        String rules = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"proxyOptions\": {\n" +
+                "      \"port\": 123\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
     public void testValidProxyOptions(TestContext context) throws ValidationException {
 
         String rules = "{\n" +
@@ -416,7 +433,10 @@ public class RuleFactoryTest {
                 "  },\n" +
                 "  \"/gateleen/rule/3\": {\n" +
                 "    \"description\": \"Test rule 3\",\n" +
-                "    \"proxyOptions\": {}\n" +
+                "    \"proxyOptions\": {\n" +
+                "      \"host\": \"someOtherHost\",\n" +
+                "      \"port\": 5678\n" +
+                "    }\n" +
                 "  },\n" +
                 "  \"/gateleen/rule/4\": {\n" +
                 "    \"description\": \"Test rule 4 (without proxyOptions)\"\n" +
@@ -441,11 +461,10 @@ public class RuleFactoryTest {
         context.assertEquals("johndoe", rulesList.get(1).getProxyOptions().getUsername());
         context.assertEquals("secret", rulesList.get(1).getProxyOptions().getPassword());
 
-        // default proxy options
         context.assertNotNull(rulesList.get(2).getProxyOptions());
-        context.assertEquals(ProxyType.HTTP, rulesList.get(2).getProxyOptions().getType());
-        context.assertEquals("localhost", rulesList.get(2).getProxyOptions().getHost());
-        context.assertEquals(3128, rulesList.get(2).getProxyOptions().getPort());
+        context.assertEquals(ProxyType.HTTP, rulesList.get(2).getProxyOptions().getType()); // this is the default value
+        context.assertEquals("someOtherHost", rulesList.get(2).getProxyOptions().getHost());
+        context.assertEquals(5678, rulesList.get(2).getProxyOptions().getPort());
         context.assertNull(rulesList.get(2).getProxyOptions().getUsername());
         context.assertNull(rulesList.get(2).getProxyOptions().getPassword());
 

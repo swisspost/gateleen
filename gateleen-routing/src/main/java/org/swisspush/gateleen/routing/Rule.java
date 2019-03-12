@@ -184,11 +184,17 @@ public class Rule {
         return storage;
     }
 
-    public void setStorage(String storage) { this.storage = storage; }
+    public void setStorage(String storage) {
+        this.storage = storage;
+    }
 
-    public ProxyOptions getProxyOptions() { return proxyOptions; }
+    public ProxyOptions getProxyOptions() {
+        return proxyOptions;
+    }
 
-    public void setProxyOptions(ProxyOptions proxyOptions) { this.proxyOptions = proxyOptions; }
+    public void setProxyOptions(ProxyOptions proxyOptions) {
+        this.proxyOptions = proxyOptions;
+    }
 
     public HttpClientOptions buildHttpClientOptions() {
         final HttpClientOptions options = new HttpClientOptions()
@@ -203,7 +209,7 @@ public class Rule {
             options.setSsl(true).setVerifyHost(false).setTrustAll(true);
         }
 
-        if(getProxyOptions() != null){
+        if (getProxyOptions() != null) {
             options.setProxyOptions(getProxyOptions());
         }
 

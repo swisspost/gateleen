@@ -1314,13 +1314,10 @@ public class HookHandler implements LoggableResource {
      *
      * This is the same concept as in gateleen-routing:
      * {@link org.swisspush.gateleen.routing.RuleFactory#setProxyOptions(Rule, JsonObject)}}
-     *
-     * @param jsonHook the json hook
-     * @param hook the hook object
      */
     private void extractAndAddProxyOptionsToHook(final JsonObject jsonHook, final HttpHook hook) {
         JsonObject proxyOptions = jsonHook.getJsonObject("proxyOptions");
-        if(proxyOptions != null){
+        if (proxyOptions != null) {
             hook.setProxyOptions(new ProxyOptions(proxyOptions));
         }
     }
@@ -1331,9 +1328,6 @@ public class HookHandler implements LoggableResource {
      *
      * This is the same concept as in gateleen-routing:
      * {@link org.swisspush.gateleen.routing.RuleFactory#setStaticHeaders(Rule, JsonObject)}}
-     *
-     * @param jsonHook the json hook
-     * @param hook the hook object
      */
     private void extractAndAddStaticHeadersToHook(final JsonObject jsonHook, final HttpHook hook) {
         final JsonArray headers = jsonHook.getJsonArray("headers");

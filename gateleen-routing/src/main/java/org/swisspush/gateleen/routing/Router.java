@@ -342,7 +342,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             } else if (rule.getScheme().equals("local")) {
                 forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
             } else {
-                HttpClient client = vertx.createHttpClient( rule.buildHttpClientOptions() );
+                HttpClient client = vertx.createHttpClient(rule.buildHttpClientOptions());
                 forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
                 newClients.add(client);
             }
