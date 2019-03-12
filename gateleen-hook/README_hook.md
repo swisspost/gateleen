@@ -7,7 +7,10 @@ Two types of this hooks exists:
 * listeners
 
 ## General configuration
-During the instantiation of the [HookHandler](src/main/java/org/swisspush/gateleen/hook/HookHandler.java) you have the possibility to specify the collection where your hooks will be saved in the storage. To do so, you have to set the parameter _hookRootUri_ in the constructor. 
+During the instantiation of the [HookHandler](src/main/java/org/swisspush/gateleen/hook/HookHandler.java) you have the possibility to specify the collection where your hooks will be saved in the storage. To do so, you have to set the parameter _hookRootUri_ in the constructor.
+
+## Schema validation
+Adding hooks requires a validation against a schema to be positive. Check the schema [gateleen_hooking_schema_hook](src/main/resources/gateleen_hooking_schema_hook) 
 
 ## Route - Hooks
 > <font color="orange"><b>Attention:</b> </font>A route directs all communication from a specific resource to another destination. Per resource may only exist one route a time.
