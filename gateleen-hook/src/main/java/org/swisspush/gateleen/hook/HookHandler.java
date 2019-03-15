@@ -1257,7 +1257,6 @@ public class HookHandler implements LoggableResource {
         }
 
         extractAndAddStaticHeadersToHook(jsonHook, hook);
-
         extractAndAddProxyOptionsToHook(jsonHook, hook);
 
         { // Set expiration time
@@ -1416,6 +1415,7 @@ public class HookHandler implements LoggableResource {
         }
 
         extractAndAddStaticHeadersToHook(jsonHook, hook);
+        extractAndAddProxyOptionsToHook(jsonHook, hook);
 
         /*
          * Despite the fact, that every hook
