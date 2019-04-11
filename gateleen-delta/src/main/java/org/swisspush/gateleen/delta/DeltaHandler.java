@@ -191,10 +191,10 @@ public class DeltaHandler {
 	    }
     }
     
-    private Integer extractNumberDeltaParameter(String deltaStringId, HttpServerRequest request, Logger log) {
+    private Long extractNumberDeltaParameter(String deltaStringId, HttpServerRequest request, Logger log) {
         String updateIdValue = null;
         try {
-            return Integer.parseInt(deltaStringId);
+            return Long.parseLong(deltaStringId);
         } catch (Exception exception) {
             respondInvalidDeltaParameter(deltaStringId, request, log);
             return null;
@@ -208,13 +208,13 @@ public class DeltaHandler {
         log.error("Bad Request: " + request.response().getStatusMessage() + " '" + deltaStringId + "'");
     }
 
-    private DeltaResourcesContainer getDeltaResourceNames(List<String> subResourceNames, JsonArray storageUpdateIds, int updateId) {
+    private DeltaResourcesContainer getDeltaResourceNames(List<String> subResourceNames, JsonArray storageUpdateIds, long updateId) {
         List<String> deltaResourceNames = new ArrayList<>();
-        int maxUpdateId = 0;
+        long maxUpdateId = 0;
 
         for (int i = 0; i < storageUpdateIds.size(); i++) {
             try {
-                Integer storedUpdateId = Integer.parseInt(storageUpdateIds.getString(i));
+                Long storedUpdateId = Long.parseLong(storageUpdateIds.getString(i));
                 if (storedUpdateId > updateId) {
                     deltaResourceNames.add(subResourceNames.get(i));
                 }
@@ -254,7 +254,7 @@ public class DeltaHandler {
                         final List<String> subResourceNames = dataContainer.getResourceNames();
                         final List<String> deltaResourceKeys = buildDeltaResourceKeys(request.path(), subResourceNames);
 
-                        final int updateIdNumber = extractNumberDeltaParameter(updateId, request, log);
+                        final long updateIdNumber = extractNumberDeltaParameter(updateId, request, log);
 
                         if(log.isTraceEnabled())  {
                             log.trace("DeltaHandler: deltaResourceKeys for targetUri ("+targetUri+"): " + deltaResourceKeys.toString());
@@ -375,15 +375,15 @@ public class DeltaHandler {
     }
 
     private class DeltaResourcesContainer {
-        private final int maxUpdateId;
+        private final long maxUpdateId;
         private final List<String> resourceNames;
 
-        public DeltaResourcesContainer(int maxUpdateId, List<String> resourceNames) {
+        public DeltaResourcesContainer(long maxUpdateId, List<String> resourceNames) {
             this.maxUpdateId = maxUpdateId;
             this.resourceNames = resourceNames;
         }
 
-        public int getMaxUpdateId() {
+        public long getMaxUpdateId() {
             return maxUpdateId;
         }
 
