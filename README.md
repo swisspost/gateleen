@@ -26,6 +26,12 @@ You need Java 8 and Maven
 cd gateleen
 mvn install
 ```
+
+We're using a (private) mirror where we download npm/node from. In case you've
+no access to that mirror, you can use maven profile `publicRepos` (Eg: `mvn
+install -PpublicRepos`).
+
+
 ### Play
 
 A Redis is needed for this
