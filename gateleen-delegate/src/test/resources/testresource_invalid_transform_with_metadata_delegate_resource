@@ -1,0 +1,14 @@
+{
+   	"methods": ["PUT"],
+   	"pattern": ".*/([^/]+.*)",
+   	"requests": [{
+   		"method": "POST",
+   		"uri": "/gateleen/server/v1/copy",
+   		"transformWithMetadata": [{
+   			"operation": "shift",
+   			"spec": {
+   				"@": "*"
+   			}
+   		}]
+   	}]
+   }

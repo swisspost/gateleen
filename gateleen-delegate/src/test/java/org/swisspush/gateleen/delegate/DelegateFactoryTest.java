@@ -27,10 +27,7 @@ import java.util.Map;
 @RunWith(VertxUnitRunner.class)
 public class DelegateFactoryTest {
 
-    private Vertx vertx;
-    private MonitoringHandler monitoringHandler;
     private DelegateFactory delegateFactory;
-    private Map<String, Object> properties;
 
     @Rule
     public ExpectedException thrown= ExpectedException.none();
@@ -42,16 +39,20 @@ public class DelegateFactoryTest {
     private final String MISSING_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_missing_property_delegate_resource", true);
     private final String UNWANTED_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_unwanted_property_delegate_resource", true);
     private final String PAYLOAD_TRANSFORM_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_payload_and_transform_property_delegate_resource", true);
+    private final String TRANSFORM_TRANSFORM_WITH_METADATA_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_transform_and_transform_with_metadata_property_delegate_resource", true);
     private final String TRANSFORM_PROPERTY_NOT_OBJECT_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_transform_property_not_object_delegate_resource", true);
+    private final String TRANSFORM_WITH_METADATA_PROPERTY_NOT_OBJECT_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_transform_with_metadata_property_not_object_delegate_resource", true);
     private final String VALID_TRANSFORM_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_valid_transform_delegate_resource", true);
+    private final String VALID_TRANSFORM_WITH_METADATA_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_valid_transform_with_metadata_delegate_resource", true);
     private final String INVALID_TRANSFORM_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_invalid_transform_delegate_resource", true);
+    private final String INVALID_TRANSFORM_WITH_METADATA_PROPERTY_DELEGATE_RESOURCE = ResourcesUtils.loadResource("testresource_invalid_transform_with_metadata_delegate_resource", true);
 
     @Before
     public void setUp(){
-        vertx = Mockito.mock(Vertx.class);
+        Vertx vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
-        monitoringHandler = Mockito.mock(MonitoringHandler.class);
-        properties = new HashMap<>();
+        MonitoringHandler monitoringHandler = Mockito.mock(MonitoringHandler.class);
+        Map<String, Object> properties = new HashMap<>();
 
         delegateFactory = new DelegateFactory(monitoringHandler, null, properties, delegatesSchema);
     }
@@ -147,6 +148,55 @@ public class DelegateFactoryTest {
     @Test
     public void testValidTransformDelegateConfig(TestContext context) throws ValidationException {
         Delegate delegate = delegateFactory.parseDelegate("someDelegate", Buffer.buffer(VALID_TRANSFORM_PROPERTY_DELEGATE_RESOURCE));
+        context.assertNotNull(delegate);
+        context.assertEquals("someDelegate", delegate.getName());
+    }
+
+    @Test
+    public void testTransformWithMetadataPropertyNotObject(TestContext context) throws ValidationException {
+        try {
+            delegateFactory.parseDelegate("someDelegate", Buffer.buffer(TRANSFORM_WITH_METADATA_PROPERTY_NOT_OBJECT_DELEGATE_RESOURCE));
+            context.fail("Should have thrown a ValidationException since 'transformWithMetadata' property must be an object");
+        } catch(ValidationException ex){
+            context.assertNotNull(ex.getValidationDetails());
+            context.assertEquals(1, ex.getValidationDetails().size());
+            for(Object obj : ex.getValidationDetails()){
+                JsonObject jsonObject = (JsonObject) obj;
+                context.assertEquals("type", jsonObject.getString("type"));
+                context.assertEquals("integer", jsonObject.getJsonArray("arguments").getString(0));
+                context.assertEquals("array", jsonObject.getJsonArray("arguments").getString(1));
+            }
+        }
+    }
+
+    @Test
+    public void testInvalidTransformWithMetadataDelegateConfig(TestContext context) throws ValidationException {
+        try {
+            delegateFactory.parseDelegate("someDelegate", Buffer.buffer(INVALID_TRANSFORM_WITH_METADATA_PROPERTY_DELEGATE_RESOURCE));
+            context.fail("Should have thrown a ValidationException since 'transformWithMetadata' spec is not valid");
+        } catch(ValidationException ex){
+            context.assertEquals("Could not parse json transformWithMetadata specification of delegate someDelegate", ex.getMessage());
+        }
+    }
+
+    @Test
+    public void testTransformAndTransformWithMetadataPropertyConcurrently(TestContext context) throws ValidationException {
+        try {
+            delegateFactory.parseDelegate("someDelegate", Buffer.buffer(TRANSFORM_TRANSFORM_WITH_METADATA_PROPERTY_DELEGATE_RESOURCE));
+            context.fail("Should have thrown a ValidationException since 'transform' and 'transformWithMetadata' properties are not allowed concurrently");
+        } catch(ValidationException ex){
+            context.assertNotNull(ex.getValidationDetails());
+            context.assertEquals(1, ex.getValidationDetails().size());
+            for(Object obj : ex.getValidationDetails()){
+                JsonObject jsonObject = (JsonObject) obj;
+                context.assertEquals("oneOf", jsonObject.getString("type"));
+            }
+        }
+    }
+
+    @Test
+    public void testValidTransformWithMetadataDelegateConfig(TestContext context) throws ValidationException {
+        Delegate delegate = delegateFactory.parseDelegate("someDelegate", Buffer.buffer(VALID_TRANSFORM_WITH_METADATA_PROPERTY_DELEGATE_RESOURCE));
         context.assertNotNull(delegate);
         context.assertEquals("someDelegate", delegate.getName());
     }
