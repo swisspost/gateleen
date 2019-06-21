@@ -141,12 +141,12 @@ public class JoltSpecBuilderTest {
                 "    }\n" +
                 "  }\n" +
                 "]";
-        JoltSpec joltSpec = JoltSpecBuilder.buildSpecWithMetadata(specValid, true);
+        JoltSpec joltSpec = JoltSpecBuilder.buildSpec(specValid, true);
         context.assertNotNull(joltSpec);
         context.assertNotNull(joltSpec.getChainr());
         context.assertTrue(joltSpec.isWithMetadata());
 
-        JoltSpec joltSpec2 = JoltSpecBuilder.buildSpecWithMetadata(specValid, false);
+        JoltSpec joltSpec2 = JoltSpecBuilder.buildSpec(specValid, false);
         context.assertNotNull(joltSpec2);
         context.assertNotNull(joltSpec2.getChainr());
         context.assertFalse(joltSpec2.isWithMetadata());

@@ -69,7 +69,7 @@ public class JoltTransformerTest {
     public void setUp(TestContext context) throws Exception {
         identitySpec = JoltSpecBuilder.buildSpec(IDENTITY_SPEC);
         copyToArraySpec = JoltSpecBuilder.buildSpec(COPY_TO_ARRAY_SPEC);
-        transformWithMetadataSpec = JoltSpecBuilder.buildSpecWithMetadata(TRANSFORM_WITH_METADATA_SPEC, true);
+        transformWithMetadataSpec = JoltSpecBuilder.buildSpec(TRANSFORM_WITH_METADATA_SPEC, true);
     }
 
     @Test

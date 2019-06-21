@@ -135,7 +135,7 @@ public class DelegateFactory {
 
     private JoltSpec buildTransformSpec(String delegateName, JsonArray transformSpecArray, boolean withMetadata) throws ValidationException {
         try {
-            return JoltSpecBuilder.buildSpecWithMetadata(transformSpecArray.encode(), withMetadata);
+            return JoltSpecBuilder.buildSpec(transformSpecArray.encode(), withMetadata);
         } catch (JoltSpecException e) {
             String jsonOp = withMetadata ? TRANSFORM_WITH_METADATA : TRANSFORM;
             throw new ValidationException("Could not parse json " + jsonOp + " specification of delegate " + delegateName, e);

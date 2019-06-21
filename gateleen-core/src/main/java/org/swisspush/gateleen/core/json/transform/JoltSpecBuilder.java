@@ -14,10 +14,10 @@ import java.util.List;
 public class JoltSpecBuilder {
 
     /**
-     * See {@link JoltSpecBuilder#buildSpecWithMetadata(String, boolean)} with {@code false} for param withMetadata
+     * See {@link JoltSpecBuilder#buildSpec(String, boolean)} with {@code false} for param withMetadata
      */
     public static JoltSpec buildSpec(String jsonSpec) throws JoltSpecException {
-        return buildSpecWithMetadata(jsonSpec, false);
+        return buildSpec(jsonSpec, false);
     }
 
     /**
@@ -30,7 +30,7 @@ public class JoltSpecBuilder {
      * @return returns a {@link JoltSpec}
      * @throws JoltSpecException when an error occurred during spec parsing
      */
-    public static JoltSpec buildSpecWithMetadata(String jsonSpec, boolean withMetadata) throws JoltSpecException {
+    public static JoltSpec buildSpec(String jsonSpec, boolean withMetadata) throws JoltSpecException {
         try {
             List<Object> specs = JsonUtils.jsonToList(jsonSpec);
             Chainr chainr = Chainr.fromSpec(specs);

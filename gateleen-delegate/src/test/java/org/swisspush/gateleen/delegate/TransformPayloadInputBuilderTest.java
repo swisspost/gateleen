@@ -46,7 +46,7 @@ public class TransformPayloadInputBuilderTest {
 
     @Test
     public void testBuildNoMetadata(TestContext context) throws Exception {
-        JoltSpec spec = JoltSpecBuilder.buildSpecWithMetadata(specValid, false);
+        JoltSpec spec = JoltSpecBuilder.buildSpec(specValid, false);
         MultiMap headers = new VertxHttpHeaders();
 
         String builtInput = TransformPayloadInputBuilder.build(spec, SIMPLE_PAYLOAD, headers, matcher);
@@ -55,7 +55,7 @@ public class TransformPayloadInputBuilderTest {
 
     @Test
     public void testBuildWithMetadata(TestContext context) throws Exception {
-        JoltSpec spec = JoltSpecBuilder.buildSpecWithMetadata(specValid, true);
+        JoltSpec spec = JoltSpecBuilder.buildSpec(specValid, true);
         MultiMap headers = new VertxHttpHeaders();
         headers.add("x-abc", "x");
         headers.add("x-def", "y");
