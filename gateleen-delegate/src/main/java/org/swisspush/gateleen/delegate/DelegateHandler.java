@@ -5,7 +5,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
@@ -67,7 +66,6 @@ public class DelegateHandler implements Refreshable, LoggableResource {
     private static final int MESSAGE_URL = 1;
 
     private final Vertx vertx;
-    private final HttpClient selfClient;
     private final ResourceStorage delegateStorage;
     private final String delegatesUri;
     private final DelegateFactory delegateFactory;
@@ -94,7 +92,6 @@ public class DelegateHandler implements Refreshable, LoggableResource {
                            final Map<String, Object> properties,
                            final Handler<Void> doneHandler) {
         this.vertx = vertx;
-        this.selfClient = selfClient;
         this.delegateStorage = delegateStorage;
         this.delegatesUri = delegatesUri;
         this.doneHandler = doneHandler;
@@ -199,33 +196,25 @@ public class DelegateHandler implements Refreshable, LoggableResource {
         }
 
         // Receive delegate insert notifications
-        vertx.eventBus().consumer(SAVE_DELEGATE_ADDRESS, new Handler<Message<String>>() {
-            @Override
-            public void handle(final Message<String> delegateEvent) {
-                final String[] messages = delegateEvent.body().split(";");
+        vertx.eventBus().consumer(SAVE_DELEGATE_ADDRESS, (Handler<Message<String>>) delegateEvent -> {
+            final String[] messages = delegateEvent.body().split(";");
 
-                if ( messages != null ) {
-                    delegateStorage.get(messages[MESSAGE_URL], buffer -> {
-                        if (buffer != null) {
-                            registerDelegate(buffer, messages[MESSAGE_NAME]);
-                        } else {
-                            LOG.warn("Could not get URL '" + messages[MESSAGE_URL] + "' (getting delegate).");
-                        }
-                    });
-                }
-                else {
-                    LOG.warn("Could not get Delegate, empty delegateEvent.");
-                }
+            if ( messages != null ) {
+                delegateStorage.get(messages[MESSAGE_URL], buffer -> {
+                    if (buffer != null) {
+                        registerDelegate(buffer, messages[MESSAGE_NAME]);
+                    } else {
+                        LOG.warn("Could not get URL '" + messages[MESSAGE_URL] + "' (getting delegate).");
+                    }
+                });
+            }
+            else {
+                LOG.warn("Could not get Delegate, empty delegateEvent.");
             }
         });
 
         // Receive delegate remove notifications
-        vertx.eventBus().consumer(REMOVE_DELEGATE_ADDRESS, new Handler<Message<String>>() {
-            @Override
-            public void handle(final Message<String> delegateName) {
-                unregisterDelegate(delegateName.body());
-            }
-        });
+        vertx.eventBus().consumer(REMOVE_DELEGATE_ADDRESS, (Handler<Message<String>>) delegateName -> unregisterDelegate(delegateName.body()));
 
         // method done / no async processing pending
         readyHandler.handle(null);

@@ -11,11 +11,22 @@ import com.bazaarvoice.jolt.Chainr;
 public class JoltSpec {
     private final Chainr chainr;
 
-    public JoltSpec(Chainr chainr) {
-        this.chainr = chainr;
+    private final boolean withMetadata;
+
+    JoltSpec(Chainr chainr) {
+        this(chainr, false);
     }
 
-    public Chainr getChainr() {
+    JoltSpec(Chainr chainr, boolean withMetadata) {
+        this.chainr = chainr;
+        this.withMetadata = withMetadata;
+    }
+
+    Chainr getChainr() {
         return chainr;
+    }
+
+    public boolean isWithMetadata() {
+        return withMetadata;
     }
 }

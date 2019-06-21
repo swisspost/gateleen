@@ -31,6 +31,7 @@ public class DelegateFactory {
     private static final String METHODS = "methods";
     private static final String PATTERN = "pattern";
     private static final String TRANSFORM = "transform";
+    private static final String TRANSFORM_WITH_METADATA = "transformWithMetadata";
 
     private final MonitoringHandler monitoringHandler;
     private final HttpClient selfClient;
@@ -121,12 +122,23 @@ public class DelegateFactory {
     private JoltSpec parsePayloadTransformSpec(JsonObject requestJsonObject, String delegateName) throws ValidationException {
         JsonArray transformArray = requestJsonObject.getJsonArray(TRANSFORM);
         if(transformArray != null) {
-            try {
-                return JoltSpecBuilder.buildSpec(transformArray.encode());
-            } catch (JoltSpecException e) {
-                throw new ValidationException("Could not parse json transform specification of delegate " + delegateName, e);
-            }
+            return buildTransformSpec(delegateName, transformArray, false);
         }
+
+        JsonArray transformWithMetadataArray = requestJsonObject.getJsonArray(TRANSFORM_WITH_METADATA);
+        if(transformWithMetadataArray != null){
+            return buildTransformSpec(delegateName, transformWithMetadataArray, true);
+        }
+
         return null;
+    }
+
+    private JoltSpec buildTransformSpec(String delegateName, JsonArray transformSpecArray, boolean withMetadata) throws ValidationException {
+        try {
+            return JoltSpecBuilder.buildSpecWithMetadata(transformSpecArray.encode(), withMetadata);
+        } catch (JoltSpecException e) {
+            String jsonOp = withMetadata ? TRANSFORM_WITH_METADATA : TRANSFORM;
+            throw new ValidationException("Could not parse json " + jsonOp + " specification of delegate " + delegateName, e);
+        }
     }
 }

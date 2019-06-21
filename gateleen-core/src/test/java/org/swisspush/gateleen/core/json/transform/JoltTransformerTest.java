@@ -36,15 +36,40 @@ public class JoltTransformerTest {
             "  }\n" +
             "]";
 
+    private final String TRANSFORM_WITH_METADATA_SPEC = "[\n" +
+            "  {\n" +
+            "    \"operation\": \"shift\",\n" +
+            "    \"spec\": {\n" +
+            "      \"urlParts\": {\n" +
+            "        \"1\": \"records[0].value.metadata.techId\"\n" +
+            "      },\n" +
+            "      \"headers\": {\n" +
+            "        \"x-abc\": \"records[0].value.metadata.x-abc\",\n" +
+            "        \"x-def\": \"records[0].value.metadata.x-def\"\n" +
+            "      },\n" +
+            "      \"payload\": {\n" +
+            "        \"@\": \"records[0].value.dummyEvent\",\n" +
+            "        \"sending\": {\n" +
+            "          \"id\": [\"records[0].key\", \"records[0].value.&\"]\n" +
+            "        }\n" +
+            "      }\n" +
+            "    }\n" +
+            "  }\n" +
+            "]";
+
     private JoltSpec identitySpec;
     private JoltSpec copyToArraySpec;
+    private JoltSpec transformWithMetadataSpec;
 
     private final String COMPLEX_INPUT_JSON = ResourcesUtils.loadResource("complex_input_json", true);
+    private final String TRANSFORM_WITH_METADATA_INPUT_JSON = ResourcesUtils.loadResource("transform_with_metadata_input_json", true);
+    private final String TRANSFORM_WITH_METADATA_EXPECTED_OUTPUT_JSON = ResourcesUtils.loadResource("transform_with_metadata_expected_output_json", true);
 
     @Before
     public void setUp(TestContext context) throws Exception {
         identitySpec = JoltSpecBuilder.buildSpec(IDENTITY_SPEC);
         copyToArraySpec = JoltSpecBuilder.buildSpec(COPY_TO_ARRAY_SPEC);
+        transformWithMetadataSpec = JoltSpecBuilder.buildSpecWithMetadata(TRANSFORM_WITH_METADATA_SPEC, true);
     }
 
     @Test
@@ -135,6 +160,15 @@ public class JoltTransformerTest {
 
         JsonObject complexOutput = buildRecordsOutput(new JsonObject(COMPLEX_INPUT_JSON));
         context.assertEquals(complexOutput, JoltTransformer.transform(COMPLEX_INPUT_JSON, copyToArraySpec).result());
+    }
+
+    @Test
+    public void testTransformWithMetadata(TestContext context) {
+        JoltTransformer.transform(TRANSFORM_WITH_METADATA_INPUT_JSON, transformWithMetadataSpec).setHandler(transform -> {
+            context.assertTrue(transform.succeeded());
+            context.assertNotNull(transform.result());
+            context.assertEquals(new JsonObject(TRANSFORM_WITH_METADATA_EXPECTED_OUTPUT_JSON), transform.result());
+        });
     }
 
     private JsonObject buildRecordsOutput(JsonObject content){

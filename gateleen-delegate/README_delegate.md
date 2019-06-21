@@ -43,7 +43,7 @@ Putting or updating an delegate definition requires a validation against the del
 \* Exactly one of _payload_ or _transform_ is required
 
 ##### Concrete Example
-> ```PUT /gateleen/server/delegate/v1/delegates/resource-zip-copy/definition```
+> ```PUT /gateleen/server/admin/v1/delegates/resource-zip-copy/definition```
 
 ```
 {
@@ -89,7 +89,7 @@ Example:
 ```
 
 #### Payload transformation
-The payload transformation is made for each defined request and uses the _transform_ property. The content of the _transform_ property must be a valid json-to-json transformation
+The payload transformation is made for each defined request and uses the _transform_ or _transformWithMetadata_ property. The content of the this property must be a valid json-to-json transformation
 specification as documented in the [Jolt library](https://github.com/bazaarvoice/jolt)
 
 Example:
@@ -138,6 +138,71 @@ would be transformed into
 ```
 Checkout [Jolt Transform Demo](http://jolt-demo.appspot.com/#inception) for more examples and a handy tool to define the transformation specifications.
 
+##### Payload transformation with Metadata
+As enhancement to the payload transformation with the _transform_ property, the payload transformation with metadata was introduced using the _transformWithMetadata_ property.
+
+Example:
+```
+{
+	"methods": [
+		"PUT"
+	],
+	"pattern": ".*/([^/]+.*)",
+	"requests": [{
+		"method": "PUT",
+		"uri": "/playground/server/tests/delegate",
+		"transformWithMetadata": [{
+			"operation": "shift",
+			"spec": {
+				"urlParts": {
+					"1": "records[0].value.metadata.techId"
+				},
+				"headers": {
+					"x-test": "records[0].value.metadata.x-test"
+				},
+				"payload": {
+					"@": "records[0].value.dummy",
+					"sending": {
+						"id": ["records[0].key", "records[0].value.&"]
+					}
+				}
+			}
+		}]
+	}]
+}
+```
+
+The JSON input which is accessible in the transformation specification contains the following properties:
+
+| Property | Type | Description | 
+|---|:-:|---|
+| urlParts  |  array  | A string array holding all groups found when applying the pattern regex to the request url |
+| headers  |  object  | An object holding key-value pairs of all provided request headers |
+| payload |  object  | An object holding the payload of the original request |
+
+Example:
+```
+{
+	"urlParts": [
+		"/some/test/url/xyz",
+		"xyz"
+	],
+	"headers": {
+		"x-abc": "x",
+		"x-def": "x,y",
+		"x-ghi": "z"
+	},
+	"payload": {
+		"parent": "10",
+		"node": {
+			"id": "11",
+			"type": "x",
+			"isLeaf": false
+		}
+	}
+}
+```
+
 ##### Identity transformation
 The transformation specification defining the _identity transformation_ or _identity function_ (input equals output) looks like this:
 ```
@@ -155,7 +220,7 @@ To execute a delegate it is necessary to perform a HTTP request (method is irrel
 > ```PUT /<Server_Root>/<Delegate_Uri>/<Name_Of_Delegate>/execution/<passed_resource_path>```
 
 ##### Concrete Example
-> ```PUT /gateleen/server/delegate/v1/delegates/resource-zip-copy/execution/resource1```
+> ```PUT /gateleen/server/admin/v1/delegates/resource-zip-copy/execution/resource1```
 
 Applied to our example definition this means, that the defined delegate pattern will put "resource1" as the first pattern group. So "$1" of the payload will be replaced with "resource1".
 The executed request will be:
@@ -187,7 +252,7 @@ Example:
   "payload": {
     "filters": [
       {
-        "url": "/playground/server/delegate/v1/delegates/.*",
+        "url": "/playground/server/admin/v1/delegates/.*",
         "method": "PUT"
       }
     ]

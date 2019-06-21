@@ -32,7 +32,8 @@
     "Request": {
       "oneOf": [
         { "required": ["payload"] },
-        { "required": ["transform"] }
+        { "required": ["transform"] },
+        { "required": ["transformWithMetadata"] }
       ],
       "properties": {
         "uri": {
@@ -54,6 +55,10 @@
         },
         "transform": {
           "description": "The jolt spec definition to transform the payload",
+          "type": "array"
+        },
+        "transformWithMetadata": {
+          "description": "The jolt spec definition to transform the payload and additional metadata",
           "type": "array"
         },
         "headers": {
