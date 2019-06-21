@@ -158,11 +158,11 @@ Example:
 					"1": "records[0].value.metadata.techId"
 				},
 				"headers": {
-					"x-test": "records[0].value.metadata.x-test"
+					"x-abc": "records[0].value.metadata.x-abc"
 				},
 				"payload": {
 					"@": "records[0].value.dummy",
-					"sending": {
+					"node": {
 						"id": ["records[0].key", "records[0].value.&"]
 					}
 				}
