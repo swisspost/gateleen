@@ -1,0 +1,26 @@
+{
+  "records" : [ {
+    "value" : {
+      "metadata" : {
+        "techId" : "xyz",
+        "x-abc" : "x",
+        "x-def" : "x,y"
+      },
+      "dummyEvent" : {
+        "actionTime" : "2019-06-19T12:59:31.916+02:00",
+        "activityId" : "10",
+        "sending" : {
+          "id" : "1234567890",
+          "capturingType" : "1",
+          "multipleSendingCapturingConfirmed" : false,
+          "additionalServices" : [ {
+            "serviceCode" : "4807",
+            "capturingType" : "1"
+          } ]
+        }
+      },
+      "id" : "1234567890"
+    },
+    "key" : "1234567890"
+  } ]
+}

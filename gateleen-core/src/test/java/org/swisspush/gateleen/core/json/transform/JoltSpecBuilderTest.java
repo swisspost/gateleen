@@ -130,4 +130,25 @@ public class JoltSpecBuilderTest {
         context.assertNotNull(joltSpec);
         context.assertNotNull(joltSpec.getChainr());
     }
+
+    @Test
+    public void testBuildSpecValidSpecWithMetadata(TestContext context) throws JoltSpecException {
+        String specValid = "[\n" +
+                "  {\n" +
+                "    \"operation\": \"shift\",\n" +
+                "    \"spec\": {\n" +
+                "      \"@\": \"\"\n" +
+                "    }\n" +
+                "  }\n" +
+                "]";
+        JoltSpec joltSpec = JoltSpecBuilder.buildSpec(specValid, true);
+        context.assertNotNull(joltSpec);
+        context.assertNotNull(joltSpec.getChainr());
+        context.assertTrue(joltSpec.isWithMetadata());
+
+        JoltSpec joltSpec2 = JoltSpecBuilder.buildSpec(specValid, false);
+        context.assertNotNull(joltSpec2);
+        context.assertNotNull(joltSpec2.getChainr());
+        context.assertFalse(joltSpec2.isWithMetadata());
+    }
 }

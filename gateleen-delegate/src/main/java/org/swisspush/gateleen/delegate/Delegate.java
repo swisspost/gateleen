@@ -2,6 +2,7 @@ package org.swisspush.gateleen.delegate;
 
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.http.impl.headers.VertxHttpHeaders;
@@ -121,7 +122,7 @@ public class Delegate {
         // matcher to replace wildcards with matching groups
         final Matcher matcher = pattern.matcher(originalRequest.uri());
 
-        generatePayload(delegateExecutionRequestJsonPayload, requestContainer, matcher).setHandler(payloadBuffer -> {
+        generatePayload(delegateExecutionRequestJsonPayload, originalRequest.headers(), requestContainer, matcher).setHandler(payloadBuffer -> {
 
             if(payloadBuffer.failed()){
                 String message = "Unable to generate delegate request payload. Cause: " + payloadBuffer.cause().getClass().getName();
@@ -190,13 +191,17 @@ public class Delegate {
         return future;
     }
 
-    private Future<Buffer> generatePayload(String delegateExecutionRequestJsonPayload, DelegateRequest requestContainer, final Matcher matcher) {
+    private Future<Buffer> generatePayload(String delegateExecutionRequestJsonPayload, MultiMap headers, DelegateRequest requestContainer, final Matcher matcher) {
         Future<Buffer> future = Future.future();
 
         if (requestContainer.getJoltSpec() != null) {
             try {
                 if(delegateExecutionRequestJsonPayload != null){
-                    JoltTransformer.transform(delegateExecutionRequestJsonPayload, requestContainer.getJoltSpec()).setHandler(transformed -> {
+
+                    String transformInput = TransformPayloadInputBuilder.build(requestContainer.getJoltSpec(),
+                            delegateExecutionRequestJsonPayload, headers, matcher);
+
+                    JoltTransformer.transform(transformInput, requestContainer.getJoltSpec()).setHandler(transformed -> {
                         if(transformed.failed()){
                             future.fail(transformed.cause());
                         } else {
