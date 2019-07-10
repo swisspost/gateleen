@@ -147,7 +147,7 @@ public class ValidationHandler {
                     } else {
                         if (isFailOnError()) {
                             req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                            req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + event.getMessage());
+                            req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
                             if(event.getValidationDetails() != null){
                                 req.response().headers().add("content-type", "application/json");
                                 req.response().end(event.getValidationDetails().encode());
