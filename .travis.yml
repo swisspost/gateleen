@@ -1,6 +1,6 @@
 language: java
 # We use the deprecated travis environment "precise", because Gateleen does not yet support the newer redis version of the "trusty" environment.
-dist: precise
+dist: xenial
 jdk:
   - oraclejdk8
 services:
