@@ -42,8 +42,8 @@ public class RoleExtractor {
         }
         if (userRoles != null) {
             roles = new HashSet<>();
-            Set<String> allRoles = new HashSet<>(Arrays.asList(userRoles.split(",")));
-            for (String r : allRoles) {
+            String[] split = userRoles.split(",");
+            for (String r : split) {
                 r = r.trim();
                 r = r.toLowerCase();
                 Matcher matcher = rolePattern.matcher(r);

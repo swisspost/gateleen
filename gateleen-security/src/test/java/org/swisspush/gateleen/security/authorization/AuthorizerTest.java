@@ -25,6 +25,8 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.timeout;
@@ -44,6 +46,8 @@ public class AuthorizerTest {
     private static final String ROLE_PATTERN = "^z-gateleen[-_](.*)$";
     private static final String ACLS = "/gateleen/server/security/v1/acls/";
     private static final String ACLS_DIR = "acls/";
+    private static final String ROLEMAPPER = "/gateleen/server/security/v1/rolemapper";
+    private static final String ROLEMAPPER_DIR = "rolemapper/";
 
     @Rule
     public Timeout rule = Timeout.seconds(5);
@@ -240,9 +244,57 @@ public class AuthorizerTest {
         Mockito.verify(response, timeout(1000).times(1)).end(eq(StatusCode.FORBIDDEN.getStatusMessage()));
     }
 
+
+    @Test
+    public void testHandleAclRoleMapper(TestContext context) {
+        String requestUri = "/gateleen/domain/tests/someResource";
+
+        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        // we have only a acl for "domain" which must trigger in this case as well
+        // see https://github.com/swisspush/gateleen/issues/285
+        headers.add("x-rp-grp", "z-gateleen-domain-admin");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+        });
+        Mockito.verifyZeroInteractions(response);
+
+    }
+
+
+    @Test // Used only for Performance comparisons during development.
+    public void testMeasureAclRoleMapper(TestContext context) {
+        String requestUri = "/gateleen/domain/tests/someResource";
+
+        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        // we have only a acl for "domain" which must trigger in this case as well
+        // see https://github.com/swisspush/gateleen/issues/285
+        headers.add("x-rp-grp", "z-gateleen-domain-admin");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
+
+        long start = System.currentTimeMillis();
+        System.out.println("Start: " + start);
+        int i;
+        for (i=0; i<100000; i++) {
+            authorizer.authorize(req);
+        }
+        long end = System.currentTimeMillis();
+        System.out.println("End:" + end + " Loops:" + i + " Time=" + (end-start));
+        // If everything goes well, should be around 450ms on local test system
+        // Note: if there is no matching rule if the ruleMapper doesn't map to a existing ACL, the runtime will
+        //       become signifacantly longer because it doesn't break the comparison loop and must go through all given ACL rules (->BAD )
+    }
+
+
     private void setupAcls(){
         JsonObject acls = new JsonObject();
-        acls.put("acls", new JsonArray(Arrays.asList("admin", "authenticated", "developer", "user")));
+        acls.put("acls", new JsonArray(Arrays.asList("admin", "authenticated", "developer", "user", "domain")));
 
         storage.putMockData(ACLS, acls.encode());
 
@@ -250,6 +302,9 @@ public class AuthorizerTest {
         storage.putMockData(ACLS + "authenticated", ResourcesUtils.loadResource(ACLS_DIR + "authenticated", true));
         storage.putMockData(ACLS + "developer", ResourcesUtils.loadResource(ACLS_DIR + "developer", true));
         storage.putMockData(ACLS + "user", ResourcesUtils.loadResource(ACLS_DIR + "user", true));
+        storage.putMockData(ACLS + "domain", ResourcesUtils.loadResource(ACLS_DIR + "domain", true));
+
+        storage.putMockData(ROLEMAPPER, ResourcesUtils.loadResource(ROLEMAPPER_DIR + "rolemapper", true));
     }
 
     class AuthorizerRequest extends DummyHttpServerRequest {

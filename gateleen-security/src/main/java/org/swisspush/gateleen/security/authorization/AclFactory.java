@@ -14,6 +14,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * AclFactory is used to parse ACL (Access Control List) resources.
@@ -23,17 +25,19 @@ import java.util.regex.Pattern;
 public class AclFactory {
 
     private String aclSchema;
+    private String mapperSchema;
 
     private Logger log = LoggerFactory.getLogger(AclFactory.class);
 
-    public AclFactory(String aclSchema) {
+    public AclFactory(String aclSchema, String mapperSchema) {
         this.aclSchema = aclSchema;
+        this.mapperSchema = mapperSchema;
     }
 
     public Map<PatternHolder, Set<String>> parseAcl(Buffer buffer) throws ValidationException {
         ValidationResult validationResult = Validator.validateStatic(buffer, aclSchema, log);
-        if(!validationResult.isSuccess()){
-            throw new  ValidationException(validationResult);
+        if (!validationResult.isSuccess()) {
+            throw new ValidationException(validationResult);
         }
 
         Map<PatternHolder, Set<String>> result = new HashMap<>();
@@ -72,4 +76,28 @@ public class AclFactory {
             throw new ValidationException("Missing path for defined method list permission " + id);
         }
     }
+
+
+    public List<RoleMapperHolder> parseRoleMapper(Buffer buffer) throws ValidationException {
+        ValidationResult validationResult = Validator.validateStatic(buffer, mapperSchema, log);
+        if (!validationResult.isSuccess()) {
+           throw new ValidationException(validationResult);
+        }
+
+        List<RoleMapperHolder> result = new ArrayList<>();
+        JsonObject mapItems = new JsonObject(buffer.toString("UTF-8"));
+        JsonArray mappers = mapItems.getJsonArray("rolemappers");
+        for (Object obj : mappers) {
+            JsonObject mapper = new JsonObject((obj.toString()));
+            String pattern = mapper.getString("pattern");
+            String role = mapper.getString("role");
+            Boolean keepOriginal = mapper.getBoolean("keeporiginal");
+            if (pattern != null && !pattern.isEmpty() && role != null && !role.isEmpty() && keepOriginal!=null) {
+                result.add(new RoleMapperHolder(Pattern.compile(pattern), role, keepOriginal));
+            }
+        }
+        return result;
+    }
+
+
 }

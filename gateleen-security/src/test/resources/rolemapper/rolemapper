@@ -1,0 +1,8 @@
+{
+    "rolemappers": [{
+      "pattern":"domain-.*",
+      "role":"domain",
+      "keeporiginal":false
+      }
+    ]
+ }

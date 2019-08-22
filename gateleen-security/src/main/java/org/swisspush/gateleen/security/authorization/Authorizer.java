@@ -36,17 +36,21 @@ public class Authorizer implements LoggableResource {
 
     private Pattern userUriPattern;
 
-    private String aclKey = "acls";
     private String aclRoot;
+    private String aclKey = "acls";
+    private String roleMapper;
+
     private String adminRole = "admin";
     private String anonymousRole = "everyone";
     private String deviceHeader = "x-rp-deviceid";
     private String userHeader = "x-rp-usr";
 
     private String aclSchema;
+    private String mapperSchema;
     private AclFactory aclFactory;
 
     private PatternHolder aclUriPattern;
+    private PatternHolder roleMapperUriPattern;
 
     private Vertx vertx;
     private EventBus eb;
@@ -59,6 +63,8 @@ public class Authorizer implements LoggableResource {
     // URI -> Method -> Roles
     private Map<PatternHolder, Map<String, Set<String>>> grantedRoles = new HashMap<>();
 
+    private List<RoleMapperHolder> roleMappers = null;
+
     public static final Logger log = LoggerFactory.getLogger(Authorizer.class);
 
     public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern) {
@@ -69,8 +75,12 @@ public class Authorizer implements LoggableResource {
         this.userUriPattern = Pattern.compile(securityRoot + "user(\\?.*)?");
         this.roleExtractor = new RoleExtractor(rolePattern);
 
+        this.roleMapper = securityRoot + "rolemapper";
+        this.roleMapperUriPattern = new PatternHolder(Pattern.compile(roleMapper));
+
         this.aclSchema = ResourcesUtils.loadResource("gateleen_security_schema_acl", true);
-        this.aclFactory = new AclFactory(aclSchema);
+        this.mapperSchema = ResourcesUtils.loadResource("gateleen_security_schema_rolemapper", true);
+        this.aclFactory = new AclFactory(aclSchema, mapperSchema);
 
         eb = vertx.eventBus();
 
@@ -83,10 +93,10 @@ public class Authorizer implements LoggableResource {
         initialGrantedRoles.get(aclUriPattern).get("GET").add(adminRole);
         initialGrantedRoles.get(aclUriPattern).get("DELETE").add(adminRole);
 
-        updateAllAcls();
+        updateAll();
 
         // Receive update notifications
-        eb.consumer(UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateAllAcls());
+        eb.consumer(UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateAll());
     }
 
     @Override
@@ -94,20 +104,24 @@ public class Authorizer implements LoggableResource {
         this.logACLChanges = resourceLoggingEnabled;
     }
 
-    public Future<Boolean> authorize(final HttpServerRequest request){
+    public Future<Boolean> authorize(final HttpServerRequest request) {
         Future<Boolean> future = Future.future();
 
         handleUserUriRequest(request, future);
 
-        if(!future.isComplete()){
+        if (!future.isComplete()) {
             handleIsAuthorized(request, future);
         }
 
-        if(!future.isComplete()){
+        if (!future.isComplete()) {
             handleAclUriRequest(request, future);
         }
 
-        if(!future.isComplete()) {
+        if (!future.isComplete()) {
+            handleRoleMapperUriRequest(request, future);
+        }
+
+        if (!future.isComplete()) {
             future.complete(Boolean.TRUE);
         }
 
@@ -119,20 +133,24 @@ public class Authorizer implements LoggableResource {
 
         handleUserUriRequest(request, future);
 
-        if(!future.isComplete()){
+        if (!future.isComplete()) {
             handleIsAuthorized(request, future);
         }
 
-        if(!future.isComplete()){
+        if (!future.isComplete()) {
             handleAclUriRequest(request, future);
         }
 
-        if(!future.isComplete()) {
+        if (!future.isComplete()) {
+            handleRoleMapperUriRequest(request, future);
+        }
+
+        if (!future.isComplete()) {
             handler.handle(null);
         }
     }
 
-    private void handleUserUriRequest(final HttpServerRequest request, Future<Boolean> future){
+    private void handleUserUriRequest(final HttpServerRequest request, Future<Boolean> future) {
         if (userUriPattern.matcher(request.uri()).matches()) {
             if (HttpMethod.GET == request.method()) {
                 String userId = request.headers().get("x-rp-usr");
@@ -160,7 +178,7 @@ public class Authorizer implements LoggableResource {
         }
     }
 
-    private void handleIsAuthorized(final HttpServerRequest request, Future<Boolean> future){
+    private void handleIsAuthorized(final HttpServerRequest request, Future<Boolean> future) {
         if (!isAuthorized(request)) {
             ResponseStatusCodeLogUtil.info(request, StatusCode.FORBIDDEN, Authorizer.class);
             request.response().setStatusCode(StatusCode.FORBIDDEN.getStatusCode());
@@ -170,10 +188,10 @@ public class Authorizer implements LoggableResource {
         }
     }
 
-    private void handleAclUriRequest(final HttpServerRequest request, Future<Boolean> future){
+    private void handleAclUriRequest(final HttpServerRequest request, Future<Boolean> future) {
         // Intercept configuration
-        final Matcher matcher = aclUriPattern.getPattern().matcher(request.uri());
-        if (matcher.matches()) {
+        final Matcher aclMatcher = aclUriPattern.getPattern().matcher(request.uri());
+        if (aclMatcher.matches()) {
             if (HttpMethod.PUT == request.method()) {
                 request.bodyHandler(buffer -> {
                     try {
@@ -183,7 +201,7 @@ public class Authorizer implements LoggableResource {
                         ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, Authorizer.class);
                         request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                         request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
-                        if(validationException.getValidationDetails() != null){
+                        if (validationException.getValidationDetails() != null) {
                             request.response().headers().add("content-type", "application/json");
                             request.response().end(validationException.getValidationDetails().encode());
                         } else {
@@ -193,7 +211,7 @@ public class Authorizer implements LoggableResource {
                     }
                     storage.put(request.uri(), buffer, status -> {
                         if (status == StatusCode.OK.getStatusCode()) {
-                            if(logACLChanges){
+                            if (logACLChanges) {
                                 RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                             }
                             scheduleUpdate();
@@ -221,11 +239,68 @@ public class Authorizer implements LoggableResource {
         }
     }
 
+    private void handleRoleMapperUriRequest(final HttpServerRequest request, Future<Boolean> future) {
+        // Intercept configuration
+        final Matcher mapperMatcher = roleMapperUriPattern.getPattern().matcher(request.uri());
+        if (mapperMatcher.matches()) {
+            if (HttpMethod.PUT == request.method()) {
+                request.bodyHandler(buffer -> {
+                    try {
+                        aclFactory.parseRoleMapper(buffer);
+                    } catch (ValidationException validationException) {
+                        log.warn("Could not parse acl: " + validationException.toString());
+                        ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, Authorizer.class);
+                        request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                        request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
+                        if (validationException.getValidationDetails() != null) {
+                            request.response().headers().add("content-type", "application/json");
+                            request.response().end(validationException.getValidationDetails().encode());
+                        } else {
+                            request.response().end(validationException.getMessage());
+                        }
+                        return;
+                    }
+                    storage.put(request.uri(), buffer, status -> {
+                        if (status == StatusCode.OK.getStatusCode()) {
+                            if (logACLChanges) {
+                                RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
+                            }
+                            scheduleUpdate();
+                        } else {
+                            request.response().setStatusCode(status);
+                        }
+                        ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), Authorizer.class);
+                        request.response().end();
+                    });
+                });
+                future.complete(Boolean.FALSE);
+            } else if (HttpMethod.DELETE == request.method()) {
+                storage.delete(request.uri(), status -> {
+                    if (status == StatusCode.OK.getStatusCode()) {
+                        eb.publish(UPDATE_ADDRESS, "*");
+                    } else {
+                        log.warn("Could not delete '" + (request.uri() == null ? "<null>" : request.uri()) + "'. Error code is '" + (status == null ? "<null>" : status) + "'.");
+                        request.response().setStatusCode(status);
+                    }
+                    ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), Authorizer.class);
+                    request.response().end();
+                });
+                future.complete(Boolean.FALSE);
+            }
+        }
+    }
+
+
     private long updateTimerId = -1;
 
     private void scheduleUpdate() {
         vertx.cancelTimer(updateTimerId);
         updateTimerId = vertx.setTimer(3000, id -> eb.publish(UPDATE_ADDRESS, "*"));
+    }
+
+    private void updateAll() {
+        updateAllAcls();
+        updateAllRoleMappers();
     }
 
     private void updateAllAcls() {
@@ -243,6 +318,32 @@ public class Authorizer implements LoggableResource {
         });
     }
 
+    /**
+     * Retrieve the configured RoleMapper from Storage and populate the corresponding List of mappers.
+     */
+    private void updateAllRoleMappers() {
+        storage.get(roleMapper, buffer -> {
+            if (buffer != null) {
+                try {
+                    roleMappers = aclFactory.parseRoleMapper(buffer);
+                } catch (ValidationException validationException) {
+                    log.error("Could not parse acl for role mapper: " + validationException.toString());
+                }
+            } else {
+                log.info("No RoleMappers found in storage");
+                roleMappers = null;
+            }
+        });
+    }
+
+
+    /**
+     * Extracts the Users Roles from the Request and further validates if the user is allowed to access
+     * the URL according to the ACL
+     *
+     * @param request The Incoming HTTP Request
+     * @return true if the user is authorized.
+     */
     private boolean isAuthorized(HttpServerRequest request) {
         Set<String> roles = roleExtractor.extractRoles(request);
         if (roles != null) {
@@ -254,14 +355,25 @@ public class Authorizer implements LoggableResource {
         }
     }
 
+
+    /**
+     * Validates that the Request URL is authorised by any of the given Roles. The roles are mapped first
+     * against the defined RoleMapper if any.
+     *
+     * @param roles   The roles used to validate the ACL. Note that the given Roles
+     *                are mapped according to the RoleMapper (if any) before applied against the ACL.
+     * @param request The incoming HTTP Request
+     * @return true if the user is authorized
+     */
     private boolean isAuthorized(Set<String> roles, HttpServerRequest request) {
+        Set<String> mappedRoles = mapRoles(roles);
         for (Map.Entry<PatternHolder, Map<String, Set<String>>> entry : grantedRoles.entrySet()) {
             Matcher matcher = entry.getKey().getPattern().matcher(request.uri());
             if (matcher.matches()) {
                 Set<String> methodRoles = entry.getValue().get(request.method().name());
                 if (methodRoles != null) {
                     for (String role : methodRoles) {
-                        if (checkRole(roles, request, matcher, role)) {
+                        if (checkRole(mappedRoles, request, matcher, role)) {
                             return true;
                         }
                     }
@@ -271,6 +383,47 @@ public class Authorizer implements LoggableResource {
         return false;
     }
 
+    /**
+     * Maps the received roles from http header according the rolemapper rules and return the set of
+     * mapped roles including the initial list of roles.
+     *
+     * @param roles The roles to be mapped and enrichted according to the rolemapper object
+     * @return The resulting list of initial plus mapped roles
+     */
+    private Set<String> mapRoles(Set<String> roles) {
+        if (roles != null && roleMappers != null && !roleMappers.isEmpty()) {
+            Set<String> mappedRoles = new HashSet<>();
+            for (String role : roles) {
+                boolean keepOriginalRole = true;
+                for (RoleMapperHolder mapper : roleMappers) {
+                    if (mapper.getPattern().matcher(role).matches()) {
+                        // we found a matching rule to map, add it to the resulting list of roles
+                        mappedRoles.add(mapper.getRole());
+                        // check if we must keep the original rule as well in this case
+                        keepOriginalRole = mapper.getKeepOriginal();
+                        // we don't have to loop further as it is mapped now for this given role
+                        break;
+                    }
+                }
+                if (keepOriginalRole) {
+                    mappedRoles.add(role);
+                }
+            }
+            return mappedRoles;
+        }
+        return roles;
+    }
+
+    /**
+     * Checks if the given set of roles of the user from header does match the configured
+     * security role in the ACL
+     *
+     * @param roles   The list of roles of the user as received on the request but already mapped with rolemapper
+     * @param request The http request received
+     * @param matcher Contains the matching against the request URL / used for further URL param matchings
+     * @param role    The ACL rule to check against
+     * @return TRUE if the user is authorized according to the role
+     */
     private boolean checkRole(Set<String> roles, HttpServerRequest request, Matcher matcher, String role) {
         if (roles.contains(role)) {
             boolean authorized = true;

@@ -30,7 +30,8 @@ public class AclFactoryTest {
     @Rule
     public ExpectedException thrown= ExpectedException.none();
 
-    private String schedulersSchema = ResourcesUtils.loadResource("gateleen_security_schema_acl", true);
+    private String aclSchema = ResourcesUtils.loadResource("gateleen_security_schema_acl", true);
+    private String mapperSchema = ResourcesUtils.loadResource("gateleen_security_schema_rolemapper", true);
 
     private final String INVALID_JSON = ResourcesUtils.loadResource("testresource_invalid_json", true);
     private final String VALID_ACL_RESOURCE = ResourcesUtils.loadResource("testresource_valid_acl_resource", true);
@@ -38,7 +39,7 @@ public class AclFactoryTest {
 
     @Before
     public void setUp(){
-        aclFactory = new AclFactory(schedulersSchema);
+        aclFactory = new AclFactory(aclSchema,mapperSchema);
     }
 
     @Test
