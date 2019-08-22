@@ -175,7 +175,7 @@ public class CopyResourceHandler {
      * @param buffer - the buffer of the request
      * @return a new CopyTask
      */
-    private CopyTask createCopyTask(final HttpServerRequest request, final Buffer buffer) {
+    CopyTask createCopyTask(final HttpServerRequest request, final Buffer buffer) {
         JsonObject task = new JsonObject(buffer.toString());
         HeaderFunction headerFunction = HeaderFunctions.DO_NOTHING;
 
