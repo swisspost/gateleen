@@ -1,8 +1,13 @@
 {
-    "rolemappers": [{
-      "pattern":"domain-.*",
-      "role":"domain",
-      "keeporiginal":false
+    "mappings": [{
+        "pattern":"domain1-.*",
+        "role":"domain",
+        "keepOriginal":false
+      },
+      {
+        "pattern":"domain2.*",
+        "role":"domain",
+        "keepOriginal":true
       }
     ]
  }

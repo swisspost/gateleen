@@ -32,7 +32,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.timeout;
 
 /**
- * Tests for the {@link AclFactory} class
+ * Tests for the {@link Authorizer} class
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
@@ -252,7 +252,7 @@ public class AuthorizerTest {
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         // we have only a acl for "domain" which must trigger in this case as well
         // see https://github.com/swisspush/gateleen/issues/285
-        headers.add("x-rp-grp", "z-gateleen-domain-admin");
+        headers.add("x-rp-grp", "z-gateleen-domain1-admin");
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
@@ -263,32 +263,6 @@ public class AuthorizerTest {
         });
         Mockito.verifyZeroInteractions(response);
 
-    }
-
-
-    @Test // Used only for Performance comparisons during development.
-    public void testMeasureAclRoleMapper(TestContext context) {
-        String requestUri = "/gateleen/domain/tests/someResource";
-
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        // we have only a acl for "domain" which must trigger in this case as well
-        // see https://github.com/swisspush/gateleen/issues/285
-        headers.add("x-rp-grp", "z-gateleen-domain-admin");
-
-        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
-        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
-
-        long start = System.currentTimeMillis();
-        System.out.println("Start: " + start);
-        int i;
-        for (i=0; i<100000; i++) {
-            authorizer.authorize(req);
-        }
-        long end = System.currentTimeMillis();
-        System.out.println("End:" + end + " Loops:" + i + " Time=" + (end-start));
-        // If everything goes well, should be around 450ms on local test system
-        // Note: if there is no matching rule if the ruleMapper doesn't map to a existing ACL, the runtime will
-        //       become signifacantly longer because it doesn't break the comparison loop and must go through all given ACL rules (->BAD )
     }
 
 

@@ -50,10 +50,10 @@ In this case you only define the acl "acl-domain" within your gateleen security 
 
 ```
 {
-    "rolemappers": [{
+    "mappings": [{
       "pattern":"acl-domain-.*",
       "role":"acl-domain",
-      "keeporiginal":false
+      "keepOriginal":false
       }
     ]
  }
@@ -61,6 +61,6 @@ In this case you only define the acl "acl-domain" within your gateleen security 
  
 Any request with a user group containing 'acl-domain-' will match the defined rolemapper and result in the defined resulting role acl-domain.
 
-Note the additional keeporiginal flag which defines if the original role which matched the mapper must be kept in the list of roles or not.
+Note the additional keepOriginal flag which defines if the original role which matched the mapper must be kept in the list of roles or not.
 
 Note: The rolemapper object is validated against the gateleen_security_schema_rolemapper json schema
