@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.security.authorization;
 
-import com.sun.istack.internal.NotNull;
 
 import java.util.regex.Pattern;
 
@@ -29,11 +28,11 @@ public class RoleMapperHolder {
     /**
      * Holds the attributes needed to map roles. All params must be non null.
      *
-     * @param pattern      The regular expression pattern to be applied to the incoming rules
-     * @param role         The resulting mapped role
+     * @param pattern      The regular expression pattern to be applied to the incoming rules, must not be null
+     * @param role         The resulting mapped role, must not be null
      * @param keepOriginal If true, the original role is kept and the mapped one added additionally
      */
-    RoleMapperHolder(@NotNull Pattern pattern, @NotNull String role, boolean keepOriginal) {
+    RoleMapperHolder(Pattern pattern, String role, boolean keepOriginal) {
         this.pattern = pattern;
         this.role = role;
         this.keepOriginal = keepOriginal;
