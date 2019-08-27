@@ -11,6 +11,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.UriBuilder;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -35,10 +36,8 @@ public class Authorizer implements LoggableResource {
     private String aclRoot;
     private String aclKey = "acls";
 
-    private String adminRole = "admin";
     private String anonymousRole = "everyone";
 
-    private AclFactory aclFactory;
     private RoleMapper roleMapper;
     private RoleAuthorizer roleAuthorizer;
 
@@ -52,23 +51,18 @@ public class Authorizer implements LoggableResource {
     private ResourceStorage storage;
     private RoleExtractor roleExtractor;
 
-    // URI -> Method -> Roles
-    private Map<PatternHolder, Map<String, Set<String>>> grantedRoles = new HashMap<>();
-
     public static final Logger log = LoggerFactory.getLogger(Authorizer.class);
 
     public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern) {
         this.vertx = vertx;
         this.storage = storage;
-        this.aclRoot = securityRoot + aclKey + "/";
+        this.aclRoot = UriBuilder.concatUriSegments(securityRoot, aclKey, "/");
         this.aclUriPattern = new PatternHolder(Pattern.compile("^" + aclRoot + "(?<role>.+)$"));
         this.userUriPattern = Pattern.compile(securityRoot + "user(\\?.*)?");
-        this.roleMapperUriPattern = new PatternHolder(Pattern.compile("^" + securityRoot + "/rolemapper"));
+        this.roleMapperUriPattern = new PatternHolder(Pattern.compile("^" + UriBuilder.concatUriSegments(securityRoot, RoleMapper.ROLEMAPPER)));
         this.roleExtractor = new RoleExtractor(rolePattern);
-        this.roleMapper = new RoleMapper(storage,securityRoot);
-        this.roleAuthorizer = new RoleAuthorizer(storage,securityRoot,rolePattern,roleMapper);
-        this.aclFactory = new AclFactory();
-
+        this.roleMapper = new RoleMapper(storage, securityRoot);
+        this.roleAuthorizer = new RoleAuthorizer(storage, securityRoot, rolePattern, roleMapper);
         eb = vertx.eventBus();
 
         // Receive update notifications
@@ -157,10 +151,11 @@ public class Authorizer implements LoggableResource {
 
     /**
      * Common handler for uri requests with PatternHolder and a class implementing the AuthorisationResource Interface
-     * @param request The original request
-     * @param future The future with the result feeded
+     *
+     * @param request       The original request
+     * @param future        The future with the result feeded
      * @param patternHolder The pattern with the Configuration Resource to be used for Configuration reload
-     * @param checker
+     * @param checker       The checker Object (implementing ConfigurationResource interface) to be used to validate the configuration
      */
     private void handleConfigurationUriRequest(final HttpServerRequest request, Future<Boolean> future, PatternHolder patternHolder, ConfigurationResource checker) {
         // Intercept configuration
@@ -214,8 +209,7 @@ public class Authorizer implements LoggableResource {
     }
 
 
-    private void updateAllConfigs()
-    {
+    private void updateAllConfigs() {
         roleAuthorizer.configUpdate();
         roleMapper.configUpdate();
     }

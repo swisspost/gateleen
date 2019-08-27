@@ -55,52 +55,48 @@ public class RoleMapperTest {
     public Timeout rule = Timeout.seconds(5);
 
     @Before
-    public void setUp(){
+    public void setUp() {
         vertx = Vertx.vertx();
         storage = new MockResourceStorage();
         setupRoleMapper();
-        roleMapper = new RoleMapper(storage,"/gateleen/server/security/v1/");
+        roleMapper = new RoleMapper(storage, "/gateleen/server/security/v1/");
 
     }
 
     @Test
-    public void checkNoMapping(TestContext context)
-    {
+    public void checkNoMapping(TestContext context) {
         Set<String> roles = new HashSet<>();
         roles.add("domain-user");
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
-        context.assertTrue(roles.size()==1);
+        context.assertTrue(roles.size() == 1);
         context.assertTrue(roles.contains("domain-user"));
     }
 
     @Test
-    public void checkMappingWithoutKeep(TestContext context)
-    {
+    public void checkMappingWithoutKeep(TestContext context) {
         Set<String> roles = new HashSet<>();
         roles.add("domain1-user");
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
-        context.assertTrue(roles.size()==1);
+        context.assertTrue(roles.size() == 1);
         context.assertTrue(roles.contains("domain"));
     }
 
     @Test
-    public void checkMappingWithKeep(TestContext context)
-    {
+    public void checkMappingWithKeep(TestContext context) {
         Set<String> roles = new HashSet<>();
         roles.add("domain2-user");
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
-        context.assertTrue(roles.size()==2);
+        context.assertTrue(roles.size() == 2);
         context.assertTrue(roles.contains("domain"));
         context.assertTrue(roles.contains("domain2-user"));
     }
 
 
-
-    private void setupRoleMapper(){
+    private void setupRoleMapper() {
         storage.putMockData(ROLEMAPPER, ResourcesUtils.loadResource(ROLEMAPPER_DIR + "rolemapper", true));
     }
 
- }
+}

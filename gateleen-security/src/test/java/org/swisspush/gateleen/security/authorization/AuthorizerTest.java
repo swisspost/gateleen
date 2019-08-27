@@ -53,7 +53,7 @@ public class AuthorizerTest {
     public Timeout rule = Timeout.seconds(5);
 
     @Before
-    public void setUp(){
+    public void setUp() {
         vertx = Vertx.vertx();
         storage = new MockResourceStorage();
         setupAcls();
@@ -266,7 +266,7 @@ public class AuthorizerTest {
     }
 
 
-    private void setupAcls(){
+    private void setupAcls() {
         JsonObject acls = new JsonObject();
         acls.put("acls", new JsonArray(Arrays.asList("admin", "authenticated", "developer", "user", "domain")));
 
@@ -288,12 +288,12 @@ public class AuthorizerTest {
         private CaseInsensitiveHeaders headers;
         private HttpServerResponse response;
 
-        public AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
+        AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
                                  HttpServerResponse response) {
             this(method, uri, headers, "", response);
         }
 
-        public AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
+        AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
                                  String body, HttpServerResponse response) {
             this.method = method;
             this.uri = uri;
@@ -302,10 +302,25 @@ public class AuthorizerTest {
             this.response = response;
         }
 
-        @Override public HttpMethod method() { return method; }
-        @Override public String uri() { return uri; }
-        @Override public MultiMap headers() { return headers; }
-        @Override public HttpServerResponse response() { return response; }
+        @Override
+        public HttpMethod method() {
+            return method;
+        }
+
+        @Override
+        public String uri() {
+            return uri;
+        }
+
+        @Override
+        public MultiMap headers() {
+            return headers;
+        }
+
+        @Override
+        public HttpServerResponse response() {
+            return response;
+        }
 
         @Override
         public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {

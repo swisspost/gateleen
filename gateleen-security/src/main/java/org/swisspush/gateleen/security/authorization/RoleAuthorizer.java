@@ -43,7 +43,7 @@ public class RoleAuthorizer implements ConfigurationResource {
 
     public static final Logger log = LoggerFactory.getLogger(RoleAuthorizer.class);
 
-    public RoleAuthorizer( final ResourceStorage storage, String securityRoot, String rolePattern,final RoleMapper roleMapper) {
+    RoleAuthorizer(final ResourceStorage storage, String securityRoot, String rolePattern, final RoleMapper roleMapper) {
         this.storage = storage;
         this.roleMapper = roleMapper;
         this.aclRoot = securityRoot + aclKey + "/";
@@ -83,7 +83,7 @@ public class RoleAuthorizer implements ConfigurationResource {
         storage.get(aclRoot, buffer -> {
             if (buffer != null) {
                 grantedRoles = new HashMap<>();
-                for (Object roleObject : new JsonObject(buffer.toString("UTF-8")).getJsonArray(aclKey)) {
+                for (Object roleObject : new JsonObject(buffer).getJsonArray(aclKey)) {
                     String role = (String) roleObject;
                     updateAcl(role);
                 }
@@ -98,6 +98,7 @@ public class RoleAuthorizer implements ConfigurationResource {
     /**
      * Extracts the Users Roles from the Request and further validates if the user is allowed to access
      * the URL according to the ACL
+     *
      * @param request The Incoming HTTP Request
      * @return true if the user is authorized.
      */
@@ -117,8 +118,8 @@ public class RoleAuthorizer implements ConfigurationResource {
      * Validates that the Request URL is authorised by any of the given Roles. The roles are mapped first
      * against the defined RoleMapper if any.
      *
-     * @param roles The roles used to validate the ACL. Note that the given Roles
-     *              are mapped according to the RoleMapper (if any) before applied against the ACL.
+     * @param roles   The roles used to validate the ACL. Note that the given Roles
+     *                are mapped according to the RoleMapper (if any) before applied against the ACL.
      * @param request The incoming HTTP Request
      * @return true if the user is authorized
      */
@@ -151,8 +152,9 @@ public class RoleAuthorizer implements ConfigurationResource {
      * @return TRUE if the user is authorized according to the role
      */
     private boolean checkRole(Set<String> roles, HttpServerRequest request, Matcher matcher, String role) {
+        boolean authorized = false;
         if (roles.contains(role)) {
-            boolean authorized = true;
+            authorized = true;
             if (matcher.groupCount() > 0) {
                 try {
                     String uriUser = matcher.group("user");
@@ -173,11 +175,8 @@ public class RoleAuthorizer implements ConfigurationResource {
                     // ignore
                 }
             }
-            if (authorized) {
-                return true;
-            }
         }
-        return false;
+        return authorized;
     }
 
     private void updateAcl(final String role) {

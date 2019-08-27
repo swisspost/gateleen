@@ -25,7 +25,7 @@ public class RoleMapperFactoryTest {
     private RoleMapperFactory roleMapperFactory;
 
     @Rule
-    public ExpectedException thrown= ExpectedException.none();
+    public ExpectedException thrown = ExpectedException.none();
 
     private final String INVALID_MAPPER_JSON = ResourcesUtils.loadResource("testresource_invalid_mapper_json", true);
     private final String VALID_MAPPER_RESOURCE = ResourcesUtils.loadResource("testresource_valid_mapper_resource", true);
@@ -33,13 +33,13 @@ public class RoleMapperFactoryTest {
 
 
     @Before
-    public void setUp(){
+    public void setUp() {
         roleMapperFactory = new RoleMapperFactory();
     }
 
     @Test
     public void testInvalidMapperJson() throws ValidationException {
-        thrown.expect( ValidationException.class );
+        thrown.expect(ValidationException.class);
         thrown.expectMessage("Unable to parse json");
         roleMapperFactory.parseRoleMapper(Buffer.buffer(INVALID_MAPPER_JSON));
     }
@@ -52,11 +52,10 @@ public class RoleMapperFactoryTest {
         RoleMapperHolder holder = result.get(0);
         context.assertNotNull(holder.getPattern());
         context.assertNotNull(holder.getRole());
-        context.assertNotNull(holder.getKeepOriginal());
     }
 
     @Test
-    public void testAdditionalMapperPropertiesNotAllowed(TestContext context) throws ValidationException {
+    public void testAdditionalMapperPropertiesNotAllowed(TestContext context) {
         checkAdditionalProperties(context, Buffer.buffer(ADDITIONAL_PROP_MAPPER_RESOURCE));
     }
 
@@ -64,12 +63,12 @@ public class RoleMapperFactoryTest {
         try {
             roleMapperFactory.parseRoleMapper(buffer);
             context.fail("Should have thrown a ValidationException since 'notAllowedProperty' property is not allowed");
-        } catch(ValidationException ex){
+        } catch (ValidationException ex) {
             context.assertNotNull(ex.getValidationDetails());
             context.assertEquals(1, ex.getValidationDetails().size());
-            for(Object obj : ex.getValidationDetails()){
+            for (Object obj : ex.getValidationDetails()) {
                 JsonObject jsonObject = (JsonObject) obj;
-                if("additionalProperties".equalsIgnoreCase(jsonObject.getString("keyword"))){
+                if ("additionalProperties".equalsIgnoreCase(jsonObject.getString("keyword"))) {
                     context.assertEquals("notAllowedProperty", jsonObject.getJsonArray("unwanted").getString(0));
                 }
             }

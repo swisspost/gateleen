@@ -30,20 +30,20 @@ public class AclFactoryTest {
     private RoleMapperFactory roleMapperFactory;
 
     @Rule
-    public ExpectedException thrown= ExpectedException.none();
+    public ExpectedException thrown = ExpectedException.none();
 
     private final String INVALID_ACL_JSON = ResourcesUtils.loadResource("testresource_invalid_acl_json", true);
     private final String VALID_ACL_RESOURCE = ResourcesUtils.loadResource("testresource_valid_acl_resource", true);
     private final String ADDITIONAL_PROP_ACL_RESOURCE = ResourcesUtils.loadResource("testresource_additionalproperties_acl_resource", true);
 
     @Before
-    public void setUp(){
+    public void setUp() {
         aclFactory = new AclFactory();
     }
 
     @Test
     public void testInvalidACLJson() throws ValidationException {
-        thrown.expect( ValidationException.class );
+        thrown.expect(ValidationException.class);
         thrown.expectMessage("Unable to parse json");
         aclFactory.parseAcl(Buffer.buffer(INVALID_ACL_JSON));
     }
@@ -61,7 +61,7 @@ public class AclFactoryTest {
     }
 
     @Test
-    public void testAdditionalACLPropertiesNotAllowed(TestContext context) throws ValidationException {
+    public void testAdditionalACLPropertiesNotAllowed(TestContext context) {
         checkAdditionalProperties(context, Buffer.buffer(ADDITIONAL_PROP_ACL_RESOURCE));
     }
 
@@ -70,12 +70,12 @@ public class AclFactoryTest {
         try {
             aclFactory.parseAcl(buffer);
             context.fail("Should have thrown a ValidationException since 'notAllowedProperty' property is not allowed");
-        } catch(ValidationException ex){
+        } catch (ValidationException ex) {
             context.assertNotNull(ex.getValidationDetails());
             context.assertEquals(1, ex.getValidationDetails().size());
-            for(Object obj : ex.getValidationDetails()){
+            for (Object obj : ex.getValidationDetails()) {
                 JsonObject jsonObject = (JsonObject) obj;
-                if("additionalProperties".equalsIgnoreCase(jsonObject.getString("keyword"))){
+                if ("additionalProperties".equalsIgnoreCase(jsonObject.getString("keyword"))) {
                     context.assertEquals("notAllowedProperty", jsonObject.getJsonArray("unwanted").getString(0));
                 }
             }

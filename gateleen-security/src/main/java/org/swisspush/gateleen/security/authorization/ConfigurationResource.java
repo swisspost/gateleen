@@ -10,8 +10,9 @@ interface ConfigurationResource {
 
     /**
      * Check if the given resource in the buffer is valid
+     *
      * @param buffer The resource to be checked
-     * @throws ValidationException
+     * @throws ValidationException Thrown if the validation fails
      */
     void checkConfigResource(Buffer buffer) throws ValidationException;
 

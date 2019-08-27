@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.security.authorization;
 
+import com.sun.istack.internal.NotNull;
+
 import java.util.regex.Pattern;
 
 /**
@@ -12,19 +14,26 @@ public class RoleMapperHolder {
     /**
      * The regex pattern to match for a role mapping
      */
-    private Pattern pattern;
+    private final Pattern pattern;
     /**
      * The resulting role if the given regex pattern matches
      */
-    private String role;
+    private final String role;
 
     /**
      * Defines if the originalRole must be kept or not in the list of roles to apply against the ACL
      */
-    private Boolean keepOriginal;
+    private final boolean keepOriginal;
 
-    RoleMapperHolder(Pattern pattern, String role, Boolean keepOriginal) {
-        super();
+
+    /**
+     * Holds the attributes needed to map roles. All params must be non null.
+     *
+     * @param pattern      The regular expression pattern to be applied to the incoming rules
+     * @param role         The resulting mapped role
+     * @param keepOriginal If true, the original role is kept and the mapped one added additionally
+     */
+    RoleMapperHolder(@NotNull Pattern pattern, @NotNull String role, boolean keepOriginal) {
         this.pattern = pattern;
         this.role = role;
         this.keepOriginal = keepOriginal;
@@ -34,23 +43,12 @@ public class RoleMapperHolder {
         return pattern;
     }
 
-    public void setPattern(Pattern pattern) {
-        this.pattern = pattern;
-    }
-
     public String getRole() {
         return role;
     }
 
-    public void setRole(String role) {
-        this.role = role;
-    }
-
-    public Boolean getKeepOriginal() {
+    public boolean getKeepOriginal() {
         return keepOriginal;
     }
 
-    public void setKeepOriginal(Boolean keepOriginal) {
-        this.keepOriginal = keepOriginal;
-    }
 }

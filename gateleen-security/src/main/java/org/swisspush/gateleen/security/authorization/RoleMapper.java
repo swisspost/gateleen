@@ -3,11 +3,15 @@ package org.swisspush.gateleen.security.authorization;
 import io.vertx.core.buffer.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.UriBuilder;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.*;
 
+/**
+ * Holds and maintains the RoleMapper configuration and performs the mapping.
+ */
 public class RoleMapper implements ConfigurationResource {
 
     private ResourceStorage storage;
@@ -20,9 +24,17 @@ public class RoleMapper implements ConfigurationResource {
 
     public static final Logger log = LoggerFactory.getLogger(RoleMapper.class);
 
-    public RoleMapper( ResourceStorage storage, String securityRoot) {
+    public static final String ROLEMAPPER = "rolemapper";
+
+    /**
+     * Holds the list of all configured RoleMappings and executes the mapping
+     *
+     * @param storage      Reference to the storage to retrieve the RoleMappings from
+     * @param securityRoot Base url to retrieve the rolemapper config resource from (no trailing slash expected nor necessary)
+     */
+    public RoleMapper(ResourceStorage storage, String securityRoot) {
         this.storage = storage;
-        this.roleMapper = securityRoot + "rolemapper";
+        this.roleMapper = UriBuilder.concatUriSegments(securityRoot, ROLEMAPPER);
         this.roleMapperFactory = new RoleMapperFactory();
 
         configUpdate();
@@ -47,7 +59,7 @@ public class RoleMapper implements ConfigurationResource {
                 } catch (ValidationException validationException) {
                     log.error("Could not parse acl for role mapper: " + validationException.toString());
                 }
-             } else {
+            } else {
                 log.info("No RoleMappers found in storage");
                 roleMappers = null;
             }
@@ -58,12 +70,13 @@ public class RoleMapper implements ConfigurationResource {
     /**
      * Maps the received roles from http header according the rolemapper rules and return the set of
      * mapped roles including the initial list of roles.
-     * @param roles The roles to be mapped and enrichted according to the rolemapper object
+     *
+     * @param roles The roles to be mapped and enriched according to the rolemapper object
      * @return The resulting list of initial plus mapped roles
      */
     public Set<String> mapRoles(Set<String> roles) {
         if (roles != null && roleMappers != null && !roleMappers.isEmpty()) {
-            Set<String> mappedRoles = new HashSet<String>();
+            Set<String> mappedRoles = new HashSet<>();
             boolean keepOriginalRule;
             for (String role : roles) {
                 keepOriginalRule = true;
@@ -78,7 +91,7 @@ public class RoleMapper implements ConfigurationResource {
                     }
                 }
                 if (keepOriginalRule) {
-                  mappedRoles.add(role);
+                    mappedRoles.add(role);
                 }
             }
             return mappedRoles;
