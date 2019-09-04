@@ -48,8 +48,12 @@ public class CopyResourceHandler {
             // process task
             request.bodyHandler(buffer -> {
                 CopyTask task = createCopyTask(request, buffer);
-                if (validTask(request, task)) {
+                if (task != null && validTask(request, task)) {
                     performGETRequest(request, task);
+                } else {
+                    request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+                    request.response().end();
                 }
             });
 
@@ -71,10 +75,6 @@ public class CopyResourceHandler {
         if (task.getSourceUri().endsWith(SLASH) || task.getDestinationUri().endsWith(SLASH)) {
             Logger log = RequestLoggerFactory.getLogger(CopyResourceHandler.class, request);
             log.debug("invalid copy task, collections are not allowed!");
-            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-            request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-            request.response().end();
-
             return false;
         }
 
@@ -190,7 +190,13 @@ public class CopyResourceHandler {
         }
 
         MultiMap headers = StatusCodeTranslator.getTranslateFreeHeaders(request.headers());
-        headerFunction.apply(headers);
+
+        final HeaderFunctions.EvalScope evalScope = headerFunction.apply(headers);
+        if (evalScope.getErrorMessage() != null) {
+            log.warn("Problem invoking Header functions: {}", evalScope.getErrorMessage());
+            return null;
+        }
+
         HttpHeaderUtil.removeNonForwardHeaders(headers);
         headers.remove("content-length");
 

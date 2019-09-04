@@ -56,7 +56,6 @@ public class CopyResourceHandlerTest {
         Assert.assertEquals("application/json;charset=UTF-8", copyTask.getHeaders().get("Content-Type"));
     }
 
-
     @Test
     public void testDynamicHeaderWithFunction() {
         String json = "{ 'headers' : [" +
@@ -70,5 +69,18 @@ public class CopyResourceHandlerTest {
 
         Assert.assertEquals("I am bar", copyTask.getHeaders().get("x-bar"));
         Assert.assertEquals("bar-I am bar", copyTask.getHeaders().get("x-foo"));
+    }
+
+    @Test
+    public void testApplyHeadersFailed() {
+        String json = "{ 'headers' : [" +
+                "   { 'header': 'x-foo', 'value': 'bar-{x-bar}'}" +
+                "] }";
+        json = json.replace('\'', '"');
+
+        Buffer jsonBuffer = Buffer.buffer(json);
+        CopyTask copyTask = copyResourceHandler.createCopyTask(httpServerRequestMock, jsonBuffer);
+
+        Assert.assertNull(copyTask);
     }
 }

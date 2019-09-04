@@ -208,7 +208,7 @@ public class HeaderFunctions {
             String value = scope.headers.get(varName);
             if (value == null) {
                 scope.sb.append('{').append(varName).append('}');
-                scope.errorMessage = "unresolvable '{" + varName + "}' in exprssion '" + expression + "'";
+                scope.errorMessage = "unresolvable '{" + varName + "}' in expression '" + expression + "'";
             } else {
                 scope.sb.append(value);
             }
