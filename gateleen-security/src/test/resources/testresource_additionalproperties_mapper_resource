@@ -1,9 +1,10 @@
 {
-  "mappings": [{
-    "pattern":"domain-.*",
-    "role":"domain",
-    "keepOriginal":false,
-    "justanotherproperty":"juhu"
+  "mappings": [
+    {
+      "pattern": "domain-.*",
+      "role": "domain",
+      "keepOriginal": false,
+      "justanotherproperty": "juhu"
     }
   ]
 }

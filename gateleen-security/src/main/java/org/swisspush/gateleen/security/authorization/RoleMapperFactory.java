@@ -39,14 +39,14 @@ public class RoleMapperFactory {
         return result;
     }
 
-    private static class Mappings {
+    public static class Mappings {
+
         public Mapping[] mappings;
     }
 
-    private static class Mapping {
+    public static class Mapping {
         public String pattern, role;
         public boolean keepOriginal;
     }
-
 
 }

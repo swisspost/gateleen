@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
  */
 public class UriBuilder {
 
-    private static Pattern uriCleanPattern = Pattern.compile("(?<!(http:|https:))/+");
+    private static final Pattern URICLEANPATTERN = Pattern.compile("(?<!(http:|https:))/+");
 
     /**
      * Prevent instantiation of this class
@@ -26,9 +26,9 @@ public class UriBuilder {
         StringBuilder uri = new StringBuilder();
         for (int i = 0; i < segments.length; i++) {
             if (i == 0) {
-                uri = uri.append(segments[0]);
+                uri.append(segments[0]);
             } else {
-                uri = uri.append("/").append(segments[i]);
+                uri.append("/").append(segments[i]);
             }
         }
         return cleanUri(uri.toString());
@@ -44,7 +44,7 @@ public class UriBuilder {
      * @return The cleaned uri
      */
     public static String cleanUri(String uri) {
-        return uriCleanPattern.matcher(uri).replaceAll("/");
+        return URICLEANPATTERN.matcher(uri).replaceAll("/");
     }
 
 
