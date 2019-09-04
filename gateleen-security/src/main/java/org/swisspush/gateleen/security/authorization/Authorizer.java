@@ -33,7 +33,6 @@ public class Authorizer implements LoggableResource {
 
     private Pattern userUriPattern;
 
-    private String aclRoot;
     private String aclKey = "acls";
 
     private String anonymousRole = "everyone";
@@ -56,7 +55,7 @@ public class Authorizer implements LoggableResource {
     public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern) {
         this.vertx = vertx;
         this.storage = storage;
-        this.aclRoot = UriBuilder.concatUriSegments(securityRoot, aclKey, "/");
+        String aclRoot = UriBuilder.concatUriSegments(securityRoot, aclKey, "/");
         this.aclUriPattern = new PatternHolder(Pattern.compile("^" + aclRoot + "(?<role>.+)$"));
         this.userUriPattern = Pattern.compile(securityRoot + "user(\\?.*)?");
         this.roleMapperUriPattern = new PatternHolder(Pattern.compile("^" + UriBuilder.concatUriSegments(securityRoot, RoleMapper.ROLEMAPPER)));

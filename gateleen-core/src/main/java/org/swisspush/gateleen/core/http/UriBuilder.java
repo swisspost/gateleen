@@ -8,6 +8,8 @@ import java.util.regex.Pattern;
  */
 public class UriBuilder {
 
+    private static Pattern uriCleanPattern = Pattern.compile("(?<!(http:|https:))/+");
+
     /**
      * Prevent instantiation of this class
      */
@@ -21,7 +23,7 @@ public class UriBuilder {
      * @return The concatenated resulting Uri
      */
     public static String concatUriSegments(String... segments) {
-        StringBuffer uri = new StringBuffer();
+        StringBuilder uri = new StringBuilder();
         for (int i = 0; i < segments.length; i++) {
             if (i == 0) {
                 uri = uri.append(segments[0]);
@@ -34,12 +36,15 @@ public class UriBuilder {
 
     /**
      * Clean the given URI from any multi slash delimiters in between uri segments
+     * <p>
+     * DANGER: This method applies a regular expression against the given uri and this takes some resources of course. Do
+     * think twice before using this method.
      *
      * @param uri to be cleaned from possible multi slash delimiters
      * @return The cleaned uri
      */
     public static String cleanUri(String uri) {
-        return uri.replaceAll("(?<!(http:|https:))/+", "/");
+        return uriCleanPattern.matcher(uri).replaceAll("/");
     }
 
 

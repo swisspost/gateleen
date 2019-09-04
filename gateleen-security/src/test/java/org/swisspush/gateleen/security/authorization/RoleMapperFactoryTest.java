@@ -15,9 +15,7 @@ import org.swisspush.gateleen.validation.ValidationException;
 import java.util.*;
 
 /**
- * Tests for the {@link AclFactory} class
- *
- * @author https://github.com/mcweba [Marc-Andre Weber]
+ * Tests for the {@link RoleMapperFactory} class
  */
 @RunWith(VertxUnitRunner.class)
 public class RoleMapperFactoryTest {
@@ -30,6 +28,7 @@ public class RoleMapperFactoryTest {
     private final String INVALID_MAPPER_JSON = ResourcesUtils.loadResource("testresource_invalid_mapper_json", true);
     private final String VALID_MAPPER_RESOURCE = ResourcesUtils.loadResource("testresource_valid_mapper_resource", true);
     private final String ADDITIONAL_PROP_MAPPER_RESOURCE = ResourcesUtils.loadResource("testresource_additionalproperties_mapper_resource", true);
+    private final String EMPTY_PROP_MAPPER_RESOURCE = ResourcesUtils.loadResource("testresource_emptyproperties_mapper_resource", true);
 
 
     @Before
@@ -56,12 +55,8 @@ public class RoleMapperFactoryTest {
 
     @Test
     public void testAdditionalMapperPropertiesNotAllowed(TestContext context) {
-        checkAdditionalProperties(context, Buffer.buffer(ADDITIONAL_PROP_MAPPER_RESOURCE));
-    }
-
-    private void checkAdditionalProperties(TestContext context, Buffer buffer) {
         try {
-            roleMapperFactory.parseRoleMapper(buffer);
+            roleMapperFactory.parseRoleMapper(Buffer.buffer(ADDITIONAL_PROP_MAPPER_RESOURCE));
             context.fail("Should have thrown a ValidationException since 'notAllowedProperty' property is not allowed");
         } catch (ValidationException ex) {
             context.assertNotNull(ex.getValidationDetails());
@@ -75,5 +70,20 @@ public class RoleMapperFactoryTest {
         }
     }
 
+    @Test
+    public void testEmptyMapperPropertiesNotAllowed(TestContext context) {
+        try {
+            roleMapperFactory.parseRoleMapper(Buffer.buffer(EMPTY_PROP_MAPPER_RESOURCE));
+            context.fail("Should have thrown a ValidationException since 'minLength' is set to 1 in the schema");
+        } catch (ValidationException ex) {
+            context.assertNotNull(ex.getValidationDetails());
+            // validate that both attributes are reported to be invalid
+            context.assertEquals(2, ex.getValidationDetails().size());
+            for (Object obj : ex.getValidationDetails()) {
+                JsonObject jsonObject = (JsonObject) obj;
+                context.assertEquals("minLength", jsonObject.getString("type"));
+            }
+        }
+    }
 
 }

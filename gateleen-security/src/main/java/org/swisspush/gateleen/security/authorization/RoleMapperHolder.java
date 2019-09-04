@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.security.authorization;
 
 
+import javax.annotation.Nonnull;
 import java.util.regex.Pattern;
 
 /**
@@ -32,7 +33,7 @@ public class RoleMapperHolder {
      * @param role         The resulting mapped role, must not be null
      * @param keepOriginal If true, the original role is kept and the mapped one added additionally
      */
-    RoleMapperHolder(Pattern pattern, String role, boolean keepOriginal) {
+    RoleMapperHolder(@Nonnull Pattern pattern, @Nonnull String role, boolean keepOriginal) {
         this.pattern = pattern;
         this.role = role;
         this.keepOriginal = keepOriginal;

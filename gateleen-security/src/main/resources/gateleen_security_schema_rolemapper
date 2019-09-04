@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "description":"A list of Role Mapping definitions which is applied during ACL rule verification",
+  "description": "A list of Role Mapping definitions which is applied during ACL rule verification",
   "type": "object",
   "properties": {
     "mappings": {
@@ -11,15 +11,17 @@
           "properties": {
             "pattern": {
               "type": "string",
-              "description":"Regular expression applied to match against the original users roles"
+              "description": "Regular expression applied to match against the original users roles",
+              "minLength": 1
             },
             "role": {
               "type": "string",
-              "description":"The resulting role which is added to the list of roles of the user before ACL authentication is applied"
+              "description": "The resulting role which is added to the list of roles of the user before ACL authentication is applied",
+              "minLength": 1
             },
             "keepOriginal": {
               "type": "boolean",
-              "description":"If true, the original role is kept in the list of user roles and removed if false and thus not anymore be existant in the list of roles when applied against the ACL"
+              "description": "If true, the original role is kept in the list of user roles and removed if false and thus not anymore be existant in the list of roles when applied against the ACL"
             }
           },
           "additionalProperties": false,
