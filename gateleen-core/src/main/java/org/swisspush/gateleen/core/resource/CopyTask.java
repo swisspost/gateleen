@@ -11,13 +11,11 @@ public class CopyTask {
     private String sourceUri;
     private String destinationUri;
     private MultiMap headers;
-    private MultiMap staticHeaders;
 
-    public CopyTask(String sourceUri, String destinationUri, MultiMap headers, MultiMap staticHeaders) {
+    public CopyTask(String sourceUri, String destinationUri, MultiMap headers) {
         this.sourceUri = sourceUri;
         this.destinationUri = destinationUri;
         this.headers = headers;
-        this.staticHeaders = staticHeaders;
     }
 
     public String getSourceUri() {
@@ -30,10 +28,6 @@ public class CopyTask {
 
     public MultiMap getHeaders() {
         return headers;
-    }
-
-    public MultiMap getStaticHeaders() {
-        return staticHeaders;
     }
 
 }

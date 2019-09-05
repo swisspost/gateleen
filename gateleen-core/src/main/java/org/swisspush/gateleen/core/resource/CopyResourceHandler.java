@@ -3,15 +3,16 @@ package org.swisspush.gateleen.core.resource;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunction;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StatusCodeTranslator;
-
-import java.util.Map;
 
 /**
  * Allows to copy one single resource to another destination.
@@ -47,8 +48,12 @@ public class CopyResourceHandler {
             // process task
             request.bodyHandler(buffer -> {
                 CopyTask task = createCopyTask(request, buffer);
-                if (validTask(request, task)) {
+                if (task != null && validTask(request, task)) {
                     performGETRequest(request, task);
+                } else {
+                    request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+                    request.response().end();
                 }
             });
 
@@ -70,10 +75,6 @@ public class CopyResourceHandler {
         if (task.getSourceUri().endsWith(SLASH) || task.getDestinationUri().endsWith(SLASH)) {
             Logger log = RequestLoggerFactory.getLogger(CopyResourceHandler.class, request);
             log.debug("invalid copy task, collections are not allowed!");
-            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-            request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-            request.response().end();
-
             return false;
         }
 
@@ -129,7 +130,6 @@ public class CopyResourceHandler {
 
                 // setting headers
                 selfRequest.headers().addAll(task.getHeaders());
-                selfRequest.headers().addAll(task.getStaticHeaders());
 
                 // writing data
                 selfRequest.write(data);
@@ -175,23 +175,33 @@ public class CopyResourceHandler {
      * @param buffer - the buffer of the request
      * @return a new CopyTask
      */
-    private CopyTask createCopyTask(final HttpServerRequest request, final Buffer buffer) {
+    CopyTask createCopyTask(final HttpServerRequest request, final Buffer buffer) {
         JsonObject task = new JsonObject(buffer.toString());
+        HeaderFunction headerFunction = HeaderFunctions.DO_NOTHING;
 
-        JsonObject staticHeadersJson = task.getJsonObject("staticHeaders");
-        MultiMap staticHeaders = new CaseInsensitiveHeaders();
-        if (staticHeadersJson != null && staticHeadersJson.size() > 0) {
-            for (Map.Entry<String, Object> entry : staticHeadersJson.getMap().entrySet()) {
-                staticHeaders.add(entry.getKey(), entry.getValue().toString());
+        JsonObject staticHeaders = task.getJsonObject("staticHeaders");
+        if (staticHeaders != null) {
+            headerFunction = HeaderFunctions.parseStaticHeadersFromJson(staticHeaders);
+        } else {
+            final JsonArray dynamicHeaders = task.getJsonArray("headers");
+            if (dynamicHeaders != null) {
+                headerFunction = HeaderFunctions.parseFromJson(dynamicHeaders);
             }
         }
 
         MultiMap headers = StatusCodeTranslator.getTranslateFreeHeaders(request.headers());
-        headers = HttpHeaderUtil.removeNonForwardHeaders(headers);
+
+        final HeaderFunctions.EvalScope evalScope = headerFunction.apply(headers);
+        if (evalScope.getErrorMessage() != null) {
+            log.warn("Problem invoking Header functions: {}", evalScope.getErrorMessage());
+            return null;
+        }
+
+        HttpHeaderUtil.removeNonForwardHeaders(headers);
         headers.remove("content-length");
 
         // create copy task
-        return new CopyTask(task.getString("source"), task.getString("destination"), headers, staticHeaders);
+        return new CopyTask(task.getString("source"), task.getString("destination"), headers);
     }
 
 
