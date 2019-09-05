@@ -5,6 +5,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
@@ -26,14 +27,14 @@ public class AclFactory {
 
     private Logger log = LoggerFactory.getLogger(AclFactory.class);
 
-    public AclFactory(String aclSchema) {
-        this.aclSchema = aclSchema;
+    public AclFactory() {
+        this.aclSchema = ResourcesUtils.loadResource("gateleen_security_schema_acl", true);
     }
 
     public Map<PatternHolder, Set<String>> parseAcl(Buffer buffer) throws ValidationException {
         ValidationResult validationResult = Validator.validateStatic(buffer, aclSchema, log);
-        if(!validationResult.isSuccess()){
-            throw new  ValidationException(validationResult);
+        if (!validationResult.isSuccess()) {
+            throw new ValidationException(validationResult);
         }
 
         Map<PatternHolder, Set<String>> result = new HashMap<>();
@@ -72,4 +73,5 @@ public class AclFactory {
             throw new ValidationException("Missing path for defined method list permission " + id);
         }
     }
+
 }
