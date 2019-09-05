@@ -1,0 +1,11 @@
+{
+   "domain.all": {
+    "methods": [
+      "GET",
+      "PUT",
+      "POST",
+      "DELETE"
+    ],
+    "path": "/gateleen/domain/.*"
+  }
+}

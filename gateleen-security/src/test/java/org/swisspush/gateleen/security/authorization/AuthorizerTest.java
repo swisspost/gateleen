@@ -25,12 +25,14 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.timeout;
 
 /**
- * Tests for the {@link AclFactory} class
+ * Tests for the {@link Authorizer} class
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
@@ -44,12 +46,14 @@ public class AuthorizerTest {
     private static final String ROLE_PATTERN = "^z-gateleen[-_](.*)$";
     private static final String ACLS = "/gateleen/server/security/v1/acls/";
     private static final String ACLS_DIR = "acls/";
+    private static final String ROLEMAPPER = "/gateleen/server/security/v1/rolemapper";
+    private static final String ROLEMAPPER_DIR = "rolemapper/";
 
     @Rule
     public Timeout rule = Timeout.seconds(5);
 
     @Before
-    public void setUp(){
+    public void setUp() {
         vertx = Vertx.vertx();
         storage = new MockResourceStorage();
         setupAcls();
@@ -240,9 +244,31 @@ public class AuthorizerTest {
         Mockito.verify(response, timeout(1000).times(1)).end(eq(StatusCode.FORBIDDEN.getStatusMessage()));
     }
 
-    private void setupAcls(){
+
+    @Test
+    public void testHandleAclRoleMapper(TestContext context) {
+        String requestUri = "/gateleen/domain/tests/someResource";
+
+        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        // we have only a acl for "domain" which must trigger in this case as well
+        // see https://github.com/swisspush/gateleen/issues/285
+        headers.add("x-rp-grp", "z-gateleen-domain1-admin");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+        });
+        Mockito.verifyZeroInteractions(response);
+
+    }
+
+
+    private void setupAcls() {
         JsonObject acls = new JsonObject();
-        acls.put("acls", new JsonArray(Arrays.asList("admin", "authenticated", "developer", "user")));
+        acls.put("acls", new JsonArray(Arrays.asList("admin", "authenticated", "developer", "user", "domain")));
 
         storage.putMockData(ACLS, acls.encode());
 
@@ -250,6 +276,9 @@ public class AuthorizerTest {
         storage.putMockData(ACLS + "authenticated", ResourcesUtils.loadResource(ACLS_DIR + "authenticated", true));
         storage.putMockData(ACLS + "developer", ResourcesUtils.loadResource(ACLS_DIR + "developer", true));
         storage.putMockData(ACLS + "user", ResourcesUtils.loadResource(ACLS_DIR + "user", true));
+        storage.putMockData(ACLS + "domain", ResourcesUtils.loadResource(ACLS_DIR + "domain", true));
+
+        storage.putMockData(ROLEMAPPER, ResourcesUtils.loadResource(ROLEMAPPER_DIR + "rolemapper", true));
     }
 
     class AuthorizerRequest extends DummyHttpServerRequest {
@@ -259,12 +288,12 @@ public class AuthorizerTest {
         private CaseInsensitiveHeaders headers;
         private HttpServerResponse response;
 
-        public AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
+        AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
                                  HttpServerResponse response) {
             this(method, uri, headers, "", response);
         }
 
-        public AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
+        AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
                                  String body, HttpServerResponse response) {
             this.method = method;
             this.uri = uri;
@@ -273,10 +302,25 @@ public class AuthorizerTest {
             this.response = response;
         }
 
-        @Override public HttpMethod method() { return method; }
-        @Override public String uri() { return uri; }
-        @Override public MultiMap headers() { return headers; }
-        @Override public HttpServerResponse response() { return response; }
+        @Override
+        public HttpMethod method() {
+            return method;
+        }
+
+        @Override
+        public String uri() {
+            return uri;
+        }
+
+        @Override
+        public MultiMap headers() {
+            return headers;
+        }
+
+        @Override
+        public HttpServerResponse response() {
+            return response;
+        }
 
         @Override
         public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {

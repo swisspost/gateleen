@@ -1,0 +1,8 @@
+{
+  "mappings": [{
+    "pattern":"domain-.*",
+    "role":"domain",
+    "keepOriginal":false
+  }
+  ]
+}
