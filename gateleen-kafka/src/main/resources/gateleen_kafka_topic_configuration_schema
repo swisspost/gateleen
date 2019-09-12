@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": {
+    "$ref": "#/definitions/Topic"
+  },
+  "definitions": {
+    "Topic": {
+      "description": "A single ACL entry",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "properties": {
+        "bootstrap.servers": {
+          "description": "The path this entry relates to",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bootstrap.servers"
+      ]
+    }
+  }
+}
