@@ -6,14 +6,14 @@
   },
   "definitions": {
     "Topic": {
-      "description": "A single ACL entry",
+      "description": "A single kafka topic entry",
       "type": "object",
       "additionalProperties": {
         "type": "string"
       },
       "properties": {
         "bootstrap.servers": {
-          "description": "The path this entry relates to",
+          "description": "List of host:port entries to establish the initial connection to the kafka cluster",
           "type": "string"
         }
       },

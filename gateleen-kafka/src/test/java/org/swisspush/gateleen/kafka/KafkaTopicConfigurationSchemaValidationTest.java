@@ -13,7 +13,7 @@ import org.swisspush.gateleen.core.validation.ValidationStatus;
 import org.swisspush.gateleen.validation.Validator;
 
 /**
- * Tests for the logging resource schema
+ * Tests for the kafka topic configuration resource schema
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
@@ -54,10 +54,6 @@ public class KafkaTopicConfigurationSchemaValidationTest {
 
     private String extractErrorMessage(ValidationResult validationResult){
         return validationResult.getValidationDetails().getJsonObject(0).getString("message");
-    }
-
-    private String extractErrorValue(ValidationResult validationResult){
-        return validationResult.getValidationDetails().getJsonObject(0).getString("value");
     }
 
     private ValidationResult validate(String loggingResource){
