@@ -1,7 +1,9 @@
 package org.swisspush.gateleen.core.configuration;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -19,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Manage the modifications of configuration resources and notify observers
@@ -54,7 +57,7 @@ public class ConfigurationResourceManager implements LoggableResource {
 
             if (requestUri != null && type != null) {
                 if (ConfigurationResourceChangeType.CHANGE == type) {
-                    notifyObserversAboutResourceChange(requestUri);
+                    notifyObserverAboutResourceChange(requestUri, null);
                 } else if (ConfigurationResourceChangeType.REMOVE == type) {
                     notifyObserversAboutRemovedResource(requestUri);
                 } else {
@@ -64,6 +67,16 @@ public class ConfigurationResourceManager implements LoggableResource {
                 log.warn("Invalid configuration resource change message received. Don't notify anybody!");
             }
         });
+    }
+
+    /**
+     * Call this method to get the validated registered resource immediately. Otherwise you would have to wait
+     * for a change on the corresponding resource.
+     *
+     * @param resourceUri the uri of the registered resource
+     */
+    public Future<Optional<Buffer>> getRegisteredResource(String resourceUri){
+        return getValidatedRegisteredResource(resourceUri);
     }
 
     public void registerResource(String resourceUri, String resourceSchema) {
@@ -164,6 +177,30 @@ public class ConfigurationResourceManager implements LoggableResource {
         return observers;
     }
 
+    private Future<Optional<Buffer>> getValidatedRegisteredResource(String resourceUri){
+        Future<Optional<Buffer>> future = Future.future();
+        String resourceSchema = getRegisteredResources().get(resourceUri);
+        storage.get(resourceUri, buffer -> {
+            if (buffer != null) {
+                configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
+                    if (event.succeeded()) {
+                        if (event.result().isSuccess()) {
+                            future.complete(Optional.of(buffer));
+                        } else {
+                            future.fail("Failure during validation of resource " + resourceUri + ". Message: " + event.result().getMessage());
+                        }
+                    } else {
+                        future.fail("Failure during validation of resource " + resourceUri + ". Message: " + event.cause());
+                    }
+                });
+            } else {
+                future.complete(Optional.empty());
+            }
+        });
+
+        return future;
+    }
+
     private void notifyObserversAboutRemovedResource(String requestUri) {
         log.info("About to notify observers that resource " + requestUri + " has been removed");
         List<ConfigurationResourceObserver> observersByResourceUri = getObserversByResourceUri(requestUri);
@@ -172,53 +209,23 @@ public class ConfigurationResourceManager implements LoggableResource {
         }
     }
 
-    private void notifyObserversAboutResourceChange(String requestUri) {
-        String resourceSchema = getRegisteredResources().get(requestUri);
-        storage.get(requestUri, buffer -> {
-            if (buffer != null) {
-                configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
-                    if (event.succeeded()) {
-                        if (event.result().isSuccess()) {
-                            notifyObserversAboutResourceChange(requestUri, buffer.toString());
-                        } else {
-                            log.warn("Failure during validation of resource " + requestUri + ". Message: " + event.result().getMessage());
-                        }
-                    } else {
-                        log.warn("Failure during validation of resource " + requestUri + ". Message: " + event.cause());
-                    }
-                });
-            } else {
-                log.warn("Could not get URL '" + (requestUri == null ? "<null>" : requestUri) + "'.");
-            }
-        });
-    }
-
     private void notifyObserverAboutResourceChange(String requestUri, ConfigurationResourceObserver observer) {
-        String resourceSchema = getRegisteredResources().get(requestUri);
-        storage.get(requestUri, buffer -> {
-            if (buffer != null) {
-                configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
-                    if (event.succeeded()) {
-                        if (event.result().isSuccess()) {
-                            observer.resourceChanged(requestUri, buffer.toString());
-                        } else {
-                            log.warn("Failure during validation of resource " + requestUri + ". Message: " + event.result().getMessage());
-                        }
-                    } else {
-                        log.warn("Failure during validation of resource " + requestUri + ". Message: " + event.cause());
+        getValidatedRegisteredResource(requestUri).setHandler(event -> {
+            if(event.failed()){
+                log.warn(event.cause().getMessage());
+            } else if(event.result().isPresent()){
+                if(observer != null) {
+                    observer.resourceChanged(requestUri, event.result().get().toString());
+                } else {
+                    List<ConfigurationResourceObserver> observersByResourceUri = getObserversByResourceUri(requestUri);
+                    for (ConfigurationResourceObserver configurationResourceObserver : observersByResourceUri) {
+                        configurationResourceObserver.resourceChanged(requestUri, event.result().get().toString());
                     }
-                });
+                }
             } else {
                 log.warn("Could not get URL '" + (requestUri == null ? "<null>" : requestUri) + "'.");
             }
         });
-    }
-
-    private void notifyObserversAboutResourceChange(String resourceUri, String resource) {
-        List<ConfigurationResourceObserver> observersByResourceUri = getObserversByResourceUri(resourceUri);
-        for (ConfigurationResourceObserver observer : observersByResourceUri) {
-            observer.resourceChanged(resourceUri, resource);
-        }
     }
 
     private List<ConfigurationResourceObserver> getObserversByResourceUri(String resourceUri) {

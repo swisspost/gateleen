@@ -42,6 +42,9 @@ public class KafkaConfigurationParserTest {
         context.assertEquals(Pattern.compile(".").pattern(), config_2.getTopic().pattern());
         Map<String, String> expected_2 = new HashMap<String, String>() {{
             put("bootstrap.servers", "localhost:9093");
+            put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            put("acks", "1");
         }};
         context.assertEquals(expected_2, config_2.getConfigurations());
     }

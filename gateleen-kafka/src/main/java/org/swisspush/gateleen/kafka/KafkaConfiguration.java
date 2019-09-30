@@ -28,7 +28,7 @@ public class KafkaConfiguration {
 
         KafkaConfiguration that = (KafkaConfiguration) o;
 
-        if (!topic.equals(that.topic)) return false;
+        if (!topic.pattern().equals(that.topic.pattern())) return false;
         return configurations.equals(that.configurations);
 
     }

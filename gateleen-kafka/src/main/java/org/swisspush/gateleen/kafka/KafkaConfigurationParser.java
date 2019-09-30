@@ -38,6 +38,7 @@ class KafkaConfigurationParser {
                 Pattern pattern = Pattern.compile(topicPattern);
                 final Map<String, String> additionalConfig = extractAdditionalConfig(config.getJsonObject(topicPattern));
                 configurations.add(new KafkaConfiguration(pattern, additionalConfig));
+                log.info("Topic '{}' successfully parsed and added to kafka configuration list", topicPattern);
             } catch (PatternSyntaxException patternException) {
                 log.warn("Topic '{}' is not a valid regex pattern. Discarding this kafka configuration", topicPattern);
             }

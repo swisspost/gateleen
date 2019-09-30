@@ -32,6 +32,7 @@ import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage;
 import org.swisspush.gateleen.kafka.KafkaHandler;
+import org.swisspush.gateleen.kafka.KafkaProducerRepository;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
@@ -180,8 +181,10 @@ public class Server extends AbstractVerticle {
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
                 loggingResourceManager.enableResourceLogging(true);
 
-                kafkaHandler = new KafkaHandler(configurationResourceManager, SERVER_ROOT + "/admin/v1/kafka/topicsConfig",
-                         SERVER_ROOT + "/streaming/");
+                KafkaProducerRepository kafkaProducerRepository = new KafkaProducerRepository(vertx);
+                kafkaHandler = new KafkaHandler(configurationResourceManager, kafkaProducerRepository,
+                        SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
+                kafkaHandler.initialize();
 
                 userProfileHandler = new UserProfileHandler(vertx, storage, RunConfig.buildUserProfileConfiguration());
                 userProfileHandler.enableResourceLogging(true);
