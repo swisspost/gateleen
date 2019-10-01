@@ -39,4 +39,12 @@ public class KafkaConfiguration {
         result = 31 * result + configurations.hashCode();
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "KafkaConfiguration{" +
+                "topic=" + topic.pattern() +
+                ", configurations=" + configurations +
+                '}';
+    }
 }
