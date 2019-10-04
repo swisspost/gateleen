@@ -13,7 +13,9 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
- * Parses the kafka topic configuration resource
+ * Parses the kafka topic configuration resource into a list of {@link KafkaConfiguration}s
+ *
+ * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 class KafkaConfigurationParser {
 

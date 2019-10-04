@@ -7,15 +7,27 @@ import org.swisspush.gateleen.core.util.StringUtils;
 
 import java.util.Optional;
 
-public class KafkaTopicExtractor {
+/**
+ * Extracts the topic name from a request uri.
+ *
+ * @author https://github.com/mcweba [Marc-Andre Weber]
+ */
+class KafkaTopicExtractor {
 
     private final String streamingPath;
 
-    public KafkaTopicExtractor(String streamingPath) {
+    KafkaTopicExtractor(String streamingPath) {
         this.streamingPath = streamingPath;
     }
 
-    public Optional<String> extractTopic(HttpServerRequest request) {
+    /**
+     * Extract the topic from the provided request by removing the configured streaming path. When no topic (or an
+     * empty string) can be extracted, an {@link Optional#empty()} will be returned.
+     *
+     * @param request the request to extract the topic from the uri
+     * @return an {@link Optional} holding the extracted topic
+     */
+    Optional<String> extractTopic(HttpServerRequest request) {
         final Logger requestLog = RequestLoggerFactory.getLogger(KafkaTopicExtractor.class, request);
         String topic = org.apache.commons.lang3.StringUtils.removeStart(request.uri(), streamingPath);
         if (StringUtils.isNotEmptyTrimmed(topic)) {

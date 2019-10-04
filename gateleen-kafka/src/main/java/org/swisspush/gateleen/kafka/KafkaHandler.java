@@ -5,6 +5,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.kafka.client.producer.KafkaProducer;
+import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,11 +14,24 @@ import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+/**
+ * Handler class for all Kafka related requests.
+ *
+ * The main responsibilities for this handler are:
+ * <ul>
+ * <li>Manage kafka configuration resource</li>
+ * <li>Manage the lifecycle of {@link KafkaProducer} based on the kafka configuration resource</li>
+ * <li>Convert requests to messages and forward them to kafka</li>
+ * </ul>
+ *
+ * @author https://github.com/mcweba [Marc-Andre Weber]
+ */
 public class KafkaHandler extends ConfigurationResourceConsumer {
 
     private final Logger log = LoggerFactory.getLogger(KafkaHandler.class);
@@ -84,20 +98,21 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                 return true;
             }
 
-            final Optional<Pair<KafkaProducer<String, String>, Pattern>> optProducer = repository.findMatchingKafkaProducer(optTopic.get());
+            String topic = optTopic.get();
+            final Optional<Pair<KafkaProducer<String, String>, Pattern>> optProducer = repository.findMatchingKafkaProducer(topic);
             if(!optProducer.isPresent()){
-                respondWith(StatusCode.NOT_FOUND, "Could not find a matching producer for topic " + optTopic.get(), request);
+                respondWith(StatusCode.NOT_FOUND, "Could not find a matching producer for topic " + topic, request);
                 return true;
             }
 
             request.bodyHandler(payload -> {
-
-//                final List<KafkaProducerRecord<String, String>> kafkaProducerRecords = KafkaProducerRecordBuilder.buildRecords(payload);
-
-                ResponseStatusCodeLogUtil.info(request, StatusCode.OK, KafkaHandler.class);
-                request.response().setStatusCode(StatusCode.OK.getStatusCode());
-                request.response().setStatusMessage(StatusCode.OK.getStatusMessage());
-                request.response().end();
+                try {
+                    final List<KafkaProducerRecord<String, String>> kafkaProducerRecords = KafkaProducerRecordBuilder.buildRecords(topic, payload);
+                    //TODO send records
+                    respondWith(StatusCode.OK, StatusCode.OK.getStatusMessage(), request);
+                } catch (ValidationException ve){
+                    respondWith(StatusCode.BAD_REQUEST, ve.getMessage(), request);
+                }
             });
             return true;
         }
@@ -122,6 +137,9 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
 
     private void respondWith(StatusCode statusCode, String responseMessage, HttpServerRequest request) {
         ResponseStatusCodeLogUtil.info(request, statusCode, KafkaHandler.class);
+        if(statusCode != StatusCode.OK) {
+            RequestLoggerFactory.getLogger(KafkaHandler.class, request).info("Response message is: {}", responseMessage);
+        }
         request.response().setStatusCode(statusCode.getStatusCode());
         request.response().setStatusMessage(statusCode.getStatusMessage());
         request.response().end(responseMessage);

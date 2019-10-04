@@ -12,11 +12,13 @@ import java.util.regex.Pattern;
 
 /**
  * A repository holding {@link KafkaProducer} instances for topics
+ *
+ * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class KafkaProducerRepository {
 
     private final Logger log = LoggerFactory.getLogger(KafkaProducerRepository.class);
-    private Vertx vertx;
+    private final Vertx vertx;
     private final Map<Pattern, KafkaProducer<String, String>> kafkaProducers;
 
     public KafkaProducerRepository(Vertx vertx) {
@@ -24,12 +26,12 @@ public class KafkaProducerRepository {
         this.kafkaProducers = new LinkedHashMap<>(); // a linked hash map is used to keep the insertion order
     }
 
-    public void addKafkaProducer(KafkaConfiguration config){
+    void addKafkaProducer(KafkaConfiguration config){
         log.info("About to add kafka producer from {}", config);
         this.kafkaProducers.put(config.getTopic(), KafkaProducer.create(vertx, config.getConfigurations()));
     }
 
-    public Optional<Pair<KafkaProducer<String, String>, Pattern>> findMatchingKafkaProducer(String topic){
+    Optional<Pair<KafkaProducer<String, String>, Pattern>> findMatchingKafkaProducer(String topic){
         for (Map.Entry<Pattern, KafkaProducer<String, String>> entry : kafkaProducers.entrySet()) {
             Matcher matcher = entry.getKey().matcher(topic);
             if(matcher.matches()){
@@ -41,7 +43,7 @@ public class KafkaProducerRepository {
         return Optional.empty();
     }
 
-    public Future<Void> closeAll(){
+    Future<Void> closeAll(){
         log.info("About to close all kafka producers");
         Future<Void> future = Future.future();
         List<Future> futures = new ArrayList<>();

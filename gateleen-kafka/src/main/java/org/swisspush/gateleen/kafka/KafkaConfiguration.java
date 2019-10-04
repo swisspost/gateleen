@@ -3,6 +3,12 @@ package org.swisspush.gateleen.kafka;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+/**
+ * Container holding configuration values for {@link io.vertx.kafka.client.producer.KafkaProducer} indentified
+ * by a topic pattern.
+ *
+ * @author https://github.com/mcweba [Marc-Andre Weber]
+ */
 public class KafkaConfiguration {
 
     private final Pattern topic;
