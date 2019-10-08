@@ -4,12 +4,12 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Container holding configuration values for {@link io.vertx.kafka.client.producer.KafkaProducer} indentified
+ * Container holding configuration values for {@link io.vertx.kafka.client.producer.KafkaProducer} identified
  * by a topic pattern.
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class KafkaConfiguration {
+class KafkaConfiguration {
 
     private final Pattern topic;
     private final Map<String, String> configurations;

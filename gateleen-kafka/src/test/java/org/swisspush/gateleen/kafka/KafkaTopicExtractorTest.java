@@ -24,7 +24,7 @@ public class KafkaTopicExtractorTest {
     private final String PREFIX = "/playground/server/streaming/";
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         extractor = new KafkaTopicExtractor(PREFIX);
     }
 
@@ -51,7 +51,7 @@ public class KafkaTopicExtractorTest {
 
         private final String uri;
 
-        public TopicRequest(String uri) {
+        TopicRequest(String uri) {
             this.uri = uri;
         }
 

@@ -27,7 +27,7 @@ public class KafkaTopicConfigurationSchemaValidationTest {
     private final String MISSING_VALUE_SERIALIZER_CONFIG_RESOURCE = ResourcesUtils.loadResource("testresource_kafka_topic_configuration_missing_value_serializer", true);
     private final String INVALID_TYPES_CONFIG_RESOURCE = ResourcesUtils.loadResource("testresource_kafka_topic_configuration_invalid_types", true);
 
-    private Logger logger = LoggerFactory.getLogger(KafkaTopicConfigurationSchemaValidationTest.class);
+    private final Logger logger = LoggerFactory.getLogger(KafkaTopicConfigurationSchemaValidationTest.class);
 
     @Test
     public void testValidConfig(TestContext context){

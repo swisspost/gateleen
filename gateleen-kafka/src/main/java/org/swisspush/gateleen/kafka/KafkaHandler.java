@@ -39,12 +39,15 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     private final String streamingPath;
     private final KafkaProducerRepository repository;
     private final KafkaTopicExtractor topicExtractor;
+    private final KafkaMessageSender kafkaMessageSender;
 
     private boolean initialized = false;
 
-    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository, String configResourceUri, String streamingPath) {
+    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
+                        KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath) {
         super(configurationResourceManager, configResourceUri, "gateleen_kafka_topic_configuration_schema");
         this.repository = repository;
+        this.kafkaMessageSender = kafkaMessageSender;
         this.streamingPath = streamingPath;
 
         this.topicExtractor = new KafkaTopicExtractor(streamingPath);
@@ -85,7 +88,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
         final Logger requestLog = RequestLoggerFactory.getLogger(KafkaHandler.class, request);
 
         if (request.uri().startsWith(streamingPath)) {
-            requestLog.debug("Handling {}", request.uri());
+            requestLog.info("Handling {}", request.uri());
 
             if (HttpMethod.POST != request.method()) {
                 respondWith(StatusCode.METHOD_NOT_ALLOWED, StatusCode.METHOD_NOT_ALLOWED.getStatusMessage(), request);
@@ -108,8 +111,15 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
             request.bodyHandler(payload -> {
                 try {
                     final List<KafkaProducerRecord<String, String>> kafkaProducerRecords = KafkaProducerRecordBuilder.buildRecords(topic, payload);
-                    //TODO send records
-                    respondWith(StatusCode.OK, StatusCode.OK.getStatusMessage(), request);
+                    kafkaMessageSender.sendMessages(optProducer.get().getLeft(), kafkaProducerRecords).setHandler(event -> {
+                        if(event.succeeded()) {
+                            RequestLoggerFactory.getLogger(KafkaHandler.class, request)
+                                    .info("Successfully sent {} message(s) to kafka topic '{}'", kafkaProducerRecords.size(), topic);
+                            respondWith(StatusCode.OK, StatusCode.OK.getStatusMessage(), request);
+                        } else {
+                            respondWith(StatusCode.INTERNAL_SERVER_ERROR, event.cause().getMessage(), request);
+                        }
+                    });
                 } catch (ValidationException ve){
                     respondWith(StatusCode.BAD_REQUEST, ve.getMessage(), request);
                 }
