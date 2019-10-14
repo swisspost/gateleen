@@ -5,7 +5,6 @@ import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.future.SequentialFutures;
 
 import java.util.List;
 
@@ -13,20 +12,21 @@ public class KafkaMessageSender {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaMessageSender.class);
 
-    public Future<Void> sendMessages(KafkaProducer<String, String> kafkaProducer,
+    Future<Void> sendMessages(KafkaProducer<String, String> kafkaProducer,
                                      List<KafkaProducerRecord<String, String>> messages){
         Future<Void> future = Future.future();
         Future<Void> f = Future.succeededFuture();
 
-        SequentialFutures.execute(messages.iterator(), f,
-                (f1, message) -> f1.compose(ignore -> KafkaMessageSender.this.sendMessage(kafkaProducer, message)))
-                .setHandler(res -> {
-                    if(res.succeeded()) {
-                        future.complete();
-                    } else {
-                        future.fail(res.cause());
-                    }
-                });
+        messages.stream().reduce(f,
+                (f1, message) -> f1.compose(ignore -> KafkaMessageSender.this.sendMessage(kafkaProducer, message)),
+                (voidFuture, voidFuture2) -> null
+        ).setHandler(res -> {
+            if(res.succeeded()) {
+                future.complete();
+            } else {
+                future.fail(res.cause());
+            }
+        });
 
         return future;
     }
