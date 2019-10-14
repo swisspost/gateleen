@@ -240,9 +240,9 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
     }
 
     @Override
-    public void resourceChanged(String resourceUri, String resource) {
+    public void resourceChanged(String resourceUri, Buffer resource) {
         if(configResourceUri() != null && configResourceUri().equals(resourceUri)){
-            log.info("Got notified about configuration resource update for "+resourceUri+" with new data: " + resource);
+            log.info("Got notified about configuration resource update for " + resourceUri);
             try {
                 JsonObject obj = new JsonObject(resource);
                 Boolean websockets_enabled = obj.getBoolean("websockets_enabled");
@@ -252,7 +252,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                     log.warn("No value for property 'websockets_enabled' found. Therefore not changing any configuration");
                 }
             } catch (DecodeException ex){
-                log.warn("Unable to decode configuration resource for " + resourceUri + " with data: " + resource + " Reason: " + ex.getMessage());
+                log.warn("Unable to decode configuration resource for " + resourceUri + ". Reason: " + ex.getMessage());
             }
         }
     }

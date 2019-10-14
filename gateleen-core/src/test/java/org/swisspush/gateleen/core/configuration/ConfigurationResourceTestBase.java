@@ -130,7 +130,7 @@ public abstract class ConfigurationResourceTestBase {
     protected class TestConfigurationResourceObserver implements ConfigurationResourceObserver {
 
         @Override
-        public void resourceChanged(String resourceUri, String resource) { }
+        public void resourceChanged(String resourceUri, Buffer resource) { }
 
         @Override
         public void resourceRemoved(String resourceUri) { }

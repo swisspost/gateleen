@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.core.configuration;
 
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
@@ -171,7 +172,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // resource should be in storage
         await().atMost(3, SECONDS).until( () -> storage.getMockData().get(resourceURI), equalTo(CONTENT_MATCHING_PERSON_SCHEMA));
 
-        verify(observer, timeout(1000).times(1)).resourceChanged(eq(resourceURI), eq(CONTENT_MATCHING_PERSON_SCHEMA));
+        verify(observer, timeout(1000).times(1)).resourceChanged(eq(resourceURI), eq(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA)));
         async.complete();
     }
 
@@ -201,7 +202,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // resource should still not be in storage after invalid update
         context.assertFalse(storage.getMockData().containsKey(resourceURI));
 
-        verify(observer, Mockito.never()).resourceChanged(Matchers.anyString(), Matchers.anyString());
+        verify(observer, Mockito.never()).resourceChanged(Matchers.anyString(), Matchers.any(Buffer.class));
         async.complete();
     }
 
@@ -240,7 +241,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
 
         context.assertEquals(storagePutFailStatusCode, response.getStatusCode());
 
-        verify(observer, Mockito.never()).resourceChanged(anyString(), anyString());
+        verify(observer, Mockito.never()).resourceChanged(anyString(), Matchers.any(Buffer.class));
         async.complete();
     }
 
@@ -267,7 +268,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // only 1 occurence of Storage.get is allowed during registerObserver. The second call would have come after the publish
         verify(storage, times(1)).get(Matchers.anyString(), Matchers.any());
 
-        verify(observer, Mockito.never()).resourceChanged(Matchers.anyString(), Matchers.anyString());
+        verify(observer, Mockito.never()).resourceChanged(Matchers.anyString(), Matchers.any(Buffer.class));
         async.complete();
     }
 
@@ -334,7 +335,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
 
         await().atMost(3, SECONDS).until(() -> {
             try {
-                verify(observer, times(1)).resourceChanged(eq(resourceURI), eq(CONTENT_MATCHING_PERSON_SCHEMA));
+                verify(observer, times(1)).resourceChanged(eq(resourceURI), eq(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA)));
                 return true;
             }
             catch(AssertionError ae) {
@@ -364,8 +365,8 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
 
         await().atMost(3, SECONDS).until(() -> {
             try {
-                verify(observer, times(1)).resourceChanged(eq(resourceURI), eq(CONTENT_MATCHING_PERSON_SCHEMA));
-                verify(observer2, times(1)).resourceChanged(eq(resourceURI), eq(CONTENT_MATCHING_PERSON_SCHEMA));
+                verify(observer, times(1)).resourceChanged(eq(resourceURI), eq(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA)));
+                verify(observer2, times(1)).resourceChanged(eq(resourceURI), eq(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA)));
                 return true;
             }
             catch(AssertionError ae) {
@@ -402,7 +403,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // resource should be in storage
         await().atMost(3, SECONDS).until( () -> storage.getMockData().get(resourceURI), equalTo(CONTENT_MATCHING_PERSON_SCHEMA));
 
-        verify(observer, times(1)).resourceChanged(eq(resourceURI), eq(CONTENT_MATCHING_PERSON_SCHEMA));
+        verify(observer, times(1)).resourceChanged(eq(resourceURI), eq(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA)));
 
         PersonResourceRequest deleteRequest = new PersonResourceRequest(HttpMethod.DELETE, resourceURI,
                 resourceURI, null, new DummyHttpServerResponse());
@@ -443,7 +444,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // resource should be in storage
         await().atMost(3, SECONDS).until( () -> storage.getMockData().get(resourceURI), equalTo(CONTENT_MATCHING_PERSON_SCHEMA));
 
-        verify(observer, times(1)).resourceChanged(eq(resourceURI), eq(CONTENT_MATCHING_PERSON_SCHEMA));
+        verify(observer, times(1)).resourceChanged(eq(resourceURI), eq(Buffer.buffer(CONTENT_MATCHING_PERSON_SCHEMA)));
 
         DummyHttpServerResponse response = new DummyHttpServerResponse();
         PersonResourceRequest deleteRequest = new PersonResourceRequest(HttpMethod.DELETE, resourceURI,

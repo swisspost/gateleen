@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.core.configuration;
 
+import io.vertx.core.buffer.Buffer;
+
 /**
  * Interface for classes interested in configuration resources
  *
@@ -14,7 +16,7 @@ public interface ConfigurationResourceObserver {
      * @param resourceUri the uri of the resource that has been changed
      * @param resource the resource including the changes
      */
-    void resourceChanged(String resourceUri, String resource);
+    void resourceChanged(String resourceUri, Buffer resource);
 
     /**
      * Gets called when the resource with uri <code>resourceUri</code> has been removed.

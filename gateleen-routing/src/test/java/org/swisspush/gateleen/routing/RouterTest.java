@@ -151,7 +151,7 @@ public class RouterTest {
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
 
         // change the hops limit to 5
-        router.resourceChanged(serverUrl + "/admin/v1/routing/config", "{\"request.hops.limit\":5}");
+        router.resourceChanged(serverUrl + "/admin/v1/routing/config", Buffer.buffer("{\"request.hops.limit\":5}"));
 
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         response.setStatusCode(StatusCode.OK.getStatusCode());
@@ -217,7 +217,7 @@ public class RouterTest {
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
 
         // change the hops limit to 0, so no re-routing is allowed
-        router.resourceChanged(serverUrl + "/admin/v1/routing/config", "{\"request.hops.limit\":0}");
+        router.resourceChanged(serverUrl + "/admin/v1/routing/config", Buffer.buffer("{\"request.hops.limit\":0}"));
 
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         response.setStatusCode(StatusCode.OK.getStatusCode());
@@ -283,7 +283,7 @@ public class RouterTest {
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
 
         // change the hops limit to 5
-        router.resourceChanged(serverUrl + "/admin/v1/routing/config", "{\"request.hops.limit\":5}");
+        router.resourceChanged(serverUrl + "/admin/v1/routing/config", Buffer.buffer("{\"request.hops.limit\":5}"));
 
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         response.setStatusCode(StatusCode.OK.getStatusCode());

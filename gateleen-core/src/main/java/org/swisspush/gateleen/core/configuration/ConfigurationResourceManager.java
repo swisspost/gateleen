@@ -202,7 +202,7 @@ public class ConfigurationResourceManager implements LoggableResource {
     }
 
     private void notifyObserversAboutRemovedResource(String requestUri) {
-        log.info("About to notify observers that resource " + requestUri + " has been removed");
+        log.debug("About to notify observers that resource " + requestUri + " has been removed");
         List<ConfigurationResourceObserver> observersByResourceUri = getObserversByResourceUri(requestUri);
         for (ConfigurationResourceObserver observer : observersByResourceUri) {
             observer.resourceRemoved(requestUri);
@@ -215,11 +215,11 @@ public class ConfigurationResourceManager implements LoggableResource {
                 log.warn(event.cause().getMessage());
             } else if(event.result().isPresent()){
                 if(observer != null) {
-                    observer.resourceChanged(requestUri, event.result().get().toString());
+                    observer.resourceChanged(requestUri, event.result().get());
                 } else {
                     List<ConfigurationResourceObserver> observersByResourceUri = getObserversByResourceUri(requestUri);
                     for (ConfigurationResourceObserver configurationResourceObserver : observersByResourceUri) {
-                        configurationResourceObserver.resourceChanged(requestUri, event.result().get().toString());
+                        configurationResourceObserver.resourceChanged(requestUri, event.result().get());
                     }
                 }
             } else {

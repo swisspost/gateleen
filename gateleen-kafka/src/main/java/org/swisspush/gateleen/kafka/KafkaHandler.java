@@ -128,10 +128,10 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     }
 
     @Override
-    public void resourceChanged(String resourceUri, String resource) {
+    public void resourceChanged(String resourceUri, Buffer resource) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
             log.info("Kafka configuration resource " + resourceUri + " was updated. Going to initialize with new configuration");
-            initializeKafkaConfiguration(Buffer.buffer(resource));
+            initializeKafkaConfiguration(resource);
         }
     }
 
