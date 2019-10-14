@@ -36,7 +36,7 @@ class KafkaProducerRecordBuilder {
         List<KafkaProducerRecord<String, String>> kafkaProducerRecords = new ArrayList<>();
         JsonObject payloadObj;
         try {
-            payloadObj = new JsonObject(payload.toString());
+            payloadObj = new JsonObject(payload);
         } catch (DecodeException de){
             throw new ValidationException("Error while parsing payload");
         }

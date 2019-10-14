@@ -85,10 +85,8 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     }
 
     public boolean handle(final HttpServerRequest request) {
-        final Logger requestLog = RequestLoggerFactory.getLogger(KafkaHandler.class, request);
-
         if (request.uri().startsWith(streamingPath)) {
-            requestLog.info("Handling {}", request.uri());
+            RequestLoggerFactory.getLogger(KafkaHandler.class, request).info("Handling {}", request.uri());
 
             if (HttpMethod.POST != request.method()) {
                 respondWith(StatusCode.METHOD_NOT_ALLOWED, StatusCode.METHOD_NOT_ALLOWED.getStatusMessage(), request);
