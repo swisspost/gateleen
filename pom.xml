@@ -6,7 +6,7 @@
 
     <groupId>org.swisspush.gateleen</groupId>
     <artifactId>gateleen</artifactId>
-    <version>1.1.47-SNAPSHOT</version>
+    <version>1.1.48-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>gateleen</name>
     <description>Middleware library based on Vert.x to build advanced JSON/REST communication servers</description>
@@ -53,7 +53,7 @@
         <sel_chrome_driver>${session.executionRootDirectory}/gateleen-test/src/test/resources/chromedriver
         </sel_chrome_driver>
         <vertx.version>3.6.2</vertx.version>
-        <jackson.version>2.9.9</jackson.version>
+        <jackson.version>2.9.10</jackson.version>
     </properties>
 
     <repositories>
@@ -95,6 +95,7 @@
             <modules>
                 <module>gateleen-testhelper</module>
                 <module>gateleen-core</module>
+                <module>gateleen-kafka</module>
                 <module>gateleen-validation</module>
                 <module>gateleen-logging</module>
                 <module>gateleen-monitoring</module>
@@ -123,6 +124,7 @@
             <modules>
                 <module>gateleen-testhelper</module>
                 <module>gateleen-core</module>
+                <module>gateleen-kafka</module>
                 <module>gateleen-delegate</module>
                 <module>gateleen-delta</module>
                 <module>gateleen-expansion</module>
@@ -253,6 +255,11 @@
             <dependency>
                 <groupId>io.vertx</groupId>
                 <artifactId>vertx-redis-client</artifactId>
+                <version>${vertx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-kafka-client</artifactId>
                 <version>${vertx.version}</version>
             </dependency>
             <dependency>

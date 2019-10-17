@@ -28,6 +28,7 @@ import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
 import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
+import org.swisspush.gateleen.kafka.KafkaHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.merge.MergeHandler;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -102,6 +103,7 @@ public class RunConfig {
     private ZipExtractHandler zipExtractHandler;
     private DelegateHandler delegateHandler;
     private MergeHandler mergeHandler;
+    private KafkaHandler kafkaHandler;
 
     public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
@@ -109,7 +111,7 @@ public class RunConfig {
                      EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
                      DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler,
-                     ZipExtractHandler zipExtractHandler, DelegateHandler delegateHandler, MergeHandler mergeHandler) {
+                     ZipExtractHandler zipExtractHandler, DelegateHandler delegateHandler, MergeHandler mergeHandler, KafkaHandler kafkaHandler) {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.verticleClass = verticleClass;
@@ -136,6 +138,7 @@ public class RunConfig {
         this.zipExtractHandler = zipExtractHandler;
         this.delegateHandler = delegateHandler;
         this.mergeHandler = mergeHandler;
+        this.kafkaHandler = kafkaHandler;
         init();
     }
 
@@ -165,7 +168,8 @@ public class RunConfig {
                 builder.propertyHandler,
                 builder.zipExtractHandler,
                 builder.delegateHandler,
-                builder.mergeHandler);
+                builder.mergeHandler,
+                builder.kafkaHandler);
     }
 
     private void init(){
@@ -209,6 +213,7 @@ public class RunConfig {
         private ConfigurationResourceManager configurationResourceManager;
         private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
         private EventBusHandler eventBusHandler;
+        private KafkaHandler kafkaHandler;
         private ValidationHandler validationHandler;
         private HookHandler hookHandler;
         private UserProfileHandler userProfileHandler;
@@ -257,6 +262,11 @@ public class RunConfig {
 
         public RunConfigBuilder eventBusHandler(EventBusHandler eventBusHandler){
             this.eventBusHandler = eventBusHandler;
+            return this;
+        }
+
+        public RunConfigBuilder kafkaHandler(KafkaHandler kafkaHandler){
+            this.kafkaHandler = kafkaHandler;
             return this;
         }
 
@@ -546,6 +556,9 @@ public class RunConfig {
                             return;
                         }
                         if (eventBusHandler != null && eventBusHandler.handle(request)) {
+                            return;
+                        }
+                        if(kafkaHandler != null && kafkaHandler.handle(request)){
                             return;
                         }
                         if (validationHandler != null && validationHandler.isToValidate(request)) {
