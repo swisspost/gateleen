@@ -108,6 +108,7 @@ mvn install -PnonUiIntegrationTests
 | [test](gateleen-test/README_test.md)                                     | Integration tests |
 | [user](gateleen-user/README_user.md)                                     | Manages user profile merges user preferences and identity information |
 | [validation](gateleen-validation/README_validation.md)                   | Validates data according to JSON schemas  |
+| [kafka](gateleen-kafka/README_kafka.md)                                  | Forward requests to Kafka topics  |
 
 ## Headers
 This is a list of the custom headers used by Gateleen.
