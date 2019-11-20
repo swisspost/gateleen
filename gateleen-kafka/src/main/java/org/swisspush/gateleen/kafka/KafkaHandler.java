@@ -108,6 +108,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
 
             request.bodyHandler(payload -> {
                 try {
+                    log.debug("incoming kafka message payload: {}", payload.toString());
                     final List<KafkaProducerRecord<String, String>> kafkaProducerRecords = KafkaProducerRecordBuilder.buildRecords(topic, payload);
                     kafkaMessageSender.sendMessages(optProducer.get().getLeft(), kafkaProducerRecords).setHandler(event -> {
                         if(event.succeeded()) {
