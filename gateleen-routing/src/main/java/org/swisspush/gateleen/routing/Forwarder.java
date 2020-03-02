@@ -176,7 +176,7 @@ public class Forwarder implements Handler<RoutingContext> {
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
         MultiMap headersToForward = req.headers();
         headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
-        cReq.headers().setAll(headersToForward);
+        cReq.headers().addAll(headersToForward);
 
         if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
             cReq.headers().set(SELF_REQUEST_HEADER, "true");
