@@ -319,12 +319,12 @@ public class HookHandlerTest {
         // Assert request was ok
         testContext.assertEquals(200, statusCodePtr[0]);
 
-        { // Assert expiration time has same length as a valid date.
+        { // Assert expiration time has same length as a valid date (including time zone)
             final String storedHook = storage.getMockData().get(HOOK_ROOT_URI + "registrations/listeners/http+my-service+my-hook+gateleen+example");
             testContext.assertNotNull(storedHook);
             final String expirationTime = new JsonObject(storedHook).getString("expirationTime");
             testContext.assertNotNull(expirationTime);
-            testContext.assertEquals("____-__-__T__:__:__.___".length(), expirationTime.length());
+            testContext.assertEquals("____-__-__T__:__:__.___+__:__".length(), expirationTime.length());
         }
     }
 
@@ -353,12 +353,12 @@ public class HookHandlerTest {
         // Assert request was ok
         testContext.assertEquals(200, statusCodePtr[0]);
 
-        { // Assert expiration time has same length as a valid date.
+        { // Assert expiration time has same length as a valid date (including time zone)
             final String storedHook = storage.getMockData().get(HOOK_ROOT_URI + "registrations/listeners/http+my-service+my-fancy-hook+gateleen+example");
             testContext.assertNotNull(storedHook);
             final String expirationTime = new JsonObject(storedHook).getString("expirationTime");
             testContext.assertNotNull(expirationTime);
-            testContext.assertEquals("____-__-__T__:__:__.___".length(), expirationTime.length());
+            testContext.assertEquals("____-__-__T__:__:__.___+__:__".length(), expirationTime.length());
         }
     }
 
@@ -383,12 +383,12 @@ public class HookHandlerTest {
         // Assert request was ok
         testContext.assertEquals(200, statusCodePtr[0]);
 
-        { // Assert expiration time has same length as a valid date.
+        { // Assert expiration time has same length as a valid date (including timezone)
             final String storedHook = storage.getMockData().get(HOOK_ROOT_URI + "registrations/listeners/http+my-service+yet-another-hook+gateleen+example");
             testContext.assertNotNull(storedHook);
             final String expirationTime = new JsonObject(storedHook).getString("expirationTime");
             testContext.assertNotNull(expirationTime);
-            testContext.assertEquals("____-__-__T__:__:__.___".length(), expirationTime.length());
+            testContext.assertEquals("____-__-__T__:__:__.___+__:__".length(), expirationTime.length());
         }
     }
 

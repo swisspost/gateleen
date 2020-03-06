@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.hook;
 
 import io.vertx.core.net.ProxyOptions;
-import org.joda.time.LocalDateTime;
+import org.joda.time.DateTime;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
@@ -23,7 +23,7 @@ public class HttpHook {
     public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE;
     private String destination;
     private List<String> methods;
-    private LocalDateTime expirationTime;
+    private DateTime expirationTime;
     private boolean fullUrl = false;
     private QueueingStrategy queueingStrategy = new DefaultQueueingStrategy();
     private Pattern filter = null;
@@ -88,7 +88,7 @@ public class HttpHook {
      *      Expiration time of this hook. This is null for hooks with infinite
      *      expiration.
      */
-    public Optional<LocalDateTime> getExpirationTime() {
+    public Optional<DateTime> getExpirationTime() {
         return Optional.ofNullable( expirationTime );
     }
 
@@ -97,7 +97,7 @@ public class HttpHook {
      * 
      * @param expirationTime expirationTime
      */
-    public void setExpirationTime(LocalDateTime expirationTime) {
+    public void setExpirationTime(DateTime expirationTime) {
         this.expirationTime = expirationTime;
     }
 
