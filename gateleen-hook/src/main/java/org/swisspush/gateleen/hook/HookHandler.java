@@ -15,7 +15,7 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.ProxyOptions;
-import org.joda.time.LocalDateTime;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HeaderFunction;
@@ -264,16 +264,16 @@ public class HookHandler implements LoggableResource {
             public void handle(Long timerID) {
                 log.trace("Running hook cleanup ...");
 
-                LocalDateTime nowAsTime = ExpiryCheckHandler.getActualTime();
+                DateTime now = DateTime.now();
 
                 // Loop through listeners first
                 for (Listener listener : listenerRepository.getListeners()) {
 
-                    final Optional<LocalDateTime> expirationTime = listener.getHook().getExpirationTime();
+                    final Optional<DateTime> expirationTime = listener.getHook().getExpirationTime();
                     if (!expirationTime.isPresent()) {
                         log.trace("Listener " + listener.getListenerId() + " will never expire.");
-                    } else if (expirationTime.get().isBefore(nowAsTime)) {
-                        log.debug("Listener " + listener.getListenerId() + " expired at " + expirationTime.get() + " and actual time is " + nowAsTime);
+                    } else if (expirationTime.get().isBefore(now)) {
+                        log.debug("Listener " + listener.getListenerId() + " expired at " + expirationTime.get() + " and current time is " + now);
                         listenerRepository.removeListener(listener.getListenerId());
                         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListenerId());
                     }
@@ -283,10 +283,10 @@ public class HookHandler implements LoggableResource {
                 Map<String, Route> routes = routeRepository.getRoutes();
                 for (String key : routes.keySet()) {
                     Route route = routes.get(key);
-                    final Optional<LocalDateTime> expirationTime = route.getHook().getExpirationTime();
+                    final Optional<DateTime> expirationTime = route.getHook().getExpirationTime();
                     if (!expirationTime.isPresent()) {
                         log.trace("Route " + key + " will never expire.");
-                    } else if (expirationTime.get().isBefore(nowAsTime)) {
+                    } else if (expirationTime.get().isBefore(now)) {
                         routeRepository.removeRoute(key);
                     }
                 }
@@ -911,7 +911,7 @@ public class HookHandler implements LoggableResource {
             ExpiryCheckHandler.setExpireAfter(request, expireAfter);
 
             // calculate the expiration time for the listener / routes
-            LocalDateTime expirationTime = ExpiryCheckHandler.getExpirationTime(expireAfter);
+            DateTime expirationTime = ExpiryCheckHandler.getExpirationTime(expireAfter);
 
             /*
              * Create a new json object containing the request url
@@ -1266,7 +1266,7 @@ public class HookHandler implements LoggableResource {
                 log.debug("Register listener and route " + target + " with infinite expiration.");
                 hook.setExpirationTime(null);
             } else {
-                LocalDateTime expirationTime;
+                DateTime expirationTime;
                 try {
                     expirationTime = ExpiryCheckHandler.parseDateTime(expirationTimeExpression);
                 } catch (RuntimeException e) {

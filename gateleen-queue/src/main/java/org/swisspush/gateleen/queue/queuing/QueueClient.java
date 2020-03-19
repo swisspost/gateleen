@@ -183,9 +183,9 @@ public class QueueClient implements RequestQueue {
     }
 
     /**
-     * Enques a request. <br />
+     * Enqueues a request. <br />
      * If no X-Server-Timestamp and / or X-Expire-After headers
-     * are set, the server sets the actual timestamp and a default
+     * are set, the server sets the current timestamp and a default
      * expiry time of 2 seconds.
      *
      * @param request       - a client made request, therefor connected, can take responses. The request can be null, if only a selfmade request is available.
@@ -197,9 +197,9 @@ public class QueueClient implements RequestQueue {
     }
 
     /**
-     * Enques a request. <br />
+     * Enqueues a request. <br />
      * If no X-Server-Timestamp and / or X-Expire-After headers
-     * are set, the server sets the actual timestamp and a default
+     * are set, the server sets the current timestamp and a default
      * expiry time of 2 seconds.
      *
      * @param request       - a client made request, therefor connected, can take responses. The request can be null, if only a selfmade request is available.
