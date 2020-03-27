@@ -1,13 +1,25 @@
 {
-    "mappings": [{
+    "mappings": [
+      {
+        "pattern": "(.*)-stage-.*p.*",
+        "role": "$1",
+        "keepOriginal": false,
+        "continueMapping": true
+      },
+      {
         "pattern":"domain1-.*",
-        "role":"domain",
+        "role":"domain1",
         "keepOriginal":false
       },
       {
-        "pattern":"domain2.*",
-        "role":"domain",
+        "pattern":"domain2-.*",
+        "role":"domain2",
         "keepOriginal":true
+      },
+      {
+        "pattern":"domain-admin.*",
+        "role":"domain",
+        "keepOriginal":false
       }
     ]
  }

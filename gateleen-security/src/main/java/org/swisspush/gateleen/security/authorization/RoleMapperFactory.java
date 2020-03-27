@@ -34,7 +34,7 @@ public class RoleMapperFactory {
         List<RoleMapperHolder> result = new ArrayList<>();
         Mappings mappings = Json.decodeValue(buffer, Mappings.class);
         for (Mapping mapping : mappings.mappings) {
-            result.add(new RoleMapperHolder(Pattern.compile(mapping.pattern), mapping.role, mapping.keepOriginal));
+            result.add(new RoleMapperHolder(Pattern.compile(mapping.pattern), mapping.role, mapping.keepOriginal,mapping.continueMapping));
         }
         return result;
     }
@@ -46,7 +46,7 @@ public class RoleMapperFactory {
 
     public static class Mapping {
         public String pattern, role;
-        public boolean keepOriginal;
+        public boolean keepOriginal, continueMapping;
     }
 
 }

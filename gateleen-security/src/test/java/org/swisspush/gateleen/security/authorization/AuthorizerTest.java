@@ -252,7 +252,7 @@ public class AuthorizerTest {
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         // we have only a acl for "domain" which must trigger in this case as well
         // see https://github.com/swisspush/gateleen/issues/285
-        headers.add("x-rp-grp", "z-gateleen-domain1-admin");
+        headers.add("x-rp-grp", "z-gateleen-domain-admin-stage-pit");
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
