@@ -26,9 +26,6 @@ public class RoleMapperTest {
     private Vertx vertx;
     private MockResourceStorage storage;
 
-    private static final String ROLE_PATTERN = "^z-gateleen[-_](.*)$";
-    private static final String ACLS = "/gateleen/server/security/v1/acls/";
-    private static final String ACLS_DIR = "acls/";
     private static final String ROLEMAPPER = "/gateleen/server/security/v1/rolemapper";
     private static final String ROLEMAPPER_DIR = "rolemapper/";
 
@@ -62,7 +59,7 @@ public class RoleMapperTest {
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
         context.assertTrue(roles.size() == 1);
-        context.assertTrue(roles.contains("domain"));
+        context.assertTrue(roles.contains("domain1"));
     }
 
     @Test
@@ -72,9 +69,67 @@ public class RoleMapperTest {
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
         context.assertTrue(roles.size() == 2);
-        context.assertTrue(roles.contains("domain"));
+        context.assertTrue(roles.contains("domain2"));
         context.assertTrue(roles.contains("domain2-user"));
     }
+
+
+    @Test
+    public void checkStageMappingWithoutFurtherHit(TestContext context) {
+        Set<String> roles = new HashSet<>();
+        roles.add("domain-user-stage-p"); // will match the stage mapping but after that no other one
+        roles = roleMapper.mapRoles(roles);
+        context.assertNotNull(roles);
+        context.assertTrue(roles.size() == 0);
+    }
+
+
+    @Test
+    public void checkStageMappingWithoutKeepOriginal(TestContext context) {
+        Set<String> roles = new HashSet<>();
+        roles.add("domain1-user-stage-p");
+        roles = roleMapper.mapRoles(roles);
+        context.assertNotNull(roles);
+        context.assertTrue(roles.size() == 1);
+        context.assertTrue(roles.contains("domain1"));
+    }
+
+    @Test
+    public void checkStageMappingWithKeepOriginal(TestContext context) {
+        Set<String> roles = new HashSet<>();
+        roles.add("domain2-user-stage-p");
+        roles = roleMapper.mapRoles(roles);
+        context.assertNotNull(roles);
+        context.assertTrue(roles.size() == 2);
+        context.assertTrue(roles.contains("domain2-user"));
+        context.assertTrue(roles.contains("domain2"));
+    }
+
+
+
+
+/*
+    // change the test resources correspondingly between the tests manually
+    @Test
+    public void checkLocalMappingPerformance(TestContext context) {
+        Set<String> roles = new HashSet<>();
+        roles.add("domain1-user-stage-p");
+        Set<String> resultingRoles;
+        long startTime = System.currentTimeMillis();
+        System.out.println("Start: " + startTime);
+        for (int i = 0;i<10000;i++) {
+            resultingRoles = roleMapper.mapRoles(roles);
+            context.assertNotNull(resultingRoles);
+            context.assertTrue(resultingRoles.size() == 1);
+            context.assertTrue(resultingRoles.contains("domain1"));
+        }
+        long endTime = System.currentTimeMillis();
+        long duration = endTime - startTime;
+        System.out.println("End: " + startTime);
+        System.out.println("Duration: " + duration);
+    }
+*/
+
 
 
     private void setupRoleMapper() {
