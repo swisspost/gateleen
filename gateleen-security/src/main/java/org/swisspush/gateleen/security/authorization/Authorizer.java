@@ -52,7 +52,7 @@ public class Authorizer implements LoggableResource {
 
     public static final Logger log = LoggerFactory.getLogger(Authorizer.class);
 
-    public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern) {
+    public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern, Map<String, Object> properties) {
         this.vertx = vertx;
         this.storage = storage;
         String aclRoot = UriBuilder.concatUriSegments(securityRoot, aclKey, "/");
@@ -60,7 +60,7 @@ public class Authorizer implements LoggableResource {
         this.userUriPattern = Pattern.compile(securityRoot + "user(\\?.*)?");
         this.roleMapperUriPattern = new PatternHolder(Pattern.compile("^" + UriBuilder.concatUriSegments(securityRoot, RoleMapper.ROLEMAPPER)));
         this.roleExtractor = new RoleExtractor(rolePattern);
-        this.roleMapper = new RoleMapper(storage, securityRoot);
+        this.roleMapper = new RoleMapper(storage, securityRoot,properties);
         this.roleAuthorizer = new RoleAuthorizer(storage, securityRoot, rolePattern, roleMapper);
         eb = vertx.eventBus();
 

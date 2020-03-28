@@ -1,14 +1,14 @@
 {
     "mappings": [
       {
-        "pattern": "(.*)-stage-.*p.*",
+        "pattern": "(.*)-stage-.*prod.*",
         "role": "$1",
         "keepOriginal": false,
         "continueMapping": true
       },
       {
-        "pattern": "(.*)-stage-.*i.*",
-        "role": "$1",
+        "pattern": "(.*)-stage-.*${ENVIRONEMENT}.*",
+        "role": "$1-${ENVIRONEMENT}",
         "keepOriginal": true,
         "continueMapping": true
       },

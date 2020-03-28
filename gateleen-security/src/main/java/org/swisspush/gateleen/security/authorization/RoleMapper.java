@@ -27,16 +27,17 @@ public class RoleMapper implements ConfigurationResource {
 
     public static final String ROLEMAPPER = "rolemapper";
 
+
     /**
      * Holds the list of all configured RoleMappings and executes the mapping
      *
      * @param storage      Reference to the storage to retrieve the RoleMappings from
      * @param securityRoot Base url to retrieve the rolemapper config resource from (no trailing slash expected nor necessary)
      */
-    public RoleMapper(ResourceStorage storage, String securityRoot) {
+    public RoleMapper(ResourceStorage storage, String securityRoot, Map<String, Object> properties) {
         this.storage = storage;
         this.roleMapper = UriBuilder.concatUriSegments(securityRoot, ROLEMAPPER);
-        this.roleMapperFactory = new RoleMapperFactory();
+        this.roleMapperFactory = new RoleMapperFactory(properties);
 
         configUpdate();
     }
@@ -78,7 +79,7 @@ public class RoleMapper implements ConfigurationResource {
     public Set<String> mapRoles(Set<String> roles) {
         if (roles != null && roleMappers != null && !roleMappers.isEmpty()) {
             Set<String> mappedRoles = new HashSet<>();
-            String originalRole = null; // holds the last original role to be applied in  mapping rule chains
+            String originalRole; // holds the last original role to be applied in  mapping rule chains
             Matcher matcher;
             for (String role : roles) {
                 originalRole = role;

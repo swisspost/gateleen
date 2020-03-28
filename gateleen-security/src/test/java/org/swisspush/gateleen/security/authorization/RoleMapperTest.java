@@ -12,7 +12,9 @@ import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 
@@ -38,7 +40,9 @@ public class RoleMapperTest {
         vertx = Vertx.vertx();
         storage = new MockResourceStorage();
         setupRoleMapper();
-        roleMapper = new RoleMapper(storage, "/gateleen/server/security/v1/");
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("ENVIRONEMENT", "int");
+        roleMapper = new RoleMapper(storage, "/gateleen/server/security/v1/",properties);
 
     }
 
@@ -77,7 +81,7 @@ public class RoleMapperTest {
     @Test
     public void checkStageMappingWithoutFurtherHit(TestContext context) {
         Set<String> roles = new HashSet<>();
-        roles.add("domain-user-stage-p"); // will match the stage mapping but after that no other one
+        roles.add("domain-user-stage-prod"); // will match the stage mapping but after that no other one
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
         context.assertTrue(roles.size() == 1);
@@ -88,29 +92,17 @@ public class RoleMapperTest {
     @Test
     public void checkStageMappingWithoutAnyKeepOriginal(TestContext context) {
         Set<String> roles = new HashSet<>();
-        roles.add("domain1-user-stage-p");
+        roles.add("domain1-user-stage-prod");
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
         context.assertTrue(roles.size() == 1);
         context.assertTrue(roles.contains("domain1"));
     }
 
-
-    @Test
-    public void checkStageMappingWithKeepFirstOriginal(TestContext context) {
-        Set<String> roles = new HashSet<>();
-        roles.add("domain1-user-stage-i");
-        roles = roleMapper.mapRoles(roles);
-        context.assertNotNull(roles);
-        context.assertTrue(roles.size() == 2);
-        context.assertTrue(roles.contains("domain1-user-stage-i"));
-        context.assertTrue(roles.contains("domain1"));
-    }
-
     @Test
     public void checkStageMappingWithKeepLastOriginal(TestContext context) {
         Set<String> roles = new HashSet<>();
-        roles.add("domain2-user-stage-p");
+        roles.add("domain2-user-stage-prod");
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
         context.assertTrue(roles.size() == 2);
@@ -118,15 +110,27 @@ public class RoleMapperTest {
         context.assertTrue(roles.contains("domain2"));
     }
 
+
     @Test
-    public void checkStageMappingWithKeepAllOriginal(TestContext context) {
+    public void checkStageMappingWithKeepFirstOriginalAndEnvironementProperty(TestContext context) {
         Set<String> roles = new HashSet<>();
-        roles.add("domain2-user-stage-i");
+        roles.add("domain1-user-stage-int");
+        roles = roleMapper.mapRoles(roles);
+        context.assertNotNull(roles);
+        context.assertTrue(roles.size() == 2);
+        context.assertTrue(roles.contains("domain1-user-stage-int"));
+        context.assertTrue(roles.contains("domain1"));
+    }
+
+    @Test
+    public void checkStageMappingWithKeepAllOriginalAndEnvironementProperty(TestContext context) {
+        Set<String> roles = new HashSet<>();
+        roles.add("domain2-user-stage-testint");
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
         context.assertTrue(roles.size() == 3);
-        context.assertTrue(roles.contains("domain2-user-stage-i"));
-        context.assertTrue(roles.contains("domain2-user"));
+        context.assertTrue(roles.contains("domain2-user-stage-testint"));
+        context.assertTrue(roles.contains("domain2-user-int"));
         context.assertTrue(roles.contains("domain2"));
     }
 
@@ -138,7 +142,7 @@ public class RoleMapperTest {
     @Test
     public void checkLocalMappingPerformance(TestContext context) {
         Set<String> roles = new HashSet<>();
-        roles.add("domain1-user-stage-p");
+        roles.add("domain1-user-stage-prod");
         Set<String> resultingRoles;
         long startTime = System.currentTimeMillis();
         System.out.println("Start: " + startTime);

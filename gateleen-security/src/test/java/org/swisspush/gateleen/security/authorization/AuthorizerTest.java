@@ -27,6 +27,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.timeout;
@@ -57,7 +58,9 @@ public class AuthorizerTest {
         vertx = Vertx.vertx();
         storage = new MockResourceStorage();
         setupAcls();
-        authorizer = new Authorizer(vertx, storage, "/gateleen/server/security/v1/", ROLE_PATTERN);
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("ENVIRONEMENT", "integration");
+        authorizer = new Authorizer(vertx, storage, "/gateleen/server/security/v1/", ROLE_PATTERN,properties);
     }
 
     @Test
