@@ -35,7 +35,7 @@ public class RoleMapperFactoryTest {
     @Before
     public void setUp() {
         Map<String, Object> properties = new HashMap<>();
-        properties.put("ENVIRONEMENT", "integration");
+        properties.put("STAGE", "int");
         roleMapperFactory = new RoleMapperFactory(properties);
     }
 

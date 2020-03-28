@@ -22,12 +22,10 @@ import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.core.util.StatusCode;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.timeout;
@@ -45,6 +43,7 @@ public class AuthorizerTest {
     private MockResourceStorage storage;
 
     private static final String ROLE_PATTERN = "^z-gateleen[-_](.*)$";
+    private static final String ROLE_PREFIX = "z-gateleen-";
     private static final String ACLS = "/gateleen/server/security/v1/acls/";
     private static final String ACLS_DIR = "acls/";
     private static final String ROLEMAPPER = "/gateleen/server/security/v1/rolemapper";
@@ -59,8 +58,8 @@ public class AuthorizerTest {
         storage = new MockResourceStorage();
         setupAcls();
         Map<String, Object> properties = new HashMap<>();
-        properties.put("ENVIRONEMENT", "integration");
-        authorizer = new Authorizer(vertx, storage, "/gateleen/server/security/v1/", ROLE_PATTERN,properties);
+        properties.put("STAGE", "int");
+        authorizer = new Authorizer(vertx, storage, "/gateleen/server/security/v1/", ROLE_PATTERN, ROLE_PREFIX, properties);
     }
 
     @Test
@@ -255,7 +254,7 @@ public class AuthorizerTest {
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         // we have only a acl for "domain" which must trigger in this case as well
         // see https://github.com/swisspush/gateleen/issues/285
-        headers.add("x-rp-grp", "z-gateleen-domain-admin-stage-pit");
+        headers.add("x-rp-grp", "z-gateleen-domain-admin-stage-int");
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
@@ -263,7 +262,14 @@ public class AuthorizerTest {
         authorizer.authorize(req).setHandler(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
+            context.assertTrue(req!=null);
+            Set<String> roles = new RoleExtractor().extractRoles(req);
+            context.assertTrue(roles.size()==3);
+            context.assertTrue(roles.contains("z-gateleen-domain-admin-stage-int"));
+            context.assertTrue(roles.contains("z-gateleen-domain"));
+            context.assertTrue(roles.contains("z-gateleen-everyone"));
         });
+
         Mockito.verifyZeroInteractions(response);
 
     }

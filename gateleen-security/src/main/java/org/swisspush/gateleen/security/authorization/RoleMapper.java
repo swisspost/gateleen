@@ -33,6 +33,7 @@ public class RoleMapper implements ConfigurationResource {
      *
      * @param storage      Reference to the storage to retrieve the RoleMappings from
      * @param securityRoot Base url to retrieve the rolemapper config resource from (no trailing slash expected nor necessary)
+     * @param properties   The system properties given to the application, used to exctract the Environement where we are running in
      */
     public RoleMapper(ResourceStorage storage, String securityRoot, Map<String, Object> properties) {
         this.storage = storage;

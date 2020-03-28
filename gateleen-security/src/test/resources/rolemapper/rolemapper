@@ -7,8 +7,8 @@
         "continueMapping": true
       },
       {
-        "pattern": "(.*)-stage-.*${ENVIRONEMENT}.*",
-        "role": "$1-${ENVIRONEMENT}",
+        "pattern": "(.*)-stage-.*${STAGE}.*",
+        "role": "$1-${STAGE}",
         "keepOriginal": true,
         "continueMapping": true
       },

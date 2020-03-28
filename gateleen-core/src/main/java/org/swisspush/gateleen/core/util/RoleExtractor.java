@@ -16,12 +16,20 @@ import java.util.regex.Pattern;
  */
 public class RoleExtractor {
 
-    private static String groupHeader = "x-rp-grp";
-    private static String roleHeader = "x-roles";
+    public static String groupHeader = "x-rp-grp";
+    public static String roleHeader = "x-roles";
     private Pattern rolePattern;
 
     public RoleExtractor(String rolePattern) {
         this.rolePattern = Pattern.compile(rolePattern);
+    }
+
+    /*
+    Default constructor performing a full match by default of each role which means the
+    roles given are extracted and returned as is without any filtering.
+     */
+    public RoleExtractor() {
+        this.rolePattern = Pattern.compile("(.*)");
     }
 
     /**
@@ -31,8 +39,18 @@ public class RoleExtractor {
      * @return the role set or null if no role information was found.
      */
     public Set<String> extractRoles(HttpServerRequest request) {
+        return extractRoles(request.headers());
+    }
+
+
+    /**
+     * Extract the roles from the given http header
+     *
+     * @param headers the request/response headers to analyse
+     * @return the role set or null if no role information was found.
+     */
+    public Set<String> extractRoles(MultiMap headers) {
         Set<String> roles = null;
-        MultiMap headers = request.headers();
         String proxyGroupHeader = headers.get(groupHeader);
         String userRoles = null;
         if (proxyGroupHeader != null) {
@@ -48,7 +66,11 @@ public class RoleExtractor {
                 r = r.toLowerCase();
                 Matcher matcher = rolePattern.matcher(r);
                 if (matcher.matches()) {
-                    roles.add(matcher.group(1));
+                    // check if we have found any capture group as we would crash here if not.
+                    // because we assume that the given regex MUST contain a capture group.
+                    if (matcher.groupCount()>0) {
+                        roles.add(matcher.group(1));
+                    }
                 }
             }
         }

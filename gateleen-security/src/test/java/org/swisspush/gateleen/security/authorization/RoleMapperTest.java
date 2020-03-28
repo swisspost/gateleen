@@ -41,7 +41,7 @@ public class RoleMapperTest {
         storage = new MockResourceStorage();
         setupRoleMapper();
         Map<String, Object> properties = new HashMap<>();
-        properties.put("ENVIRONEMENT", "int");
+        properties.put("STAGE", "int");
         roleMapper = new RoleMapper(storage, "/gateleen/server/security/v1/",properties);
 
     }
