@@ -19,12 +19,10 @@ import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.configuration.ConfigurationResourceConsumer;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
-import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonMultiMap;
-import org.swisspush.gateleen.core.util.ResourcesUtils;
-import org.swisspush.gateleen.core.util.StringUtils;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,7 +58,7 @@ import java.util.regex.Pattern;
  *
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class EventBusHandler implements ConfigurationResourceObserver {
+public class EventBusHandler extends ConfigurationResourceConsumer {
 
     public static final int ACCEPTED = 202;
     public static final String SYNC = "x-sync";
@@ -84,14 +82,11 @@ public class EventBusHandler implements ConfigurationResourceObserver {
     private String sockPath;
     private String addressPrefix;
     private Pattern adressPathPattern;
-    private String configResourceUri;
 
     private Long eventbusBridgePingInterval = null;
     private Long eventbusBridgeReplyTimeout = null;
     private Integer eventbusBridgeMaxAddressLength = null;
     private Integer eventbusBridgeMaxHandlersPerSocket = null;
-
-    private ConfigurationResourceManager configurationResourceManager;
 
     private boolean websocketConnectionsEnabled = DEFAULT_WEBSOCKET_CONNECTION_STATE;
 
@@ -116,26 +111,12 @@ public class EventBusHandler implements ConfigurationResourceObserver {
      */
     public EventBusHandler(Vertx vertx, String apiPath, String sockPath, String addressPrefix, String addressPathPattern,
                            ConfigurationResourceManager configurationResourceManager, String configResourceUri) {
+        super(configurationResourceManager, configResourceUri, "gateleen_core_schema_websocket");
         this.vertx = vertx;
         this.apiPath = apiPath;
         this.sockPath = sockPath;
         this.addressPrefix = addressPrefix;
         this.adressPathPattern = Pattern.compile(apiPath + addressPathPattern);
-        this.configResourceUri = configResourceUri;
-        this.configurationResourceManager = configurationResourceManager;
-
-        initializeConfigurationResourceManagement();
-    }
-
-    private void initializeConfigurationResourceManagement(){
-        if(configurationResourceManager != null && StringUtils.isNotEmptyTrimmed(configResourceUri)){
-            log.info("Register resource and observer for config resource uri " + configResourceUri);
-            String schema = ResourcesUtils.loadResource("gateleen_core_schema_websocket", true);
-            configurationResourceManager.registerResource(configResourceUri, schema);
-            configurationResourceManager.registerObserver(this, configResourceUri);
-        } else {
-            log.info("No configuration resource manager and/or no configuration resource uri defined. Not using this feature in this case");
-        }
     }
 
     public boolean handle(final HttpServerRequest request) {
@@ -259,9 +240,9 @@ public class EventBusHandler implements ConfigurationResourceObserver {
     }
 
     @Override
-    public void resourceChanged(String resourceUri, String resource) {
-        if(configResourceUri != null && configResourceUri.equals(resourceUri)){
-            log.info("Got notified about configuration resource update for "+resourceUri+" with new data: " + resource);
+    public void resourceChanged(String resourceUri, Buffer resource) {
+        if(configResourceUri() != null && configResourceUri().equals(resourceUri)){
+            log.info("Got notified about configuration resource update for " + resourceUri);
             try {
                 JsonObject obj = new JsonObject(resource);
                 Boolean websockets_enabled = obj.getBoolean("websockets_enabled");
@@ -271,14 +252,14 @@ public class EventBusHandler implements ConfigurationResourceObserver {
                     log.warn("No value for property 'websockets_enabled' found. Therefore not changing any configuration");
                 }
             } catch (DecodeException ex){
-                log.warn("Unable to decode configuration resource for " + resourceUri + " with data: " + resource + " Reason: " + ex.getMessage());
+                log.warn("Unable to decode configuration resource for " + resourceUri + ". Reason: " + ex.getMessage());
             }
         }
     }
 
     @Override
     public void resourceRemoved(String resourceUri) {
-        if(configResourceUri != null && configResourceUri.equals(resourceUri)){
+        if(configResourceUri() != null && configResourceUri().equals(resourceUri)){
             log.info("Configuration resource "+resourceUri+" was removed. Using default values instead");
             websocketConnectionsEnabled = DEFAULT_WEBSOCKET_CONNECTION_STATE;
         }

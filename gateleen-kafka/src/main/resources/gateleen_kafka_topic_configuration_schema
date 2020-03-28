@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": {
+    "$ref": "#/definitions/Topic"
+  },
+  "definitions": {
+    "Topic": {
+      "description": "A single kafka topic entry",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "properties": {
+        "bootstrap.servers": {
+          "description": "List of host:port entries to establish the initial connection to the kafka cluster",
+          "type": "string"
+        },
+        "key.serializer": {
+          "description": "Serializer class for key that implements the <code>org.apache.kafka.common.serialization.Serializer</code> interface",
+          "type": "string"
+        },
+        "value.serializer": {
+          "description": "Serializer class for value that implements the <code>org.apache.kafka.common.serialization.Serializer</code> interface",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bootstrap.servers",
+        "key.serializer",
+        "value.serializer"
+      ]
+    }
+  }
+}

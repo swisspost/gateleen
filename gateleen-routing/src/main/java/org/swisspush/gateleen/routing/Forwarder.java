@@ -125,6 +125,7 @@ public class Forwarder implements Handler<RoutingContext> {
             String userProfileKey = String.format(userProfilePath, userId);
             req.pause(); // pause the request to avoid problems with starting another async request (storage)
             storage.get(userProfileKey, buffer -> {
+                req.resume();
                 Map<String, String> profileHeaderMap = new HashMap<>();
                 if (buffer != null) {
                     JsonObject profile = new JsonObject(buffer.toString());
@@ -175,7 +176,7 @@ public class Forwarder implements Handler<RoutingContext> {
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
         MultiMap headersToForward = req.headers();
         headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
-        cReq.headers().setAll(headersToForward);
+        cReq.headers().addAll(headersToForward);
 
         if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
             cReq.headers().set(SELF_REQUEST_HEADER, "true");
@@ -269,6 +270,12 @@ public class Forwarder implements Handler<RoutingContext> {
                 }
             };
 
+            req.exceptionHandler(t -> {
+                RequestLoggerFactory
+                        .getLogger(Forwarder.class, req)
+                        .warn("Exception during forwarding - closing (forwarding) client connection", t);
+                cReq.connection().close();
+            });
 
             final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(cReqWrapped, loggingHandler, true);
             final Pump pump = Pump.pump(req, loggingWriteStream);
@@ -280,14 +287,8 @@ public class Forwarder implements Handler<RoutingContext> {
                 cReq.end();
             } else {
                 req.endHandler(v -> cReq.end());
+                pump.start();
             }
-            req.exceptionHandler(t -> {
-                RequestLoggerFactory
-                        .getLogger(Forwarder.class, req)
-                        .warn("Exception during forwarding - closing (forwarding) client connection", t);
-                cReq.connection().close();
-            });
-            pump.start();
         } else {
             loggingHandler.appendRequestPayload(bodyData);
             // we already have the body complete in-memory - so we can use Content-Length header and avoid chunked transfer
@@ -296,8 +297,6 @@ public class Forwarder implements Handler<RoutingContext> {
         }
 
         loggingHandler.request(cReq.headers());
-
-        req.resume();
     }
 
     private void setProfileHeaders(Logger log, Map<String, String> profileHeaderMap, HttpClientRequest cReq) {

@@ -31,6 +31,9 @@ import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage;
+import org.swisspush.gateleen.kafka.KafkaHandler;
+import org.swisspush.gateleen.kafka.KafkaMessageSender;
+import org.swisspush.gateleen.kafka.KafkaProducerRepository;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
@@ -67,34 +70,45 @@ import java.util.Map;
  */
 public class Server extends AbstractVerticle {
 
+    private Logger log = LoggerFactory.getLogger(Server.class);
+
     private static final String PREFIX = RunConfig.SERVER_NAME + ".";
     private static final String ROOT = "/playground";
     private static final String SERVER_ROOT = ROOT + "/server";
     private static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
-
     private static final String ROLE_PATTERN = "^z-playground[-_](.*)$";
     private static final String ROLE_PREFIX  = "z-playground-";
 
     private static final String JMX_DOMAIN = "org.swisspush.gateleen";
-    private HttpServer mainServer;
 
+    /*
+     * Ports
+     */
+    private int defaultRedisPort = 6379;
+    private int mainPort = 7012;
+    private int circuitBreakerPort = 7013;
+
+    private HttpServer mainServer;
+    private RedisClient redisClient;
+    private ResourceStorage storage;
     private Authorizer authorizer;
     private Router router;
+
+    /*
+     * Managers
+     */
     private LoggingResourceManager loggingResourceManager;
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
     private SchedulerResourceManager schedulerResourceManager;
     private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
+    private ReducedPropagationManager reducedPropagationManager;
+
+    /*
+     * Handlers
+     */
     private MonitoringHandler monitoringHandler;
-
     private EventBusHandler eventBusHandler;
-
-    private int defaultRedisPort = 6379;
-    private int mainPort = 7012;
-    private int circuitBreakerPort = 7013;
-
-    private RedisClient redisClient;
-    private ResourceStorage storage;
     private UserProfileHandler userProfileHandler;
     private RoleProfileHandler roleProfileHandler;
     private CORSHandler corsHandler;
@@ -104,11 +118,9 @@ public class Server extends AbstractVerticle {
     private ValidationHandler validationHandler;
     private QoSHandler qosHandler;
     private HookHandler hookHandler;
-    private ReducedPropagationManager reducedPropagationManager;
     private ZipExtractHandler zipExtractHandler;
     private DelegateHandler delegateHandler;
-
-    private Logger log = LoggerFactory.getLogger(Server.class);
+    private KafkaHandler kafkaHandler;
 
     public static void main(String[] args) {
         Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event ->
@@ -157,18 +169,30 @@ public class Server extends AbstractVerticle {
                 expansionHandler = new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
+
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 qosHandler.enableResourceLogging(true);
+
                 configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
                 configurationResourceManager.enableResourceLogging(true);
-                String eventBusConfigurationResource = SERVER_ROOT + "/admin/v1/hookconfig";
-                eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event/channels/", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
+
+                eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/",
+                        SERVER_ROOT + "/event/v1/sock/*", "event/channels/",
+                        "channels/([^/]+).*", configurationResourceManager, SERVER_ROOT + "/admin/v1/hookconfig");
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
+
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
                 loggingResourceManager.enableResourceLogging(true);
 
+                KafkaProducerRepository kafkaProducerRepository = new KafkaProducerRepository(vertx);
+                KafkaMessageSender kafkaMessageSender = new KafkaMessageSender();
+                kafkaHandler = new KafkaHandler(configurationResourceManager, kafkaProducerRepository, kafkaMessageSender,
+                        SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
+                kafkaHandler.initialize();
+
                 userProfileHandler = new UserProfileHandler(vertx, storage, RunConfig.buildUserProfileConfiguration());
                 userProfileHandler.enableResourceLogging(true);
+
                 roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 roleProfileHandler.enableResourceLogging(true);
 
@@ -177,20 +201,27 @@ public class Server extends AbstractVerticle {
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
                 reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient), queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
+
                 hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
-                        SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/", queueClient, false, reducedPropagationManager);
+                        SERVER_ROOT + "/users/v1/%s/profile", SERVER_ROOT + "/hooks/v1/", queueClient, false, reducedPropagationManager);
                 hookHandler.enableResourceLogging(true);
 
                 authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN, ROLE_PREFIX, props);
                 authorizer.enableResourceLogging(true);
+
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
                 validationResourceManager.enableResourceLogging(true);
+
                 validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
+
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
                 schedulerResourceManager.enableResourceLogging(true);
+
                 zipExtractHandler = new ZipExtractHandler(selfClient);
+
                 delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/delegates/", props, null);
                 delegateHandler.enableResourceLogging(true);
+
                 router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
                         (Handler<Void>) aVoid -> {
                             hookHandler.init();
@@ -233,6 +264,7 @@ public class Server extends AbstractVerticle {
                         .qosHandler(qosHandler)
                         .copyResourceHandler(copyResourceHandler)
                         .eventBusHandler(eventBusHandler)
+                        .kafkaHandler(kafkaHandler)
                         .roleProfileHandler(roleProfileHandler)
                         .userProfileHandler(userProfileHandler)
                         .loggingResourceManager(loggingResourceManager)

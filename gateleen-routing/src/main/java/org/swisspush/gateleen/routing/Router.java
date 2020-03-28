@@ -494,9 +494,9 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     }
 
     @Override
-    public void resourceChanged(String resourceUri, String resource) {
+    public void resourceChanged(String resourceUri, Buffer resource) {
         if (configResourceUri != null && configResourceUri.equals(resourceUri)) {
-            log.info("Got notified about configuration resource update for " + resourceUri + " with new data: " + resource);
+            log.info("Got notified about configuration resource update for " + resourceUri);
             try {
                 JsonObject obj = new JsonObject(resource);
                 Integer requestHopsLimitValue = obj.getInteger(REQUEST_HOPS_LIMIT_PROPERTY);
@@ -508,7 +508,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                     requestHopsLimit = null;
                 }
             } catch (DecodeException ex) {
-                log.warn("Unable to decode configuration resource for " + resourceUri + " with data: " + resource + " Reason: " + ex.getMessage());
+                log.warn("Unable to decode configuration resource for " + resourceUri + ". Reason: " + ex.getMessage());
                 requestHopsLimit = null;
             }
         }

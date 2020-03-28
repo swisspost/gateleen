@@ -200,14 +200,16 @@ public class Delegate {
 
                     String transformInput = TransformPayloadInputBuilder.build(requestContainer.getJoltSpec(),
                             delegateExecutionRequestJsonPayload, headers, matcher);
-
+                    LOG.debug("Jolt transformation input: {}", transformInput);
                     JoltTransformer.transform(transformInput, requestContainer.getJoltSpec()).setHandler(transformed -> {
                         if(transformed.failed()){
                             future.fail(transformed.cause());
                         } else {
                             JsonObject transformedJsonObject = transformed.result();
                             try {
-                                future.complete(Buffer.buffer(transformedJsonObject.encode()));
+                                String transformedOutput = transformedJsonObject.encode();
+                                LOG.debug("Jolt transformation output: {}", transformedOutput);
+                                future.complete(Buffer.buffer(transformedOutput));
                             } catch (Exception ex){
                                 future.fail(ex);
                             }

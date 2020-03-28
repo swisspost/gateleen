@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.swisspush.gateleen</groupId>
         <artifactId>gateleen</artifactId>
-        <version>1.1.48-SNAPSHOT</version>
+        <version>1.1.53-SNAPSHOT</version>
     </parent>
 
     <artifactId>gateleen-playground</artifactId>
@@ -96,6 +96,11 @@
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-delegate</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.swisspush.gateleen</groupId>
+            <artifactId>gateleen-kafka</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

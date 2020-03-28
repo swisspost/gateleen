@@ -6,7 +6,6 @@ import io.vertx.core.http.HttpServerRequest;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
-import org.joda.time.LocalDateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
@@ -32,7 +31,6 @@ public final class ExpiryCheckHandler {
 
     private static DateTimeFormatter dfISO8601 = ISODateTimeFormat.dateTime().withZone(DateTimeZone.forID("Europe/Zurich"));
     private static DateTimeFormatter dfISO8601Parser = ISODateTimeFormat.dateTimeParser().withZone(DateTimeZone.forID("Europe/Zurich"));
-    private static DateTimeFormatter isoDateTimeParser = ISODateTimeFormat.dateTimeParser();
 
     private ExpiryCheckHandler() {
         // Prevent instantiation
@@ -40,7 +38,7 @@ public final class ExpiryCheckHandler {
 
     /**
      * Checks if a "X-Server-Timestamp" header is set or not.
-     * If no valid value is found, the actual timestamp is set.
+     * If no valid value is found, the current timestamp is set.
      * 
      * @param request request
      */
@@ -54,17 +52,7 @@ public final class ExpiryCheckHandler {
 
     /**
      * Checks if a "X-Server-Timestamp" header is set or not.
-     * If no valid value is found, the actual timestamp is set.
-     * 
-     * @param request request
-     */
-    public static void updateServerTimestampHeader(HttpServerRequest request) {
-        updateServerTimestampHeader(request.headers());
-    }
-
-    /**
-     * Checks if a "X-Server-Timestamp" header is set or not.
-     * If no valid value is found, the actual timestamp is set.
+     * If no valid value is found, the current timestamp is set.
      * 
      * @param headers headers
      */
@@ -78,14 +66,8 @@ public final class ExpiryCheckHandler {
 
             headers.set(SERVER_TIMESTAMP_HEADER, nowAsISO);
         } else {
-            String updatedTimestamp = localizeTimestamp(serverTimestamp);
-
-            if (!updatedTimestamp.equals(serverTimestamp)) {
-                log.debug("Updating" + SERVER_TIMESTAMP_HEADER + " value from " + serverTimestamp + "  to " + updatedTimestamp);
-
-                headers.remove(SERVER_TIMESTAMP_HEADER);
-                headers.set(SERVER_TIMESTAMP_HEADER, updatedTimestamp);
-            }
+            headers.remove(SERVER_TIMESTAMP_HEADER);
+            headers.set(SERVER_TIMESTAMP_HEADER, printDateTime(DateTime.now()));
         }
     }
 
@@ -182,65 +164,6 @@ public final class ExpiryCheckHandler {
     }
 
     /**
-     * Checks if the given request has expired or not.
-     * If no "X-Expire-After" or "X-Server-Timestamp" is found <code>false</code> is returned.
-     * 
-     * @param request request
-     * @return true if the request has expired, false otherwise
-     */
-    public static boolean isExpired(HttpRequest request) {
-        return isExpired(request.getHeaders());
-    }
-
-    /**
-     * Checks if the given request has expired or not.
-     * If no "X-Expire-After" or "X-Server-Timestamp" is found <code>false</code> is returned.
-     * 
-     * @param request request
-     * @return true if the request has expired, false otherwise
-     */
-    public static boolean isExpired(HttpServerRequest request) {
-        return isExpired(request.headers());
-    }
-
-    /**
-     * Checks the expiration based on the given headers.
-     * If "X-Expire-After" or "x-queue-expire-after" and
-     * no "X-Server-Timestamp" is found <code>false</code>
-     * is returned.
-     * 
-     * @param headers headers
-     * @return true if the request has expired, false otherwise
-     */
-    public static boolean isExpired(MultiMap headers) {
-        if (headers != null) {
-
-            Integer queueExpireAfter = getQueueExpireAfter(headers);
-            Integer expireAfter = getExpireAfter(headers);
-
-            String serverTimestamp = headers.get(SERVER_TIMESTAMP_HEADER);
-
-            // override expireAfter if x-queue-expire-after header is set
-            if ( queueExpireAfter != null ) {
-                expireAfter = queueExpireAfter;
-            }
-
-            if (serverTimestamp != null && expireAfter != null) {
-                LocalDateTime timestamp = parseDateTime(serverTimestamp);
-                LocalDateTime expirationTime = getExpirationTime(timestamp, expireAfter);
-                LocalDateTime now = getActualTime();
-
-                log.debug(" > isExpired - timestamp " + timestamp + " | expirationTime " + expirationTime + " | now " + now);
-
-                // request expired?
-                return expirationTime.isBefore(now);
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * Checks the expiration based on the given headers and a timstamp in milliseconds.
      *
      * @param headers headers
@@ -275,35 +198,14 @@ public final class ExpiryCheckHandler {
     }
 
     /**
-     * Returns the actual datetime.
-     * 
-     * @return LocalDateTime
-     */
-    public static LocalDateTime getActualTime() {
-        return dfISO8601Parser.parseLocalDateTime(dfISO8601.print(Instant.now()));
-    }
-
-    /**
-     * Returns the expiration time, based on the actual time
+     * Returns the expiration time, based on the current time (now)
      * in addition with the expireAfter value.
      * 
      * @param expireAfter - in seconds
      * @return expiration time
      */
-    public static LocalDateTime getExpirationTime(int expireAfter) {
-        return getExpirationTime(getActualTime(), expireAfter);
-    }
-
-    /**
-     * Returns the expiration time based on the given timestamp
-     * in addition with the expireAfter value.
-     * 
-     * @param serverTimestamp serverTimestamp
-     * @param expireAfter - in seconds
-     * @return expiration time.
-     */
-    public static LocalDateTime getExpirationTime(String serverTimestamp, int expireAfter) {
-        return getExpirationTime(parseDateTime(serverTimestamp), expireAfter);
+    public static DateTime getExpirationTime(int expireAfter) {
+        return getExpirationTime(DateTime.now(), expireAfter);
     }
 
     /**
@@ -322,13 +224,13 @@ public final class ExpiryCheckHandler {
     }
 
     /**
-     * Parses the given string to a LocalDateTime object.
+     * Parses the given string to a DateTime object.
      * 
-     * @param datetime datetime
-     * @return LocalDateTime
+     * @param datetime datetime as string
+     * @return DateTime
      */
-    public static LocalDateTime parseDateTime(String datetime) {
-        return dfISO8601Parser.parseLocalDateTime(localizeTimestamp(datetime));
+    public static DateTime parseDateTime(String datetime) {
+        return dfISO8601Parser.parseDateTime(datetime);
     }
 
     /**
@@ -337,7 +239,7 @@ public final class ExpiryCheckHandler {
      * @param datetime datetime
      * @return String
      */
-    public static String printDateTime(LocalDateTime datetime) {
+    public static String printDateTime(DateTime datetime) {
         return dfISO8601.print(datetime);
     }
 
@@ -348,53 +250,12 @@ public final class ExpiryCheckHandler {
      * @param expireAfter expireAfter
      * @return expiration time.
      */
-    private static LocalDateTime getExpirationTime(LocalDateTime timestamp, int expireAfter) {
-        LocalDateTime expirationTime = timestamp.plusSeconds(expireAfter);
+    private static DateTime getExpirationTime(DateTime timestamp, int expireAfter) {
+        DateTime expirationTime = timestamp.plusSeconds(expireAfter);
 
         log.debug("getExpirationTime: " + expirationTime);
 
         return expirationTime;
-    }
-
-    /**
-     * Sets an "x-queue-expire-after" header.
-     * If such a header already exist, it's overridden by the new value.
-     *
-     * @param request request
-     * @param queueExpireAfter expireAfter
-     */
-    public static void setQueueExpireAfter(HttpRequest request, int queueExpireAfter) {
-        if (request.getHeaders() == null) {
-            request.setHeaders(new CaseInsensitiveHeaders());
-        }
-
-        setFieldValue(request.getHeaders(), QUEUE_EXPIRE_AFTER_HEADER, queueExpireAfter);
-    }
-
-    /**
-     * Sets an "X-Expire-After" header.
-     * If such a header already exist, it's overridden by the new value.
-     * 
-     * @param request request
-     * @param expireAfter expireAfter
-     */
-    public static void setExpireAfter(HttpRequest request, int expireAfter) {
-        if (request.getHeaders() == null) {
-            request.setHeaders(new CaseInsensitiveHeaders());
-        }
-
-        setFieldValue(request.getHeaders(), EXPIRE_AFTER_HEADER, expireAfter);
-    }
-
-    /**
-     * Sets an "x-queue-expire-after" header.
-     * If such a header already exist, it's overridden by the new value.
-     *
-     * @param request request
-     * @param queueExpireAfter expireAfter
-     */
-    public static void setQueueExpireAfter(HttpServerRequest request, int queueExpireAfter) {
-        setFieldValue(request.headers(), QUEUE_EXPIRE_AFTER_HEADER, queueExpireAfter);
     }
 
     /**
@@ -420,17 +281,6 @@ public final class ExpiryCheckHandler {
     }
 
     /**
-     * Sets an "X-Expire-After" header.
-     * If such a header already exist, it's overridden by the new value.
-     *
-     * @param headers headers
-     * @param expireAfter expireAfter
-     */
-    public static void setExpireAfter(MultiMap headers, int expireAfter) {
-        setFieldValue(headers, EXPIRE_AFTER_HEADER, expireAfter);
-    }
-
-    /**
      * Sets a header with the given field name and the given expire value.
      * If such a header already exist, it's overridden by the new value.
 
@@ -444,26 +294,5 @@ public final class ExpiryCheckHandler {
         }
 
         headers.set(field, String.valueOf(expireValue));
-    }
-
-    /**
-     * Transform a timestamp to local time timestamp it is UTC.
-     * If the timestamp is not parsable, do nothing.
-     *
-     * @param timestamp - the timestamp
-     * @return String
-     */
-    private static String localizeTimestamp(String timestamp) {
-        String localizedTimestamp = timestamp;
-        if (localizedTimestamp != null && localizedTimestamp.toUpperCase().endsWith("Z")) {
-            try {
-                DateTime dt = isoDateTimeParser.parseDateTime(localizedTimestamp);
-                localizedTimestamp = dfISO8601.print(dt);
-            } catch (IllegalArgumentException e) {
-                log.warn("Could not parse: " + localizedTimestamp);
-            }
-        }
-
-        return localizedTimestamp;
     }
 }

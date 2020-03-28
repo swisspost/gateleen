@@ -4,6 +4,8 @@ import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.MultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.joda.time.DateTime;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.util.FastFailMultiMap;
@@ -252,6 +254,15 @@ public class ExpiryCheckHandlerTest {
         ExpiryCheckHandler.getExpireAfterConcerningCaseOfCorruptHeaderAndInfinite(headers);
     }
 
+    @Test
+    public void parseDateTimeTest() {
+        DateTime parsed = ExpiryCheckHandler.parseDateTime("2020-03-05T10:21:27.021+01:00");
+        Assert.assertEquals(1583400087021L, parsed.getMillis());
+
+        // CET is assumed if timezone is missing
+        DateTime parsedWithoutTimezone = ExpiryCheckHandler.parseDateTime("2020-03-05T10:21:27.021");
+        Assert.assertEquals(1583400087021L, parsedWithoutTimezone.getMillis());
+    }
 
     ///////////////////////////////////////////////////////////////////////////////
     // Below some helper methods like factories etc. to share code in tests.
