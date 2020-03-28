@@ -80,12 +80,13 @@ public class RoleMapperTest {
         roles.add("domain-user-stage-p"); // will match the stage mapping but after that no other one
         roles = roleMapper.mapRoles(roles);
         context.assertNotNull(roles);
-        context.assertTrue(roles.size() == 0);
+        context.assertTrue(roles.size() == 1);
+        context.assertTrue(roles.contains("domain-user"));
     }
 
 
     @Test
-    public void checkStageMappingWithoutKeepOriginal(TestContext context) {
+    public void checkStageMappingWithoutAnyKeepOriginal(TestContext context) {
         Set<String> roles = new HashSet<>();
         roles.add("domain1-user-stage-p");
         roles = roleMapper.mapRoles(roles);
@@ -94,8 +95,20 @@ public class RoleMapperTest {
         context.assertTrue(roles.contains("domain1"));
     }
 
+
     @Test
-    public void checkStageMappingWithKeepOriginal(TestContext context) {
+    public void checkStageMappingWithKeepFirstOriginal(TestContext context) {
+        Set<String> roles = new HashSet<>();
+        roles.add("domain1-user-stage-i");
+        roles = roleMapper.mapRoles(roles);
+        context.assertNotNull(roles);
+        context.assertTrue(roles.size() == 2);
+        context.assertTrue(roles.contains("domain1-user-stage-i"));
+        context.assertTrue(roles.contains("domain1"));
+    }
+
+    @Test
+    public void checkStageMappingWithKeepLastOriginal(TestContext context) {
         Set<String> roles = new HashSet<>();
         roles.add("domain2-user-stage-p");
         roles = roleMapper.mapRoles(roles);
@@ -105,11 +118,23 @@ public class RoleMapperTest {
         context.assertTrue(roles.contains("domain2"));
     }
 
+    @Test
+    public void checkStageMappingWithKeepAllOriginal(TestContext context) {
+        Set<String> roles = new HashSet<>();
+        roles.add("domain2-user-stage-i");
+        roles = roleMapper.mapRoles(roles);
+        context.assertNotNull(roles);
+        context.assertTrue(roles.size() == 3);
+        context.assertTrue(roles.contains("domain2-user-stage-i"));
+        context.assertTrue(roles.contains("domain2-user"));
+        context.assertTrue(roles.contains("domain2"));
+    }
 
 
 
 /*
-    // change the test resources correspondingly between the tests manually
+    // Test method to make manual performance tests with the ruleset eg. measure runtime
+    // with different mapping rule sets.
     @Test
     public void checkLocalMappingPerformance(TestContext context) {
         Set<String> roles = new HashSet<>();
@@ -129,8 +154,6 @@ public class RoleMapperTest {
         System.out.println("Duration: " + duration);
     }
 */
-
-
 
     private void setupRoleMapper() {
         storage.putMockData(ROLEMAPPER, ResourcesUtils.loadResource(ROLEMAPPER_DIR + "rolemapper", true));

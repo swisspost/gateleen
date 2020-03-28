@@ -7,6 +7,12 @@
         "continueMapping": true
       },
       {
+        "pattern": "(.*)-stage-.*i.*",
+        "role": "$1",
+        "keepOriginal": true,
+        "continueMapping": true
+      },
+      {
         "pattern":"domain1-.*",
         "role":"domain1",
         "keepOriginal":false

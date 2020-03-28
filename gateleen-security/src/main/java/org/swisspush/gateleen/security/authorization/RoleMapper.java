@@ -70,7 +70,7 @@ public class RoleMapper implements ConfigurationResource {
 
     /**
      * Maps the received roles from http header according the rolemapper rules and return the set of
-     * mapped roles including the initial list of roles.
+     * mapped roles including the initial list of roles according to the given mapping rule sets.
      *
      * @param roles The roles to be mapped and enriched according to the rolemapper object
      * @return The resulting list of initial plus mapped roles
@@ -78,41 +78,36 @@ public class RoleMapper implements ConfigurationResource {
     public Set<String> mapRoles(Set<String> roles) {
         if (roles != null && roleMappers != null && !roleMappers.isEmpty()) {
             Set<String> mappedRoles = new HashSet<>();
-            String originalRole = null; // holds the role currently under mapping check in the loop
-            String previousMatchedRole = null; // holds the previous matching role when continuation was defined for a mapping rule
+            String originalRole = null; // holds the last original role to be applied in  mapping rule chains
             Matcher matcher;
             for (String role : roles) {
                 originalRole = role;
                 for (RoleMapperHolder mapper : roleMappers) {
                     matcher = mapper.getPattern().matcher(role);
                     if (matcher.matches()) {
-                        // we found a matching mapping rule to map
+                        // we found a matching mapping rule to map and therefore,
                         // we must replace matching regex capture groups if there are any
                         String matchedRole = matcher.replaceAll(mapper.getRole());
+                        // check if we must use the kept last original role for this mapper rule
+                        if (mapper.getKeepOriginal()) {
+                                mappedRoles.add(originalRole);
+                        }
+                        // now we check if we have to continue matching in the chain of RoleMapper definitions
                         if (mapper.getContinueMapping()) {
-                            // go on with next mapping rule
-                            // but the new original rule from now on is the one which matched here, not the original one
-                            previousMatchedRole = matchedRole;
-                            originalRole = null;
+                            // go on with next mapping rule, but the new original rule from now on is the one
+                            // which matched here and not the previous original one
+                            originalRole = matchedRole;
                         } else {
-                            // we don't have to loop further as it is finally mapped now for this given role according to the mapping definition
+                            originalRole=null;
                             mappedRoles.add(matchedRole);
-                            // check if we must keep the original role as well in this case
-                            if (mapper.getKeepOriginal()) {
-                                // if we have had before a matching rule where the result was preserved for further usage, we use this one instead of the original one
-                                if (previousMatchedRole != null) {
-                                    originalRole = previousMatchedRole;
-                                }
-                            } else {
-                                // we don't want to to keep the original or previous one at all.
-                                originalRole = null;
-                            }
+                            // we don't have to loop further as it is finally mapped now for this given role
+                            // according to the mapping definition
                             break;
                         }
                     }
                 }
-                // either there was nothing matching at all above or there was a flag to preserve the original rule set as given by the algorythm
-                if (originalRole != null) {
+                // Finally add what is the last known OriginalRole up to here if there is any
+                if (originalRole!=null) {
                     mappedRoles.add(originalRole);
                 }
             }
