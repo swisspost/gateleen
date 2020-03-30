@@ -16,8 +16,8 @@ import java.util.regex.Pattern;
  */
 public class RoleExtractor {
 
-    public static String groupHeader = "x-rp-grp";
-    public static String roleHeader = "x-roles";
+    public final static String groupHeader = "x-rp-grp";
+    public final static String roleHeader = "x-roles";
     private Pattern rolePattern;
 
     public RoleExtractor(String rolePattern) {

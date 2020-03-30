@@ -167,7 +167,7 @@ public class RoleAuthorizer implements ConfigurationResource {
         for (String role : roles)
         {
             if (roleHeader.length()>0) roleHeader.append(",");
-            roleHeader.append(this.rolePrefix + role.toLowerCase());
+            roleHeader.append(this.rolePrefix).append(role.toLowerCase());
         }
         request.headers().set(RoleExtractor.groupHeader,roleHeader.toString());
     }

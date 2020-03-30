@@ -24,6 +24,12 @@ public class RoleMapperFactory {
 
     private final Map<String, Object> properties;
 
+    /**
+     * Factory loading, checking and initializing the Role Mappings for later usage
+     *
+     * @param properties The list of system properties given to the application. This is used to replace
+     *                   system variables which might be defined within the mapping patterns and roles
+     */
     RoleMapperFactory(Map<String, Object> properties) {
         this.mapperSchema = ResourcesUtils.loadResource("gateleen_security_schema_rolemapper", true);
         this.properties = properties;
