@@ -50,7 +50,8 @@ public class RoleAuthorizer implements ConfigurationResource {
      * @param storage
      * @param securityRoot
      * @param rolePattern The regex pattern to extract the roles from the header removing any prefix from them
-     * @param rolePrefix The prefix which must be added to mapped roles in the request header.
+     * @param rolePrefix The prefix which must be added to mapped roles in the request header which is created
+     *                   to forward from the mapped resulting roles. Could be null if none shall be added at all.
      * @param roleMapper
      */
     RoleAuthorizer(final ResourceStorage storage, String securityRoot, String rolePattern, String rolePrefix, final RoleMapper roleMapper) {

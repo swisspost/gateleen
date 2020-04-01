@@ -28,7 +28,8 @@ public class RoleMapperFactory {
      * Factory loading, checking and initializing the Role Mappings for later usage
      *
      * @param properties The list of system properties given to the application. This is used to replace
-     *                   system variables which might be defined within the mapping patterns and roles
+     *                   system variables which might be defined within the mapping patterns and roles.
+     *                   Could be null if no properties shall be treated here.
      */
     RoleMapperFactory(Map<String, Object> properties) {
         this.mapperSchema = ResourcesUtils.loadResource("gateleen_security_schema_rolemapper", true);
@@ -45,8 +46,10 @@ public class RoleMapperFactory {
         List<RoleMapperHolder> result = new ArrayList<>();
         Mappings mappings = Json.decodeValue(buffer, Mappings.class);
         for (Mapping mapping : mappings.mappings) {
-            mapping.pattern = StringUtils.replaceWildcardConfigs(mapping.pattern, properties);
-            mapping.role = StringUtils.replaceWildcardConfigs(mapping.role, properties);
+            if (properties!=null) {
+                mapping.pattern = StringUtils.replaceWildcardConfigs(mapping.pattern, properties);
+                mapping.role = StringUtils.replaceWildcardConfigs(mapping.role, properties);
+            }
             result.add(new RoleMapperHolder(Pattern.compile(mapping.pattern), mapping.role, mapping.keepOriginal,mapping.continueMapping));
         }
         return result;

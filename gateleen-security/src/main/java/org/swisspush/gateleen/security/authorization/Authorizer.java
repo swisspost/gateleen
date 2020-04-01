@@ -52,6 +52,17 @@ public class Authorizer implements LoggableResource {
 
     public static final Logger log = LoggerFactory.getLogger(Authorizer.class);
 
+    /*
+     * Constructor for backward compatibility without rolePrefix and properties
+     */
+    public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern) {
+      this(vertx,storage,securityRoot,rolePattern,null,null);
+    }
+
+    /*
+     * Initializes the ACL security system with the RoleMapper from the corresponding storage resources containting the
+     * ACL groups (without the role prefix) and the RoleMapper resource
+     */
     public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern, String rolePrefix, Map<String, Object> properties) {
         this.vertx = vertx;
         this.storage = storage;
