@@ -262,9 +262,9 @@ public class AuthorizerTest {
         authorizer.authorize(req).setHandler(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
-            context.assertTrue(req!=null);
+            context.assertTrue(req != null);
             Set<String> roles = new RoleExtractor().extractRoles(req);
-            context.assertTrue(roles.size()==3);
+            context.assertTrue(roles.size() == 3);
             context.assertTrue(roles.contains("z-gateleen-domain-admin-stage-int"));
             context.assertTrue(roles.contains("z-gateleen-domain"));
             context.assertTrue(roles.contains("z-gateleen-everyone"));
@@ -298,12 +298,12 @@ public class AuthorizerTest {
         private HttpServerResponse response;
 
         AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
-                                 HttpServerResponse response) {
+                          HttpServerResponse response) {
             this(method, uri, headers, "", response);
         }
 
         AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
-                                 String body, HttpServerResponse response) {
+                          String body, HttpServerResponse response) {
             this.method = method;
             this.uri = uri;
             this.headers = headers;

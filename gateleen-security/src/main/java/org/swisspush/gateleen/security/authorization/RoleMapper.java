@@ -92,7 +92,7 @@ public class RoleMapper implements ConfigurationResource {
                         String matchedRole = matcher.replaceAll(mapper.getRole());
                         // check if we must use the kept last original role for this mapper rule
                         if (mapper.getKeepOriginal()) {
-                                mappedRoles.add(originalRole);
+                            mappedRoles.add(originalRole);
                         }
                         // now we check if we have to continue matching in the chain of RoleMapper definitions
                         if (mapper.getContinueMapping()) {
@@ -100,7 +100,7 @@ public class RoleMapper implements ConfigurationResource {
                             // which matched here and not the previous original one
                             originalRole = matchedRole;
                         } else {
-                            originalRole=null;
+                            originalRole = null;
                             mappedRoles.add(matchedRole);
                             // we don't have to loop further as it is finally mapped now for this given role
                             // according to the mapping definition
@@ -109,7 +109,7 @@ public class RoleMapper implements ConfigurationResource {
                     }
                 }
                 // Finally add what is the last known OriginalRole up to here if there is any
-                if (originalRole!=null) {
+                if (originalRole != null) {
                     mappedRoles.add(originalRole);
                 }
             }

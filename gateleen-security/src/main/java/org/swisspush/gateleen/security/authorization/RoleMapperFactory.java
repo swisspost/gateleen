@@ -46,11 +46,11 @@ public class RoleMapperFactory {
         List<RoleMapperHolder> result = new ArrayList<>();
         Mappings mappings = Json.decodeValue(buffer, Mappings.class);
         for (Mapping mapping : mappings.mappings) {
-            if (properties!=null) {
+            if (properties != null) {
                 mapping.pattern = StringUtils.replaceWildcardConfigs(mapping.pattern, properties);
                 mapping.role = StringUtils.replaceWildcardConfigs(mapping.role, properties);
             }
-            result.add(new RoleMapperHolder(Pattern.compile(mapping.pattern), mapping.role, mapping.keepOriginal,mapping.continueMapping));
+            result.add(new RoleMapperHolder(Pattern.compile(mapping.pattern), mapping.role, mapping.keepOriginal, mapping.continueMapping));
         }
         return result;
     }

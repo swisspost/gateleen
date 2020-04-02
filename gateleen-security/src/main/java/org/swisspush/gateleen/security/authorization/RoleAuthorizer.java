@@ -29,7 +29,7 @@ public class RoleAuthorizer implements ConfigurationResource {
     private String deviceHeader = "x-rp-deviceid";
     private String userHeader = "x-rp-usr";
 
-    private String rolePrefix = "";
+    private final String rolePrefix;
 
     private AclFactory aclFactory;
     private RoleMapper roleMapper;
@@ -46,12 +46,11 @@ public class RoleAuthorizer implements ConfigurationResource {
     public static final Logger log = LoggerFactory.getLogger(RoleAuthorizer.class);
 
     /**
-     *
      * @param storage
      * @param securityRoot
-     * @param rolePattern The regex pattern to extract the roles from the header removing any prefix from them
-     * @param rolePrefix The prefix which must be added to mapped roles in the request header which is created
-     *                   to forward from the mapped resulting roles. Could be null if none shall be added at all.
+     * @param rolePattern  The regex pattern to extract the roles from the header removing any prefix from them
+     * @param rolePrefix   The prefix which must be added to mapped roles in the request header which is created
+     *                     to forward from the mapped resulting roles. Could be null if none shall be added at all.
      * @param roleMapper
      */
     RoleAuthorizer(final ResourceStorage storage, String securityRoot, String rolePattern, String rolePrefix, final RoleMapper roleMapper) {
@@ -61,9 +60,11 @@ public class RoleAuthorizer implements ConfigurationResource {
         this.aclUriPattern = new PatternHolder(Pattern.compile("^" + aclRoot + "(?<role>.+)$"));
         this.roleExtractor = new RoleExtractor(rolePattern);
         this.aclFactory = new AclFactory();
-        // keep empty string if there is no prefix given. This way we could just use it later on without having to care about.
-        if (rolePrefix!=null) {
+        // keep empty string if there is no prefix given. This way we could just use it later on without having to care about further.
+        if (rolePrefix != null) {
             this.rolePrefix = rolePrefix;
+        } else {
+            this.rolePrefix = "";
         }
 
         initialGrantedRoles = new HashMap<>();
@@ -152,7 +153,7 @@ public class RoleAuthorizer implements ConfigurationResource {
                 if (methodRoles != null) {
                     for (String role : methodRoles) {
                         if (checkRole(mappedRoles, request, matcher, role)) {
-                            fillInNewRoleHeader(request,mappedRoles);
+                            fillInNewRoleHeader(request, mappedRoles);
                             return true;
                         }
                     }
@@ -162,15 +163,13 @@ public class RoleAuthorizer implements ConfigurationResource {
         return false;
     }
 
-    private void fillInNewRoleHeader(HttpServerRequest request,Set<String>roles)
-    {
-        StringBuffer roleHeader = new StringBuffer();
-        for (String role : roles)
-        {
-            if (roleHeader.length()>0) roleHeader.append(",");
+    private void fillInNewRoleHeader(HttpServerRequest request, Set<String> roles) {
+        StringBuilder roleHeader = new StringBuilder();
+        for (String role : roles) {
+            if (roleHeader.length() > 0) roleHeader.append(",");
             roleHeader.append(this.rolePrefix).append(role.toLowerCase());
         }
-        request.headers().set(RoleExtractor.groupHeader,roleHeader.toString());
+        request.headers().set(RoleExtractor.groupHeader, roleHeader.toString());
     }
 
     /**

@@ -42,7 +42,7 @@ public class RoleMapperTest {
         setupRoleMapper();
         Map<String, Object> properties = new HashMap<>();
         properties.put("STAGE", "int");
-        roleMapper = new RoleMapper(storage, "/gateleen/server/security/v1/",properties);
+        roleMapper = new RoleMapper(storage, "/gateleen/server/security/v1/", properties);
 
     }
 

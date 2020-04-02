@@ -56,7 +56,7 @@ public class Authorizer implements LoggableResource {
      * Constructor for backward compatibility without rolePrefix and properties
      */
     public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern) {
-      this(vertx,storage,securityRoot,rolePattern,null,null);
+        this(vertx, storage, securityRoot, rolePattern, null, null);
     }
 
     /*
@@ -71,7 +71,7 @@ public class Authorizer implements LoggableResource {
         this.userUriPattern = Pattern.compile(securityRoot + "user(\\?.*)?");
         this.roleMapperUriPattern = new PatternHolder(Pattern.compile("^" + UriBuilder.concatUriSegments(securityRoot, RoleMapper.ROLEMAPPER)));
         this.roleExtractor = new RoleExtractor(rolePattern);
-        this.roleMapper = new RoleMapper(storage, securityRoot,properties);
+        this.roleMapper = new RoleMapper(storage, securityRoot, properties);
         this.roleAuthorizer = new RoleAuthorizer(storage, securityRoot, rolePattern, rolePrefix, roleMapper);
         eb = vertx.eventBus();
 
