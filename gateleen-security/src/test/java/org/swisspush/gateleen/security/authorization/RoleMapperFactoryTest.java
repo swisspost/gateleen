@@ -22,6 +22,7 @@ public class RoleMapperFactoryTest {
 
     private RoleMapperFactory roleMapperFactory;
 
+
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
@@ -33,7 +34,9 @@ public class RoleMapperFactoryTest {
 
     @Before
     public void setUp() {
-        roleMapperFactory = new RoleMapperFactory();
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("STAGE", "int");
+        roleMapperFactory = new RoleMapperFactory(properties);
     }
 
     @Test

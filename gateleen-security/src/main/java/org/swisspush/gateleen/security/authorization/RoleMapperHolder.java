@@ -25,18 +25,27 @@ public class RoleMapperHolder {
      */
     private final boolean keepOriginal;
 
+    /**
+     * Defines if the Mapping must be continued after this mapping rule or not.
+     */
+    private final boolean continueMapping;
 
     /**
      * Holds the attributes needed to map roles. All params must be non null.
      *
-     * @param pattern      The regular expression pattern to be applied to the incoming rules, must not be null
-     * @param role         The resulting mapped role, must not be null
-     * @param keepOriginal If true, the original role is kept and the mapped one added additionally
+     * @param pattern         The regular expression pattern to be applied to the incoming rules, must not be null
+     * @param role            The resulting mapped role, must not be null
+     * @param keepOriginal    If true, the original role is kept and the mapped one added additionally
+     * @param continueMapping If true, the mapping processing will not be stopped with this mapper if it matches but it just
+     *                        continues with the next one working with the mapped role already. Thus there might be possible
+     *                        a chain of mappings eg. domain-admin-int  -> domain-admin -> domain   So at the end only
+     *                        the ACL for "domain" is used as the final resulting role from mapping.
      */
-    RoleMapperHolder(@Nonnull Pattern pattern, @Nonnull String role, boolean keepOriginal) {
+    RoleMapperHolder(@Nonnull Pattern pattern, @Nonnull String role, boolean keepOriginal, boolean continueMapping) {
         this.pattern = pattern;
         this.role = role;
         this.keepOriginal = keepOriginal;
+        this.continueMapping = continueMapping;
     }
 
     public Pattern getPattern() {
@@ -49,6 +58,10 @@ public class RoleMapperHolder {
 
     public boolean getKeepOriginal() {
         return keepOriginal;
+    }
+
+    public boolean getContinueMapping() {
+        return continueMapping;
     }
 
 }

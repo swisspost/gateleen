@@ -29,6 +29,8 @@ public class RoleAuthorizer implements ConfigurationResource {
     private String deviceHeader = "x-rp-deviceid";
     private String userHeader = "x-rp-usr";
 
+    private final String rolePrefix;
+
     private AclFactory aclFactory;
     private RoleMapper roleMapper;
 
@@ -43,13 +45,27 @@ public class RoleAuthorizer implements ConfigurationResource {
 
     public static final Logger log = LoggerFactory.getLogger(RoleAuthorizer.class);
 
-    RoleAuthorizer(final ResourceStorage storage, String securityRoot, String rolePattern, final RoleMapper roleMapper) {
+    /**
+     * @param storage
+     * @param securityRoot
+     * @param rolePattern  The regex pattern to extract the roles from the header removing any prefix from them
+     * @param rolePrefix   The prefix which must be added to mapped roles in the request header which is created
+     *                     to forward from the mapped resulting roles. Could be null if none shall be added at all.
+     * @param roleMapper
+     */
+    RoleAuthorizer(final ResourceStorage storage, String securityRoot, String rolePattern, String rolePrefix, final RoleMapper roleMapper) {
         this.storage = storage;
         this.roleMapper = roleMapper;
         this.aclRoot = securityRoot + aclKey + "/";
         this.aclUriPattern = new PatternHolder(Pattern.compile("^" + aclRoot + "(?<role>.+)$"));
         this.roleExtractor = new RoleExtractor(rolePattern);
         this.aclFactory = new AclFactory();
+        // keep empty string if there is no prefix given. This way we could just use it later on without having to care about further.
+        if (rolePrefix != null) {
+            this.rolePrefix = rolePrefix;
+        } else {
+            this.rolePrefix = "";
+        }
 
         initialGrantedRoles = new HashMap<>();
         initialGrantedRoles.put(aclUriPattern, new HashMap<>());
@@ -105,6 +121,11 @@ public class RoleAuthorizer implements ConfigurationResource {
     private boolean isAuthorized(HttpServerRequest request) {
         Set<String> roles = roleExtractor.extractRoles(request);
         if (roles != null) {
+            //  NOTE: This here adds the role "everyone" and therefore everybody does get this role assigned
+            //        independent of what roles were given initially.
+            //        Therefore a ACL for the role "everyone" might be created if one would like to assign
+            //        common rights for "everyone"
+            //        This is as well distributed further in the request header and might be used by other applications behind.
             roles.add(anonymousRole);
             RequestLoggerFactory.getLogger(RoleAuthorizer.class, request).debug("Roles: " + roles);
             return isAuthorized(roles, request);
@@ -132,6 +153,7 @@ public class RoleAuthorizer implements ConfigurationResource {
                 if (methodRoles != null) {
                     for (String role : methodRoles) {
                         if (checkRole(mappedRoles, request, matcher, role)) {
+                            fillInNewRoleHeader(request, mappedRoles);
                             return true;
                         }
                     }
@@ -139,6 +161,15 @@ public class RoleAuthorizer implements ConfigurationResource {
             }
         }
         return false;
+    }
+
+    private void fillInNewRoleHeader(HttpServerRequest request, Set<String> roles) {
+        StringBuilder roleHeader = new StringBuilder();
+        for (String role : roles) {
+            if (roleHeader.length() > 0) roleHeader.append(",");
+            roleHeader.append(this.rolePrefix).append(role.toLowerCase());
+        }
+        request.headers().set(RoleExtractor.groupHeader, roleHeader.toString());
     }
 
     /**

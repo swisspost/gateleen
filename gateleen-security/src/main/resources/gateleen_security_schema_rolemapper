@@ -22,6 +22,10 @@
             "keepOriginal": {
               "type": "boolean",
               "description": "If true, the original role is kept in the list of user roles and removed if false and thus not anymore be existant in the list of roles when applied against the ACL"
+            },
+            "continueMapping": {
+              "type": "boolean",
+              "description": "Optional property, if true, the mapping will not stop after the mapping of the given role and continue with the next one in the list of mappers"
             }
           },
           "additionalProperties": false,
