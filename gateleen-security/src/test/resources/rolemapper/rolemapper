@@ -1,13 +1,31 @@
 {
-    "mappings": [{
+    "mappings": [
+      {
+        "pattern": "(.*)-stage-.*prod.*",
+        "role": "$1",
+        "keepOriginal": false,
+        "continueMapping": true
+      },
+      {
+        "pattern": "(.*)-stage-.*${STAGE}.*",
+        "role": "$1-${STAGE}",
+        "keepOriginal": true,
+        "continueMapping": true
+      },
+      {
         "pattern":"domain1-.*",
-        "role":"domain",
+        "role":"domain1",
         "keepOriginal":false
       },
       {
-        "pattern":"domain2.*",
-        "role":"domain",
+        "pattern":"domain2-.*",
+        "role":"domain2",
         "keepOriginal":true
+      },
+      {
+        "pattern":"domain-admin.*",
+        "role":"domain",
+        "keepOriginal":false
       }
     ]
  }

@@ -77,6 +77,8 @@ public class Server extends AbstractVerticle {
     private static final String SERVER_ROOT = ROOT + "/server";
     private static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
     private static final String ROLE_PATTERN = "^z-playground[-_](.*)$";
+    private static final String ROLE_PREFIX  = "z-playground-";
+
     private static final String JMX_DOMAIN = "org.swisspush.gateleen";
 
     /*
@@ -204,7 +206,7 @@ public class Server extends AbstractVerticle {
                         SERVER_ROOT + "/users/v1/%s/profile", SERVER_ROOT + "/hooks/v1/", queueClient, false, reducedPropagationManager);
                 hookHandler.enableResourceLogging(true);
 
-                authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN);
+                authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN, ROLE_PREFIX, props);
                 authorizer.enableResourceLogging(true);
 
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");

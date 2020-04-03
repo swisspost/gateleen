@@ -2,7 +2,8 @@
   "mappings": [{
     "pattern":"domain-.*",
     "role":"domain",
-    "keepOriginal":false
+    "keepOriginal":false,
+    "continueMapping": true
   }
   ]
 }
