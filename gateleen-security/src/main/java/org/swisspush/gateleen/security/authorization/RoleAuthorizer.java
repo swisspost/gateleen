@@ -145,7 +145,7 @@ public class RoleAuthorizer implements ConfigurationResource {
      * @return true if the user is authorized
      */
     private boolean isAuthorized(Set<String> roles, HttpServerRequest request) {
-        Set<String> mappedRoles = roleMapper.mapRoles(roles);
+        Map<String, RoleMapper.MappedRole> mappedRoles = roleMapper.mapRoles(roles);
         for (Entry<PatternHolder, Map<String, Set<String>>> entry : grantedRoles.entrySet()) {
             Matcher matcher = entry.getKey().getPattern().matcher(request.uri());
             if (matcher.matches()) {
@@ -163,13 +163,14 @@ public class RoleAuthorizer implements ConfigurationResource {
         return false;
     }
 
-    private void fillInNewRoleHeader(HttpServerRequest request, Set<String> roles) {
-        StringBuilder roleHeader = new StringBuilder();
-        for (String role : roles) {
-            if (roleHeader.length() > 0) roleHeader.append(",");
-            roleHeader.append(this.rolePrefix).append(role.toLowerCase());
+    private void fillInNewRoleHeader(HttpServerRequest request, Map<String, RoleMapper.MappedRole> mappedRoles) {
+        StringJoiner joiner = new StringJoiner(",");
+        for (RoleMapper.MappedRole mappedRole : mappedRoles.values()) {
+            if (mappedRole.forward) {
+                joiner.add(this.rolePrefix + mappedRole.role.toLowerCase());
+            }
         }
-        request.headers().set(RoleExtractor.groupHeader, roleHeader.toString());
+        request.headers().set(RoleExtractor.groupHeader, joiner.toString());
     }
 
     /**
@@ -182,9 +183,9 @@ public class RoleAuthorizer implements ConfigurationResource {
      * @param role    The ACL rule to check against
      * @return TRUE if the user is authorized according to the role
      */
-    private boolean checkRole(Set<String> roles, HttpServerRequest request, Matcher matcher, String role) {
+    private boolean checkRole(Map<String, RoleMapper.MappedRole> roles, HttpServerRequest request, Matcher matcher, String role) {
         boolean authorized = false;
-        if (roles.contains(role)) {
+        if (roles.containsKey(role)) {
             authorized = true;
             if (matcher.groupCount() > 0) {
                 try {
@@ -201,7 +202,7 @@ public class RoleAuthorizer implements ConfigurationResource {
                 }
                 try {
                     String uriRole = matcher.group("role");
-                    authorized &= (uriRole != null && roles.contains(uriRole));
+                    authorized &= (uriRole != null && roles.containsKey(uriRole));
                 } catch (IllegalArgumentException e) {
                     // ignore
                 }

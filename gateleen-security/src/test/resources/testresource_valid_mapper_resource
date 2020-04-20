@@ -1,9 +1,11 @@
 {
-  "mappings": [{
-    "pattern":"domain-.*",
-    "role":"domain",
-    "keepOriginal":false,
-    "continueMapping": true
-  }
+  "mappings": [
+    {
+      "pattern": "domain-.*",
+      "role": "domain",
+      "keepOriginalRole": false,
+      "continueMapping": true,
+      "keepResultingRole": false
+    }
   ]
 }
