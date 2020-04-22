@@ -50,7 +50,7 @@ public class RoleMapperFactory {
                 mapping.pattern = StringUtils.replaceWildcardConfigs(mapping.pattern, properties);
                 mapping.role = StringUtils.replaceWildcardConfigs(mapping.role, properties);
             }
-            result.add(new RoleMapperHolder(Pattern.compile(mapping.pattern), mapping.role, mapping.keepOriginal, mapping.continueMapping));
+            result.add(new RoleMapperHolder(Pattern.compile(mapping.pattern), mapping.role, mapping.keepOriginalRole, mapping.continueMapping, mapping.keepResultingRole));
         }
         return result;
     }
@@ -62,7 +62,7 @@ public class RoleMapperFactory {
 
     public static class Mapping {
         public String pattern, role;
-        public boolean keepOriginal, continueMapping;
+        public boolean keepOriginalRole, continueMapping, keepResultingRole;
     }
 
 }

@@ -266,7 +266,7 @@ public class AuthorizerTest {
             Set<String> roles = new RoleExtractor().extractRoles(req);
             context.assertTrue(roles.size() == 3);
             context.assertTrue(roles.contains("z-gateleen-domain-admin-stage-int"));
-            context.assertTrue(roles.contains("z-gateleen-domain"));
+            context.assertTrue(roles.contains("z-gateleen-domain-admin-int"));
             context.assertTrue(roles.contains("z-gateleen-everyone"));
         });
 
