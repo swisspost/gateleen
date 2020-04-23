@@ -1,13 +1,12 @@
 package org.swisspush.gateleen.routing;
 
 import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.http.HttpServerRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import java.util.Iterator;
 
 /**
  * Handler to respond with a custom status code
@@ -35,8 +34,8 @@ public class CustomHttpResponseHandler {
         try {
             String code = request.uri().substring(path.length());
 
-            List<String> pathSegments = Lists.newArrayList(Splitter.on(SLASH).omitEmptyStrings().limit(2).split(code));
-            code = pathSegments.isEmpty() ? EMPTY : pathSegments.get(0);
+            final Iterator<String> pathSegments = Splitter.on(SLASH).omitEmptyStrings().limit(2).split(code).iterator();
+            code = pathSegments.hasNext() ? pathSegments.next() : EMPTY;
 
             int codeAsInt = Integer.parseInt(code);
             rs = HttpResponseStatus.valueOf(codeAsInt);
