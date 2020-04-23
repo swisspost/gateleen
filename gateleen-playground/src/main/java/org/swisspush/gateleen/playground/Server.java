@@ -50,6 +50,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCi
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
+import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
@@ -76,6 +77,7 @@ public class Server extends AbstractVerticle {
     private static final String ROOT = "/playground";
     private static final String SERVER_ROOT = ROOT + "/server";
     private static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
+    private static final String RETURN_HTTP_STATUS_ROOT = SERVER_ROOT + "/return-with-status-code";
     private static final String ROLE_PATTERN = "^z-playground[-_](.*)$";
     private static final String ROLE_PREFIX  = "z-playground-";
 
@@ -121,6 +123,7 @@ public class Server extends AbstractVerticle {
     private ZipExtractHandler zipExtractHandler;
     private DelegateHandler delegateHandler;
     private KafkaHandler kafkaHandler;
+    private CustomHttpResponseHandler customHttpResponseHandler;
 
     public static void main(String[] args) {
         Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event ->
@@ -222,6 +225,8 @@ public class Server extends AbstractVerticle {
                 delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/delegates/", props, null);
                 delegateHandler.enableResourceLogging(true);
 
+                customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
+
                 router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
                         (Handler<Void>) aVoid -> {
                             hookHandler.init();
@@ -273,6 +278,7 @@ public class Server extends AbstractVerticle {
                         .schedulerResourceManager(schedulerResourceManager)
                         .zipExtractHandler(zipExtractHandler)
                         .delegateHandler(delegateHandler)
+                        .customHttpResponseHandler(customHttpResponseHandler)
                         .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);

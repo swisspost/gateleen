@@ -59,3 +59,27 @@ Also you have to enable the logging on the [Router](src/main/java/org/swisspush/
 ```java
 router.enableResourceLogging(true);
 ```
+## Use CustomHttpResponseHandler
+The [CustomHttpResponseHandler](src/main/java/org/swisspush/gateleen/routing/CustomHttpResponseHandler.java) can be used together with simple routing rules to respond with a configurable
+http status code.
+
+Having a configured rootPath of
+ 
+> _/gateleen/server/return-http-error_
+
+you can add the following routing rule to correctly respond every request on
+
+> _/gateleen/server/unreachable/service_
+
+with a http status code 503
+```json
+{
+    "/gateleen/server/unreachable/service": {
+        "path": "/gateleen/server/return-http-error/503",
+        "methods": [
+          "GET"
+        ]
+    }
+}
+```
+ 
