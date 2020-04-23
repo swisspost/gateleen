@@ -50,6 +50,18 @@ public class CustomHttpResponseHandlerTest {
     }
 
     @Test
+    public void testRequestHandledWithStatus405AndAdditionalPathSegments(TestContext context){
+        HttpServerResponse response = spy(new DummyHttpServerResponse());
+        HttpServerRequest request = new HttpServerRequest("/gateleen/server/return-with-status-code/405/ignored/path/segments", response);
+
+        final boolean handled = responseHandler.handle(request);
+        context.assertTrue(handled, "Request should have been handled");
+
+        verify(response, times(1)).setStatusCode(eq(StatusCode.METHOD_NOT_ALLOWED.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage()));
+    }
+
+    @Test
     public void testRequestHandledWithInvalidStatus(TestContext context){
         HttpServerResponse response = spy(new DummyHttpServerResponse());
         HttpServerRequest request = new HttpServerRequest("/gateleen/server/return-with-status-code/not_a_number", response);
