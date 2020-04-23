@@ -54,6 +54,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCi
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
+import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
@@ -83,6 +84,7 @@ public abstract class AbstractTest {
     public static final String SERVER_ROOT = ROOT + "/server";
     private static final String RULES_ROOT = SERVER_ROOT + "/admin/v1/routing/rules";
     private static final String DELEGATE_ROOT = ROOT + "/server/delegate/v1/delegates/";
+    private static final String RETURN_HTTP_STATUS_ROOT = SERVER_ROOT + "/return-with-status-code";
     public static final int MAIN_PORT = 3332;
     protected static final int REDIS_PORT = 6379;
     private static final int CIRCUIT_BREAKER_REST_API_PORT = 7014;
@@ -104,6 +106,7 @@ public abstract class AbstractTest {
     protected final static Map<String, Object> props = new HashMap<>();
     protected static SchedulerResourceManager schedulerResourceManager;
     protected static HookHandler hookHandler;
+    protected static CustomHttpResponseHandler customHttpResponseHandler;
 
     /**
      * Starts redis before the test classes are instantiated.
@@ -160,6 +163,8 @@ public abstract class AbstractTest {
                 DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, DELEGATE_ROOT, props, null);
                 MergeHandler mergeHandler = new MergeHandler(selfClient);
 
+                customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
+
                 // ------
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
@@ -207,6 +212,7 @@ public abstract class AbstractTest {
                                 .zipExtractHandler(zipExtractHandler)
                                 .delegateHandler(delegateHandler)
                                 .mergeHandler(mergeHandler)
+                                .customHttpResponseHandler(customHttpResponseHandler)
                                 .build(vertx, redisClient, AbstractTest.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
