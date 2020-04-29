@@ -220,7 +220,7 @@ public class QueueProcessor {
 
         logger.debug("performing request " + queuedRequest.getMethod() + " " + queuedRequest.getUri());
         if (ExpiryCheckHandler.isExpired(queuedRequest.getHeaders(), jsonRequest.getLong(QueueClient.QUEUE_TIMESTAMP))) {
-            logger.debug("request expired to " + queuedRequest.getUri());
+            logger.info("request expired to " + queuedRequest.getUri());
             message.reply(new JsonObject().put(STATUS, OK));
             return;
         }
