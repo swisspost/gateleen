@@ -37,6 +37,7 @@ import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
+import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.security.authorization.Authorizer;
@@ -104,14 +105,19 @@ public class RunConfig {
     private DelegateHandler delegateHandler;
     private MergeHandler mergeHandler;
     private KafkaHandler kafkaHandler;
+    private CustomHttpResponseHandler customHttpResponseHandler;
 
-    public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
+    public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler,
+                     QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
-                     ConfigurationResourceManager configurationResourceManager, QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager,
+                     ConfigurationResourceManager configurationResourceManager,
+                     QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager,
                      EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
-                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler, QoSHandler qosHandler, PropertyHandler propertyHandler,
-                     ZipExtractHandler zipExtractHandler, DelegateHandler delegateHandler, MergeHandler mergeHandler, KafkaHandler kafkaHandler) {
+                     DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler,
+                     QoSHandler qosHandler, PropertyHandler propertyHandler, ZipExtractHandler zipExtractHandler,
+                     DelegateHandler delegateHandler, MergeHandler mergeHandler, KafkaHandler kafkaHandler,
+                     CustomHttpResponseHandler customHttpResponseHandler) {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.verticleClass = verticleClass;
@@ -139,6 +145,7 @@ public class RunConfig {
         this.delegateHandler = delegateHandler;
         this.mergeHandler = mergeHandler;
         this.kafkaHandler = kafkaHandler;
+        this.customHttpResponseHandler = customHttpResponseHandler;
         init();
     }
 
@@ -169,7 +176,8 @@ public class RunConfig {
                 builder.zipExtractHandler,
                 builder.delegateHandler,
                 builder.mergeHandler,
-                builder.kafkaHandler);
+                builder.kafkaHandler,
+                builder.customHttpResponseHandler);
     }
 
     private void init(){
@@ -214,6 +222,7 @@ public class RunConfig {
         private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
         private EventBusHandler eventBusHandler;
         private KafkaHandler kafkaHandler;
+        private CustomHttpResponseHandler customHttpResponseHandler;
         private ValidationHandler validationHandler;
         private HookHandler hookHandler;
         private UserProfileHandler userProfileHandler;
@@ -267,6 +276,11 @@ public class RunConfig {
 
         public RunConfigBuilder kafkaHandler(KafkaHandler kafkaHandler){
             this.kafkaHandler = kafkaHandler;
+            return this;
+        }
+
+        public RunConfigBuilder customHttpResponseHandler(CustomHttpResponseHandler customHttpResponseHandler){
+            this.customHttpResponseHandler = customHttpResponseHandler;
             return this;
         }
 
@@ -588,6 +602,9 @@ public class RunConfig {
                             return;
                         }
                         if ( delegateHandler != null && delegateHandler.handle(request)) {
+                            return;
+                        }
+                        if ( customHttpResponseHandler != null && customHttpResponseHandler.handle(request)) {
                             return;
                         }
                         if (userProfileHandler != null && userProfileHandler.isUserProfileRequest(request)) {

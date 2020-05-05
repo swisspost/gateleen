@@ -1,4 +1,8 @@
 {
+  "/playground/service/unavailable/(.*)": {
+    "description": "Respond every request with status code 503",
+    "path": "/playground/server/return-with-status-code/503"
+  },
   "/playground/cb/1/(.*)": {
     "description": "CircuitBreaker Test",
     "url": "http://localhost:1234/playground/server/tests/exp/$1"

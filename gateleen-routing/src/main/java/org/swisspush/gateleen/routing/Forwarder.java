@@ -274,7 +274,10 @@ public class Forwarder implements Handler<RoutingContext> {
                 RequestLoggerFactory
                         .getLogger(Forwarder.class, req)
                         .warn("Exception during forwarding - closing (forwarding) client connection", t);
-                cReq.connection().close();
+                HttpConnection connection = cReq.connection();
+                if (connection != null) {
+                    connection.close();
+                }
             });
 
             final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(cReqWrapped, loggingHandler, true);

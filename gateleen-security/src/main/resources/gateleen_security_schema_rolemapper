@@ -19,20 +19,24 @@
               "description": "The resulting role which is added to the list of roles of the user before ACL authentication is applied",
               "minLength": 1
             },
-            "keepOriginal": {
+            "keepOriginalRole": {
               "type": "boolean",
-              "description": "If true, the original role is kept in the list of user roles and removed if false and thus not anymore be existant in the list of roles when applied against the ACL"
+              "description": "If true, the received original role is forwarded in the resulting request"
             },
             "continueMapping": {
               "type": "boolean",
               "description": "Optional property, if true, the mapping will not stop after the mapping of the given role and continue with the next one in the list of mappers"
+            },
+            "keepResultingRole": {
+              "type": "boolean",
+              "description": "If true and it is the last mapped role (continueMapping=false), the resulting/matched role is forwarded in the resulting request"
             }
           },
           "additionalProperties": false,
           "required": [
             "pattern",
             "role",
-            "keepOriginal"
+            "keepOriginalRole"
           ]
         }
       ]

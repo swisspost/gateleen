@@ -3,7 +3,9 @@
     {
       "pattern": "domain-.*",
       "role": "domain",
-      "keepOriginal": false,
+      "keepOriginalRole": false,
+      "continueMapping": true,
+      "keepResultingRole": false,
       "justanotherproperty": "juhu"
     }
   ]

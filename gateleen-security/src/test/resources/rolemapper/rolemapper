@@ -3,29 +3,32 @@
       {
         "pattern": "(.*)-stage-.*prod.*",
         "role": "$1",
-        "keepOriginal": false,
+        "keepOriginalRole": false,
         "continueMapping": true
       },
       {
         "pattern": "(.*)-stage-.*${STAGE}.*",
         "role": "$1-${STAGE}",
-        "keepOriginal": true,
+        "keepOriginalRole": true,
         "continueMapping": true
       },
       {
         "pattern":"domain1-.*",
         "role":"domain1",
-        "keepOriginal":false
+        "keepOriginalRole":false,
+        "keepResultingRole": true
       },
       {
         "pattern":"domain2-.*",
         "role":"domain2",
-        "keepOriginal":true
+        "keepOriginalRole":true,
+        "keepResultingRole": true
       },
       {
         "pattern":"domain-admin.*",
         "role":"domain",
-        "keepOriginal":false
+        "keepOriginalRole":true,
+        "keepResultingRole": false
       }
     ]
  }

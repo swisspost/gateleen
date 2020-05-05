@@ -70,6 +70,17 @@ public class RoleMapper implements ConfigurationResource {
     }
 
 
+    public class MappedRole {
+        public final String role;
+        public final boolean forward;
+
+        public MappedRole(String role, boolean forward) {
+            this.role = role;
+            this.forward = forward;
+        }
+    }
+
+
     /**
      * Maps the received roles from http header according the rolemapper rules and return the set of
      * mapped roles including the initial list of roles according to the given mapping rule sets.
@@ -77,45 +88,48 @@ public class RoleMapper implements ConfigurationResource {
      * @param roles The roles to be mapped and enriched according to the rolemapper object
      * @return The resulting list of initial plus mapped roles
      */
-    public Set<String> mapRoles(Set<String> roles) {
-        if (roles != null && roleMappers != null && !roleMappers.isEmpty()) {
-            Set<String> mappedRoles = new HashSet<>();
-            String originalRole; // holds the last original role to be applied in  mapping rule chains
+    public Map<String, MappedRole> mapRoles(Set<String> roles) {
+        Map<String, MappedRole> mappedRoles = new HashMap<>();
+        if (roles != null) {
+            String originalRole; // holds the last known original role to be applied in  mapping rule chains
             Matcher matcher;
             for (String role : roles) {
                 originalRole = role;
-                for (RoleMapperHolder mapper : roleMappers) {
-                    matcher = mapper.getPattern().matcher(role);
-                    if (matcher.matches()) {
-                        // we found a matching mapping rule to map and therefore,
-                        // we must replace matching regex capture groups if there are any
-                        String matchedRole = matcher.replaceAll(mapper.getRole());
-                        // check if we must use the kept last original role for this mapper rule
-                        if (mapper.getKeepOriginal()) {
-                            mappedRoles.add(originalRole);
-                        }
-                        // now we check if we have to continue matching in the chain of RoleMapper definitions
-                        if (mapper.getContinueMapping()) {
-                            // go on with next mapping rule, but the new original rule from now on is the one
-                            // which matched here and not the previous original one
-                            originalRole = matchedRole;
-                        } else {
-                            originalRole = null;
-                            mappedRoles.add(matchedRole);
-                            // we don't have to loop further as it is finally mapped now for this given role
-                            // according to the mapping definition
-                            break;
+                if (roleMappers != null && !roleMappers.isEmpty()) {
+                    for (RoleMapperHolder mapper : roleMappers) {
+                        matcher = mapper.getPattern().matcher(role);
+                        if (matcher.matches()) {
+                            // we found a matching mapping rule to map and therefore,
+                            // we must replace matching regex capture groups if there are any
+                            String matchedRole = matcher.replaceAll(mapper.getRole());
+                            // put the original role in the list of mapped roles
+                            mappedRoles.put(originalRole, new MappedRole(originalRole, mapper.getKeepOriginalRole()));
+                            // now we check if we have to continue matching in the chain of RoleMapper definitions
+                            if (mapper.getContinueMapping()) {
+                                // go on with next mapping rule, but the new original rule from now on is the one
+                                // which matched here and not the previous original one
+                                originalRole = matchedRole;
+                            } else {
+                                originalRole = null;
+                                // put the last resulting mapped role to the list of mapped roles
+                                mappedRoles.put(matchedRole, new MappedRole(matchedRole, mapper.getKeepResultingRole()));
+                                // we don't have to loop further as it is finally mapped now for this given role
+                                // according to the mapping definition
+                                break;
+                            }
                         }
                     }
-                }
-                // Finally add what is the last known OriginalRole up to here if there is any
-                if (originalRole != null) {
-                    mappedRoles.add(originalRole);
+                    // Finally add what is the last known OriginalRole up to here if there is any
+                    if (originalRole != null) {
+                        mappedRoles.put(originalRole, new MappedRole(originalRole, true));
+                    }
+                } else {
+                    // there is no mapping defined, just add the given role as is
+                    mappedRoles.put(originalRole, new MappedRole(originalRole, true));
                 }
             }
-            return mappedRoles;
         }
-        return roles;
+        return mappedRoles;
     }
 
 }

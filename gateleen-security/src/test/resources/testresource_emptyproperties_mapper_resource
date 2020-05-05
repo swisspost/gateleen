@@ -3,7 +3,8 @@
     {
       "pattern": "",
       "role": "",
-      "keepOriginal": false
+      "keepOriginalRole": false,
+      "keepResultingRole": false
     }
   ]
 }
