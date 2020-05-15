@@ -17,6 +17,7 @@ public class Rule {
     private String host;
     private String metricName;
     private int port;
+    private String portWildcard;
     private String path;
     private int poolSize;
     private boolean keepAlive;
@@ -72,6 +73,18 @@ public class Rule {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public String getPortWildcard() {
+        return portWildcard;
+    }
+
+    public void setPortWildcard(String portWildcard) {
+        this.portWildcard = portWildcard;
+    }
+
+    public boolean hasPortWildcard() {
+        return portWildcard != null;
     }
 
     public String getPath() {
