@@ -115,7 +115,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public HttpClientRequest request(HttpMethod method, int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
+        return doRequest(method, requestURI, responseHandler);
     }
 
     @Override

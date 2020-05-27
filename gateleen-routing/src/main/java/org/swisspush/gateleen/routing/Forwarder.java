@@ -41,6 +41,7 @@ public class Forwarder implements Handler<RoutingContext> {
     private HttpClient client;
     private Pattern urlPattern;
     private String target;
+    private int port;
     private Rule rule;
     private String base64UsernamePassword;
     private LoggingResourceManager loggingResourceManager;
@@ -113,10 +114,29 @@ public class Forwarder implements Handler<RoutingContext> {
      * was not yet consumed
      */
     public void handle(final HttpServerRequest req, final Buffer bodyData) {
+        final Logger log = RequestLoggerFactory.getLogger(Forwarder.class, req);
+        if(rule.hasPortWildcard()){
+            String dynamicPortStr = null;
+            try {
+                dynamicPortStr = urlPattern.matcher(req.uri()).replaceFirst(rule.getPortWildcard());
+                log.debug("Dynamic port for wildcard {} is {}", rule.getPortWildcard(), dynamicPortStr);
+                port = Integer.parseInt(dynamicPortStr);
+            } catch (NumberFormatException ex) {
+                log.error("Could not extract a numeric value from wildcard {}. Got {}", rule.getPortWildcard(), dynamicPortStr);
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                return;
+            } catch(IndexOutOfBoundsException ex) {
+                log.error("No group could be found for wildcard {}", rule.getPortWildcard());
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                return;
+            }
+        } else {
+            port = rule.getPort();
+        }
+        target = rule.getHost() + ":" + port;
         monitoringHandler.updateRequestsMeter(target, req.uri());
         monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getMetricName());
         final String targetUri = urlPattern.matcher(req.uri()).replaceFirst(rule.getPath()).replaceAll("\\/\\/", "/");
-        final Logger log = RequestLoggerFactory.getLogger(Forwarder.class, req);
         log.debug("Forwarding request: " + req.uri() + " to " + rule.getScheme() + "://" + target + targetUri + " with rule " + rule.getRuleIdentifier());
         final String userId = extractUserId(req, log);
 
@@ -330,7 +350,7 @@ public class Forwarder implements Handler<RoutingContext> {
     }
 
     private HttpClientRequest prepareRequest(final HttpServerRequest req, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap, final LoggingHandler loggingHandler, final long startTime) {
-        return client.request(req.method(), targetUri, cRes -> {
+        return client.request(req.method(), port, rule.getHost(), targetUri, cRes -> {
             monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
             loggingHandler.setResponse(cRes);
             req.response().setStatusCode(cRes.statusCode());
