@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 public class RuleFactory {
 
     private Logger log = LoggerFactory.getLogger(RuleFactory.class);
-    private Pattern urlParsePattern = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>[0-9]+))?(?<path>/.*)$");
+    private Pattern urlParsePattern = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>\\$?[0-9]+))?(?<path>/.*)$");
     private final Map<String, Object> properties;
     private String routingRulesSchema;
 
@@ -180,7 +180,11 @@ public class RuleFactory {
 
                 String portString = urlMatcher.group("port");
                 if (portString != null) {
-                    ruleObj.setPort(Integer.parseInt(portString));
+                    if(portString.startsWith("$")){
+                        ruleObj.setPortWildcard(portString);
+                    } else {
+                        ruleObj.setPort(Integer.parseInt(portString));
+                    }
                 }
 
                 ruleObj.setPath(urlMatcher.group("path"));

@@ -60,6 +60,28 @@ public class RuleFactoryTest {
     }
 
     @Test
+    public void testMissingSystemProperty(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Could not resolve gateleen.missing.prop.1");
+
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"${gateleen.missing.prop.1}/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"${gateleen.test.prop.2}/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+        properties.put("gateleen.test.prop.2", "http://someserver2/");
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
     public void testWithMetricNameProperty(TestContext context) throws ValidationException {
         String simpleExampleRule = "{"
                 + "  \"/gateleen/rule/1\": {"
@@ -469,5 +491,73 @@ public class RuleFactoryTest {
         context.assertNull(rulesList.get(2).getProxyOptions().getPassword());
 
         context.assertNull(rulesList.get(3).getProxyOptions());
+    }
+
+    @Test
+    public void testStaticPortConfig(TestContext context) throws ValidationException {
+        String simpleExampleRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"url\": \"http://someserver1:1234/gateleen/rule/1\""
+                + "  },"
+                + "  \"/gateleen/rule/2\": {"
+                + "    \"description\": \"Test Rule 2\","
+                + "    \"url\": \"http://someserver2:5678/gateleen/rule/2\""
+                + "  }"
+                + "}";
+
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+
+        context.assertTrue(rules.size() == 2);
+        context.assertEquals("someserver1", rules.get(0).getHost());
+        context.assertEquals(1234, rules.get(0).getPort());
+        context.assertFalse(rules.get(0).hasPortWildcard());
+        context.assertEquals("someserver2", rules.get(1).getHost());
+        context.assertEquals(5678, rules.get(1).getPort());
+        context.assertFalse(rules.get(1).hasPortWildcard());
+    }
+
+    @Test
+    public void testValidDynamicPortConfig(TestContext context) throws ValidationException {
+        String simpleExampleRule = "{\n" +
+                "  \"/gateleen/(1234|5678)/rule/(.*)\": {\n" +
+                "    \"url\": \"http://someserver1:$1/target/$2\"\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals("someserver1", rules.get(0).getHost());
+        context.assertTrue(rules.get(0).hasPortWildcard());
+        context.assertEquals("$1", rules.get(0).getPortWildcard());
+    }
+
+    @Test
+    public void testInvalidDynamicPortConfig(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Invalid url for pattern /gateleen/(1234|5678)/rule/(.*): http://someserver1:xxx/target/$2");
+
+        String simpleExampleRule = "{\n" +
+                "  \"/gateleen/(1234|5678)/rule/(.*)\": {\n" +
+                "    \"url\": \"http://someserver1:xxx/target/$2\"\n" +
+                "  }\n" +
+                "}";
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testInvalidWildcardDynamicPortConfig(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Invalid url for pattern /gateleen/(1234|5678)/rule/(.*): http://someserver1:$abc/target/$2");
+
+        String simpleExampleRule = "{\n" +
+                "  \"/gateleen/(1234|5678)/rule/(.*)\": {\n" +
+                "    \"url\": \"http://someserver1:$abc/target/$2\"\n" +
+                "  }\n" +
+                "}";
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
     }
 }
