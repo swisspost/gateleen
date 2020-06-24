@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.routing;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -117,13 +118,21 @@ public class StorageForwarder implements Handler<RoutingContext> {
                             translatedStatus = Translator.translateStatusCode(statusCode, rule, log);
                         }
 
+                        boolean translated = statusCode != translatedStatus;
+
                         // set the statusCode (if nothing hapend, it will remain the same)
                         statusCode = translatedStatus;
 
                         response.setStatusCode(statusCode);
-                        String statusMessage = responseJson.getString("statusMessage");
-                        if (statusMessage != null) {
+                        String statusMessage;
+                        if(translated) {
+                            statusMessage = HttpResponseStatus.valueOf(statusCode).reasonPhrase();
                             response.setStatusMessage(statusMessage);
+                        } else {
+                            statusMessage = responseJson.getString("statusMessage");
+                            if (statusMessage != null) {
+                                response.setStatusMessage(statusMessage);
+                            }
                         }
                         Buffer data = buffer.getBuffer(4 + headerLength, buffer.length());
                         response.headers().set("content-length", "" + data.length());

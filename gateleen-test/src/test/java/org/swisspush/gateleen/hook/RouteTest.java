@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.hook;
 
+import com.google.common.collect.ImmutableMap;
 import com.jayway.awaitility.Awaitility;
 import com.jayway.awaitility.Duration;
 import com.jayway.restassured.RestAssured;
@@ -14,6 +15,7 @@ import org.swisspush.gateleen.TestUtils;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static com.jayway.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.containsString;
@@ -247,6 +249,55 @@ public class RouteTest extends AbstractTest {
         });
 
         // -------
+        async.complete();
+    }
+
+    /**
+     * Tests if the http response code is translated when translateStatus property is defined
+     *
+     * @param context
+     */
+    @Test
+    public void testRouteWithTranslateStatus(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        // Settings
+        String subresource = "routeTest";
+        // -------
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = "http://localhost:" + MAIN_PORT + ROOT + "/server/tests/res_1";
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        final String routedResource = requestUrlBase + "/" + subresource + "/debug";
+
+        // -------
+
+        // register route (without translateStatus)
+        TestUtils.registerRoute(requestUrl, target, methods);
+
+        // since no translateStatus was defined, the resource should not be found and return a 404
+        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() ->
+                when().get(routedResource).then().assertThat()
+                        .statusCode(404)
+        );
+
+        Map<Pattern, Integer> translateStatus = ImmutableMap.of(Pattern.compile("404"), 405);
+
+        // replace route (with translateStatus)
+        TestUtils.registerRoute(requestUrl, target, methods, null, true, false, translateStatus);
+
+        // with translateStatus defined, the response status code should have changed from 404 to 405
+        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() ->
+                when().get(routedResource).then().assertThat()
+                        .statusCode(405)
+        );
+
+        // unregister route
+        TestUtils.unregisterRoute(requestUrl);
+
         async.complete();
     }
 }

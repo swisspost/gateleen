@@ -37,6 +37,13 @@
 		"destination": {
 			"type": "string"
 		},
+        "translateStatus": {
+            "description": "Mapping to transform backend HTTP status.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "number"
+            }
+        },
 		"expireAfter": {
 			"description": "DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead",
 			"type": "integer",

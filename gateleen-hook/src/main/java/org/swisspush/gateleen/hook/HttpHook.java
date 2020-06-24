@@ -8,9 +8,7 @@ import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
 import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
 import org.swisspush.gateleen.routing.Rule;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -23,6 +21,7 @@ public class HttpHook {
     public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE;
     private String destination;
     private List<String> methods;
+    private Map<Pattern, Integer> translateStatus;
     private DateTime expirationTime;
     private boolean fullUrl = false;
     private QueueingStrategy queueingStrategy = new DefaultQueueingStrategy();
@@ -43,6 +42,7 @@ public class HttpHook {
     public HttpHook(String destination) {
         this.destination = destination;
         methods = new ArrayList<>();
+        translateStatus = new HashMap<>();
         queueExpireAfter = -1;
         hookTriggerType = HookTriggerType.BEFORE;
     }
@@ -81,6 +81,14 @@ public class HttpHook {
      */
     public void setMethods(List<String> methods) {
         this.methods = methods;
+    }
+
+    public Map<Pattern, Integer> getTranslateStatus() {
+        return translateStatus;
+    }
+
+    public void addTranslateStatus(Pattern key, Integer value) {
+        this.translateStatus.put(key, value);
     }
 
     /**

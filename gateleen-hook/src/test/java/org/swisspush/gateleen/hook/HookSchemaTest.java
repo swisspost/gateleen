@@ -147,6 +147,39 @@ public class HookSchemaTest {
         Assert.assertEquals("No validation messages", 6, valMsgs.size());
     }
 
+    @Test
+    public void validWithTranslateStatus() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'translateStatus':{" +
+                "    '400':200," +
+                "    '404':200" +
+                "  }" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("No validation messages", 0, valMsgs.size());
+    }
+
+    @Test
+    public void invalidTranslateStatusValues() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'translateStatus':{" +
+                "    '400':'not a number'," +
+                "    '404':200" +
+                "  }" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("One validation message", 1, valMsgs.size());
+        for (ValidationMessage valMsg : valMsgs) {
+            Assert.assertEquals("$.translateStatus.400: string found, number expected", valMsg.getMessage());
+        }
+    }
+
     private JsonNode parse(String s) {
         s = s.replace('\'', '"');
         try {
