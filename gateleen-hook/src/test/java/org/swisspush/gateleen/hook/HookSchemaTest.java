@@ -164,7 +164,7 @@ public class HookSchemaTest {
 
     @Test
     public void invalidTranslateStatusValues() {
-        JsonNode json = parse("{" +
+        JsonNode jsonNotNumber = parse("{" +
                 "  'destination':'/go/somewhere'," +
                 "  'translateStatus':{" +
                 "    '400':'not a number'," +
@@ -172,11 +172,26 @@ public class HookSchemaTest {
                 "  }" +
                 "}");
 
-        Set<ValidationMessage> valMsgs = schema.validate(json);
+        Set<ValidationMessage> valMsgs = schema.validate(jsonNotNumber);
         dumpValidationMessages(valMsgs);
         Assert.assertEquals("One validation message", 1, valMsgs.size());
         for (ValidationMessage valMsg : valMsgs) {
-            Assert.assertEquals("$.translateStatus.400: string found, number expected", valMsg.getMessage());
+            Assert.assertEquals("$.translateStatus.400: string found, integer expected", valMsg.getMessage());
+        }
+
+        JsonNode jsonNotInteger = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'translateStatus':{" +
+                "    '400':200," +
+                "    '404':200.99" +
+                "  }" +
+                "}");
+
+        valMsgs = schema.validate(jsonNotInteger);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("One validation message", 1, valMsgs.size());
+        for (ValidationMessage valMsg : valMsgs) {
+            Assert.assertEquals("$.translateStatus.404: number found, integer expected", valMsg.getMessage());
         }
     }
 

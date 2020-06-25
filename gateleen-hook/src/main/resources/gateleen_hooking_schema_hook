@@ -41,7 +41,7 @@
             "description": "Mapping to transform backend HTTP status.",
             "type": "object",
             "additionalProperties": {
-                "type": "number"
+                "type": "integer"
             }
         },
 		"expireAfter": {
