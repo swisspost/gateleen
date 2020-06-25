@@ -42,6 +42,7 @@ import java.net.URL;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
@@ -78,6 +79,10 @@ public class HookHandler implements LoggableResource {
     public static final String REQUESTURL = "requesturl";
     public static final String EXPIRATION_TIME = "expirationTime";
     public static final String HOOK = "hook";
+    public static final String TRANSLATE_STATUS = "translateStatus";
+    public static final String METHODS  = "methods";
+    public static final String DESTINATION  = "destination";
+    public static final String FILTER  = "filter";
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
@@ -1020,7 +1025,7 @@ public class HookHandler implements LoggableResource {
                 badRequest(request, "Cannot decode JSON", e.getMessage());
                 return;
             }
-            String destination = hook.getString("destination");
+            String destination = hook.getString(DESTINATION);
             String hookOnUri = getMonitoredUrlSegment(request.uri());
             if (destination.startsWith(hookOnUri)) {
                 badRequest(request, "illegal destination", "Destination-URI should not be within subtree of your hooked resource. This would lead to an infinite loop.");
@@ -1080,7 +1085,7 @@ public class HookHandler implements LoggableResource {
             badRequest(request, "Cannot decode JSON", e.getMessage());
             return true;
         }
-        final JsonArray methods = hook.getJsonArray("methods");
+        final JsonArray methods = hook.getJsonArray(METHODS);
         if (methods != null) {
             for (Object method : methods) {
                 if (!QueueProcessor.httpMethodIsQueueable(HttpMethod.valueOf((String) method))) {
@@ -1231,15 +1236,23 @@ public class HookHandler implements LoggableResource {
 
         // create and add a new Forwarder (or replace an already existing forwarder)
         JsonObject jsonHook = storageObject.getJsonObject(HOOK);
-        JsonArray jsonMethods = jsonHook.getJsonArray("methods");
+        JsonArray jsonMethods = jsonHook.getJsonArray(METHODS);
 
-        HttpHook hook = new HttpHook(jsonHook.getString("destination"));
+
+        HttpHook hook = new HttpHook(jsonHook.getString(DESTINATION));
         if (jsonMethods != null) {
             hook.setMethods(jsonMethods.getList());
         }
 
-        if (jsonHook.containsKey("filter")) {
-            hook.setFilter(jsonHook.getString("filter"));
+        JsonObject jsonTranslateStatus = jsonHook.getJsonObject(TRANSLATE_STATUS);
+        if(jsonTranslateStatus != null) {
+            for (String pattern : jsonTranslateStatus.fieldNames()) {
+                hook.addTranslateStatus(Pattern.compile(pattern), jsonTranslateStatus.getInteger(pattern));
+            }
+        }
+
+        if (jsonHook.containsKey(FILTER)) {
+            hook.setFilter(jsonHook.getString(FILTER));
         }
 
         if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
@@ -1392,11 +1405,18 @@ public class HookHandler implements LoggableResource {
 
         // create and add a new Forwarder (or replace an already existing forwarder)
         JsonObject jsonHook = storageObject.getJsonObject(HOOK);
-        JsonArray jsonMethods = jsonHook.getJsonArray("methods");
+        JsonArray jsonMethods = jsonHook.getJsonArray(METHODS);
 
-        HttpHook hook = new HttpHook(jsonHook.getString("destination"));
+        HttpHook hook = new HttpHook(jsonHook.getString(DESTINATION));
         if (jsonMethods != null) {
             hook.setMethods(jsonMethods.getList());
+        }
+
+        JsonObject jsonTranslateStatus = jsonHook.getJsonObject(TRANSLATE_STATUS);
+        if(jsonTranslateStatus != null) {
+            for (String pattern : jsonTranslateStatus.fieldNames()) {
+                hook.addTranslateStatus(Pattern.compile(pattern), jsonTranslateStatus.getInteger(pattern));
+            }
         }
 
         if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
@@ -1458,7 +1478,7 @@ public class HookHandler implements LoggableResource {
     }
 
     /**
-     * check if an existing route must be thrown away because the new Hook does not match the config of the exising Route
+     * check if an existing route must be thrown away because the new Hook does not match the config of the existing Route
      *
      * @param existingRoute
      * @param newHook
@@ -1469,6 +1489,7 @@ public class HookHandler implements LoggableResource {
         boolean same;
         same  = Objects.equals(oldHook.getDestination()       ,       newHook.getDestination       ());
         same &= Objects.equals(oldHook.getMethods           (),       newHook.getMethods           ());
+        same &= Objects.equals(oldHook.getTranslateStatus   (),       newHook.getTranslateStatus   ());
         same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
         same &=                oldHook.isFullUrl            () ==     newHook.isFullUrl            () ;
         same &=                oldHook.isListable           () ==     newHook.isListable           () ;

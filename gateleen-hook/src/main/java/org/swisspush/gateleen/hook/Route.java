@@ -117,6 +117,10 @@ public class Route {
         if (!httpHook.getMethods().isEmpty()) {
             rule.setMethods(httpHook.getMethods().toArray(new String[httpHook.getMethods().size()]));
         }
+
+        if(!httpHook.getTranslateStatus().isEmpty()){
+            rule.addTranslateStatus(httpHook.getTranslateStatus());
+        }
     }
 
     public Rule getRule() {

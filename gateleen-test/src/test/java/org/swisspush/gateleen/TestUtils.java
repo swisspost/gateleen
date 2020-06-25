@@ -9,9 +9,11 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.hook.HookTriggerType;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.restassured.RestAssured.*;
@@ -29,7 +31,8 @@ public class TestUtils {
     public static void putRoutingRules(JsonObject routing) {
         System.out.println(routing.toString());
 
-        given().body(routing.toString()).put("http://localhost:" + AbstractTest.MAIN_PORT + AbstractTest.SERVER_ROOT + "/admin/v1/routing/rules").then().assertThat().statusCode(200);
+        given().body(routing.toString()).put("http://localhost:" + AbstractTest.MAIN_PORT + AbstractTest.SERVER_ROOT
+                + "/admin/v1/routing/rules").then().assertThat().statusCode(200);
 
         // wait for the routing to take effect
         try {
@@ -194,7 +197,8 @@ public class TestUtils {
      * @param statusCode
      */
     public static void checkGETStatusCodeWithAwait(final String request, final Integer statusCode) {
-        await().atMost(Duration.FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
+        await().atMost(Duration.FIVE_SECONDS).until(()
+                -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
     }
 
     /**
@@ -207,8 +211,14 @@ public class TestUtils {
     public static void registerRoute(final String requestUrl, final String target, String[] methods) {
         registerRoute(requestUrl, target, methods, null);
     }
-    public static void registerRoute(final String requestUrl, final String target, String[] methods, Map<String, String> staticHeaders) {
+    public static void registerRoute(final String requestUrl, final String target, String[] methods,
+                                     Map<String, String> staticHeaders) {
         registerRoute(requestUrl, target, methods, staticHeaders, true, false);
+    }
+
+    public static void registerRoute(final String requestUrl, final String target, String[] methods,
+                                     Map<String, String> staticHeaders, boolean collection, boolean listable) {
+        registerRoute(requestUrl, target, methods, staticHeaders, collection, listable, null);
     }
 
         /**
@@ -218,40 +228,38 @@ public class TestUtils {
          * @param target
          * @param methods
          * @param staticHeaders
+         * @param translateStatus
          */
-    public static void registerRoute(final String requestUrl, final String target, String[] methods, Map<String, String> staticHeaders, boolean collection, boolean listable) {
-        String body = "{ \"destination\":\"" + target + "\"";
+    public static void registerRoute(final String requestUrl, final String target, String[] methods,
+                                     Map<String, String> staticHeaders, boolean collection, boolean listable,
+                                     Map<Pattern, Integer> translateStatus) {
+        JsonObject route = new JsonObject();
 
-        String m = null;
-        if (methods != null) {
-            for (String method : methods) {
-                m += "\"" + method + "\", ";
-            }
-            m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
-            m = "\"methods\": [" + m + "]";
+        route.put("destination", target);
+        if(methods != null){
+            route.put("methods", new JsonArray(Arrays.asList(methods)));
         }
 
-        if ( staticHeaders != null && staticHeaders.size() > 0 ) {
-            body = body + ", \"staticHeaders\" : {";
-
-            boolean notFirst = false;
-            for (Map.Entry<String, String> entry : staticHeaders.entrySet() ) {
-                body = body + ( notFirst ? ", " : "" ) + "\"" + entry.getKey() + "\" : \"" + entry.getValue() + "\"";
-
-                if ( ! notFirst ) {
-                    notFirst = true;
-                }
+        if (staticHeaders != null && !staticHeaders.isEmpty()) {
+            JsonObject staticHeadersObj = new JsonObject();
+            for (Entry<String, String> entry : staticHeaders.entrySet()) {
+                staticHeadersObj.put(entry.getKey(), entry.getValue());
             }
-
-            body = body + "}";
+            route.put("staticHeaders", staticHeadersObj);
         }
 
-        body += ", " + "\"collection\":" + collection;
-        body += ", " + "\"listable\":" + listable;
+        if(translateStatus != null && !translateStatus.isEmpty()) {
+            JsonObject translateStatusObj = new JsonObject();
+            for (Entry<Pattern, Integer> entry : translateStatus.entrySet()) {
+                translateStatusObj.put(entry.getKey().pattern(), entry.getValue());
+            }
+            route.put("translateStatus", translateStatusObj);
+        }
 
-        body = body + "}";
+        route.put("collection", collection);
+        route.put("listable", listable);
 
-        with().body(body).put(requestUrl).then().assertThat().statusCode(200);
+        with().body(route.encode()).put(requestUrl).then().assertThat().statusCode(200);
     }
 
     /**
@@ -325,40 +333,31 @@ public class TestUtils {
      * @param staticHeaders
      */
     public static void registerListener(final String requestUrl, final String target, String[] methods, String filter, Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type) {
-        String body = "{ \"destination\":\"" + target + "\"";
+        JsonObject route = new JsonObject();
+        route.put("destination", target);
 
-        if (methods != null) {
-            String m = "";
-            for (String method : methods) {
-                m += "\"" + method + "\", ";
-            }
-            m = m.endsWith(", ") ? m.substring(0, m.lastIndexOf(",")) : m;
-            m = ",\"methods\": [" + m + "]";
-            body += m;
+        if(methods != null){
+            route.put("methods", new JsonArray(Arrays.asList(methods)));
         }
-        body += queueExpireTime != null ? ", \""+ HookHandler.QUEUE_EXPIRE_AFTER + "\" : " + queueExpireTime : "";
-        body += filter != null ? ", \"filter\" : \"" + filter + "\"" : "";
-        body += type != null ? ", \"type\" : \"" + type.text() + "\"" : "";
-
-
-        if ( staticHeaders != null && staticHeaders.size() > 0 ) {
-            body = body + ", \"staticHeaders\" : {";
-
-            boolean notFirst = false;
-            for (Map.Entry<String, String> entry : staticHeaders.entrySet() ) {
-                body = body + ( notFirst ? ", " : "" ) + "\"" + entry.getKey() + "\" : \"" + entry.getValue() + "\"";
-
-                if ( ! notFirst ) {
-                    notFirst = true;
-                }
-            }
-
-            body = body + "}";
+        if(queueExpireTime != null) {
+            route.put(HookHandler.QUEUE_EXPIRE_AFTER, queueExpireTime);
+        }
+        if(filter != null) {
+            route.put("filter", filter);
+        }
+        if(type != null) {
+            route.put("type", type.text());
         }
 
-        body = body + "}";
+        if (staticHeaders != null && !staticHeaders.isEmpty()) {
+            JsonObject staticHeadersObj = new JsonObject();
+            for (Entry<String, String> entry : staticHeaders.entrySet()) {
+                staticHeadersObj.put(entry.getKey(), entry.getValue());
+            }
+            route.put("staticHeaders", staticHeadersObj);
+        }
 
-        with().body(body).put(requestUrl).then().assertThat().statusCode(200);
+        with().body(route.encode()).put(requestUrl).then().assertThat().statusCode(200);
         waitSomeTime(1);
     }
 

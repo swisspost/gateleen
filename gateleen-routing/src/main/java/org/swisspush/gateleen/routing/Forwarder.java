@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.routing;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -15,10 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.HttpHeaderUtil;
-import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.logging.LoggingWriteStream;
@@ -366,10 +364,16 @@ public class Forwarder implements Handler<RoutingContext> {
                 translatedStatus = Translator.translateStatusCode(statusCode, rule, log);
             }
 
+            boolean translated = statusCode != translatedStatus;
+
             // set the statusCode (if nothing hapend, it will remain the same)
             statusCode = translatedStatus;
 
             req.response().setStatusCode(statusCode);
+
+            if(translated) {
+                req.response().setStatusMessage(HttpResponseStatus.valueOf(statusCode).reasonPhrase());
+            }
 
             // Add received headers to original request but remove headers that should not get forwarded.
             MultiMap headersToForward = cRes.headers();

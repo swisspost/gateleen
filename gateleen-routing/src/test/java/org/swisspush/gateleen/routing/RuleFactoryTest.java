@@ -14,6 +14,7 @@ import org.swisspush.gateleen.validation.ValidationException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Tests for the RuleFactory class
@@ -559,5 +560,44 @@ public class RuleFactoryTest {
                 "}";
 
         new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+    }
+
+    @Test
+    public void testInvalidTranslateStatus() throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Validation failed");
+
+        String rules = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"translateStatus\": {\n" +
+                "      \"400\": 200.99\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+    }
+
+    @Test
+    public void testValidTranslateStatus(TestContext context) throws ValidationException {
+        String validRule = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"translateStatus\": {\n" +
+                "      \"400\": 200\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(validRule));
+
+        context.assertTrue(rules.size() == 1);
+
+        Map<Pattern, Integer> translateStatus = rules.get(0).getTranslateStatus();
+        context.assertEquals(1, translateStatus.size());
+        for (Integer value : translateStatus.values()) {
+            context.assertEquals(200, value);
+        }
     }
 }

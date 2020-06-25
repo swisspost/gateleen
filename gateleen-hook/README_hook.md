@@ -29,6 +29,7 @@ Adding hooks requires a validation against a schema to be positive. Check the sc
 | headers           | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)|
 | collection        | no  | This property specifies if the given URL is a resource or a collection. If this property is not set, the default is true (collection). |
 | listable          | no  | This property specifies if a route is listed if a GET is performed on its parent or not. The default is false or set by the value passed during the initialization. | 
+| translateStatus   | no  | This property defines a mapping to translate http respond status values. | 
 
 > <font color="orange"><b>Attention:</b> </font>A route has a default expiration time of **1 hour**. After this time the route will expire and be removed from the storage, as well as the HookHandler.<br />
 To update / refresh a route, simply perform another registration.<br />
@@ -149,7 +150,7 @@ To change the expiration time of a listener, just pass a _X-Expire-After_ header
  
 #### Add a listener
 ```json
-PUT http://myserver7012/gateleen/everything/_hooks/listeners/http/myexample
+PUT http://myserver:7012/gateleen/everything/_hooks/listeners/http/myexample
 {
     "methods": [
         "PUT"
@@ -164,7 +165,7 @@ PUT http://myserver7012/gateleen/everything/_hooks/listeners/http/myexample
 
 #### Remove a listener
 ```json
-DELETE http://myserver7012/gateleen/everything/_hooks/listeners/http/myexample
+DELETE http://myserver:7012/gateleen/everything/_hooks/listeners/http/myexample
 ```
 
 #### QueueingStrategy
