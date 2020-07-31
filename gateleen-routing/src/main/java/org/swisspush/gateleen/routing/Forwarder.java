@@ -315,6 +315,7 @@ public class Forwarder implements Handler<RoutingContext> {
                 error("Timeout", req, targetUri);
                 respondError(req, StatusCode.TIMEOUT);
             } else {
+                LOG.warn("Failed to '{} {}'", req.method(), targetUri, exception);
                 error(exception.getMessage(), req, targetUri);
                 if (req.response().ended() || req.response().headWritten()) {
                     error("Response already written. Not sure about the state. Closing server connection for stability reason", req, targetUri);
@@ -385,6 +386,7 @@ public class Forwarder implements Handler<RoutingContext> {
             };
 
             cRes.exceptionHandler(exception -> {
+                LOG.warn("Failed to read upstream response for '{} {}'", req.method(), targetUri, exception);
                 unpump.run();
                 error("Problem with backend: " + exception.getMessage(), req, targetUri);
                 respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
