@@ -14,11 +14,16 @@ import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Handler class for all Kafka related requests.
@@ -40,6 +45,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     private final KafkaProducerRepository repository;
     private final KafkaTopicExtractor topicExtractor;
     private final KafkaMessageSender kafkaMessageSender;
+    private final Map<String, Object> properties;
 
     private boolean initialized = false;
 
@@ -49,6 +55,19 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
         this.repository = repository;
         this.kafkaMessageSender = kafkaMessageSender;
         this.streamingPath = streamingPath;
+        this.properties = new HashMap<>();
+
+        this.topicExtractor = new KafkaTopicExtractor(streamingPath);
+    }
+
+    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
+    KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
+
+        super(configurationResourceManager, configResourceUri, "gateleen_kafka_topic_configuration_schema");
+        this.repository = repository;
+        this.kafkaMessageSender = kafkaMessageSender;
+        this.streamingPath = streamingPath;
+        this.properties = properties;
 
         this.topicExtractor = new KafkaTopicExtractor(streamingPath);
     }
@@ -72,7 +91,10 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
 
     private Future<Void> initializeKafkaConfiguration(Buffer configuration) {
         Future<Void> future = Future.future();
-        final List<KafkaConfiguration> kafkaConfigurations = KafkaConfigurationParser.parse(configuration);
+        String replacedConfig;
+        replacedConfig = StringUtils.replaceWildcardConfigs(configuration.toString(UTF_8), properties);
+        final List<KafkaConfiguration> kafkaConfigurations = KafkaConfigurationParser.parse(
+                Buffer.buffer(replacedConfig));
         repository.closeAll().setHandler(event -> {
             for (KafkaConfiguration kafkaConfiguration : kafkaConfigurations) {
                 repository.addKafkaProducer(kafkaConfiguration);
