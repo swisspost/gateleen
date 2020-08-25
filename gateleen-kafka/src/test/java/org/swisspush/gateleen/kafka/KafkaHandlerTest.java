@@ -113,7 +113,6 @@ public class KafkaHandlerTest {
 
     @Test
     public void initWithWildcardConfigResource(TestContext context) {
-
         Async async = context.async();
         Map<String, Object> props = new HashMap<>();
         props.put("kafka.host", "localhost");
@@ -136,6 +135,24 @@ public class KafkaHandlerTest {
             verify(repository, times(2)).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("my.properties.topic.*"), configs_1)));
             verifyZeroInteractions(kafkaMessageSender);
             context.assertTrue(handler.isInitialized());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void initWithWildcardConfigResourceException(TestContext context) {
+        Async async = context.async();
+        Map<String, Object> props = new HashMap<>();
+        storage.putMockData(configResourceUri, CONFIG_WILDCARD_RESOURCE);
+
+        handler = new KafkaHandler(configurationResourceManager, repository, kafkaMessageSender,
+                configResourceUri, streamingPath, props);
+        context.assertFalse(handler.isInitialized());
+
+        handler.initialize().setHandler(event -> {
+            verify(repository, never()).addKafkaProducer(any());
+            verifyZeroInteractions(kafkaMessageSender);
+            context.assertFalse(handler.isInitialized());
             async.complete();
         });
     }

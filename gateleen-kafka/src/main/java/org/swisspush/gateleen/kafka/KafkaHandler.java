@@ -17,6 +17,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.validation.ValidationException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,14 +93,25 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     private Future<Void> initializeKafkaConfiguration(Buffer configuration) {
         Future<Void> future = Future.future();
         String replacedConfig;
-        replacedConfig = StringUtils.replaceWildcardConfigs(configuration.toString(UTF_8), properties);
-        final List<KafkaConfiguration> kafkaConfigurations = KafkaConfigurationParser.parse(
-                Buffer.buffer(replacedConfig));
+        final List<KafkaConfiguration> kafkaConfigurations = new ArrayList<>();
+
+        try {
+            replacedConfig = StringUtils.replaceWildcardConfigs(configuration.toString(UTF_8), properties);
+            kafkaConfigurations.addAll(KafkaConfigurationParser.parse(Buffer.buffer(replacedConfig)));
+        } catch (Exception e) {
+            log.warn("Could not replace wildcards with environment properties for kafka configurations due to following reason: {}",
+                    e.getMessage());
+        }
+
         repository.closeAll().setHandler(event -> {
-            for (KafkaConfiguration kafkaConfiguration : kafkaConfigurations) {
-                repository.addKafkaProducer(kafkaConfiguration);
+            if (kafkaConfigurations.isEmpty()) {
+                initialized = false;
+            } else {
+                for (KafkaConfiguration kafkaConfiguration : kafkaConfigurations) {
+                    repository.addKafkaProducer(kafkaConfiguration);
+                }
+                initialized = true;
             }
-            initialized = true;
             future.complete();
         });
 
