@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The base class of the root handler for
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class RecursiveRootHandlerBase implements DeltaHandler<ResourceNode> {
     protected static final Logger log = LoggerFactory.getLogger(RecursiveRootHandlerBase.class);
-    protected AtomicInteger xDeltaResponseNumber = new AtomicInteger(0);
+    protected AtomicLong xDeltaResponseNumber = new AtomicLong(0);
 
     /**
      * Handles a response error.
@@ -80,14 +80,14 @@ public abstract class RecursiveRootHandlerBase implements DeltaHandler<ResourceN
 
             try {
                 // try to parse it
-                int tempxDeltaResponseNumber = Integer.parseInt(xDeltaResponseNumber);
+                long tempxDeltaResponseNumber = Long.parseLong(xDeltaResponseNumber);
 
                 // compare numbers
                 if (this.xDeltaResponseNumber.get() < tempxDeltaResponseNumber) {
                     this.xDeltaResponseNumber.set(tempxDeltaResponseNumber);
                 }
             } catch (NumberFormatException e) {
-                // ignored
+                log.warn("Delta response value was not a number", e);
             }
         }
     }
