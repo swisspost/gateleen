@@ -56,6 +56,7 @@ public class KafkaHandlerTest {
     private final String streamingPath = "/kafka/streaming/";
 
     private final String CONFIG_RESOURCE = ResourcesUtils.loadResource("testresource_valid_kafka_topic_configuration", true);
+    private final String CONFIG_WILDCARD_RESOURCE = ResourcesUtils.loadResource("testresource_wildcard_kafka_topic_configuration", true);
 
     @Before
     public void setUp() {
@@ -104,6 +105,52 @@ public class KafkaHandlerTest {
                 put("acks", "1");
             }};
             verify(repository, times(1)).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("."), configs_2)));
+            verifyZeroInteractions(kafkaMessageSender);
+            context.assertTrue(handler.isInitialized());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void initWithWildcardConfigResource(TestContext context) {
+        Async async = context.async();
+        Map<String, Object> props = new HashMap<>();
+        props.put("kafka.host", "localhost");
+        props.put("kafka.port", "9094");
+        storage.putMockData(configResourceUri, CONFIG_WILDCARD_RESOURCE);
+
+        handler = new KafkaHandler(configurationResourceManager, repository, kafkaMessageSender,
+                configResourceUri, streamingPath, props);
+        context.assertFalse(handler.isInitialized());
+
+        handler.initialize().setHandler(event -> {
+            verify(repository, times(2)).closeAll();
+
+            Map<String, String> configs_1 = new HashMap<String, String>() {{
+                put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+                put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+                put("bootstrap.servers", "localhost:9094");
+                put("acks", "all");
+            }};
+            verify(repository, times(2)).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("my.properties.topic.*"), configs_1)));
+            verifyZeroInteractions(kafkaMessageSender);
+            context.assertTrue(handler.isInitialized());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void initWithWildcardConfigResourceException(TestContext context) {
+        Async async = context.async();
+        Map<String, Object> props = new HashMap<>();
+        storage.putMockData(configResourceUri, CONFIG_WILDCARD_RESOURCE);
+
+        handler = new KafkaHandler(configurationResourceManager, repository, kafkaMessageSender,
+                configResourceUri, streamingPath, props);
+        context.assertFalse(handler.isInitialized());
+
+        handler.initialize().setHandler(event -> {
+            verify(repository, never()).addKafkaProducer(any());
             verifyZeroInteractions(kafkaMessageSender);
             context.assertTrue(handler.isInitialized());
             async.complete();
