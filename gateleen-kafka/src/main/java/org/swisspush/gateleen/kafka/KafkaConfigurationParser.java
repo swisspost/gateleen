@@ -4,6 +4,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Parses the kafka topic configuration resource into a list of {@link KafkaConfiguration}s
@@ -30,10 +33,20 @@ class KafkaConfigurationParser {
      * @param configurationResourceBuffer the resource to parse
      * @return a list of {@link KafkaConfiguration} objects
      */
-    static List<KafkaConfiguration> parse(Buffer configurationResourceBuffer) {
+    static List<KafkaConfiguration> parse(Buffer configurationResourceBuffer, Map<String, Object> properties) {
 
+        String replacedConfig;
+        JsonObject config;
         List<KafkaConfiguration> configurations = new ArrayList<>();
-        JsonObject config = new JsonObject(configurationResourceBuffer);
+
+        try {
+            replacedConfig = StringUtils.replaceWildcardConfigs(configurationResourceBuffer.toString(UTF_8), properties);
+            config = new JsonObject(Buffer.buffer(replacedConfig));
+        } catch (Exception e) {
+            log.warn("Could not replace wildcards with environment properties for kafka configurations due to following reason: {}",
+                    e.getMessage());
+            return configurations;
+        }
 
         for (String topicPattern : config.fieldNames()) {
             try {

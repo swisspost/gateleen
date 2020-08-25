@@ -152,7 +152,7 @@ public class KafkaHandlerTest {
         handler.initialize().setHandler(event -> {
             verify(repository, never()).addKafkaProducer(any());
             verifyZeroInteractions(kafkaMessageSender);
-            context.assertFalse(handler.isInitialized());
+            context.assertTrue(handler.isInitialized());
             async.complete();
         });
     }

@@ -92,26 +92,12 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
 
     private Future<Void> initializeKafkaConfiguration(Buffer configuration) {
         Future<Void> future = Future.future();
-        String replacedConfig;
-        final List<KafkaConfiguration> kafkaConfigurations = new ArrayList<>();
-
-        try {
-            replacedConfig = StringUtils.replaceWildcardConfigs(configuration.toString(UTF_8), properties);
-            kafkaConfigurations.addAll(KafkaConfigurationParser.parse(Buffer.buffer(replacedConfig)));
-        } catch (Exception e) {
-            log.warn("Could not replace wildcards with environment properties for kafka configurations due to following reason: {}",
-                    e.getMessage());
-        }
-
+        final List<KafkaConfiguration> kafkaConfigurations = KafkaConfigurationParser.parse(configuration, properties);
         repository.closeAll().setHandler(event -> {
-            if (kafkaConfigurations.isEmpty()) {
-                initialized = false;
-            } else {
-                for (KafkaConfiguration kafkaConfiguration : kafkaConfigurations) {
-                    repository.addKafkaProducer(kafkaConfiguration);
-                }
-                initialized = true;
+            for (KafkaConfiguration kafkaConfiguration : kafkaConfigurations) {
+                repository.addKafkaProducer(kafkaConfiguration);
             }
+            initialized = true;
             future.complete();
         });
 
