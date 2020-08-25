@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A class for handeling the recursive get request.
@@ -31,7 +32,7 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
     private Map<String, ResourceNode> nodeMap;
     private String collectioneTag;
     private Map<String, ResourceCollectionException> resourceCollectionExceptionMap;
-    private AtomicInteger xDeltaResponseNumber;
+    private AtomicLong xDeltaResponseNumber;
 
     /**
      * Creates a new instance of the RecursiveExpansionHandler.
@@ -46,7 +47,7 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
             log.trace("RecursiveExpansionHandler created for collection '" + collectionName + "' with a child count of " + subResourceNames.size() + ".");
         }
 
-        this.xDeltaResponseNumber = new AtomicInteger(0);
+        this.xDeltaResponseNumber = new AtomicLong(0);
         this.processCount = new AtomicInteger(subResourceNames.size());
         this.parentHandler = parentHandler;
         this.collectionName = collectionName;
@@ -208,14 +209,14 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
 
             try {
                 // try to parse it
-                int tempxDeltaResponseNumber = Integer.parseInt(xDeltaResponseNumber);
+                long tempxDeltaResponseNumber = Long.parseLong(xDeltaResponseNumber);
 
                 // compare numbers
                 if (this.xDeltaResponseNumber.get() < tempxDeltaResponseNumber) {
                     this.xDeltaResponseNumber.set(tempxDeltaResponseNumber);
                 }
             } catch (NumberFormatException e) {
-                // ignored
+                log.warn("Delta response value was not a number", e);
             }
         }
     }
