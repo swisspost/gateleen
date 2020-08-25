@@ -22,10 +22,11 @@ public class KafkaConfigurationParserTest {
 
     private final String CONFIG_RESOURCE = ResourcesUtils.loadResource("testresource_valid_kafka_topic_configuration", true);
     private final String INVALID_PATTERN_CONFIG_RESOURCE = ResourcesUtils.loadResource("testresource_invalid_pattern_kafka_topic_configuration", true);
+    private final String CONFIG_WILDCARD_RESOURCE = ResourcesUtils.loadResource("testresource_wildcard_kafka_topic_configuration", true);
 
     @Test
     public void parseAllValid(TestContext context) {
-        List<KafkaConfiguration> configurations = KafkaConfigurationParser.parse(Buffer.buffer(CONFIG_RESOURCE));
+        List<KafkaConfiguration> configurations = KafkaConfigurationParser.parse(Buffer.buffer(CONFIG_RESOURCE), new HashMap<>());
         context.assertEquals(2, configurations.size());
 
         // Note that the order of the parsed configurations matters!
@@ -51,7 +52,7 @@ public class KafkaConfigurationParserTest {
 
     @Test
     public void parseWithInvalidPattern(TestContext context) {
-        List<KafkaConfiguration> configurations = KafkaConfigurationParser.parse(Buffer.buffer(INVALID_PATTERN_CONFIG_RESOURCE));
+        List<KafkaConfiguration> configurations = KafkaConfigurationParser.parse(Buffer.buffer(INVALID_PATTERN_CONFIG_RESOURCE), new HashMap<>());
         context.assertEquals(1, configurations.size());
 
         // Note that the order of the parsed configurations matters!
@@ -63,5 +64,31 @@ public class KafkaConfigurationParserTest {
             put("bootstrap.servers", "localhost:9092");
         }};
         context.assertEquals(expected_1, config_1.getConfigurations());
+    }
+
+    @Test
+    public void parseWildcardValid(TestContext context) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("kafka.host", "localhost");
+        properties.put("kafka.port", "9095");
+        List<KafkaConfiguration> configurations = KafkaConfigurationParser.parse(Buffer.buffer(CONFIG_WILDCARD_RESOURCE), properties);
+        context.assertEquals(1, configurations.size());
+
+        // Note that the order of the parsed configurations matters!
+        KafkaConfiguration config = configurations.get(0);
+        context.assertEquals(Pattern.compile("my.properties.topic.*").pattern(), config.getTopic().pattern());
+        Map<String, String> expected_1 = new HashMap<String, String>() {{
+            put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            put("acks", "all");
+            put("bootstrap.servers", "localhost:9095");
+            put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        }};
+        context.assertEquals(expected_1, config.getConfigurations());
+    }
+
+    @Test
+    public void parseWildcardNoEnvProps(TestContext context) {
+        List<KafkaConfiguration> configurations = KafkaConfigurationParser.parse(Buffer.buffer(CONFIG_WILDCARD_RESOURCE), new HashMap<>());
+        context.assertEquals(0, configurations.size());
     }
 }

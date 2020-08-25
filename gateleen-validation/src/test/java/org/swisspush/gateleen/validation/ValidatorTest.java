@@ -78,7 +78,7 @@ public class ValidatorTest {
             String message = validationResult.getMessage();
             context.assertFalse(message.contains("Could not get path"), message);
             context.assertFalse(message.contains("No schema for"), message);
-            context.assertTrue(message.contains("Cannot read JSON"), message);// No correct mock schema - but this means it found it
+            context.assertTrue(message.contains("Invalid JSON"), message);// No correct mock schema - but this means it found it
             future.set(message);
         });
         context.assertTrue(future.isDone());
@@ -169,7 +169,7 @@ public class ValidatorTest {
             String message = validationResult.getMessage();
             context.assertFalse(message.contains("Could not get path"), message);
             context.assertFalse(message.contains("No schema for"), message);
-            context.assertTrue(message.contains("Cannot read JSON"), message);// No correct mock schema - but this means it found it
+            context.assertTrue(message.contains("Invalid JSON"), message);// No correct mock schema - but this means it found it
             future.set(message);
         });
         context.assertTrue(future.isDone());

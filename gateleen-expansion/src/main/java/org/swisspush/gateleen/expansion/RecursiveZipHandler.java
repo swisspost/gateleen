@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A handler that allows to put all handeld Json Resources to a zip stream.
@@ -25,7 +26,7 @@ public class RecursiveZipHandler implements DeltaHandler<ResourceNode> {
     private AtomicInteger processCount;
     private DeltaHandler<ResourceNode> parentHandler;
     private List<ResourceNode> nodes;
-    private AtomicInteger xDeltaResponseNumber;
+    private AtomicLong xDeltaResponseNumber;
 
     /**
      * Creates an new instance of the RecursiveZipHandler.
@@ -39,7 +40,7 @@ public class RecursiveZipHandler implements DeltaHandler<ResourceNode> {
         this.collectionName = collectionName;
         processCount = new AtomicInteger(subResourceNames.size());
         nodes = new ArrayList<>();
-        xDeltaResponseNumber = new AtomicInteger(0);
+        xDeltaResponseNumber = new AtomicLong(0);
     }
 
     @SuppressWarnings("unchecked")
@@ -121,14 +122,14 @@ public class RecursiveZipHandler implements DeltaHandler<ResourceNode> {
 
             try {
                 // try to parse it
-                int tempxDeltaResponseNumber = Integer.parseInt(xDeltaResponseNumber);
+                long tempxDeltaResponseNumber = Long.parseLong(xDeltaResponseNumber);
 
                 // compare numbers
                 if (this.xDeltaResponseNumber.get() < tempxDeltaResponseNumber) {
                     this.xDeltaResponseNumber.set(tempxDeltaResponseNumber);
                 }
             } catch (NumberFormatException e) {
-                // ignored
+                log.warn("Delta response value was not a number", e);
             }
         }
     }
