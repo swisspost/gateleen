@@ -1,18 +1,4 @@
 {
-	"ui.admin.menu": {},
-	"pref.application.version": {},
-	"pref.employee.number": {},
-	"pref.features": {},
-	"pref.language": {},
-	"pref.context": {},
-	"pref.scanner": {},
-	"pref.screen.orientation": {},
-	"pref.torch.mode": {},
-	"pref.tour": {},
-	"pref.user.name": {},
-	"pref.volume.beep": {},
-	"pref.volume.beep.failure": {},
-	"pref.volume.beep.success": {},
     "hooks.edit": {
         "methods": [
           "PUT",

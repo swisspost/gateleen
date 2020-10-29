@@ -1,6 +1,4 @@
 {
-  "ui.admin.menu": {},
-  "ui.admin.context": {},
   "all.edit": {
     "methods": [
       "GET",
