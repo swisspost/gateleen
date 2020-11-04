@@ -64,3 +64,44 @@ Any request with a user group containing 'acl-domain-' will match the defined ro
 Note the additional keepOriginal flag which defines if the original role which matched the mapper must be kept in the list of roles or not.
 
 Note: The rolemapper object is validated against the gateleen_security_schema_rolemapper json schema
+
+#### Using request headers
+In ACLs you can use wildcard definitions in the urls. These wildcards can contain request header names and will be replaced with the actual
+values from a request.
+
+The wildcards have to be in the format 
+```
+{header name}
+```
+Example:
+```
+/gateleen/resources/{foobar}/info
+```
+A request with a header `foobar: yyy` will be transformed to
+```
+/gateleen/resources/yyy/info
+``` 
+##### Practical example
+The request header feature in the ACLs can be used to restrict access to user specific resources to the correct user (and maybe an admin) only.
+
+**User ACL**
+```
+{
+    "userspecific.get.own": {
+        "methods": ["GET"],
+        "path": "/resources/userspecific/{x-user}/info"
+    }
+}
+```
+
+**Admin ACL**
+```
+{
+    "userspecific.get.all": {
+        "methods": ["GET"],
+        "path": "/resources/userspecific/([^/]+)/info"
+    }
+}
+```
+So having a resource `/resources/userspecific/batman/info`, it can only be loaded by a user having
+the request header `x-user: batman` or a user having the admin role.

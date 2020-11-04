@@ -1,4 +1,10 @@
 {
+	"userspecific.get.own": {
+		"methods": [
+			"GET"
+		],
+		"path": "/resources/userspecific/{x-user}/info"
+	},
     "hooks.edit": {
         "methods": [
           "PUT",

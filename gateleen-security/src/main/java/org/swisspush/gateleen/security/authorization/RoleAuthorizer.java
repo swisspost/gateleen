@@ -57,7 +57,7 @@ public class RoleAuthorizer implements ConfigurationResource {
         this.storage = storage;
         this.roleMapper = roleMapper;
         this.aclRoot = securityRoot + aclKey + "/";
-        this.aclUriPattern = new PatternHolder(Pattern.compile("^" + aclRoot + "(?<role>.+)$"));
+        this.aclUriPattern = new PatternHolder("^" + aclRoot + "(?<role>.+)$");
         this.roleExtractor = new RoleExtractor(rolePattern);
         this.aclFactory = new AclFactory();
         // keep empty string if there is no prefix given. This way we could just use it later on without having to care about further.
@@ -147,7 +147,7 @@ public class RoleAuthorizer implements ConfigurationResource {
     private boolean isAuthorized(Set<String> roles, HttpServerRequest request) {
         Map<String, RoleMapper.MappedRole> mappedRoles = roleMapper.mapRoles(roles);
         for (Entry<PatternHolder, Map<String, Set<String>>> entry : grantedRoles.entrySet()) {
-            Matcher matcher = entry.getKey().getPattern().matcher(request.uri());
+            Matcher matcher = entry.getKey().getPattern(request.headers()).matcher(request.uri());
             if (matcher.matches()) {
                 Set<String> methodRoles = entry.getValue().get(request.method().name());
                 if (methodRoles != null) {

@@ -1,4 +1,10 @@
 {
+  "userspecific.get.all": {
+    "methods": [
+        "GET"
+    ],
+    "path": "/resources/userspecific/([^/]+)/info"
+  },
   "all.edit": {
     "methods": [
       "GET",
