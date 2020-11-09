@@ -34,6 +34,7 @@ public class AclFactoryTest {
 
     private final String INVALID_ACL_JSON = ResourcesUtils.loadResource("testresource_invalid_acl_json", true);
     private final String VALID_ACL_RESOURCE = ResourcesUtils.loadResource("testresource_valid_acl_resource", true);
+    private final String VALID_ACL_WILDCARDS_RESOURCE = ResourcesUtils.loadResource("testresource_valid_acl_wildcards_resource", true);
     private final String ADDITIONAL_PROP_ACL_RESOURCE = ResourcesUtils.loadResource("testresource_additionalproperties_acl_resource", true);
 
     @Before
@@ -51,6 +52,18 @@ public class AclFactoryTest {
     @Test
     public void testValidAclConfig(TestContext context) throws ValidationException {
         Map<PatternHolder, Set<String>> result = aclFactory.parseAcl(Buffer.buffer(VALID_ACL_RESOURCE));
+        context.assertNotNull(result);
+        context.assertEquals(1, result.size());
+        Collection<Set<String>> values = result.values();
+        for (Set<String> value : values) {
+            context.assertTrue(value.containsAll(Arrays.asList("POST", "GET", "DELETE")));
+            context.assertFalse(value.contains("PUT"));
+        }
+    }
+
+    @Test
+    public void testValidAclConfigWithWildcards(TestContext context) throws ValidationException {
+        Map<PatternHolder, Set<String>> result = aclFactory.parseAcl(Buffer.buffer(VALID_ACL_WILDCARDS_RESOURCE));
         context.assertNotNull(result);
         context.assertEquals(1, result.size());
         Collection<Set<String>> values = result.values();

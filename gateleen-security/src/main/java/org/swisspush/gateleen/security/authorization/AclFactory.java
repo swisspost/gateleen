@@ -51,7 +51,7 @@ public class AclFactory {
             JsonArray methods = aclItem.getJsonArray("methods");
             checkPropertiesValid(path, methods, id);
             if (path != null) {
-                PatternHolder holder = new PatternHolder(Pattern.compile(path));
+                PatternHolder holder = new PatternHolder(path);
                 Set<String> methodSet = result.get(holder);
                 if (methodSet == null) {
                     methodSet = new HashSet<>();

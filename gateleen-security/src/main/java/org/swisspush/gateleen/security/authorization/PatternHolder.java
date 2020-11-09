@@ -1,5 +1,12 @@
 package org.swisspush.gateleen.security.authorization;
 
+import io.vertx.core.MultiMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -10,32 +17,85 @@ import java.util.regex.Pattern;
 public class PatternHolder {
 
     private Pattern pattern;
+    private String patternStr;
 
-    public PatternHolder(Pattern pattern) {
+    private static final Pattern WILDCARD_PATTERN = Pattern.compile("[<](.+?)[>]");
+    public static final Logger log = LoggerFactory.getLogger(PatternHolder.class);
+
+    public PatternHolder(String patternStr) {
         super();
-        this.pattern = pattern;
-    }
-
-    @Override
-    public int hashCode() {
-        return pattern.toString().hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof PatternHolder) {
-            return pattern.toString().equals(obj.toString());
+        if(containsWildcards(patternStr)){
+            this.patternStr = patternStr;
         } else {
-            return false;
+            this.pattern = Pattern.compile(patternStr);
         }
     }
 
     @Override
-    public String toString() {
-        return pattern.toString();
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        PatternHolder that = (PatternHolder) o;
+
+        if(pattern != null && that.pattern != null){
+            return pattern.pattern().equals(that.pattern.pattern());
+        } else if(pattern == null && that.pattern != null){
+            return false;
+        } else if(pattern != null){
+            return false;
+        }
+
+        return patternStr != null ? patternStr.equals(that.patternStr) : that.patternStr == null;
     }
 
-    public Pattern getPattern() {
+    @Override
+    public int hashCode() {
+        int result = pattern != null ? pattern.pattern().hashCode() : 0;
+        result = 31 * result + (patternStr != null ? patternStr.hashCode() : 0);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "PatternHolder{" +
+                "pattern=" + pattern +
+                ", patternStr='" + patternStr + '\'' +
+                '}';
+    }
+
+    public Pattern getPattern(MultiMap headers) {
+        if(patternStr != null){
+            String replacedWildcards = replaceWildcards(patternStr, headers);
+            return Pattern.compile(replacedWildcards);
+        }
         return pattern;
+    }
+
+    private boolean containsWildcards(String patternStr){
+        return !wildcards(patternStr).isEmpty();
+    }
+
+    private List<String> wildcards(String patternStr){
+        List<String> wildcards = new ArrayList<>();
+        Matcher matcher = WILDCARD_PATTERN.matcher(patternStr);
+        while (matcher.find()) {
+            String wildcard = matcher.group(1);
+            wildcards.add(wildcard);
+        }
+        return wildcards;
+    }
+
+    private String replaceWildcards(String patternStr, MultiMap headers){
+        List<String> wildcards = wildcards(patternStr);
+        String replacePattern = patternStr;
+        for (String wildcard : wildcards) {
+            if(headers.get(wildcard) != null){
+                replacePattern = replacePattern.replaceAll(Pattern.quote("<" + wildcard + ">"), headers.get(wildcard));
+            } else {
+                log.warn("No value for request header {} found. Not going to replace wildcard", wildcard);
+            }
+        }
+        return replacePattern;
     }
 }
