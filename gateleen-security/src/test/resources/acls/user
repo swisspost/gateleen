@@ -3,7 +3,13 @@
 		"methods": [
 			"GET"
 		],
-		"path": "/resources/userspecific/{x-user}/info"
+		"path": "/resources/userspecific/<x-user>/info"
+	},
+	"userspecific.get.additional.regex.groups": {
+		"methods": [
+			"GET"
+		],
+		"path": "/resources/userspecific/<x-user>/items/([0-9]{6})/foo"
 	},
     "hooks.edit": {
         "methods": [

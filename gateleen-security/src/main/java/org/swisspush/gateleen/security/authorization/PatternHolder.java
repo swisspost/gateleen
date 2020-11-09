@@ -19,7 +19,7 @@ public class PatternHolder {
     private Pattern pattern;
     private String patternStr;
 
-    private static final Pattern WILDCARD_PATTERN = Pattern.compile("[{](.+?)[}]");
+    private static final Pattern WILDCARD_PATTERN = Pattern.compile("[<](.+?)[>]");
     public static final Logger log = LoggerFactory.getLogger(PatternHolder.class);
 
     public PatternHolder(String patternStr) {
@@ -66,8 +66,8 @@ public class PatternHolder {
 
     public Pattern getPattern(MultiMap headers) {
         if(patternStr != null){
-            replaceWildcards(headers);
-            return Pattern.compile(patternStr, Pattern.LITERAL);
+            String replacedWildcards = replaceWildcards(patternStr, headers);
+            return Pattern.compile(replacedWildcards);
         }
         return pattern;
     }
@@ -86,14 +86,16 @@ public class PatternHolder {
         return wildcards;
     }
 
-    private void replaceWildcards(MultiMap headers){
+    private String replaceWildcards(String patternStr, MultiMap headers){
         List<String> wildcards = wildcards(patternStr);
+        String replacePattern = patternStr;
         for (String wildcard : wildcards) {
             if(headers.get(wildcard) != null){
-                patternStr = patternStr.replaceAll(Pattern.quote("{" + wildcard + "}"), headers.get(wildcard));
+                replacePattern = replacePattern.replaceAll(Pattern.quote("<" + wildcard + ">"), headers.get(wildcard));
             } else {
                 log.warn("No value for request header {} found. Not going to replace wildcard", wildcard);
             }
         }
+        return replacePattern;
     }
 }

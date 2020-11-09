@@ -24,9 +24,9 @@ public class PatternHolderTest {
         context.assertTrue(pH.equals(pH2));
         context.assertFalse(pH.equals(pH3));
 
-        PatternHolder pHW = new PatternHolder("(mouse|cat|dog|{foo}|bear|human)");
-        PatternHolder pHW2 = new PatternHolder("(mouse|cat|dog|{foo}|bear|human)");
-        PatternHolder pHW3 = new PatternHolder("(mouse|cat|dog|{bar}|bear|human)");
+        PatternHolder pHW = new PatternHolder("(mouse|cat|dog|<foo>|bear|human)");
+        PatternHolder pHW2 = new PatternHolder("(mouse|cat|dog|<foo>|bear|human)");
+        PatternHolder pHW3 = new PatternHolder("(mouse|cat|dog|<bar>|bear|human)");
         PatternHolder pHW4 = new PatternHolder("(mouse|cat|dog|human)");
         context.assertTrue(pHW.equals(pHW2));
         context.assertFalse(pHW2.equals(pHW3));
@@ -41,9 +41,9 @@ public class PatternHolderTest {
         context.assertEquals(pH.hashCode(), pH2.hashCode());
         context.assertNotEquals(pH.hashCode(), pH3.hashCode());
 
-        PatternHolder pHW = new PatternHolder("(mouse|cat|dog|{foo}|bear|human)");
-        PatternHolder pHW2 = new PatternHolder("(mouse|cat|dog|{foo}|bear|human)");
-        PatternHolder pHW3 = new PatternHolder("(mouse|cat|dog|{bar}|bear|human)");
+        PatternHolder pHW = new PatternHolder("(mouse|cat|dog|<foo>|bear|human)");
+        PatternHolder pHW2 = new PatternHolder("(mouse|cat|dog|<foo>|bear|human)");
+        PatternHolder pHW3 = new PatternHolder("(mouse|cat|dog|<bar>|bear|human)");
         PatternHolder pHW4 = new PatternHolder("(mouse|cat|dog|human)");
         context.assertEquals(pHW.hashCode(), pHW2.hashCode());
         context.assertNotEquals(pHW2.hashCode(), pHW3.hashCode());
@@ -56,8 +56,8 @@ public class PatternHolderTest {
         String patternStr = "PatternHolder{pattern=(mouse|cat|dog|wolf|bear|human), patternStr='null'}";
         context.assertEquals(patternStr, pH.toString());
 
-        pH = new PatternHolder("(mouse|cat|dog|{foo}|bear|human)");
-        patternStr = "PatternHolder{pattern=null, patternStr='(mouse|cat|dog|{foo}|bear|human)'}";
+        pH = new PatternHolder("(mouse|cat|dog|<foo>|bear|human)");
+        patternStr = "PatternHolder{pattern=null, patternStr='(mouse|cat|dog|<foo>|bear|human)'}";
         context.assertEquals(patternStr, pH.toString());
     }
 
@@ -77,12 +77,12 @@ public class PatternHolderTest {
     @Test
     public void testGetPatternWithWildcardsNoHeaders(TestContext context) {
         MultiMap headers = new CaseInsensitiveHeaders();
-        String patternWithWildcard = "/gateleen/{foo}/resources/.*";
+        String patternWithWildcard = "/gateleen/<foo>/resources/.*";
         PatternHolder pH = new PatternHolder(patternWithWildcard);
         context.assertNotNull(pH.getPattern(headers));
 
         context.assertEquals(patternWithWildcard, pH.getPattern(headers).pattern(),
-                "wildcard {foo} should not have been replaced");
+                "wildcard <foo> should not have been replaced");
     }
 
     @Test
@@ -90,7 +90,7 @@ public class PatternHolderTest {
         MultiMap headers = new CaseInsensitiveHeaders();
         headers.add("foo", "bar");
 
-        String patternWithWildcard = "/gateleen/{foo}/resources/.*";
+        String patternWithWildcard = "/gateleen/<foo>/resources/.*";
         String patternWithReplacedWildcard = "/gateleen/bar/resources/.*";
         PatternHolder pH = new PatternHolder(patternWithWildcard);
         context.assertNotNull(pH.getPattern(headers));
@@ -102,7 +102,7 @@ public class PatternHolderTest {
         MultiMap headers = new CaseInsensitiveHeaders();
         headers.add("foo", "bar");
 
-        String patternWithSameWildcardTwice = "/gateleen/{foo}/resources/{foo}/.*";
+        String patternWithSameWildcardTwice = "/gateleen/<foo>/resources/<foo>/.*";
         String replacedSameWildcardTwice = "/gateleen/bar/resources/bar/.*";
 
         PatternHolder pH = new PatternHolder(patternWithSameWildcardTwice);
@@ -115,7 +115,7 @@ public class PatternHolderTest {
         headers.add("foo", "bar");
         headers.add("zzz", "yyy");
 
-        String patternWithMultipleWildcards = "/gateleen/{foo}/resources/{zzz}/.*";
+        String patternWithMultipleWildcards = "/gateleen/<foo>/resources/<zzz>/.*";
         String replacedMultipleWildcards = "/gateleen/bar/resources/yyy/.*";
 
         PatternHolder pH = new PatternHolder(patternWithMultipleWildcards);

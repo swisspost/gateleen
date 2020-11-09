@@ -25,7 +25,10 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.core.util.StatusCode;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.timeout;
@@ -304,6 +307,58 @@ public class AuthorizerTest {
     @Test
     public void userIsAuthorizedToReadItsOwnResources(TestContext context) {
         String requestUri = "/resources/userspecific/batman/info";
+
+        headers.add("x-user", "batman");
+        headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");  // no admin role!
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+        });
+
+        Mockito.verifyZeroInteractions(response);
+    }
+
+    @Test
+    public void userIsAuthorizedToReadItsOwnResourcesPatternGetsUpdatedOnEveryRequest(TestContext context) {
+        String requestUri = "/resources/userspecific/batman/info";
+
+        headers.add("x-user", "batman");
+        headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");  // no admin role!
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+
+        /*
+         * First request is with the correct user
+         */
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result()); // user batman should be authorized
+
+            /*
+             * test again with another user and check whether the pattern is updated for every request
+             */
+            CaseInsensitiveHeaders headers2 = new CaseInsensitiveHeaders();
+            headers2.add("x-user", "robin");
+            headers2.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");  // no admin role!
+            AuthorizerRequest req2 = new AuthorizerRequest(HttpMethod.GET, requestUri, headers2, response);
+            authorizer.authorize(req2).setHandler(event2 -> {
+                context.assertTrue(event2.succeeded());
+                context.assertFalse(event2.result()); // user robin should not be authorized
+            });
+        });
+
+        assertForbidden(response);
+    }
+
+    @Test
+    public void userIsAuthorizedToReadItsOwnResourcesAdditionalRegexGroups(TestContext context) {
+        String requestUri = "/resources/userspecific/batman/items/123456/foo";
 
         headers.add("x-user", "batman");
         headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");  // no admin role!

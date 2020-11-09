@@ -71,11 +71,11 @@ values from a request.
 
 The wildcards have to be in the format 
 ```
-{header name}
+<header name>
 ```
 Example:
 ```
-/gateleen/resources/{foobar}/info
+/gateleen/resources/<foobar>/info
 ```
 A request with a header `foobar: yyy` will be transformed to
 ```
@@ -89,7 +89,7 @@ The request header feature in the ACLs can be used to restrict access to user sp
 {
     "userspecific.get.own": {
         "methods": ["GET"],
-        "path": "/resources/userspecific/{x-user}/info"
+        "path": "/resources/userspecific/<x-user>/info"
     }
 }
 ```

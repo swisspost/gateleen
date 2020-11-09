@@ -6,6 +6,6 @@
       "POST",
       "DELETE"
     ],
-    "path": "/gateleen/resources/{x-user}/.*"
+    "path": "/gateleen/resources/<x-user>/.*"
   }
 }
