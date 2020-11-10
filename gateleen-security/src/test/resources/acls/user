@@ -1,18 +1,16 @@
 {
-	"ui.admin.menu": {},
-	"pref.application.version": {},
-	"pref.employee.number": {},
-	"pref.features": {},
-	"pref.language": {},
-	"pref.context": {},
-	"pref.scanner": {},
-	"pref.screen.orientation": {},
-	"pref.torch.mode": {},
-	"pref.tour": {},
-	"pref.user.name": {},
-	"pref.volume.beep": {},
-	"pref.volume.beep.failure": {},
-	"pref.volume.beep.success": {},
+	"userspecific.get.own": {
+		"methods": [
+			"GET"
+		],
+		"path": "/resources/userspecific/<x-user>/info"
+	},
+	"userspecific.get.additional.regex.groups": {
+		"methods": [
+			"GET"
+		],
+		"path": "/resources/userspecific/<x-user>/items/([0-9]{6})/foo"
+	},
     "hooks.edit": {
         "methods": [
           "PUT",

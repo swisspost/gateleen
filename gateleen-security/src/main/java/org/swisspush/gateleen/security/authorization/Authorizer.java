@@ -67,9 +67,9 @@ public class Authorizer implements LoggableResource {
         this.vertx = vertx;
         this.storage = storage;
         String aclRoot = UriBuilder.concatUriSegments(securityRoot, aclKey, "/");
-        this.aclUriPattern = new PatternHolder(Pattern.compile("^" + aclRoot + "(?<role>.+)$"));
+        this.aclUriPattern = new PatternHolder("^" + aclRoot + "(?<role>.+)$");
         this.userUriPattern = Pattern.compile(securityRoot + "user(\\?.*)?");
-        this.roleMapperUriPattern = new PatternHolder(Pattern.compile("^" + UriBuilder.concatUriSegments(securityRoot, RoleMapper.ROLEMAPPER)));
+        this.roleMapperUriPattern = new PatternHolder("^" + UriBuilder.concatUriSegments(securityRoot, RoleMapper.ROLEMAPPER));
         this.roleExtractor = new RoleExtractor(rolePattern);
         this.roleMapper = new RoleMapper(storage, securityRoot, properties);
         this.roleAuthorizer = new RoleAuthorizer(storage, securityRoot, rolePattern, rolePrefix, roleMapper);
@@ -169,7 +169,7 @@ public class Authorizer implements LoggableResource {
      */
     private void handleConfigurationUriRequest(final HttpServerRequest request, Future<Boolean> future, PatternHolder patternHolder, ConfigurationResource checker) {
         // Intercept configuration
-        final Matcher aclMatcher = patternHolder.getPattern().matcher(request.uri());
+        final Matcher aclMatcher = patternHolder.getPattern(request.headers()).matcher(request.uri());
         if (aclMatcher.matches()) {
             if (HttpMethod.PUT == request.method()) {
                 request.bodyHandler(buffer -> {

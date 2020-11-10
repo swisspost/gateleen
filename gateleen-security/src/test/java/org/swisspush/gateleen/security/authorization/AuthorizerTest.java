@@ -25,7 +25,10 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.core.util.StatusCode;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.timeout;
@@ -41,6 +44,7 @@ public class AuthorizerTest {
     private Authorizer authorizer;
     private Vertx vertx;
     private MockResourceStorage storage;
+    private CaseInsensitiveHeaders headers;
 
     private static final String ROLE_PATTERN = "^z-gateleen[-_](.*)$";
     private static final String ROLE_PREFIX = "z-gateleen-";
@@ -60,13 +64,13 @@ public class AuthorizerTest {
         Map<String, Object> properties = new HashMap<>();
         properties.put("STAGE", "int");
         authorizer = new Authorizer(vertx, storage, "/gateleen/server/security/v1/", ROLE_PATTERN, ROLE_PREFIX, properties);
+        headers = new CaseInsensitiveHeaders();
     }
 
     @Test
     public void testAuthorizeUserUriGETRequest(TestContext context) {
         String requestUri = "/gateleen/server/security/v1/user";
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         headers.add("x-rp-usr", "user_1234");
         headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated,z-gateleen-developer");
 
@@ -86,7 +90,6 @@ public class AuthorizerTest {
     public void testAuthorizeUserUriGETRequestWithCASName(TestContext context) {
         String requestUri = "/gateleen/server/security/v1/user";
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         headers.add("cas_name", "cas_user_1234");
         headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated,z-gateleen-developer");
 
@@ -106,7 +109,6 @@ public class AuthorizerTest {
     public void testAuthorizeUserUriDELETERequest(TestContext context) {
         String requestUri = "/gateleen/server/security/v1/user";
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         headers.add("x-rp-usr", "user_1234");
         headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated,z-gateleen-developer");
 
@@ -127,7 +129,6 @@ public class AuthorizerTest {
     public void testAuthorizeUserUriPUTRequest(TestContext context) {
         String requestUri = "/gateleen/server/security/v1/user";
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         headers.add("x-rp-usr", "user_1234");
         headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated,z-gateleen-developer");
 
@@ -149,7 +150,7 @@ public class AuthorizerTest {
         String requestUri = "/gateleen/server/security/v1/acls/admin";
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
-        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, new CaseInsensitiveHeaders(), response);
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
         authorizer.authorize(req).setHandler(event -> {
             context.assertTrue(event.succeeded());
@@ -164,7 +165,7 @@ public class AuthorizerTest {
         String requestUri = "/gateleen/server/security/v1/acls/admin";
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
-        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.DELETE, requestUri, new CaseInsensitiveHeaders(), response);
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.DELETE, requestUri, headers, response);
 
         authorizer.authorize(req).setHandler(event -> {
             context.assertTrue(event.succeeded());
@@ -179,7 +180,7 @@ public class AuthorizerTest {
         String requestUri = "/gateleen/server/security/v1/acls/admin";
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
-        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, new CaseInsensitiveHeaders(),
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers,
                 "{}", response);
 
         authorizer.authorize(req).setHandler(event -> {
@@ -195,7 +196,7 @@ public class AuthorizerTest {
         String requestUri = "/gateleen/server/security/v1/acls/admin";
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
-        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, new CaseInsensitiveHeaders(),
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers,
                 "{invalidJson}", response);
 
         authorizer.authorize(req).setHandler(event -> {
@@ -212,7 +213,6 @@ public class AuthorizerTest {
     public void testHandleIsAuthorized(TestContext context) {
         String requestUri = "/gateleen/server/tests/someResource";
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated,z-gateleen-developer");
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
@@ -230,7 +230,6 @@ public class AuthorizerTest {
     public void testHandleNotIsAuthorized(TestContext context) {
         String requestUri = "/gateleen/server/tests/someResource";
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         headers.add("x-rp-grp", "z-gateleen-authenticated,z-gateleen-developer");
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
@@ -241,9 +240,7 @@ public class AuthorizerTest {
             context.assertFalse(event.result()); // false means that the request must not be handled anymore
         });
 
-        Mockito.verify(response, timeout(1000).times(1)).setStatusCode(eq(StatusCode.FORBIDDEN.getStatusCode()));
-        Mockito.verify(response, timeout(1000).times(1)).setStatusMessage(eq(StatusCode.FORBIDDEN.getStatusMessage()));
-        Mockito.verify(response, timeout(1000).times(1)).end(eq(StatusCode.FORBIDDEN.getStatusMessage()));
+        assertForbidden(response);
     }
 
 
@@ -251,7 +248,6 @@ public class AuthorizerTest {
     public void testHandleAclRoleMapper(TestContext context) {
         String requestUri = "/gateleen/domain/tests/someResource";
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
         // we have only a acl for "domain" which must trigger in this case as well
         // see https://github.com/swisspush/gateleen/issues/285
         headers.add("x-rp-grp", "z-gateleen-domain-admin-stage-int");
@@ -262,7 +258,6 @@ public class AuthorizerTest {
         authorizer.authorize(req).setHandler(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
-            context.assertTrue(req != null);
             Set<String> roles = new RoleExtractor().extractRoles(req);
             context.assertTrue(roles.size() == 3);
             context.assertTrue(roles.contains("z-gateleen-domain-admin-stage-int"));
@@ -274,6 +269,134 @@ public class AuthorizerTest {
 
     }
 
+    @Test
+    public void adminIsAuthorizedToReadAllUserspecificResourcesWithoutUserHeader(TestContext context) {
+        String requestUri = "/resources/userspecific/batman/info";
+
+        headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+        });
+
+        Mockito.verifyZeroInteractions(response);
+    }
+
+    @Test
+    public void adminIsAuthorizedToReadAllUserspecificResourcesWithUserHeader(TestContext context) {
+        String requestUri = "/resources/userspecific/batman/info";
+
+        headers.add("x-user", "superman");
+        headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+        });
+
+        Mockito.verifyZeroInteractions(response);
+    }
+
+    @Test
+    public void userIsAuthorizedToReadItsOwnResources(TestContext context) {
+        String requestUri = "/resources/userspecific/batman/info";
+
+        headers.add("x-user", "batman");
+        headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");  // no admin role!
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+        });
+
+        Mockito.verifyZeroInteractions(response);
+    }
+
+    @Test
+    public void userIsAuthorizedToReadItsOwnResourcesPatternGetsUpdatedOnEveryRequest(TestContext context) {
+        String requestUri = "/resources/userspecific/batman/info";
+
+        headers.add("x-user", "batman");
+        headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");  // no admin role!
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+
+        /*
+         * First request is with the correct user
+         */
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result()); // user batman should be authorized
+
+            /*
+             * test again with another user and check whether the pattern is updated for every request
+             */
+            CaseInsensitiveHeaders headers2 = new CaseInsensitiveHeaders();
+            headers2.add("x-user", "robin");
+            headers2.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");  // no admin role!
+            AuthorizerRequest req2 = new AuthorizerRequest(HttpMethod.GET, requestUri, headers2, response);
+            authorizer.authorize(req2).setHandler(event2 -> {
+                context.assertTrue(event2.succeeded());
+                context.assertFalse(event2.result()); // user robin should not be authorized
+            });
+        });
+
+        assertForbidden(response);
+    }
+
+    @Test
+    public void userIsAuthorizedToReadItsOwnResourcesAdditionalRegexGroups(TestContext context) {
+        String requestUri = "/resources/userspecific/batman/items/123456/foo";
+
+        headers.add("x-user", "batman");
+        headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");  // no admin role!
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+        });
+
+        Mockito.verifyZeroInteractions(response);
+    }
+
+    @Test
+    public void userIsNotAuthorizedToReadResourcesOfOthers(TestContext context) {
+        String requestUri = "/resources/userspecific/batman/info";
+
+        headers.add("x-user", "robin");
+        headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated"); // no admin role!
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertFalse(event.result()); // false => not authorized
+        });
+
+        assertForbidden(response);
+    }
+
+    private void assertForbidden(DummyHttpServerResponse response){
+        Mockito.verify(response, timeout(1000).times(1)).setStatusCode(eq(StatusCode.FORBIDDEN.getStatusCode()));
+        Mockito.verify(response, timeout(1000).times(1)).setStatusMessage(eq(StatusCode.FORBIDDEN.getStatusMessage()));
+        Mockito.verify(response, timeout(1000).times(1)).end(eq(StatusCode.FORBIDDEN.getStatusMessage()));
+    }
 
     private void setupAcls() {
         JsonObject acls = new JsonObject();
@@ -290,12 +413,12 @@ public class AuthorizerTest {
         storage.putMockData(ROLEMAPPER, ResourcesUtils.loadResource(ROLEMAPPER_DIR + "rolemapper", true));
     }
 
-    class AuthorizerRequest extends DummyHttpServerRequest {
-        private String uri;
-        private HttpMethod method;
-        private String body;
-        private CaseInsensitiveHeaders headers;
-        private HttpServerResponse response;
+    static class AuthorizerRequest extends DummyHttpServerRequest {
+        private final String uri;
+        private final HttpMethod method;
+        private final String body;
+        private final CaseInsensitiveHeaders headers;
+        private final HttpServerResponse response;
 
         AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
                           HttpServerResponse response) {
