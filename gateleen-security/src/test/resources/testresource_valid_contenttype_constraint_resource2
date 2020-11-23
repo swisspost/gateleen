@@ -1,0 +1,6 @@
+{
+	"/gateleen/images/(.*)": {
+		"description": "image upload",
+		"allowedTypes": ["image/.*"]
+	}
+}

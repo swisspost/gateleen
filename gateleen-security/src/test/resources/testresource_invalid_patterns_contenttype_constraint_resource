@@ -1,0 +1,22 @@
+{
+	"/gateleen/contenttype/test/1/.*)": {
+		"description": "invalid urlPattern",
+		"allowedTypes": ["image/.*"]
+	},
+	"/gateleen/contenttype/test/2/(.*)": {
+		"description": "valid urlPattern, valid/invalid allowedTypes patterns",
+		"allowedTypes": ["image/png", "image/.*)", "video/mp4", ""]
+	},
+	"/gateleen/contenttype/test/3/(.*)": {
+		"description": "valid urlPattern, single invalid allowedTypes pattern",
+		"allowedTypes": ["image/.*)"]
+	},
+	"/gateleen/contenttype/test/4/(.*)": {
+		"description": "valid urlPattern, single empty allowedTypes entry",
+		"allowedTypes": [""]
+	},
+	"/gateleen/contenttype/test/5/(.*)": {
+		"description": "valid urlPattern, empty allowedTypes entries",
+		"allowedTypes": ["", "", ""]
+	}
+}

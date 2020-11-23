@@ -14,6 +14,7 @@ public enum StatusCode {
     NOT_FOUND(404, "Not Found"),
     METHOD_NOT_ALLOWED(405, "Method Not Allowed"),
     CONFLICT(409, "Conflict"),
+    UNSUPPORTED_MEDIA_TYPE(415, "Unsupported Media Type"),
     INTERNAL_SERVER_ERROR(500, "Internal Server Error"),
     BAD_GATEWAY(502, "Bad Gateway"),
     SERVICE_UNAVAILABLE(503, "Service Unavailable"),

@@ -6,6 +6,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.security.PatternHolder;
 
 /**
  * Tests for the {@link PatternHolder} class

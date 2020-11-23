@@ -55,13 +55,17 @@ import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
+import org.swisspush.gateleen.security.PatternHolder;
 import org.swisspush.gateleen.security.authorization.Authorizer;
+import org.swisspush.gateleen.security.content.ContentTypeConstraintHandler;
+import org.swisspush.gateleen.security.content.ContentTypeConstraintRepository;
 import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
 import org.swisspush.gateleen.validation.ValidationHandler;
 import org.swisspush.gateleen.validation.ValidationResourceManager;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -124,6 +128,7 @@ public class Server extends AbstractVerticle {
     private DelegateHandler delegateHandler;
     private KafkaHandler kafkaHandler;
     private CustomHttpResponseHandler customHttpResponseHandler;
+    private ContentTypeConstraintHandler contentTypeConstraintHandler;
 
     public static void main(String[] args) {
         Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event ->
@@ -192,6 +197,12 @@ public class Server extends AbstractVerticle {
                 kafkaHandler = new KafkaHandler(configurationResourceManager, kafkaProducerRepository, kafkaMessageSender,
                         SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
                 kafkaHandler.initialize();
+
+                ContentTypeConstraintRepository repository = new ContentTypeConstraintRepository();
+                contentTypeConstraintHandler = new ContentTypeConstraintHandler(configurationResourceManager, repository,
+                        SERVER_ROOT + "/admin/v1/contentTypeConstraints",
+                        Collections.singletonList(new PatternHolder("application/json")));
+                contentTypeConstraintHandler.initialize();
 
                 userProfileHandler = new UserProfileHandler(vertx, storage, RunConfig.buildUserProfileConfiguration());
                 userProfileHandler.enableResourceLogging(true);
@@ -279,6 +290,7 @@ public class Server extends AbstractVerticle {
                         .zipExtractHandler(zipExtractHandler)
                         .delegateHandler(delegateHandler)
                         .customHttpResponseHandler(customHttpResponseHandler)
+                        .contentTypeConstraintHandler(contentTypeConstraintHandler)
                         .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
