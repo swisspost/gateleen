@@ -105,3 +105,37 @@ The request header feature in the ACLs can be used to restrict access to user sp
 ```
 So having a resource `/resources/userspecific/batman/info`, it can only be loaded by a user having
 the request header `x-user: batman` or a user having the admin role.
+
+#### Content-Type constraints
+The [ContentTypeConstraintHandler](src/main/java/org/swisspush/gateleen/security/content/ContentTypeConstraintHandler.java) allows the definition of _Content-Type_ Request header constraints on urls.
+
+Use this to block unwanted _Content-Type_ values on specific urls.
+
+##### Always allowed Content-Type values
+In the constructor of the [ContentTypeConstraintHandler](src/main/java/org/swisspush/gateleen/security/content/ContentTypeConstraintHandler.java), you are able
+to define a list of _Content-Type_ values that are allowed for all requests.
+
+Example:
+```java
+new ContentTypeConstraintHandler(configResManager, repository,
+                        SERVER_ROOT + "/admin/v1/contentTypeConstraints",
+                        Arrays.asList(new PatternHolder("application/json"), new PatternHolder("image/.*")));
+```
+Note that also regex patterns like `image/.*` are allowed.
+
+##### Content-Type constraint configuration resource
+The configuration resource for the Content-Type constraints is validated against the schema [gateleen_security_contenttype_constraint_schema](src/main/resources/gateleen_security_contenttype_constraint_schema).
+
+Example:
+```json
+{
+  "/gateleen/contacts/zips/(.*)": {
+    "description": "contacts are uploaded as zip files",
+    "allowedTypes": ["application/zip"]
+  },
+  "/gateleen/contacts/storage/(.*)": {
+    "description": "contact storage contains images and videos",
+    "allowedTypes": ["image/png", "image/bmp", "video/.*"]
+  }
+}
+```
