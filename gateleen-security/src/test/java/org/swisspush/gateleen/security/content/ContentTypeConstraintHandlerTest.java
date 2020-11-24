@@ -214,6 +214,25 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
     }
 
     @Test
+    public void handleMatchingConstraintWithAllowedContentTypeHeaderWithCharset(TestContext context) {
+        Async async = context.async();
+        storage.putMockData(configResourceUri, VALID_CONFIG);
+        context.assertFalse(handler.isInitialized());
+        String requestUri = "/gateleen/contacts/storage/abc";
+        handler.initialize().setHandler(event -> {
+
+            HttpServerResponse response = spy(new ConstraintResponse());
+            ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, headersWithContentType("video/mp4;charset=UTF-8"), response);
+            final boolean handled = handler.handle(request);
+
+            context.assertFalse(handled);
+            verify(repository, times(1)).findMatchingContentTypeConstraint(eq(requestUri));
+
+            async.complete();
+        });
+    }
+
+    @Test
     public void resourceRemovedMatchingUri(TestContext context){
         Async async = context.async();
         storage.putMockData(configResourceUri, VALID_CONFIG);

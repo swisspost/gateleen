@@ -3,6 +3,7 @@ package org.swisspush.gateleen.security.content;
 import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceConsumer;
@@ -73,15 +74,21 @@ public class ContentTypeConstraintHandler extends ConfigurationResourceConsumer 
             return false;
         }
 
+        /*
+         * ignore charset information like ';charset=UTF-8'
+         */
+        contentTypeValue = StringUtils.substringBefore(contentTypeValue, ";");
+
         for (PatternHolder allowedContentType : alwaysAllowedContentTypes) {
             if(allowedContentType.getPattern().matcher(contentTypeValue).matches()){
                 return false;
             }
         }
 
+        String finalContentTypeValue = contentTypeValue;
         return repository.findMatchingContentTypeConstraint(request.uri()).map(contentTypeConstraint -> {
             for (PatternHolder allowedTypePatternHolder : contentTypeConstraint.allowedTypes()) {
-                if (allowedTypePatternHolder.getPattern().matcher(contentTypeValue).matches()) {
+                if (allowedTypePatternHolder.getPattern().matcher(finalContentTypeValue).matches()) {
                     return false;
                 }
             }
