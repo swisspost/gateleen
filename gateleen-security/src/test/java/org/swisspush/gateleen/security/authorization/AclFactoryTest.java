@@ -10,13 +10,13 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.security.PatternHolder;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
-import java.util.List;
 
 /**
  * Tests for the {@link AclFactory} class
