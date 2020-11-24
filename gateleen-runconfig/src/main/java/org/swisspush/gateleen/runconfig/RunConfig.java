@@ -41,6 +41,7 @@ import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.security.authorization.Authorizer;
+import org.swisspush.gateleen.security.content.ContentTypeConstraintHandler;
 import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileConfiguration;
 import org.swisspush.gateleen.user.UserProfileHandler;
@@ -83,6 +84,7 @@ public class RunConfig {
     private RedisClient redisClient;
     private Router router;
     private CORSHandler corsHandler;
+    private ContentTypeConstraintHandler contentTypeConstraintHandler;
     private SchedulerResourceManager schedulerResourceManager;
     private ValidationResourceManager validationResourceManager;
     private LoggingResourceManager loggingResourceManager;
@@ -117,7 +119,7 @@ public class RunConfig {
                      DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler,
                      QoSHandler qosHandler, PropertyHandler propertyHandler, ZipExtractHandler zipExtractHandler,
                      DelegateHandler delegateHandler, MergeHandler mergeHandler, KafkaHandler kafkaHandler,
-                     CustomHttpResponseHandler customHttpResponseHandler) {
+                     CustomHttpResponseHandler customHttpResponseHandler, ContentTypeConstraintHandler contentTypeConstraintHandler) {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.verticleClass = verticleClass;
@@ -146,6 +148,7 @@ public class RunConfig {
         this.mergeHandler = mergeHandler;
         this.kafkaHandler = kafkaHandler;
         this.customHttpResponseHandler = customHttpResponseHandler;
+        this.contentTypeConstraintHandler = contentTypeConstraintHandler;
         init();
     }
 
@@ -177,7 +180,8 @@ public class RunConfig {
                 builder.delegateHandler,
                 builder.mergeHandler,
                 builder.kafkaHandler,
-                builder.customHttpResponseHandler);
+                builder.customHttpResponseHandler,
+                builder.contentTypeConstraintHandler);
     }
 
     private void init(){
@@ -223,6 +227,7 @@ public class RunConfig {
         private EventBusHandler eventBusHandler;
         private KafkaHandler kafkaHandler;
         private CustomHttpResponseHandler customHttpResponseHandler;
+        private ContentTypeConstraintHandler contentTypeConstraintHandler;
         private ValidationHandler validationHandler;
         private HookHandler hookHandler;
         private UserProfileHandler userProfileHandler;
@@ -281,6 +286,11 @@ public class RunConfig {
 
         public RunConfigBuilder customHttpResponseHandler(CustomHttpResponseHandler customHttpResponseHandler){
             this.customHttpResponseHandler = customHttpResponseHandler;
+            return this;
+        }
+
+        public RunConfigBuilder contentTypeConstraintHandler(ContentTypeConstraintHandler contentTypeConstraintHandler){
+            this.contentTypeConstraintHandler = contentTypeConstraintHandler;
             return this;
         }
 
@@ -528,6 +538,10 @@ public class RunConfig {
                     if (corsHandler.isOptionsRequest(request)) {
                         return;
                     }
+                }
+
+                if(contentTypeConstraintHandler != null && contentTypeConstraintHandler.handle(request)) {
+                    return;
                 }
 
                 if(authorizer != null){

@@ -1,0 +1,10 @@
+{
+	"/gateleen/contacts/zips/(.*)": {
+		"description": "contacts are uploaded as zip files",
+		"allowedTypes": ["image/.*"]
+	},
+	"/gateleen/contacts/storage/(.*)": {
+		"description": "contact storage contains images and videos",
+		"allowedTypes": ["image/png", "image/bmp", "video/mp4"]
+	}
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": {
+    "$ref": "#/definitions/Constraint"
+  },
+  "definitions": {
+    "Constraint": {
+      "description": "A single Content-Type constraint entry",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "description": "Documentation of the constraint",
+          "type": "string"
+        },
+        "allowedTypes": {
+          "description": "Array of regular expressions applied to match against the Content-Type request header",
+		  "type": "array",
+          "minItems": 1,
+		  "items": {
+		    "type": "string"
+		  }
+        }
+      },
+      "required": [
+        "allowedTypes"
+      ]
+    }
+  }
+}

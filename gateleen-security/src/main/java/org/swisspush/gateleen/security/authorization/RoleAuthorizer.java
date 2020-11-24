@@ -11,12 +11,12 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.security.PatternHolder;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 public class RoleAuthorizer implements ConfigurationResource {

@@ -6,6 +6,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.security.PatternHolder;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.Validator;
@@ -14,7 +15,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * AclFactory is used to parse ACL (Access Control List) resources.
