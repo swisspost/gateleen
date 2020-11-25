@@ -1,0 +1,8 @@
+{
+	"method": "PUT",
+	"uri": "/playground/server/tests/exp/item_2",
+	"headers": [
+		["x-queue-retry-400","0"]
+	],
+	"payload": "eyJrZXkiOiAidmFsdWUifQ=="
+}
