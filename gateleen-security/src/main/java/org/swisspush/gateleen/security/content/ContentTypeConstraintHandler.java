@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceConsumer;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.security.PatternHolder;
@@ -92,10 +93,10 @@ public class ContentTypeConstraintHandler extends ConfigurationResourceConsumer 
                     return false;
                 }
             }
-            respondUnsupportedMediaType(request);
+            respondUnsupportedMediaType(request, finalContentTypeValue);
             return true;
         }).orElseGet(() -> {
-            respondUnsupportedMediaType(request);
+            respondUnsupportedMediaType(request, finalContentTypeValue);
             return true;
         });
     }
@@ -123,7 +124,9 @@ public class ContentTypeConstraintHandler extends ConfigurationResourceConsumer 
         initialized = true;
     }
 
-    private void respondUnsupportedMediaType(final HttpServerRequest request) {
+    private void respondUnsupportedMediaType(final HttpServerRequest request, String contentTypeValue) {
+        RequestLoggerFactory.getLogger(ContentTypeConstraintHandler.class, request)
+                .info("Unsupported media type '{}' for request uri '{}' found", contentTypeValue, request.uri());
         ResponseStatusCodeLogUtil.info(request, StatusCode.UNSUPPORTED_MEDIA_TYPE, ContentTypeConstraintHandler.class);
         request.response().setStatusCode(StatusCode.UNSUPPORTED_MEDIA_TYPE.getStatusCode());
         request.response().setStatusMessage(StatusCode.UNSUPPORTED_MEDIA_TYPE.getStatusMessage());
