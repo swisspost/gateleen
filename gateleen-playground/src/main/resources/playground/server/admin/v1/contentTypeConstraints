@@ -1,0 +1,9 @@
+{
+  "/playground/server.*": {
+    "description": "allowed server files",
+    "allowedTypes": [
+      "application/javascript",
+      "application/x-www-form-urlencoded"
+    ]
+  }
+}

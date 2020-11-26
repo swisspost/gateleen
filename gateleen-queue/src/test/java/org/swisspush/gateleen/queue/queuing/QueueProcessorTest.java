@@ -18,8 +18,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.http.FastFaiHttpClientResponse;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
@@ -39,6 +42,7 @@ public class QueueProcessorTest {
     private MonitoringHandler monitoringHandler;
 
     private String PAYLOAD = "{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"}";
+    private final String QUEUE_RETRY_400 = ResourcesUtils.loadResource("testresource_queue_retry_400", true);
 
     @org.junit.Rule
     public Timeout rule = Timeout.seconds(5);
@@ -129,10 +133,102 @@ public class QueueProcessorTest {
         });
     }
 
+    @Test
+    public void testSuccessfulRequestResponse(TestContext context){
+        Async async = context.async();
+        new QueueProcessor(vertx, httpClient, monitoringHandler, null);
+
+        setHttpClientRespondStatusCode(StatusCode.OK);
+
+        vertx.eventBus().send(Address.queueProcessorAddress(), buildQueueEventBusMessage("my_queue"), event -> {
+            context.assertTrue(event.succeeded());
+            JsonObject result = (JsonObject) event.result().body();
+            context.assertEquals("ok", result.getString("status"));
+
+            verify(httpClient, times(1)).request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testFailedRequestResponseWithRetry(TestContext context){
+        Async async = context.async();
+        new QueueProcessor(vertx, httpClient, monitoringHandler, null);
+
+        setHttpClientRespondStatusCode(StatusCode.BAD_REQUEST);
+
+        vertx.eventBus().send(Address.queueProcessorAddress(), buildQueueEventBusMessage("my_queue"), event -> {
+            context.assertTrue(event.succeeded());
+            JsonObject result = (JsonObject) event.result().body();
+            context.assertEquals("error", result.getString("status"));
+            context.assertTrue(result.getString("message").contains("" + StatusCode.BAD_REQUEST.getStatusCode()));
+
+            verify(httpClient, times(1)).request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testFailedRequestResponseDoNotRetry(TestContext context){
+        Async async = context.async();
+        new QueueProcessor(vertx, httpClient, monitoringHandler, null);
+
+        setHttpClientRespondStatusCode(StatusCode.BAD_REQUEST);
+
+        vertx.eventBus().send(Address.queueProcessorAddress(), buildQueueEventBusMessage("my_queue", QUEUE_RETRY_400), event -> {
+            context.assertTrue(event.succeeded());
+            JsonObject result = (JsonObject) event.result().body();
+            context.assertEquals("ok", result.getString("status"));
+
+            verify(httpClient, times(1)).request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testFailedRequestResponseNotMatchingRetryConfig(TestContext context){
+        Async async = context.async();
+        new QueueProcessor(vertx, httpClient, monitoringHandler, null);
+
+        setHttpClientRespondStatusCode(StatusCode.SERVICE_UNAVAILABLE);
+
+        vertx.eventBus().send(Address.queueProcessorAddress(), buildQueueEventBusMessage("my_queue", QUEUE_RETRY_400), event -> {
+            context.assertTrue(event.succeeded());
+            JsonObject result = (JsonObject) event.result().body();
+            context.assertEquals("error", result.getString("status"));
+            context.assertTrue(result.getString("message").contains("" + StatusCode.SERVICE_UNAVAILABLE.getStatusCode()));
+
+            verify(httpClient, times(1)).request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any());
+            async.complete();
+        });
+    }
+
+    private void setHttpClientRespondStatusCode(StatusCode statusCode){
+        doAnswer(invocation -> {
+            Handler<HttpClientResponse> handler = (Handler<HttpClientResponse>) invocation.getArguments()[2];
+            handler.handle(new FastFaiHttpClientResponse() {
+                @Override
+                public int statusCode() {
+                    return statusCode.getStatusCode();
+                }
+
+                @Override
+                public String statusMessage() {
+                    return statusCode.getStatusMessage();
+                }
+            });
+            return null;
+        }).when(httpClient).request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any());
+    }
+
     private JsonObject buildQueueEventBusMessage(String queueName){
+        return buildQueueEventBusMessage(queueName, PAYLOAD);
+    }
+
+    private JsonObject buildQueueEventBusMessage(String queueName, String payload){
         JsonObject message = new JsonObject();
         message.put("queue", queueName);
-        message.put("payload", PAYLOAD);
+        message.put("payload", payload);
         return message;
     }
 

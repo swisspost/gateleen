@@ -238,10 +238,14 @@ public class QueueProcessor {
                 message.reply(new JsonObject().put(STATUS, OK));
                 performCircuitBreakerActions(queueName, queuedRequest, SUCCESS, state);
                 monitoringHandler.updateDequeue();
-            } else {
+            } else if(QueueRetryUtil.retryQueueItem(queuedRequest.getHeaders(), response.statusCode(), logger)) {
                 logger.info("Failed queued request to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
                 message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, response.statusCode() + " " + response.statusMessage()));
                 performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
+            } else {
+                logger.info("Reply success, because no more retries left for failed queued request to {}: {} {}", queuedRequest.getUri(), response.statusCode(), response.statusMessage());
+                message.reply(new JsonObject().put(STATUS, OK));
+                performCircuitBreakerActions(queueName, queuedRequest, SUCCESS, state);
             }
             response.bodyHandler(event -> logger.debug("Discarding backend body"));
             response.endHandler(event -> logger.debug("Backend response end"));

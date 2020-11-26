@@ -1,6 +1,16 @@
 # gateleen-queue
 The gateleen-queue module provides queuing functionality and acts as a bridge to [vertx-redisques](https://github.com/swisspush/vertx-redisques).
 
+### Queue retry configuration
+Normally, failed queue items remain in the queue until successfully processed or manually deleted. With the `x-queue-retry-xxx` request header, you are able to control this behaviour.
+
+Example values are:
+```
+"x-queue-retry-400": "0" (when response is 400, do not retry anymore)
+"x-queue-retry-4xx": "0" (when response is 400, 404, 405, etc. do not retry anymore)
+```
+For now, only a retry count of `0` is supported. So the main use case for this feature are requests which should be tried once and then be discarded when not successful.
+
 ## Queue Circuit Breaker
 The Queue Circuit Breaker hereinafter referred to as **QCB** can be used to protect your server from having to deal with lots of queued requests when a backend is not reachable.
 
