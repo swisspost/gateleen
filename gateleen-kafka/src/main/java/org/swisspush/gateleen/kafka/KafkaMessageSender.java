@@ -42,7 +42,7 @@ public class KafkaMessageSender {
                 }
                 f.complete();
             } else {
-                log.info("Failed to send message with key '{}' to kafka. Cause: {}", message.key(), event.cause());
+                log.warn("Failed to send message with key '{}' to kafka. Cause: {}", message.key(), event.cause());
                 f.fail(event.cause());
             }
         });
