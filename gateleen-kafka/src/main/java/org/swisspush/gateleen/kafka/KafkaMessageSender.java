@@ -19,6 +19,7 @@ public class KafkaMessageSender {
         List<Future<Void>> futureList = new ArrayList<>();
 
         for (KafkaProducerRecord<String, String> message : messages) {
+            log.debug("Start processing {} messages for kafka", messages.size());
             Future<Void> futureEntry = sendMessage(kafkaProducer, message);
             futureList.add(futureEntry);
         }
@@ -34,6 +35,7 @@ public class KafkaMessageSender {
 
                    if (remaining[0] == 0) {
                        future.complete();
+                       log.debug("Batch messages successfully sent to kafka.");
                    }
                } else {
                    future.fail(event.cause());
