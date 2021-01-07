@@ -6,6 +6,7 @@ import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class KafkaMessageSender {
@@ -15,18 +16,30 @@ public class KafkaMessageSender {
     Future<Void> sendMessages(KafkaProducer<String, String> kafkaProducer,
                                      List<KafkaProducerRecord<String, String>> messages){
         Future<Void> future = Future.future();
-        Future<Void> f = Future.succeededFuture();
+        List<Future<Void>> futureList = new ArrayList<>();
 
-        messages.stream().reduce(f,
-                (f1, message) -> f1.compose(ignore -> KafkaMessageSender.this.sendMessage(kafkaProducer, message)),
-                (voidFuture, voidFuture2) -> null
-        ).setHandler(res -> {
-            if(res.succeeded()) {
-                future.complete();
-            } else {
-                future.fail(res.cause());
-            }
-        });
+        for (KafkaProducerRecord<String, String> message : messages) {
+            Future<Void> futureEntry = sendMessage(kafkaProducer, message);
+            futureList.add(futureEntry);
+        }
+
+        kafkaProducer.flush(event -> {});
+
+        final int[] remaining = {futureList.size()};
+
+        for (Future<Void> voidFuture : futureList) {
+           voidFuture.setHandler(event -> {
+               if (event.succeeded()) {
+                   remaining[0] -= 1;
+
+                   if (remaining[0] == 0) {
+                       future.complete();
+                   }
+               } else {
+                   future.fail(event.cause());
+               }
+           });
+        }
 
         return future;
     }
