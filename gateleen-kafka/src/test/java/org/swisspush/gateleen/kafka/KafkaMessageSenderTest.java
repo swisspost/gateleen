@@ -138,12 +138,13 @@ public class KafkaMessageSenderTest {
         });
 
         ArgumentCaptor<KafkaProducerRecord> recordCaptor = ArgumentCaptor.forClass(KafkaProducerRecord.class);
-        Mockito.verify(producer, times(2)).write(recordCaptor.capture(), any());
+        Mockito.verify(producer, times(3)).write(recordCaptor.capture(), any());
 
         // verify only the first two messages was sent
-        context.assertEquals(2, recordCaptor.getAllValues().size());
+        context.assertEquals(3, recordCaptor.getAllValues().size());
         context.assertEquals(records.get(0), recordCaptor.getAllValues().get(0));
         context.assertEquals(records.get(1), recordCaptor.getAllValues().get(1));
+        context.assertEquals(records.get(2), recordCaptor.getAllValues().get(2));
     }
 
     private JsonObject buildSingleRecordPayload(String key){
