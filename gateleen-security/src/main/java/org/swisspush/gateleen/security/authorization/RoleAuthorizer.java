@@ -39,6 +39,7 @@ public class RoleAuthorizer implements ConfigurationResource {
     private ResourceStorage storage;
     private RoleExtractor roleExtractor;
     private Map<PatternHolder, Map<String, Set<String>>> initialGrantedRoles;
+    private final boolean grantAccessWithoutRoles;
 
     // URI -> Method -> Roles
     private Map<PatternHolder, Map<String, Set<String>>> grantedRoles = new HashMap<>();
@@ -52,10 +53,13 @@ public class RoleAuthorizer implements ConfigurationResource {
      * @param rolePrefix   The prefix which must be added to mapped roles in the request header which is created
      *                     to forward from the mapped resulting roles. Could be null if none shall be added at all.
      * @param roleMapper
+     * @param grantAccessWithoutRoles
      */
-    RoleAuthorizer(final ResourceStorage storage, String securityRoot, String rolePattern, String rolePrefix, final RoleMapper roleMapper) {
+    RoleAuthorizer(final ResourceStorage storage, String securityRoot, String rolePattern, String rolePrefix,
+                   final RoleMapper roleMapper, boolean grantAccessWithoutRoles) {
         this.storage = storage;
         this.roleMapper = roleMapper;
+        this.grantAccessWithoutRoles = grantAccessWithoutRoles;
         this.aclRoot = securityRoot + aclKey + "/";
         this.aclUriPattern = new PatternHolder("^" + aclRoot + "(?<role>.+)$");
         this.roleExtractor = new RoleExtractor(rolePattern);
@@ -130,7 +134,7 @@ public class RoleAuthorizer implements ConfigurationResource {
             RequestLoggerFactory.getLogger(RoleAuthorizer.class, request).debug("Roles: " + roles);
             return isAuthorized(roles, request);
         } else {
-            return true;
+            return grantAccessWithoutRoles;
         }
     }
 
