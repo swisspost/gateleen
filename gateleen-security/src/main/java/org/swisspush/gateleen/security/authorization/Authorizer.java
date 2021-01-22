@@ -61,10 +61,20 @@ public class Authorizer implements LoggableResource {
     }
 
     /*
-     * Initializes the ACL security system with the RoleMapper from the corresponding storage resources containting the
-     * ACL groups (without the role prefix) and the RoleMapper resource
+     * Initializes the ACL security system with the RoleMapper from the corresponding storage resources containing the
+     * ACL groups (without the role prefix) and the RoleMapper resource. Requests without roles will be granted!
      */
-    public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern, String rolePrefix, Map<String, Object> properties) {
+    public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern,
+                      String rolePrefix, Map<String, Object> properties) {
+        this(vertx, storage, securityRoot, rolePattern, rolePrefix, properties, true);
+    }
+
+    /*
+     * Initializes the ACL security system with the RoleMapper from the corresponding storage resources containing the
+     * ACL groups (without the role prefix) and the RoleMapper resource. Requests without roles can be granted or rejected
+     */
+    public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern,
+                      String rolePrefix, Map<String, Object> properties, boolean grantAccessWithoutRoles) {
         this.vertx = vertx;
         this.storage = storage;
         String aclRoot = UriBuilder.concatUriSegments(securityRoot, aclKey, "/");
@@ -73,7 +83,7 @@ public class Authorizer implements LoggableResource {
         this.roleMapperUriPattern = new PatternHolder("^" + UriBuilder.concatUriSegments(securityRoot, RoleMapper.ROLEMAPPER));
         this.roleExtractor = new RoleExtractor(rolePattern);
         this.roleMapper = new RoleMapper(storage, securityRoot, properties);
-        this.roleAuthorizer = new RoleAuthorizer(storage, securityRoot, rolePattern, rolePrefix, roleMapper);
+        this.roleAuthorizer = new RoleAuthorizer(storage, securityRoot, rolePattern, rolePrefix, roleMapper, grantAccessWithoutRoles);
         eb = vertx.eventBus();
 
         // Receive update notifications

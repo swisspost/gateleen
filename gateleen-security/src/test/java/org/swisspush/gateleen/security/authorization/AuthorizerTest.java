@@ -46,6 +46,8 @@ public class AuthorizerTest {
     private MockResourceStorage storage;
     private CaseInsensitiveHeaders headers;
 
+    private Map<String, Object> properties = new HashMap<>();
+
     private static final String ROLE_PATTERN = "^z-gateleen[-_](.*)$";
     private static final String ROLE_PREFIX = "z-gateleen-";
     private static final String ACLS = "/gateleen/server/security/v1/acls/";
@@ -61,7 +63,6 @@ public class AuthorizerTest {
         vertx = Vertx.vertx();
         storage = new MockResourceStorage();
         setupAcls();
-        Map<String, Object> properties = new HashMap<>();
         properties.put("STAGE", "int");
         authorizer = new Authorizer(vertx, storage, "/gateleen/server/security/v1/", ROLE_PATTERN, ROLE_PREFIX, properties);
         headers = new CaseInsensitiveHeaders();
@@ -210,10 +211,25 @@ public class AuthorizerTest {
     }
 
     @Test
-    public void testHandleIsAuthorized(TestContext context) {
+    public void testHandleIsAuthorizedWithRolesWithDefaultBehaviour(TestContext context) {
         String requestUri = "/gateleen/server/tests/someResource";
 
         headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated,z-gateleen-developer");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+        });
+
+        Mockito.verifyZeroInteractions(response);
+    }
+
+    @Test
+    public void testHandleIsAuthorizedWithoutRolesWithDefaultBehaviour(TestContext context) {
+        String requestUri = "/gateleen/server/tests/someResource";
 
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
@@ -243,6 +259,45 @@ public class AuthorizerTest {
         assertForbidden(response);
     }
 
+    @Test
+    public void testHandleIsNotAuthorizedWithoutRolesWithOverriddenBehaviour(TestContext context) {
+        String requestUri = "/gateleen/server/tests/someResource";
+
+        // do not grant access without roles
+        authorizer = new Authorizer(vertx, storage, "/gateleen/server/security/v1/", ROLE_PATTERN,
+                ROLE_PREFIX, properties, false);
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertFalse(event.result()); // false means that the request must not be handled anymore
+        });
+
+        assertForbidden(response);
+    }
+
+    @Test
+    public void testHandleIsAuthorizedWithRolesWithOverriddenBehaviour(TestContext context) {
+        String requestUri = "/gateleen/server/tests/someResource";
+
+        headers.add("x-rp-grp", "z-gateleen-admin,z-gateleen-authenticated,z-gateleen-developer");
+
+        // do not grant access without roles
+        authorizer = new Authorizer(vertx, storage, "/gateleen/server/security/v1/", ROLE_PATTERN,
+                ROLE_PREFIX, properties, false);
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
+
+        authorizer.authorize(req).setHandler(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertTrue(event.result());
+        });
+
+        Mockito.verifyZeroInteractions(response);
+    }
 
     @Test
     public void testHandleAclRoleMapper(TestContext context) {
