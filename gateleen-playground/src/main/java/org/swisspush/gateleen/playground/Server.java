@@ -65,7 +65,7 @@ import org.swisspush.gateleen.validation.ValidationHandler;
 import org.swisspush.gateleen.validation.ValidationResourceManager;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -201,7 +201,10 @@ public class Server extends AbstractVerticle {
                 ContentTypeConstraintRepository repository = new ContentTypeConstraintRepository();
                 contentTypeConstraintHandler = new ContentTypeConstraintHandler(configurationResourceManager, repository,
                         SERVER_ROOT + "/admin/v1/contentTypeConstraints",
-                        Collections.singletonList(new PatternHolder("application/json")));
+                        Arrays.asList(
+                                new PatternHolder("application/json"),
+                                new PatternHolder("application/x-www-form-urlencoded")
+                        ));
                 contentTypeConstraintHandler.initialize();
 
                 userProfileHandler = new UserProfileHandler(vertx, storage, RunConfig.buildUserProfileConfiguration());
