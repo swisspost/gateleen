@@ -167,4 +167,13 @@ public class Scheduler {
     protected long getRandomOffset() {
         return randomOffset;
     }
+
+    /**
+     * Returns the list of requests to execute for this scheduler.
+     *
+     * @return requests
+     */
+    protected List<HttpRequest> requests(){
+        return requests;
+    }
 }

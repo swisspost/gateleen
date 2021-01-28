@@ -17,7 +17,24 @@
       "requests": [
         {
           "uri": "/playground/server/_cleanup",
-          "method": "POST"
+          "method": "POST",
+          "payload": {"content": 123},
+          "headers": [
+            ["x-foo", "bar"]
+          ]
+        }
+      ]
+    },
+    "dummy-cleanup": {
+      "description": "Clean dummy resources",
+      "cronExpression": "0 /10 * * * ?",
+      "requests": [
+        {
+          "uri": "/playground/server/_dummyCleanup",
+          "method": "POST",
+          "headers": [
+            ["x-foo", "bar"]
+          ]
         }
       ]
     }
