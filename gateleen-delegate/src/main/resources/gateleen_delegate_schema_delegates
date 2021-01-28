@@ -19,7 +19,7 @@
       "type": "string"
     },	
     "pattern": {
-      "description": "Pattern for grouping the incomming uri",
+      "description": "Pattern for grouping the incoming uri",
       "type": "string"
     },
     "requests": {
@@ -60,6 +60,10 @@
         "transformWithMetadata": {
           "description": "The jolt spec definition to transform the payload and additional metadata",
           "type": "array"
+        },
+        "propagateSourceHeaders": {
+          "description": "Pattern for original request headers to send with the request",
+          "type": "string"
         },
         "headers": {
           "description": "Headers to send with the request",

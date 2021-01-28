@@ -73,6 +73,10 @@ public class Delegate {
         return name;
     }
 
+    List<DelegateRequest> getDelegateRequests() {
+        return requests;
+    }
+
     /**
      * Handles the given request.
      *

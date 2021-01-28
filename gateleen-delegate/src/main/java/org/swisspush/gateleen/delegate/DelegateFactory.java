@@ -30,6 +30,7 @@ public class DelegateFactory {
     private static final String REQUESTS = "requests";
     private static final String METHODS = "methods";
     private static final String PATTERN = "pattern";
+    private static final String PROPAGATE_SOURCE_HEADERS = "propagateSourceHeaders";
     private static final String TRANSFORM = "transform";
     private static final String TRANSFORM_WITH_METADATA = "transformWithMetadata";
 
@@ -46,7 +47,8 @@ public class DelegateFactory {
      * @param properties
      * @param delegatesSchema
      */
-    public DelegateFactory(final MonitoringHandler monitoringHandler, final HttpClient selfClient, final Map<String, Object> properties, final String delegatesSchema) {
+    public DelegateFactory(final MonitoringHandler monitoringHandler, final HttpClient selfClient,
+                           final Map<String, Object> properties, final String delegatesSchema) {
         this.monitoringHandler = monitoringHandler;
         this.selfClient = selfClient;
         this.properties = properties;
@@ -56,7 +58,6 @@ public class DelegateFactory {
     /**
      * Tries to create a Delegate object out of the
      * buffer.
-     *
      *
      * @param delegateName name of the delegate
      * @param buffer buffer of the delegate
@@ -68,13 +69,13 @@ public class DelegateFactory {
         // replace wildcard configs
         try {
             configString = StringUtils.replaceWildcardConfigs(buffer.toString("UTF-8"), properties);
-        } catch(Exception e){
+        } catch (Exception e) {
             throw new ValidationException(e);
         }
 
         // validate json
         ValidationResult validationResult = Validator.validateStatic(Buffer.buffer(configString), delegatesSchema, LOG);
-        if(!validationResult.isSuccess()){
+        if (!validationResult.isSuccess()) {
             throw new ValidationException(validationResult);
         }
 
@@ -95,38 +96,53 @@ public class DelegateFactory {
 
         // methods of the delegate
         Set<HttpMethod> methods = new HashSet<>();
-        delegateObject.getJsonArray(METHODS).forEach( method -> methods.add(HttpMethod.valueOf( (String) method)) );
+        delegateObject.getJsonArray(METHODS).forEach(method -> methods.add(HttpMethod.valueOf((String) method)));
 
         // pattern of the delegate
         Pattern pattern;
         try {
             pattern = Pattern.compile(delegateObject.getString(PATTERN));
-        } catch(Exception e) {
-            throw new ValidationException("Could not parse pattern [" + delegateObject.getString(PATTERN)+ "] of  delegate " + delegateName, e);
+        } catch (Exception e) {
+            throw new ValidationException("Could not parse pattern [" + delegateObject.getString(PATTERN)
+                    + "] of delegate " + delegateName, e);
         }
 
         // requests of the delegate
         List<DelegateRequest> requests = new ArrayList<>();
-        for(int i = 0; i< delegateObject.getJsonArray(REQUESTS).size(); i++) {
-            if ( LOG.isTraceEnabled() ) {
-                LOG.trace("request of [{}] #: {}", delegateName, i );
+        for (int i = 0; i < delegateObject.getJsonArray(REQUESTS).size(); i++) {
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("request of [{}] #: {}", delegateName, i);
             }
             JsonObject requestJsonObject = (JsonObject) delegateObject.getJsonArray(REQUESTS).getValue(i);
+            Pattern propagateSourceHeadersPattern = parsePropagateSourceHeadersPattern(requestJsonObject, delegateName);
             JoltSpec joltSpec = parsePayloadTransformSpec(requestJsonObject, delegateName);
-            requests.add(new DelegateRequest(requestJsonObject, joltSpec));
+            requests.add(new DelegateRequest(requestJsonObject, joltSpec, propagateSourceHeadersPattern));
         }
 
-        return new Delegate(monitoringHandler, selfClient, delegateName, pattern, methods, requests );
+        return new Delegate(monitoringHandler, selfClient, delegateName, pattern, methods, requests);
+    }
+
+    private Pattern parsePropagateSourceHeadersPattern(JsonObject requestJsonObj, String delegateName) throws ValidationException {
+        String propagateHeadersPatternStr = requestJsonObj.getString(PROPAGATE_SOURCE_HEADERS);
+        if(StringUtils.isNotEmptyTrimmed(propagateHeadersPatternStr)) {
+            try {
+                return Pattern.compile(StringUtils.trim(propagateHeadersPatternStr));
+            } catch (Exception e) {
+                throw new ValidationException("Could not parse propagateSourceHeaders pattern ["
+                        + requestJsonObj.getString(PROPAGATE_SOURCE_HEADERS) + "] of delegate " + delegateName, e);
+            }
+        }
+        return null;
     }
 
     private JoltSpec parsePayloadTransformSpec(JsonObject requestJsonObject, String delegateName) throws ValidationException {
         JsonArray transformArray = requestJsonObject.getJsonArray(TRANSFORM);
-        if(transformArray != null) {
+        if (transformArray != null) {
             return buildTransformSpec(delegateName, transformArray, false);
         }
 
         JsonArray transformWithMetadataArray = requestJsonObject.getJsonArray(TRANSFORM_WITH_METADATA);
-        if(transformWithMetadataArray != null){
+        if (transformWithMetadataArray != null) {
             return buildTransformSpec(delegateName, transformWithMetadataArray, true);
         }
 
