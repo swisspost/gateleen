@@ -3,6 +3,7 @@ package org.swisspush.gateleen.delegate;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.http.HttpClient;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -12,7 +13,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.HashMap;
@@ -61,10 +61,9 @@ public class DelegateFactoryTest {
     public void setUp() {
         Vertx vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
-        MonitoringHandler monitoringHandler = Mockito.mock(MonitoringHandler.class);
         Map<String, Object> properties = new HashMap<>();
 
-        delegateFactory = new DelegateFactory(monitoringHandler, null, properties, delegatesSchema);
+        delegateFactory = new DelegateFactory(new DelegateClientRequestCreator(Mockito.mock(HttpClient.class)), properties, delegatesSchema);
     }
 
     @Test

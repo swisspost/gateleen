@@ -1,7 +1,6 @@
 package org.swisspush.gateleen.delegate;
 
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -12,7 +11,6 @@ import org.swisspush.gateleen.core.json.transform.JoltSpecBuilder;
 import org.swisspush.gateleen.core.json.transform.JoltSpecException;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.core.validation.ValidationResult;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.Validator;
 
@@ -34,23 +32,20 @@ public class DelegateFactory {
     private static final String TRANSFORM = "transform";
     private static final String TRANSFORM_WITH_METADATA = "transformWithMetadata";
 
-    private final MonitoringHandler monitoringHandler;
-    private final HttpClient selfClient;
+    private final DelegateClientRequestCreator clientRequestCreator;
+
     private final Map<String, Object> properties;
     private final String delegatesSchema;
 
     /**
      * Creates a new instance of the DelegateFactory.
      *
-     * @param monitoringHandler
-     * @param selfClient
+     * @param clientRequestCreator
      * @param properties
      * @param delegatesSchema
      */
-    public DelegateFactory(final MonitoringHandler monitoringHandler, final HttpClient selfClient,
-                           final Map<String, Object> properties, final String delegatesSchema) {
-        this.monitoringHandler = monitoringHandler;
-        this.selfClient = selfClient;
+    public DelegateFactory(final DelegateClientRequestCreator clientRequestCreator, final Map<String, Object> properties, final String delegatesSchema) {
+        this.clientRequestCreator = clientRequestCreator;
         this.properties = properties;
         this.delegatesSchema = delegatesSchema;
     }
@@ -119,7 +114,7 @@ public class DelegateFactory {
             requests.add(new DelegateRequest(requestJsonObject, joltSpec, propagateSourceHeadersPattern));
         }
 
-        return new Delegate(monitoringHandler, selfClient, delegateName, pattern, methods, requests);
+        return new Delegate(clientRequestCreator, delegateName, pattern, methods, requests);
     }
 
     private Pattern parsePropagateSourceHeadersPattern(JsonObject requestJsonObj, String delegateName) throws ValidationException {

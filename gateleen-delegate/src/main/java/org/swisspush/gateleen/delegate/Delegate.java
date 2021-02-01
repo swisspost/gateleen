@@ -36,8 +36,7 @@ public class Delegate {
     private static final int STATUS_CODE_2XX = 2;
 
     private final String name;
-    private final HttpClient selfClient;
-    private final MonitoringHandler monitoringHandler;
+    private final DelegateClientRequestCreator delegateClientRequestCreator;
     private final Pattern pattern;
     private final Set<HttpMethod> methods;
     private final List<DelegateRequest> requests;
@@ -46,16 +45,14 @@ public class Delegate {
     /**
      * Creates a new instance of a Delegate.
      *
-     * @param monitoringHandler monitoringHandler
-     * @param selfClient        selfClient
-     * @param name              name of delegate
-     * @param pattern           pattern for the delegate
-     * @param methods           methods of the delegate
-     * @param requests          requests of the delegate
+     * @param delegateClientRequestCreator  selfClient
+     * @param name                          name of delegate
+     * @param pattern                       pattern for the delegate
+     * @param methods                       methods of the delegate
+     * @param requests                      requests of the delegate
      */
-    public Delegate(final MonitoringHandler monitoringHandler, final HttpClient selfClient, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
-        this.monitoringHandler = monitoringHandler;
-        this.selfClient = selfClient;
+    public Delegate(final DelegateClientRequestCreator delegateClientRequestCreator, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
+        this.delegateClientRequestCreator = delegateClientRequestCreator;
         this.name = name;
         this.pattern = pattern;
         this.methods = methods;
@@ -158,10 +155,14 @@ public class Delegate {
                 });
             }
 
-            HttpClientRequest delegateRequest = selfClient.request(HttpMethod.valueOf(requestObject.getString(METHOD)), requestUri, doneHandler);
-            delegateRequest.headers().setAll(headers);
-            delegateRequest.exceptionHandler(exception -> LOG.warn("Delegate request {} failed: {}", requestUri, exception.getMessage()));
-            delegateRequest.setTimeout(120000); // avoids blocking other requests
+            HttpClientRequest delegateRequest = delegateClientRequestCreator.createClientRequest(
+                    HttpMethod.valueOf(requestObject.getString(METHOD)),
+                    requestUri,
+                    headers,
+                    120000,
+                    doneHandler,
+                    exception -> LOG.warn("Delegate request {} failed: {}", requestUri, exception.getMessage())
+            );
 
             Buffer buf = payloadBuffer.result();
             if (buf != null) {
