@@ -13,11 +13,13 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.util.Address;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -50,7 +52,7 @@ public class SchedulerFactoryTest {
         redisClient = Mockito.mock(RedisClient.class);
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
 
-        schedulerFactory = new SchedulerFactory(null, vertx, redisClient, monitoringHandler, schedulersSchema, Address.redisquesAddress());
+        schedulerFactory = new SchedulerFactory(null, Collections.emptyMap(), vertx, redisClient, monitoringHandler, schedulersSchema, Address.redisquesAddress());
     }
 
     @Test
@@ -64,7 +66,57 @@ public class SchedulerFactoryTest {
     public void testValidSchedulerConfig(TestContext context) throws ValidationException {
         List<Scheduler> schedulers = schedulerFactory.parseSchedulers(Buffer.buffer(VALID_SCHEDULER_RESOURCE));
         context.assertNotNull(schedulers);
-        context.assertEquals(2, schedulers.size());
+        context.assertEquals(3, schedulers.size());
+
+        // scheduler without payload and headers
+        List<HttpRequest> requestsScheduler1 = schedulers.get(0).requests();
+        context.assertEquals(1, requestsScheduler1.size());
+        context.assertEquals(0, requestsScheduler1.get(0).getHeaders().size());
+
+        // scheduler with payload and headers
+        List<HttpRequest> requestsScheduler2 = schedulers.get(1).requests();
+        context.assertEquals(1, requestsScheduler2.size());
+        context.assertEquals(2, requestsScheduler2.get(0).getHeaders().size());
+        context.assertEquals("bar", requestsScheduler2.get(0).getHeaders().get("x-foo"));
+        context.assertTrue(requestsScheduler2.get(0).getHeaders().contains("content-length"));
+
+        // scheduler with headers but no payload
+        List<HttpRequest> requestsScheduler3 = schedulers.get(2).requests();
+        context.assertEquals(1, requestsScheduler3.size());
+        context.assertEquals(1, requestsScheduler3.get(0).getHeaders().size());
+        context.assertEquals("bar", requestsScheduler3.get(0).getHeaders().get("x-foo"));
+    }
+
+    @Test
+    public void testValidSchedulerConfigWithDefaultHeaders(TestContext context) throws ValidationException {
+        schedulerFactory = new SchedulerFactory(null, Collections.singletonMap("x-foo", "zzz"), vertx, redisClient,
+                monitoringHandler, schedulersSchema, Address.redisquesAddress());
+        List<Scheduler> schedulers = schedulerFactory.parseSchedulers(Buffer.buffer(VALID_SCHEDULER_RESOURCE));
+        context.assertNotNull(schedulers);
+        context.assertEquals(3, schedulers.size());
+
+        // scheduler without payload and headers
+        List<HttpRequest> requestsScheduler1 = schedulers.get(0).requests();
+        context.assertEquals(1, requestsScheduler1.size());
+        context.assertEquals(1, requestsScheduler1.get(0).getHeaders().size());
+        context.assertEquals("zzz", requestsScheduler1.get(0).getHeaders().get("x-foo"));
+
+        // scheduler with payload and headers
+        List<HttpRequest> requestsScheduler2 = schedulers.get(1).requests();
+        context.assertEquals(1, requestsScheduler2.size());
+        context.assertEquals(2, requestsScheduler2.get(0).getHeaders().size());
+
+        // default header x-foo : zzz should be overridden by the scheduler config
+        context.assertEquals("bar", requestsScheduler2.get(0).getHeaders().get("x-foo"));
+        context.assertTrue(requestsScheduler2.get(0).getHeaders().contains("content-length"));
+
+        // scheduler with headers but no payload
+        List<HttpRequest> requestsScheduler3 = schedulers.get(2).requests();
+        context.assertEquals(1, requestsScheduler3.size());
+        context.assertEquals(1, requestsScheduler3.get(0).getHeaders().size());
+
+        // default header x-foo : zzz should be overridden by the scheduler config
+        context.assertEquals("bar", requestsScheduler3.get(0).getHeaders().get("x-foo"));
     }
 
     @Test

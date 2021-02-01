@@ -65,7 +65,7 @@ import org.swisspush.gateleen.validation.ValidationHandler;
 import org.swisspush.gateleen.validation.ValidationResourceManager;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -201,7 +201,10 @@ public class Server extends AbstractVerticle {
                 ContentTypeConstraintRepository repository = new ContentTypeConstraintRepository();
                 contentTypeConstraintHandler = new ContentTypeConstraintHandler(configurationResourceManager, repository,
                         SERVER_ROOT + "/admin/v1/contentTypeConstraints",
-                        Collections.singletonList(new PatternHolder("application/json")));
+                        Arrays.asList(
+                                new PatternHolder("application/json"),
+                                new PatternHolder("application/x-www-form-urlencoded")
+                        ));
                 contentTypeConstraintHandler.initialize();
 
                 userProfileHandler = new UserProfileHandler(vertx, storage, RunConfig.buildUserProfileConfiguration());
@@ -213,11 +216,13 @@ public class Server extends AbstractVerticle {
                 Lock lock = new RedisBasedLock(redisClient);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
-                reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient), queueClient, lock);
+                reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient),
+                        queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
 
                 hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
-                        SERVER_ROOT + "/users/v1/%s/profile", SERVER_ROOT + "/hooks/v1/", queueClient, false, reducedPropagationManager);
+                        SERVER_ROOT + "/users/v1/%s/profile", SERVER_ROOT + "/hooks/v1/", queueClient,
+                        false, reducedPropagationManager);
                 hookHandler.enableResourceLogging(true);
 
                 authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN, ROLE_PREFIX, props);
@@ -228,17 +233,20 @@ public class Server extends AbstractVerticle {
 
                 validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
 
-                schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
+                schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler,
+                        SERVER_ROOT + "/admin/v1/schedulers");
                 schedulerResourceManager.enableResourceLogging(true);
 
                 zipExtractHandler = new ZipExtractHandler(selfClient);
 
-                delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/delegates/", props, null);
+                delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler,
+                        SERVER_ROOT + "/admin/v1/delegates/", props, null);
                 delegateHandler.enableResourceLogging(true);
 
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
 
-                router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
+                router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT,
+                        SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
                         (Handler<Void>) aVoid -> {
                             hookHandler.init();
                             delegateHandler.init();
@@ -250,7 +258,8 @@ public class Server extends AbstractVerticle {
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
-                queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
+                queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx,
+                        storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
                 queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
                 QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
@@ -261,7 +270,8 @@ public class Server extends AbstractVerticle {
                         queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
-                final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
+                final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(),
+                        monitoringHandler);
 
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);

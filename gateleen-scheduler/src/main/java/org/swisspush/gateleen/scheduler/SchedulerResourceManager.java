@@ -20,6 +20,7 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.validation.ValidationException;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -39,22 +40,33 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
     private String schedulersSchema;
     private boolean logConfigurationResourceChanges = false;
 
-    public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, MonitoringHandler monitoringHandler, String schedulersUri) {
+    public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage,
+                                    MonitoringHandler monitoringHandler, String schedulersUri) {
         this(vertx, redisClient, storage, monitoringHandler, schedulersUri, null);
     }
 
-    public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props) {
+    public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage,
+                                    MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props) {
         this(vertx, redisClient, storage, monitoringHandler, schedulersUri, props, Address.redisquesAddress());
     }
 
-    public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage, MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props, String redisquesAddress) {
+    public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage,
+                                    MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props,
+                                    String redisquesAddress) {
+        this(vertx, redisClient, storage, monitoringHandler, schedulersUri, props, redisquesAddress, Collections.emptyMap());
+    }
+
+    public SchedulerResourceManager(Vertx vertx, RedisClient redisClient, final ResourceStorage storage,
+                                    MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props,
+                                    String redisquesAddress, Map<String, String> defaultRequestHeaders) {
         this.vertx = vertx;
         this.storage = storage;
         this.schedulersUri = schedulersUri;
         this.properties = props;
 
         this.schedulersSchema = ResourcesUtils.loadResource("gateleen_scheduler_schema_schedulers", true);
-        this.schedulerFactory = new SchedulerFactory(properties, vertx, redisClient, monitoringHandler, schedulersSchema, redisquesAddress);
+        this.schedulerFactory = new SchedulerFactory(properties, defaultRequestHeaders, vertx, redisClient,
+                monitoringHandler, schedulersSchema, redisquesAddress);
 
         updateSchedulers();
 

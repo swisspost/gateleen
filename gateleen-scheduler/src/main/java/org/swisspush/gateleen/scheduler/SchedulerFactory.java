@@ -37,6 +37,7 @@ public class SchedulerFactory {
     private static final String EXECUTE_ON_RELOAD = "executeOnReload";
 
     private final Map<String, Object> properties;
+    private final JsonArray defaultRequestHeaders;
     private Vertx vertx;
     private RedisClient redisClient;
     private MonitoringHandler monitoringHandler;
@@ -45,13 +46,26 @@ public class SchedulerFactory {
 
     private Logger log = LoggerFactory.getLogger(SchedulerFactory.class);
 
-    public SchedulerFactory(Map<String, Object> properties, Vertx vertx, RedisClient redisClient, MonitoringHandler monitoringHandler, String schedulersSchema, String redisquesAddress) {
+    public SchedulerFactory(Map<String, Object> properties, Map<String, String> defaultRequestHeaders, Vertx vertx, RedisClient redisClient,
+                            MonitoringHandler monitoringHandler, String schedulersSchema, String redisquesAddress) {
         this.properties = properties;
+        this.defaultRequestHeaders = defaultRequestHeadersAsJsonArray(defaultRequestHeaders);
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.monitoringHandler = monitoringHandler;
         this.schedulersSchema = schedulersSchema;
         this.redisquesAddress = redisquesAddress;
+    }
+
+    private JsonArray defaultRequestHeadersAsJsonArray(Map<String, String> defaultRequestHeaders) {
+        JsonArray headers = new JsonArray();
+        if(defaultRequestHeaders == null){
+            return headers;
+        }
+        for (Map.Entry<String, String> entry : defaultRequestHeaders.entrySet()) {
+            headers.add(new JsonArray().add(entry.getKey()).add(entry.getValue()));
+        }
+        return headers;
     }
 
     public List<Scheduler> parseSchedulers(Buffer buffer) throws ValidationException {
@@ -121,12 +135,17 @@ public class SchedulerFactory {
         } catch(ClassCastException e) {
             payloadStr = httpRequestJsonObject.getJsonObject(PAYLOAD).encode();
         }
+
+        JsonArray headers = httpRequestJsonObject.getJsonArray(HEADERS);
+        if(headers != null) {
+            httpRequestJsonObject.put(HEADERS, headers.addAll(defaultRequestHeaders.copy()));
+        } else {
+            httpRequestJsonObject.put(HEADERS, defaultRequestHeaders.copy());
+        }
+
+
         if(payloadStr != null){
             byte[] payload = payloadStr.getBytes(Charset.forName("UTF-8"));
-            JsonArray headers = httpRequestJsonObject.getJsonArray(HEADERS);
-            if(headers == null) {
-                httpRequestJsonObject.put(HEADERS, new JsonArray());
-            }
             httpRequestJsonObject.getJsonArray(HEADERS).add(new JsonArray(Arrays.asList(new Object[]{ "content-length", ""+payload.length})));
             httpRequestJsonObject.put(PAYLOAD, payload);
         }
