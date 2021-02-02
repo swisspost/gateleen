@@ -166,7 +166,7 @@ public class Delegate {
 
         JsonArray headersArray = requestContainer.getRequest().getJsonArray(HEADERS);
 
-        // legacy headers definition?
+        // headers definition?
         if(headersArray != null){
             if (LOG.isTraceEnabled()) {
                 LOG.trace("Request headers:");
