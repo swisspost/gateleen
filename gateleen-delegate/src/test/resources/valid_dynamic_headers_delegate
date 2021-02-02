@@ -9,7 +9,16 @@
                 "source": "/gateleen/$1?expand=100&zip=true",
                 "destination": "/gateleen/zips/users/$1.zip"
             },
-            "propagateSourceHeaders": ".*/([^/]+.*"
+            "dynamicHeaders": [
+                {
+                    "header": "x-foo",
+                    "value": "{x-bar}"
+                },
+                {
+                    "header": "x-remove_me",
+                    "value": null
+                }
+            ]
         }
     ]
 }

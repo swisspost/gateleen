@@ -4,6 +4,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -13,11 +14,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import static org.swisspush.gateleen.core.util.ResourcesUtils.loadResource;
 
@@ -43,9 +44,9 @@ public class DelegateFactoryTest {
 
     private final String INVALID_JSON = loadResource("invalid_json", true);
     private final String VALID_DELEGATE = loadResource("valid_delegate", true);
-    private final String INVALID_PROP_SOURCE_HEADERS_PATTERN_DELEGATE = loadResource("invalid_propagate_source_headers_pattern_delegate", true);
-    private final String VALID_PROP_SOURCE_HEADERS_PATTERN_DELEGATE = loadResource("valid_propagate_source_headers_pattern_delegate", true);
+    private final String VALID_DYNAMIC_HEADERS_DELEGATE = loadResource("valid_dynamic_headers_delegate", true);
     private final String INVALID_PATTERN_DELEGATE = loadResource("invalid_pattern_delegate", true);
+    private final String INVALID_HEADERS_DYNAMICHEADERS_MIXED_DELEGATE = loadResource("invalid_headers_dynamicHeaders_mixed_delegate", true);
     private final String MISSING_PROPERTY_DELEGATE = loadResource("missing_property_delegate", true);
     private final String UNWANTED_PROPERTY_DELEGATE = loadResource("unwanted_property_delegate", true);
     private final String PAYLOAD_TRANSFORM_PROPERTY_DELEGATE = loadResource("payload_and_transform_property_delegate", true);
@@ -81,32 +82,47 @@ public class DelegateFactoryTest {
     }
 
     @Test
+    public void testInvalidWithHeadersAndDynamicHeaders(TestContext context) {
+        try {
+            delegateFactory.parseDelegate("someDelegate", Buffer.buffer(INVALID_HEADERS_DYNAMICHEADERS_MIXED_DELEGATE));
+            context.fail("Should have thrown a ValidationException since 'headers' and 'dynamicHeaders' properties are " +
+                    "not allowed concurrently");
+        } catch (ValidationException ex) {
+            context.assertNotNull(ex.getValidationDetails());
+            context.assertEquals(2, ex.getValidationDetails().size());
+            context.assertEquals("oneOf", ex.getValidationDetails().getJsonObject(0).getString(TYPE));
+            context.assertEquals("not", ex.getValidationDetails().getJsonObject(1).getString(TYPE));
+        }
+    }
+
+    @Test
     public void testValidDelegateConfig(TestContext context) throws ValidationException {
         Delegate delegate = delegateFactory.parseDelegate("someDelegate", Buffer.buffer(VALID_DELEGATE));
         context.assertNotNull(delegate);
         context.assertEquals("someDelegate", delegate.getName());
-        context.assertFalse(delegate.getDelegateRequests().get(0).getPropagateSourceHeadersPattern().isPresent());
+        context.assertEquals(HeaderFunctions.DO_NOTHING, delegate.getDelegateRequests().get(0).getHeaderFunction());
     }
 
     @Test
-    public void testInvalidPropagateSourceHeadersPatternJson() throws ValidationException {
-        thrown.expect(ValidationException.class);
-        thrown.expectMessage("Could not parse propagateSourceHeaders pattern [.*/([^/]+.*]");
-        delegateFactory.parseDelegate("someDelegate", Buffer.buffer(INVALID_PROP_SOURCE_HEADERS_PATTERN_DELEGATE));
-    }
-
-    @Test
-    public void testValidPropagateSourceHeadersDelegateConfig(TestContext context) throws ValidationException {
+    public void testValidDynamicHeadersDelegateConfig(TestContext context) throws ValidationException {
         Delegate delegate = delegateFactory.parseDelegate("someDelegate",
-                Buffer.buffer(VALID_PROP_SOURCE_HEADERS_PATTERN_DELEGATE));
+                Buffer.buffer(VALID_DYNAMIC_HEADERS_DELEGATE));
         context.assertNotNull(delegate);
         context.assertEquals("someDelegate", delegate.getName());
         context.assertEquals(1, delegate.getDelegateRequests().size());
-        context.assertTrue(delegate.getDelegateRequests().get(0).getPropagateSourceHeadersPattern().isPresent());
+        context.assertNotEquals(HeaderFunctions.DO_NOTHING, delegate.getDelegateRequests().get(0).getHeaderFunction());
 
-        delegate.getDelegateRequests().get(0).getPropagateSourceHeadersPattern().ifPresent(pattern -> {
-            context.assertEquals(Pattern.compile("(header_1|header_2|header_3)").pattern(), pattern.pattern());
-        });
+        VertxHttpHeaders inputHeaders = new VertxHttpHeaders();
+        inputHeaders.add("x-bar", "hello");
+        inputHeaders.add("x-dummy", "world");
+        inputHeaders.add("x-remove_me", "remove_me");
+
+        delegate.getDelegateRequests().get(0).getHeaderFunction().apply(inputHeaders);
+
+        context.assertEquals("hello", inputHeaders.get("x-foo")); // added by the header function using the value from x-bar
+        context.assertEquals("hello", inputHeaders.get("x-bar"));
+        context.assertEquals("world", inputHeaders.get("x-dummy"));
+        context.assertFalse(inputHeaders.contains("x-remove_me"));
     }
 
     @Test

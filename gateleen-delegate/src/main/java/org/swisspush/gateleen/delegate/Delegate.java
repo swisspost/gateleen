@@ -10,10 +10,10 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.json.transform.JoltTransformer;
 import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.List;
 import java.util.Set;
@@ -140,20 +140,7 @@ public class Delegate {
             final String requestUri = matcher.replaceAll(requestObject.getString(URI));
 
             // headers of the delegate
-            VertxHttpHeaders headers = new VertxHttpHeaders();
-            JsonArray headersArray = requestObject.getJsonArray(HEADERS);
-            if (headersArray != null) {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("Request headers:");
-                }
-
-                headersArray.forEach(header -> {
-                    if (LOG.isTraceEnabled()) {
-                        LOG.trace(" > Key [{}], Value [{}]", ((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
-                    }
-                    headers.add(((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
-                });
-            }
+            VertxHttpHeaders headers = createRequestHeaders(requestContainer, originalRequest.headers());
 
             HttpClientRequest delegateRequest = delegateClientRequestCreator.createClientRequest(
                     HttpMethod.valueOf(requestObject.getString(METHOD)),
@@ -172,6 +159,38 @@ public class Delegate {
                 delegateRequest.end();
             }
         });
+    }
+
+    private VertxHttpHeaders createRequestHeaders(DelegateRequest requestContainer, MultiMap originalRequestHeaders){
+        VertxHttpHeaders headers = new VertxHttpHeaders();
+
+        JsonArray headersArray = requestContainer.getRequest().getJsonArray(HEADERS);
+
+        // legacy headers definition?
+        if(headersArray != null){
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Request headers:");
+            }
+
+            headersArray.forEach(header -> {
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace(" > Key [{}], Value [{}]", ((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
+                }
+                headers.add(((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
+            });
+            return headers;
+        }
+
+        // evaluate dynamicHeaders
+        if(requestContainer.getHeaderFunction() != HeaderFunctions.DO_NOTHING){
+            headers.addAll(originalRequestHeaders);
+            final HeaderFunctions.EvalScope evalScope = requestContainer.getHeaderFunction().apply(headers);
+            if (evalScope.getErrorMessage() != null) {
+                LOG.warn("problem applying header manipulator chain {} in delegate {}", evalScope.getErrorMessage(), getName());
+            }
+        }
+
+        return headers;
     }
 
     /**

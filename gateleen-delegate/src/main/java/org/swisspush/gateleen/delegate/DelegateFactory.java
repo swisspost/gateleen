@@ -6,6 +6,8 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunction;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.json.transform.JoltSpec;
 import org.swisspush.gateleen.core.json.transform.JoltSpecBuilder;
 import org.swisspush.gateleen.core.json.transform.JoltSpecException;
@@ -28,7 +30,7 @@ public class DelegateFactory {
     private static final String REQUESTS = "requests";
     private static final String METHODS = "methods";
     private static final String PATTERN = "pattern";
-    private static final String PROPAGATE_SOURCE_HEADERS = "propagateSourceHeaders";
+    private static final String DYNAMIC_HEADERS = "dynamicHeaders";
     private static final String TRANSFORM = "transform";
     private static final String TRANSFORM_WITH_METADATA = "transformWithMetadata";
 
@@ -109,25 +111,20 @@ public class DelegateFactory {
                 LOG.trace("request of [{}] #: {}", delegateName, i);
             }
             JsonObject requestJsonObject = (JsonObject) delegateObject.getJsonArray(REQUESTS).getValue(i);
-            Pattern propagateSourceHeadersPattern = parsePropagateSourceHeadersPattern(requestJsonObject, delegateName);
             JoltSpec joltSpec = parsePayloadTransformSpec(requestJsonObject, delegateName);
-            requests.add(new DelegateRequest(requestJsonObject, joltSpec, propagateSourceHeadersPattern));
+
+            HeaderFunction headerFunction;
+            final JsonArray headerFunctionsArray = requestJsonObject.getJsonArray(DYNAMIC_HEADERS);
+            if (headerFunctionsArray != null) {
+                headerFunction = HeaderFunctions.parseFromJson(headerFunctionsArray);
+            } else {
+                headerFunction = HeaderFunctions.DO_NOTHING;
+            }
+
+            requests.add(new DelegateRequest(requestJsonObject, joltSpec, headerFunction));
         }
 
         return new Delegate(clientRequestCreator, delegateName, pattern, methods, requests);
-    }
-
-    private Pattern parsePropagateSourceHeadersPattern(JsonObject requestJsonObj, String delegateName) throws ValidationException {
-        String propagateHeadersPatternStr = requestJsonObj.getString(PROPAGATE_SOURCE_HEADERS);
-        if(StringUtils.isNotEmptyTrimmed(propagateHeadersPatternStr)) {
-            try {
-                return Pattern.compile(StringUtils.trim(propagateHeadersPatternStr));
-            } catch (Exception e) {
-                throw new ValidationException("Could not parse propagateSourceHeaders pattern ["
-                        + requestJsonObj.getString(PROPAGATE_SOURCE_HEADERS) + "] of delegate " + delegateName, e);
-            }
-        }
-        return null;
     }
 
     private JoltSpec parsePayloadTransformSpec(JsonObject requestJsonObject, String delegateName) throws ValidationException {

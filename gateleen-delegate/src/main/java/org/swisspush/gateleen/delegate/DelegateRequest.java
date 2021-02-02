@@ -1,10 +1,8 @@
 package org.swisspush.gateleen.delegate;
 
 import io.vertx.core.json.JsonObject;
+import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.json.transform.JoltSpec;
-
-import java.util.Optional;
-import java.util.regex.Pattern;
 
 /**
  * Container class holding a request as {@link io.vertx.core.json.JsonObject} and an
@@ -15,12 +13,12 @@ import java.util.regex.Pattern;
 public class DelegateRequest {
     private final JsonObject request;
     private final JoltSpec joltSpec;
-    private final Pattern propagateSourceHeadersPattern;
+    private final HeaderFunction headerFunction;
 
-    public DelegateRequest(JsonObject request, JoltSpec joltSpec, Pattern propagateSourceHeadersPattern) {
+    public DelegateRequest(JsonObject request, JoltSpec joltSpec, HeaderFunction headerFunction) {
         this.request = request;
         this.joltSpec = joltSpec;
-        this.propagateSourceHeadersPattern = propagateSourceHeadersPattern;
+        this.headerFunction = headerFunction;
     }
 
     public JsonObject getRequest() {
@@ -31,7 +29,7 @@ public class DelegateRequest {
         return joltSpec;
     }
 
-    public Optional<Pattern> getPropagateSourceHeadersPattern() {
-        return Optional.ofNullable(propagateSourceHeadersPattern);
+    public HeaderFunction getHeaderFunction() {
+        return headerFunction;
     }
 }

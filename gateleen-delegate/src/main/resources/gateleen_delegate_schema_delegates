@@ -13,11 +13,11 @@
     "description": {
       "description": "Documents this delegate",
       "type": "string"
-    },    
+    },
     "doc": {
       "description": "Link or reference to feature/specification documentation",
       "type": "string"
-    },	
+    },
     "pattern": {
       "description": "Pattern for grouping the incoming uri",
       "type": "string"
@@ -29,11 +29,52 @@
   },
   "additionalProperties": false,
   "definitions": {
+    "HeaderFunction": {
+        "properties": {
+            "header": {
+                "description": "the request-header name to manipulate (set, remove or conditional set)",
+                "type": "string",
+                "minLength": 1
+            },
+            "value": {
+                "description": "the value to be set. null and empty string means 'remove the header'. value can contain other header names between single angular brackets which resolves to their values accordingly",
+                "type": [
+                    "null",
+                    "string"
+                ]
+            },
+            "mode": {
+                "description": "define a condition-mode. 'complete' sets the header value only if this header is not yet present. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
+                "type": "string",
+                "enum": [
+                    "complete",
+                    "override"
+                ]
+            }
+        },
+        "required": [
+            "header",
+            "value"
+        ]
+    },
     "Request": {
       "oneOf": [
         { "required": ["payload"] },
         { "required": ["transform"] },
         { "required": ["transformWithMetadata"] }
+      ],
+      "anyOf": [
+        {
+          "oneOf": [
+            {"required": ["dynamicHeaders"]},
+            {"required": ["headers"]}
+          ]
+        },
+        {
+          "not": {
+            "required": ["dynamicHeaders", "headers"]
+          }
+        }
       ],
       "properties": {
         "uri": {
@@ -61,10 +102,13 @@
           "description": "The jolt spec definition to transform the payload and additional metadata",
           "type": "array"
         },
-        "propagateSourceHeaders": {
-          "description": "Pattern for original request headers to send with the request",
-          "type": "string"
-        },
+		"dynamicHeaders": {
+			"description": "Manipulate (set / remove / replace) request headers using HeaderFunctions - option to reference other header vales",
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/HeaderFunction"
+			}
+		},
         "headers": {
           "description": "Headers to send with the request",
           "type": "array",

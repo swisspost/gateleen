@@ -34,13 +34,15 @@ Putting or updating an delegate definition requires a validation against the del
 | methods  |  x  | An array of HTTP methods on witch a delegate execution will be performed. If an incoming request does not match the defined methods, nothing will be executed. |
 | pattern  |  x  | A regular expression which allows to match and group the request URI. This way a replacement can be performed for the payload and the uri of each specified delegate request. |
 | requests |  x  | An array of delegate requests. |
-| headers  |     | Allows to specify extra headers for one specific delegate request. |
+| headers  |  **   | Allows to specify extra headers for one specific delegate request. Deprecated, use _dynamicHeaders_ instead |
+| dynamicHeaders  |  **   | Allows to specify headers for one specific delegate request using header manipulations: set, remove, complete (set-if-absent) and override (set-if-present) |
 | uri      |  x  | The URI against which one the delegate request will be performed. |
 | method   |  x  | The HTTP method used to perform the given delegate request. |
 | payload  |  (x)*  | The json content of the payload required for processing the delegate request. The payload is dependent on the wished request and can differ from request to request. |
 | transform  |  (x)*  | The json-to-json transformation spec defining how to transform the payload of the delegate execution request to the output. See [Jolt library](https://github.com/bazaarvoice/jolt) for more information. |
 
 \* Exactly one of _payload_ or _transform_ is required
+\** At most one of _headers_ or _dynamicHeaders_ is allowed
 
 ##### Concrete Example
 > ```PUT /gateleen/server/admin/v1/delegates/resource-zip-copy/definition```
