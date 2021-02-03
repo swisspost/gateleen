@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.delegate;
 
 import io.vertx.core.json.JsonObject;
+import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.json.transform.JoltSpec;
 
 /**
@@ -12,10 +13,12 @@ import org.swisspush.gateleen.core.json.transform.JoltSpec;
 public class DelegateRequest {
     private final JsonObject request;
     private final JoltSpec joltSpec;
+    private final HeaderFunction headerFunction;
 
-    public DelegateRequest(JsonObject request, JoltSpec joltSpec) {
+    public DelegateRequest(JsonObject request, JoltSpec joltSpec, HeaderFunction headerFunction) {
         this.request = request;
         this.joltSpec = joltSpec;
+        this.headerFunction = headerFunction;
     }
 
     public JsonObject getRequest() {
@@ -24,5 +27,9 @@ public class DelegateRequest {
 
     public JoltSpec getJoltSpec() {
         return joltSpec;
+    }
+
+    public HeaderFunction getHeaderFunction() {
+        return headerFunction;
     }
 }

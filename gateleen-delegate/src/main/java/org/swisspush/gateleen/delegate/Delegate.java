@@ -10,10 +10,10 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.json.transform.JoltTransformer;
 import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.List;
 import java.util.Set;
@@ -36,8 +36,7 @@ public class Delegate {
     private static final int STATUS_CODE_2XX = 2;
 
     private final String name;
-    private final HttpClient selfClient;
-    private final MonitoringHandler monitoringHandler;
+    private final DelegateClientRequestCreator delegateClientRequestCreator;
     private final Pattern pattern;
     private final Set<HttpMethod> methods;
     private final List<DelegateRequest> requests;
@@ -46,16 +45,14 @@ public class Delegate {
     /**
      * Creates a new instance of a Delegate.
      *
-     * @param monitoringHandler monitoringHandler
-     * @param selfClient        selfClient
-     * @param name              name of delegate
-     * @param pattern           pattern for the delegate
-     * @param methods           methods of the delegate
-     * @param requests          requests of the delegate
+     * @param delegateClientRequestCreator  selfClient
+     * @param name                          name of delegate
+     * @param pattern                       pattern for the delegate
+     * @param methods                       methods of the delegate
+     * @param requests                      requests of the delegate
      */
-    public Delegate(final MonitoringHandler monitoringHandler, final HttpClient selfClient, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
-        this.monitoringHandler = monitoringHandler;
-        this.selfClient = selfClient;
+    public Delegate(final DelegateClientRequestCreator delegateClientRequestCreator, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
+        this.delegateClientRequestCreator = delegateClientRequestCreator;
         this.name = name;
         this.pattern = pattern;
         this.methods = methods;
@@ -71,6 +68,10 @@ public class Delegate {
      */
     public String getName() {
         return name;
+    }
+
+    List<DelegateRequest> getDelegateRequests() {
+        return requests;
     }
 
     /**
@@ -139,25 +140,16 @@ public class Delegate {
             final String requestUri = matcher.replaceAll(requestObject.getString(URI));
 
             // headers of the delegate
-            VertxHttpHeaders headers = new VertxHttpHeaders();
-            JsonArray headersArray = requestObject.getJsonArray(HEADERS);
-            if (headersArray != null) {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("Request headers:");
-                }
+            VertxHttpHeaders headers = createRequestHeaders(requestContainer, originalRequest.headers());
 
-                headersArray.forEach(header -> {
-                    if (LOG.isTraceEnabled()) {
-                        LOG.trace(" > Key [{}], Value [{}]", ((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
-                    }
-                    headers.add(((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
-                });
-            }
-
-            HttpClientRequest delegateRequest = selfClient.request(HttpMethod.valueOf(requestObject.getString(METHOD)), requestUri, doneHandler);
-            delegateRequest.headers().setAll(headers);
-            delegateRequest.exceptionHandler(exception -> LOG.warn("Delegate request {} failed: {}", requestUri, exception.getMessage()));
-            delegateRequest.setTimeout(120000); // avoids blocking other requests
+            HttpClientRequest delegateRequest = delegateClientRequestCreator.createClientRequest(
+                    HttpMethod.valueOf(requestObject.getString(METHOD)),
+                    requestUri,
+                    headers,
+                    120000,
+                    doneHandler,
+                    exception -> LOG.warn("Delegate request {} failed: {}", requestUri, exception.getMessage())
+            );
 
             Buffer buf = payloadBuffer.result();
             if (buf != null) {
@@ -167,6 +159,38 @@ public class Delegate {
                 delegateRequest.end();
             }
         });
+    }
+
+    private VertxHttpHeaders createRequestHeaders(DelegateRequest requestContainer, MultiMap originalRequestHeaders){
+        VertxHttpHeaders headers = new VertxHttpHeaders();
+
+        JsonArray headersArray = requestContainer.getRequest().getJsonArray(HEADERS);
+
+        // headers definition?
+        if(headersArray != null){
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Request headers:");
+            }
+
+            headersArray.forEach(header -> {
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace(" > Key [{}], Value [{}]", ((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
+                }
+                headers.add(((JsonArray) header).getString(0), ((JsonArray) header).getString(1));
+            });
+            return headers;
+        }
+
+        // evaluate dynamicHeaders
+        if(requestContainer.getHeaderFunction() != HeaderFunctions.DO_NOTHING){
+            headers.addAll(originalRequestHeaders);
+            final HeaderFunctions.EvalScope evalScope = requestContainer.getHeaderFunction().apply(headers);
+            if (evalScope.getErrorMessage() != null) {
+                LOG.warn("problem applying header manipulator chain {} in delegate {}", evalScope.getErrorMessage(), getName());
+            }
+        }
+
+        return headers;
     }
 
     /**
