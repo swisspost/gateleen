@@ -97,7 +97,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
         this.doneHandler = doneHandler;
 
         String delegatesSchema = ResourcesUtils.loadResource("gateleen_delegate_schema_delegates", true);
-        this.delegateFactory = new DelegateFactory(monitoringHandler,selfClient,properties,delegatesSchema);
+        this.delegateFactory = new DelegateFactory(new DelegateClientRequestCreator(selfClient), properties, delegatesSchema);
 
         delegateNamePattern = Pattern.compile(delegatesUri + "([^/]+)(/" + DEFINITION_RESOURCE + "|/"+ EXECUTION_RESOURCE + ".*" + "|/?)");
 

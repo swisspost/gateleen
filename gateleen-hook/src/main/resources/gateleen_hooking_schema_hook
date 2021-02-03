@@ -130,7 +130,7 @@
 					]
 				},
 				"mode": {
-					"description": "define a condition-mode. 'conplete' sets the header value only if this header is not yet presen. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
+					"description": "define a condition-mode. 'complete' sets the header value only if this header is not yet present. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
 					"type": "string",
 					"enum": [
 						"complete",
