@@ -115,6 +115,7 @@ public class PropertyHandler {
     public boolean handle(final HttpServerRequest request) {
         // Only process PUT requests and request, which URL can be found
         if (request.method().equals(HttpMethod.PUT) && propertyUrls.containsKey(request.uri())) {
+            log.info("Got a request to update propertyUrl=[{}]", request.uri());
             // process body
             request.bodyHandler(buffer -> {
                 Map<String, String> idProperties = propertyUrls.get(request.uri());
@@ -130,6 +131,8 @@ public class PropertyHandler {
 
                         // refresh all refreshables
                         refresh();
+
+                        log.info("Updated property=[{}] with value=[{}] triggered by propertyUrl=[{}]", keyId, body.getValue(keyId), request.uri());
 
                         // break the process
                         found = true;

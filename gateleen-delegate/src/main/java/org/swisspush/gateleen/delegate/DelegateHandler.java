@@ -354,7 +354,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
 
             // Registration
             if(request.method() == HttpMethod.PUT && request.uri().endsWith(DEFINITION_RESOURCE)) {
-                LOG.debug("registering delegate");
+                LOG.debug("registering delegate={}", delegateName);
                 handleDelegateRegistration(request);
                 return true;
             }
@@ -364,14 +364,14 @@ public class DelegateHandler implements Refreshable, LoggableResource {
 
                 // Execution
                 if (request.uri().contains(EXECUTION_RESOURCE)) {
-                    LOG.debug("executing delegate");
+                    LOG.debug("executing delegate={}", delegateName);
                     handleDelegateExecution(request);
                     return true;
                 }
 
                 // Unregistration?
                 if (request.method() == HttpMethod.DELETE) {
-                    LOG.debug("unregister delegate");
+                    LOG.debug("unregister delegate={}", delegateName);
                     handleDelegateUnregistration(request);
                     return true;
                 }
