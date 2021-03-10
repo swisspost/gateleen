@@ -2,8 +2,6 @@ package org.swisspush.gateleen.security;
 
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.CaseInsensitiveHeaders;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +19,6 @@ public class PatternHolder {
     private String patternStr;
 
     private static final Pattern WILDCARD_PATTERN = Pattern.compile("[<](.+?)[>]");
-    public static final Logger log = LoggerFactory.getLogger(PatternHolder.class);
     private static final MultiMap EMPTY_HEADERS = new CaseInsensitiveHeaders();
 
     public PatternHolder(String patternStr) {
@@ -98,8 +95,6 @@ public class PatternHolder {
         for (String wildcard : wildcards) {
             if(headers.get(wildcard) != null){
                 replacePattern = replacePattern.replaceAll(Pattern.quote("<" + wildcard + ">"), headers.get(wildcard));
-            } else {
-                log.warn("No value for request header {} found. Not going to replace wildcard", wildcard);
             }
         }
         return replacePattern;
