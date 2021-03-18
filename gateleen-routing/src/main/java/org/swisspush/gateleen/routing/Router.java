@@ -41,24 +41,23 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     public static final String ROUTER_STATE_MAP = "router_state_map";
     public static final String ROUTER_BROKEN_KEY = "router_broken";
     public static final String REQUEST_HOPS_LIMIT_PROPERTY = "request.hops.limit";
-    private String rulesUri;
-    private String userProfileUri;
-    private String serverUri;
+    private final String rulesUri;
+    private final String userProfileUri;
+    private final String serverUri;
     private io.vertx.ext.web.Router router;
-    private LoggingResourceManager loggingResourceManager;
-    private MonitoringHandler monitoringHandler;
-    private Logger log = LoggerFactory.getLogger(Router.class);
-    private Vertx vertx;
-    private Set<HttpClient> httpClients = new HashSet<>();
-    private HttpClient selfClient;
-    private ResourceStorage storage;
-    private JsonObject info;
+    private final LoggingResourceManager loggingResourceManager;
+    private final MonitoringHandler monitoringHandler;
+    private final Logger log = LoggerFactory.getLogger(Router.class);
+    private final Vertx vertx;
+    private final Set<HttpClient> httpClients = new HashSet<>();
+    private final HttpClient selfClient;
+    private final ResourceStorage storage;
+    private final JsonObject info;
     private final Map<String, Object> properties;
-    private Handler<Void> doneHandlers[];
-    private LocalMap<String, Object> sharedData;
-    private int storagePort;
+    private final Handler<Void>[] doneHandlers;
+    private final LocalMap<String, Object> sharedData;
     private boolean initialized = false;
-    private String routingRulesSchema;
+    private final String routingRulesSchema;
 
     private boolean logRoutingRuleChanges = false;
 
@@ -67,87 +66,6 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private Integer requestHopsLimit = null;
 
     public Router(Vertx vertx,
-                  LocalMap<String, Object> sharedData,
-                  final ResourceStorage storage,
-                  final Map<String, Object> properties,
-                  LoggingResourceManager loggingResourceManager,
-                  MonitoringHandler monitoringHandler,
-                  HttpClient selfClient,
-                  String serverPath,
-                  String rulesPath,
-                  String userProfilePath,
-                  JsonObject info,
-                  Handler<Void>... doneHandlers) {
-        this(vertx,
-                sharedData,
-                storage,
-                properties,
-                loggingResourceManager,
-                monitoringHandler,
-                selfClient,
-                serverPath,
-                rulesPath,
-                userProfilePath,
-                info,
-                8989,
-                doneHandlers);
-    }
-
-    public Router(Vertx vertx,
-                  final ResourceStorage storage,
-                  final Map<String, Object> properties,
-                  LoggingResourceManager loggingResourceManager,
-                  MonitoringHandler monitoringHandler,
-                  HttpClient selfClient,
-                  String serverPath,
-                  String rulesPath,
-                  String userProfilePath,
-                  JsonObject info,
-                  Handler<Void>... doneHandlers) {
-        this(vertx,
-                vertx.sharedData().<String, Object>getLocalMap(ROUTER_STATE_MAP),
-                storage,
-                properties,
-                loggingResourceManager,
-                monitoringHandler,
-                selfClient,
-                serverPath,
-                rulesPath,
-                userProfilePath,
-                info,
-                8989,
-                doneHandlers);
-    }
-
-    public Router(Vertx vertx,
-                  final ResourceStorage storage,
-                  final Map<String, Object> properties,
-                  LoggingResourceManager loggingResourceManager,
-                  MonitoringHandler monitoringHandler,
-                  HttpClient selfClient,
-                  String serverPath,
-                  String rulesPath,
-                  String userProfilePath,
-                  JsonObject info,
-                  int storagePort,
-                  Handler<Void>... doneHandlers) {
-        this(vertx,
-                vertx.sharedData().<String, Object>getLocalMap(ROUTER_STATE_MAP),
-                storage,
-                properties,
-                loggingResourceManager,
-                monitoringHandler,
-                selfClient,
-                serverPath,
-                rulesPath,
-                userProfilePath,
-                info,
-                storagePort,
-                doneHandlers);
-    }
-
-    public Router(Vertx vertx,
-                  LocalMap<String, Object> sharedData,
                   final ResourceStorage storage,
                   final Map<String, Object> properties,
                   LoggingResourceManager loggingResourceManager,
@@ -165,12 +83,11 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.monitoringHandler = monitoringHandler;
         this.selfClient = selfClient;
         this.vertx = vertx;
-        this.sharedData = sharedData;
+        this.sharedData = vertx.sharedData().getLocalMap(ROUTER_STATE_MAP);
         this.rulesUri = rulesPath;
         this.userProfileUri = userProfilePath;
         this.serverUri = serverPath;
         this.info = info;
-        this.storagePort = storagePort;
         this.doneHandlers = doneHandlers;
 
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
@@ -178,7 +95,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         final JsonObject initialRules = new JsonObject()
                 .put("/(.*)", new JsonObject()
                         .put("name", "resource_storage")
-                        .put("url", "http://localhost:" + String.valueOf(storagePort) + "/$1"));
+                        .put("url", "http://localhost:" + storagePort + "/$1"));
 
         storage.get(rulesPath, buffer -> {
             try {
@@ -275,12 +192,12 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                     return;
                 }
                 if (requestHopsLimit == null) {
-                    router.accept(request);
+                    router.handle(request);
                     return;
                 }
                 increaseRequestHops(request);
                 if (!isRequestHopsLimitExceeded(request, requestHopsLimit)) {
-                    router.accept(request);
+                    router.handle(request);
                 } else {
                     String errorMessage = "Request hops limit of '" + requestHopsLimit + "' has been exceeded. Check the routing rules for looping configurations";
                     RequestLoggerFactory.getLogger(Router.class, request).error(errorMessage);
@@ -317,7 +234,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     }
 
     private void resetRouterBrokenState() {
-        if (getRouterStateMap().keySet().contains(ROUTER_BROKEN_KEY)) {
+        if (getRouterStateMap().containsKey(ROUTER_BROKEN_KEY)) {
             log.info("reset router broken state. Routing is not broken anymore");
         }
         getRouterStateMap().remove(ROUTER_BROKEN_KEY);
