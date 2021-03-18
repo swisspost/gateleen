@@ -8,7 +8,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -25,13 +24,10 @@ import org.swisspush.gateleen.logging.LoggingResource;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
 /**
  * Tests for the Router class
@@ -112,7 +108,7 @@ public class RouterTest {
             + "}";
 
     @Before
-    public void setUp(){
+    public void setUp() {
         // setup
         vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
@@ -136,7 +132,7 @@ public class RouterTest {
     }
 
     @Test
-    public void testRequestHopValidationLimitNotYetReached(TestContext context){
+    public void testRequestHopValidationLimitNotYetReached(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
                 serverUrl, rulesPath, userProfilePath, info, storagePort);
@@ -153,15 +149,17 @@ public class RouterTest {
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
-        class GETRandomResourceRequest extends DummyHttpServerRequest{
+        class GETRandomResourceRequest extends DummyHttpServerRequest {
 
             MultiMap headers = new CaseInsensitiveHeaders();
 
-            @Override public HttpMethod method() {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.GET;
             }
 
-            @Override public String uri() {
+            @Override
+            public String uri() {
                 return "/gateleen/server/loop/4/resource";
             }
 
@@ -203,7 +201,7 @@ public class RouterTest {
     }
 
     @Test
-    public void testRequestHopValidationWithLimitZero(TestContext context){
+    public void testRequestHopValidationWithLimitZero(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
                 serverUrl, rulesPath, userProfilePath, info, storagePort);
@@ -220,15 +218,17 @@ public class RouterTest {
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
-        class GETRandomResourceRequest extends DummyHttpServerRequest{
+        class GETRandomResourceRequest extends DummyHttpServerRequest {
 
             MultiMap headers = new CaseInsensitiveHeaders();
 
-            @Override public HttpMethod method() {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.GET;
             }
 
-            @Override public String uri() {
+            @Override
+            public String uri() {
                 return "/gateleen/server/loop/4/resource";
             }
 
@@ -270,7 +270,7 @@ public class RouterTest {
     }
 
     @Test
-    public void testRequestHopValidationWithLimit5(TestContext context){
+    public void testRequestHopValidationWithLimit5(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
                 serverUrl, rulesPath, userProfilePath, info, storagePort);
@@ -287,15 +287,17 @@ public class RouterTest {
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
-        class GETRandomResourceRequest extends DummyHttpServerRequest{
+        class GETRandomResourceRequest extends DummyHttpServerRequest {
 
             MultiMap headers = new CaseInsensitiveHeaders();
 
-            @Override public HttpMethod method() {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.GET;
             }
 
-            @Override public String uri() {
+            @Override
+            public String uri() {
                 return "/gateleen/server/loop/4/resource";
             }
 
@@ -344,7 +346,7 @@ public class RouterTest {
     }
 
     @Test
-    public void testRequestHopValidationNoLimitConfiguration(TestContext context){
+    public void testRequestHopValidationNoLimitConfiguration(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
                 serverUrl, rulesPath, userProfilePath, info, storagePort);
@@ -355,15 +357,17 @@ public class RouterTest {
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
-        class GETRandomResourceRequest extends DummyHttpServerRequest{
+        class GETRandomResourceRequest extends DummyHttpServerRequest {
 
             MultiMap headers = new CaseInsensitiveHeaders();
 
-            @Override public HttpMethod method() {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.GET;
             }
 
-            @Override public String uri() {
+            @Override
+            public String uri() {
                 return "/gateleen/server/loop/4/resource";
             }
 
@@ -409,7 +413,7 @@ public class RouterTest {
 
 
     @Test
-    public void testRouterConstructionValidConfiguration(TestContext context){
+    public void testRouterConstructionValidConfiguration(TestContext context) {
         properties.put("gateleen.test.prop.1", "http://someserver/");
         properties.put("gateleen.test.prop.2", "http://someserver/");
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
@@ -419,7 +423,7 @@ public class RouterTest {
     }
 
     @Test
-    public void testRouterConstructionWithMissingProperty(TestContext context){
+    public void testRouterConstructionWithMissingProperty(TestContext context) {
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
                 serverUrl, rulesPath, userProfilePath, info, storagePort);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
@@ -428,7 +432,7 @@ public class RouterTest {
     }
 
     @Test
-    public void testFixBrokenRouting(TestContext context){
+    public void testFixBrokenRouting(TestContext context) {
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
                 serverUrl, rulesPath, userProfilePath, info, storagePort);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
@@ -437,12 +441,14 @@ public class RouterTest {
 
         // fix routing by passing a valid rules resource via PUT request
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
-        class UpdateRulesWithValidResourceRequest extends DummyHttpServerRequest{
-            @Override public HttpMethod method() {
+        class UpdateRulesWithValidResourceRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.PUT;
             }
 
-            @Override public String uri() {
+            @Override
+            public String uri() {
                 return "/gateleen/server/admin/v1/routing/rules";
             }
 
@@ -452,7 +458,10 @@ public class RouterTest {
                 return this;
             }
 
-            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap headers() {
+                return new CaseInsensitiveHeaders();
+            }
 
             @Override
             public HttpServerResponse response() {
@@ -466,7 +475,7 @@ public class RouterTest {
     }
 
     @Test
-    public void testGETRoutingRulesWithBrokenRouterShouldWork(TestContext context){
+    public void testGETRoutingRulesWithBrokenRouterShouldWork(TestContext context) {
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
                 serverUrl, rulesPath, userProfilePath, info, storagePort);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
@@ -474,17 +483,26 @@ public class RouterTest {
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
 
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
-        class GETRoutingRulesRequest extends DummyHttpServerRequest{
-            @Override public HttpMethod method() {
+        class GETRoutingRulesRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.GET;
             }
-            @Override public String uri() {
+
+            @Override
+            public String uri() {
                 return "/gateleen/server/admin/v1/routing/rules";
             }
-            @Override public DummyHttpServerResponse response() {
+
+            @Override
+            public DummyHttpServerResponse response() {
                 return response;
             }
-            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+
+            @Override
+            public MultiMap headers() {
+                return new CaseInsensitiveHeaders();
+            }
         }
         GETRoutingRulesRequest request = new GETRoutingRulesRequest();
         router.route(request);
@@ -498,7 +516,7 @@ public class RouterTest {
     }
 
     @Test
-    public void testGETAnyResourceWithBrokenRouterShouldNotWork(TestContext context){
+    public void testGETAnyResourceWithBrokenRouterShouldNotWork(TestContext context) {
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
                 serverUrl, rulesPath, userProfilePath, info, storagePort);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
@@ -506,17 +524,26 @@ public class RouterTest {
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
 
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
-        class GETRandomResourceRequest extends DummyHttpServerRequest{
-            @Override public HttpMethod method() {
+        class GETRandomResourceRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.GET;
             }
-            @Override public String uri() {
+
+            @Override
+            public String uri() {
                 return "/gateleen/server/random/resource";
             }
-            @Override public DummyHttpServerResponse response() {
+
+            @Override
+            public DummyHttpServerResponse response() {
                 return response;
             }
-            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+
+            @Override
+            public MultiMap headers() {
+                return new CaseInsensitiveHeaders();
+            }
         }
         GETRandomResourceRequest request = new GETRandomResourceRequest();
         router.route(request);
@@ -531,7 +558,7 @@ public class RouterTest {
     }
 
     @Test
-    public void testGETAnyResourceAfterFixingBrokenRouterShouldWorkAgain(TestContext context){
+    public void testGETAnyResourceAfterFixingBrokenRouterShouldWorkAgain(TestContext context) {
         Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
                 serverUrl, rulesPath, userProfilePath, info, storagePort);
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
@@ -540,12 +567,14 @@ public class RouterTest {
 
         // get random resource with broken routing. Should not work
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
-        class GETRandomResourceRequest extends DummyHttpServerRequest{
-            @Override public HttpMethod method() {
+        class GETRandomResourceRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.GET;
             }
 
-            @Override public String uri() {
+            @Override
+            public String uri() {
                 return "/gateleen/server/random/resource";
             }
 
@@ -571,12 +600,14 @@ public class RouterTest {
 
         // fix routing
         final DummyHttpServerResponse responseFix = new DummyHttpServerResponse();
-        class UpdateRulesWithValidResourceRequest extends DummyHttpServerRequest{
-            @Override public HttpMethod method() {
+        class UpdateRulesWithValidResourceRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.PUT;
             }
 
-            @Override public String uri() {
+            @Override
+            public String uri() {
                 return "/gateleen/server/admin/v1/routing/rules";
             }
 
@@ -586,7 +617,10 @@ public class RouterTest {
                 return this;
             }
 
-            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap headers() {
+                return new CaseInsensitiveHeaders();
+            }
 
             @Override
             public HttpServerResponse response() {
@@ -600,19 +634,30 @@ public class RouterTest {
         // retry get random resource. Should work now
         final DummyHttpServerResponse responseRandomResource = new DummyHttpServerResponse();
         class GETRandomResourceAgainRequest extends DummyHttpServerRequest {
-            @Override public HttpMethod method() {
+            @Override
+            public HttpMethod method() {
                 return HttpMethod.GET;
             }
 
-            @Override public String uri() {
+            @Override
+            public String uri() {
                 return "/gateleen/server/random/resource";
             }
 
-            @Override public String path() { return "/gateleen/server/random/resource"; }
+            @Override
+            public String path() {
+                return "/gateleen/server/random/resource";
+            }
 
-            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap params() {
+                return new CaseInsensitiveHeaders();
+            }
 
-            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap headers() {
+                return new CaseInsensitiveHeaders();
+            }
 
             @Override
             public DummyHttpServerResponse response() {
@@ -625,151 +670,108 @@ public class RouterTest {
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
     }
 
-    private class DummyLocalMap<K, V> implements LocalMap<String, Object> {
+    @Test
+    public void testServerInfoRequestsAreAvailableWithDefaultRoutes(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS));
+        long ts = System.currentTimeMillis();
+        JsonObject info = new JsonObject().put("ts", ts);
+        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
+                serverUrl, rulesPath, userProfilePath, info, storagePort);
 
-        private Map<String, Object> map = new HashMap<>();
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
 
-
-        @Override
-        public Object get(Object o) {
-            return map.get(o);
-        }
-
-        @Override
-        public Object put(String key, Object value) {
-            return map.put(key, value);
-        }
-
-        @Override
-        public Object remove(Object o) {
-            return map.remove(o);
-        }
-
-
-        @Override
-        public void clear() {
-            map.clear();
-        }
-
-        @Override
-        public int size() {
-            return map.size();
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return map.isEmpty();
-        }
-
-        @Override
-        public Object putIfAbsent(String key, Object value) {
-            if(!map.containsKey(key)){
-                map.put(key, value);
-                return null;
+        class GETServerInfoRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
+                return HttpMethod.GET;
             }
-            return map.get(key);
-        }
 
-        @Override
-        public boolean removeIfPresent(String key, Object value) {
-            if(map.containsKey(key)){
-                map.remove(key);
-                return true;
+            @Override
+            public String uri() {
+                return "/gateleen/server/info";
             }
-            return false;
-        }
 
-        @Override
-        public boolean replaceIfPresent(String key, Object oldValue, Object newValue) {
-            if(map.containsKey(key) && map.get(key).equals(oldValue)){
-                map.put(key, newValue);
-                return true;
+            @Override
+            public String path() {
+                return "/gateleen/server/info";
             }
-            return false;
+
+            @Override
+            public MultiMap params() {
+                return new CaseInsensitiveHeaders();
+            }
+
+            @Override
+            public MultiMap headers() {
+                return new CaseInsensitiveHeaders();
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
         }
 
-        @Override
-        public Object replace(String key, Object value) {
-            return map.replace(key, value);
-        }
+        GETServerInfoRequest request = new GETServerInfoRequest();
+        router.route(request);
 
-        @Override
-        public void close() {}
-
-        @Override
-        public Set<String> keySet() {
-            return map.keySet();
-        }
-
-        @Override
-        public Collection<Object> values() {
-            return map.values();
-        }
-
-        @Override
-        public Object compute(String s, BiFunction<? super String, ? super Object, ?> biFunction) {
-            return null;
-        }
-
-        @Override
-        public Object computeIfAbsent(String s, Function<? super String, ?> function) {
-            return null;
-        }
-
-        @Override
-        public Object computeIfPresent(String s, BiFunction<? super String, ? super Object, ?> biFunction) {
-            return null;
-        }
-
-        @Override
-        public boolean containsKey(Object o) {
-            return map.containsKey(o);
-        }
-
-        @Override
-        public boolean containsValue(Object o) {
-            return map.containsValue(o);
-        }
-
-        @Override
-        public Set<Entry<String, Object>> entrySet() {
-            return map.entrySet();
-        }
-
-        @Override
-        public void forEach(BiConsumer<? super String, ? super Object> biConsumer) {
-            map.forEach(biConsumer);
-        }
-
-        @Override
-        public Object getOrDefault(Object o, Object o2) {
-            return map.getOrDefault(o, o2);
-        }
-
-        @Override
-        public Object merge(String s, Object o, BiFunction<? super Object, ? super Object, ?> biFunction) {
-            return null;
-        }
-
-        @Override
-        public void putAll(Map<? extends String, ?> map) {
-
-        }
-
-        @Override
-        public boolean remove(Object o, Object o1) {
-            return false;
-        }
-
-        @Override
-        public boolean replace(String s, Object o, Object v1) {
-            return false;
-        }
-
-        @Override
-        public void replaceAll(BiFunction<? super String, ? super Object, ?> biFunction) {
-
-        }
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        context.assertEquals(StatusCode.OK.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be OK");
+        context.assertEquals(ts, new JsonObject(request.response().getResultBuffer()).getLong("ts"));
     }
 
+    @Test
+    public void testServerInfoRequestsAreNotAvailableWhenDefaultRoutesAreOverridden(TestContext context) {
+        Set<Router.DefaultRouteType> defaultRouteTypes = new HashSet() {{
+            add(Router.DefaultRouteType.SIMULATOR);
+            add(Router.DefaultRouteType.DEBUG);
+        }};
+
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS));
+        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
+                serverUrl, rulesPath, userProfilePath, info, storagePort, defaultRouteTypes);
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        class GETServerInfoRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
+                return HttpMethod.GET;
+            }
+
+            @Override
+            public String uri() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public String path() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public MultiMap params() {
+                return new CaseInsensitiveHeaders();
+            }
+
+            @Override
+            public MultiMap headers() {
+                return new CaseInsensitiveHeaders();
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        }
+
+        GETServerInfoRequest request = new GETServerInfoRequest();
+        router.route(request);
+
+        context.assertEquals(StatusCode.NOT_FOUND.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 404");
+    }
 }
