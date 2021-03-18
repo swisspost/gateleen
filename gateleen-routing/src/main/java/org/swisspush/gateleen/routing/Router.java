@@ -164,10 +164,10 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         }));
     }
 
-    enum DefaultRouteType {
+    public enum DefaultRouteType {
         SIMULATOR, INFO, DEBUG;
 
-        static Set<DefaultRouteType> all() {
+        public static Set<DefaultRouteType> all() {
             return new HashSet<>(Arrays.asList(values()));
         }
     }
