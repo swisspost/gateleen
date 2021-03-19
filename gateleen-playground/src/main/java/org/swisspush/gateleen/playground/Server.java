@@ -93,6 +93,7 @@ public class Server extends AbstractVerticle {
     private int defaultRedisPort = 6379;
     private int mainPort = 7012;
     private int circuitBreakerPort = 7013;
+    private int storagePort = 8989;
 
     private HttpServer mainServer;
     private RedisClient redisClient;
@@ -246,7 +247,7 @@ public class Server extends AbstractVerticle {
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
 
                 router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT,
-                        SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
+                        SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info, storagePort,
                         (Handler<Void>) aVoid -> {
                             hookHandler.init();
                             delegateHandler.init();
