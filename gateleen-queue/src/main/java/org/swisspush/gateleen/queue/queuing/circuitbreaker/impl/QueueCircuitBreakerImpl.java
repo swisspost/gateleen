@@ -163,7 +163,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                                             if (event1.result() == null) {
                                                 log.debug("No locked queues to unlock");
                                             } else {
-                                                log.info("Successfully unlocked queue '" + event1.result() + "'");
+                                                log.debug("Successfully unlocked queue '" + event1.result() + "'");
                                             }
                                         } else {
                                             log.error("Unable to unlock queue '" + event1.cause().getMessage() + "'");
@@ -303,7 +303,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                     future.fail(event.cause());
                     return;
                 }
-                log.info("circuit '" + patternAndCircuitHash.getPattern().pattern() + "' has been closed");
+                log.debug("circuit '" + patternAndCircuitHash.getPattern().pattern() + "' has been closed");
                 future.complete();
             });
         } else {
@@ -418,7 +418,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     @Override
     public Future<Long> unlockSampleQueues() {
-        log.info("About to unlock a sample queue for each circuit");
+        log.debug("About to unlock a sample queue for each circuit");
         Future<Long> future = Future.future();
         queueCircuitBreakerStorage.unlockSampleQueues().setHandler(event -> {
             if (event.failed()) {

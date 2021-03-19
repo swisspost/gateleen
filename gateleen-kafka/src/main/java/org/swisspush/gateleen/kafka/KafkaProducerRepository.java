@@ -35,7 +35,7 @@ public class KafkaProducerRepository {
         for (Map.Entry<Pattern, KafkaProducer<String, String>> entry : kafkaProducers.entrySet()) {
             Matcher matcher = entry.getKey().matcher(topic);
             if(matcher.matches()){
-                log.info("Found matching KafkaProducer with pattern '{}' for topic '{}' found", entry.getKey().pattern(), topic);
+                log.debug("Found matching KafkaProducer with pattern '{}' for topic '{}' found", entry.getKey().pattern(), topic);
                 return Optional.of(Pair.of(entry.getValue(), entry.getKey()));
             }
         }
