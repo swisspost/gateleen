@@ -87,6 +87,7 @@ public abstract class AbstractTest {
     private static final String RETURN_HTTP_STATUS_ROOT = SERVER_ROOT + "/return-with-status-code";
     public static final int MAIN_PORT = 3332;
     protected static final int REDIS_PORT = 6379;
+    protected static final int STORAGE_PORT = 8989;
     private static final int CIRCUIT_BREAKER_REST_API_PORT = 7014;
 
     /**
@@ -182,7 +183,9 @@ public abstract class AbstractTest {
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
 
                 new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
-                Router router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info,
+                Router router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient,
+                        SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules",
+                        SERVER_ROOT + "/users/v1/%s/profile", info, STORAGE_PORT,
                         (Handler<Void>) aVoid -> {
                             System.out.println("Router initialized!");
                             hookHandler.init();

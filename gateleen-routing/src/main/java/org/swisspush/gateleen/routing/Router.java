@@ -28,6 +28,7 @@ import java.util.*;
 
 import static org.swisspush.gateleen.core.util.HttpServerRequestUtil.increaseRequestHops;
 import static org.swisspush.gateleen.core.util.HttpServerRequestUtil.isRequestHopsLimitExceeded;
+import static org.swisspush.gateleen.routing.Router.DefaultRouteType.*;
 
 /**
  * @author https://github.com/lbovet [Laurent Bovet]
@@ -41,83 +42,30 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     public static final String ROUTER_STATE_MAP = "router_state_map";
     public static final String ROUTER_BROKEN_KEY = "router_broken";
     public static final String REQUEST_HOPS_LIMIT_PROPERTY = "request.hops.limit";
-    private String rulesUri;
-    private String userProfileUri;
-    private String serverUri;
+    private final String rulesUri;
+    private final String userProfileUri;
+    private final String serverUri;
     private io.vertx.ext.web.Router router;
-    private LoggingResourceManager loggingResourceManager;
-    private MonitoringHandler monitoringHandler;
-    private Logger log = LoggerFactory.getLogger(Router.class);
-    private Vertx vertx;
-    private Set<HttpClient> httpClients = new HashSet<>();
-    private HttpClient selfClient;
-    private ResourceStorage storage;
-    private JsonObject info;
+    private final LoggingResourceManager loggingResourceManager;
+    private final MonitoringHandler monitoringHandler;
+    private final Logger log = LoggerFactory.getLogger(Router.class);
+    private final Vertx vertx;
+    private final Set<HttpClient> httpClients = new HashSet<>();
+    private final HttpClient selfClient;
+    private final ResourceStorage storage;
+    private final JsonObject info;
     private final Map<String, Object> properties;
-    private Handler<Void> doneHandlers[];
-    private LocalMap<String, Object> sharedData;
-    private int storagePort;
+    private final Handler<Void>[] doneHandlers;
+    private final LocalMap<String, Object> sharedData;
     private boolean initialized = false;
-    private String routingRulesSchema;
+    private final String routingRulesSchema;
 
     private boolean logRoutingRuleChanges = false;
 
     private String configResourceUri;
     private ConfigurationResourceManager configurationResourceManager;
     private Integer requestHopsLimit = null;
-
-    public Router(Vertx vertx,
-                  LocalMap<String, Object> sharedData,
-                  final ResourceStorage storage,
-                  final Map<String, Object> properties,
-                  LoggingResourceManager loggingResourceManager,
-                  MonitoringHandler monitoringHandler,
-                  HttpClient selfClient,
-                  String serverPath,
-                  String rulesPath,
-                  String userProfilePath,
-                  JsonObject info,
-                  Handler<Void>... doneHandlers) {
-        this(vertx,
-                sharedData,
-                storage,
-                properties,
-                loggingResourceManager,
-                monitoringHandler,
-                selfClient,
-                serverPath,
-                rulesPath,
-                userProfilePath,
-                info,
-                8989,
-                doneHandlers);
-    }
-
-    public Router(Vertx vertx,
-                  final ResourceStorage storage,
-                  final Map<String, Object> properties,
-                  LoggingResourceManager loggingResourceManager,
-                  MonitoringHandler monitoringHandler,
-                  HttpClient selfClient,
-                  String serverPath,
-                  String rulesPath,
-                  String userProfilePath,
-                  JsonObject info,
-                  Handler<Void>... doneHandlers) {
-        this(vertx,
-                vertx.sharedData().<String, Object>getLocalMap(ROUTER_STATE_MAP),
-                storage,
-                properties,
-                loggingResourceManager,
-                monitoringHandler,
-                selfClient,
-                serverPath,
-                rulesPath,
-                userProfilePath,
-                info,
-                8989,
-                doneHandlers);
-    }
+    private final Set<DefaultRouteType> defaultRouteTypes;
 
     public Router(Vertx vertx,
                   final ResourceStorage storage,
@@ -132,7 +80,6 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                   int storagePort,
                   Handler<Void>... doneHandlers) {
         this(vertx,
-                vertx.sharedData().<String, Object>getLocalMap(ROUTER_STATE_MAP),
                 storage,
                 properties,
                 loggingResourceManager,
@@ -143,11 +90,11 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 userProfilePath,
                 info,
                 storagePort,
+                all(),
                 doneHandlers);
     }
 
     public Router(Vertx vertx,
-                  LocalMap<String, Object> sharedData,
                   final ResourceStorage storage,
                   final Map<String, Object> properties,
                   LoggingResourceManager loggingResourceManager,
@@ -158,6 +105,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                   String userProfilePath,
                   JsonObject info,
                   int storagePort,
+                  Set<DefaultRouteType> defaultRouteTypes,
                   Handler<Void>... doneHandlers) {
         this.storage = storage;
         this.properties = properties;
@@ -165,12 +113,12 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.monitoringHandler = monitoringHandler;
         this.selfClient = selfClient;
         this.vertx = vertx;
-        this.sharedData = sharedData;
+        this.sharedData = vertx.sharedData().getLocalMap(ROUTER_STATE_MAP);
         this.rulesUri = rulesPath;
         this.userProfileUri = userProfilePath;
         this.serverUri = serverPath;
         this.info = info;
-        this.storagePort = storagePort;
+        this.defaultRouteTypes = defaultRouteTypes;
         this.doneHandlers = doneHandlers;
 
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
@@ -178,7 +126,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         final JsonObject initialRules = new JsonObject()
                 .put("/(.*)", new JsonObject()
                         .put("name", "resource_storage")
-                        .put("url", "http://localhost:" + String.valueOf(storagePort) + "/$1"));
+                        .put("url", "http://localhost:" + storagePort + "/$1"));
 
         storage.get(rulesPath, buffer -> {
             try {
@@ -214,6 +162,14 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 log.warn("Could not get URL '" + (rulesUri == null ? "<null>" : rulesUri) + "' (getting rules).");
             }
         }));
+    }
+
+    public enum DefaultRouteType {
+        SIMULATOR, INFO, DEBUG;
+
+        public static Set<DefaultRouteType> all() {
+            return new HashSet<>(Arrays.asList(values()));
+        }
     }
 
     public void route(final HttpServerRequest request) {
@@ -275,14 +231,15 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                     return;
                 }
                 if (requestHopsLimit == null) {
-                    router.accept(request);
+                    router.handle(request);
                     return;
                 }
                 increaseRequestHops(request);
                 if (!isRequestHopsLimitExceeded(request, requestHopsLimit)) {
-                    router.accept(request);
+                    router.handle(request);
                 } else {
-                    String errorMessage = "Request hops limit of '" + requestHopsLimit + "' has been exceeded. Check the routing rules for looping configurations";
+                    String errorMessage = "Request hops limit of '" + requestHopsLimit + "' has been exceeded. " +
+                            "Check the routing rules for looping configurations";
                     RequestLoggerFactory.getLogger(Router.class, request).error(errorMessage);
                     ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, Router.class);
                     request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -317,7 +274,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     }
 
     private void resetRouterBrokenState() {
-        if (getRouterStateMap().keySet().contains(ROUTER_BROKEN_KEY)) {
+        if (getRouterStateMap().containsKey(ROUTER_BROKEN_KEY)) {
             log.info("reset router broken state. Routing is not broken anymore");
         }
         getRouterStateMap().remove(ROUTER_BROKEN_KEY);
@@ -401,66 +358,72 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
         io.vertx.ext.web.Router newRouter = io.vertx.ext.web.Router.router(vertx);
 
-        newRouter.put(serverUri + "/simulator/.*").handler(ctx -> ctx.request().bodyHandler(buffer -> {
-            try {
-                final JsonObject obj = new JsonObject(buffer.toString());
-                log.debug("Simulator got " + obj.getLong("delay") + " " + obj.getLong("size"));
-                vertx.setTimer(obj.getLong("delay"), event -> {
-                    try {
-                        char[] body = new char[obj.getInteger("size")];
-                        ctx.response().end(new String(body));
-                        log.debug("Simulator sent response");
-                    } catch (Exception e) {
-                        log.error("Simulator error " + e.getMessage());
-                        ctx.response().end();
-                    }
-                });
-            } catch (Exception e) {
-                log.error("Simulator error " + e.getMessage());
-                ctx.response().end();
-            }
-        }));
-
-        newRouter.get(serverUri + "/info").handler(ctx -> {
-            if (HttpMethod.GET == ctx.request().method()) {
-                ctx.response().headers().set("Content-Type", "application/json");
-                ctx.response().end(info.toString());
-            } else {
-                ResponseStatusCodeLogUtil.info(ctx.request(), StatusCode.METHOD_NOT_ALLOWED, Router.class);
-                ctx.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
-                ctx.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
-                ctx.response().end();
-            }
-        });
-
-        newRouter.getWithRegex("/[^/]+/debug").handler(ctx -> {
-            ctx.response().headers().set("Content-Type", "text/plain");
-            StringBuilder body = new StringBuilder();
-            body.append("* Headers *\n\n");
-            SortedSet<String> keys = new TreeSet<>(ctx.request().headers().names());
-            for (String key : keys) {
-                String value = ctx.request().headers().get(key);
-                if ("cookie".equals(key)) {
-                    body.append("cookie:\n");
-                    for (HttpCookie cookie : HttpCookie.parse(value)) {
-                        body.append("    ");
-                        body.append(cookie.toString());
-                    }
+        if (defaultRouteTypes.contains(SIMULATOR)) {
+            newRouter.put(serverUri + "/simulator/.*").handler(ctx -> ctx.request().bodyHandler(buffer -> {
+                try {
+                    final JsonObject obj = new JsonObject(buffer.toString());
+                    log.debug("Simulator got " + obj.getLong("delay") + " " + obj.getLong("size"));
+                    vertx.setTimer(obj.getLong("delay"), event -> {
+                        try {
+                            char[] body = new char[obj.getInteger("size")];
+                            ctx.response().end(new String(body));
+                            log.debug("Simulator sent response");
+                        } catch (Exception e) {
+                            log.error("Simulator error " + e.getMessage());
+                            ctx.response().end();
+                        }
+                    });
+                } catch (Exception e) {
+                    log.error("Simulator error " + e.getMessage());
+                    ctx.response().end();
                 }
-                body.append(key).append(": ").append(value).append("\n");
-            }
+            }));
+        }
 
-            body.append("\n");
-            body.append("* System Properties *\n\n");
+        if (defaultRouteTypes.contains(INFO)) {
+            newRouter.get(serverUri + "/info").handler(ctx -> {
+                if (HttpMethod.GET == ctx.request().method()) {
+                    ctx.response().headers().set("Content-Type", "application/json");
+                    ctx.response().end(info.toString());
+                } else {
+                    ResponseStatusCodeLogUtil.info(ctx.request(), StatusCode.METHOD_NOT_ALLOWED, Router.class);
+                    ctx.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
+                    ctx.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
+                    ctx.response().end();
+                }
+            });
+        }
 
-            Set<Object> sorted = new TreeSet<>(System.getProperties().keySet());
+        if (defaultRouteTypes.contains(DEBUG)) {
+            newRouter.getWithRegex("/[^/]+/debug").handler(ctx -> {
+                ctx.response().headers().set("Content-Type", "text/plain");
+                StringBuilder body = new StringBuilder();
+                body.append("* Headers *\n\n");
+                SortedSet<String> keys = new TreeSet<>(ctx.request().headers().names());
+                for (String key : keys) {
+                    String value = ctx.request().headers().get(key);
+                    if ("cookie".equals(key)) {
+                        body.append("cookie:\n");
+                        for (HttpCookie cookie : HttpCookie.parse(value)) {
+                            body.append("    ");
+                            body.append(cookie.toString());
+                        }
+                    }
+                    body.append(key).append(": ").append(value).append("\n");
+                }
 
-            for (Object key : sorted) {
-                body.append(key).append(": ").append(System.getProperty((String) key)).append("\n");
-            }
+                body.append("\n");
+                body.append("* System Properties *\n\n");
 
-            ctx.response().end(body.toString());
-        });
+                Set<Object> sorted = new TreeSet<>(System.getProperties().keySet());
+
+                for (Object key : sorted) {
+                    body.append(key).append(": ").append(System.getProperty((String) key)).append("\n");
+                }
+
+                ctx.response().end(body.toString());
+            });
+        }
 
         Set<HttpClient> newClients = new HashSet<>();
 
@@ -501,10 +464,11 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 JsonObject obj = new JsonObject(resource);
                 Integer requestHopsLimitValue = obj.getInteger(REQUEST_HOPS_LIMIT_PROPERTY);
                 if (requestHopsLimitValue != null) {
-                    log.info("Got value '" + requestHopsLimitValue + "' for property '"+ REQUEST_HOPS_LIMIT_PROPERTY +"'. Request hop validation is now activated");
+                    log.info("Got value '" + requestHopsLimitValue + "' for property '" + REQUEST_HOPS_LIMIT_PROPERTY +
+                            "'. Request hop validation is now activated");
                     requestHopsLimit = requestHopsLimitValue;
                 } else {
-                    log.warn("No value for property '"+ REQUEST_HOPS_LIMIT_PROPERTY +"' found. Request hop validation will not be activated");
+                    log.warn("No value for property '" + REQUEST_HOPS_LIMIT_PROPERTY + "' found. Request hop validation will not be activated");
                     requestHopsLimit = null;
                 }
             } catch (DecodeException ex) {
@@ -526,7 +490,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
      * Enables the configuration for the routing.
      *
      * @param configurationResourceManager the configurationResourceManager
-     * @param configResourceUri the uri of the configuration resource
+     * @param configResourceUri            the uri of the configuration resource
      */
     public void enableRoutingConfiguration(ConfigurationResourceManager configurationResourceManager, String configResourceUri) {
         this.configurationResourceManager = configurationResourceManager;
