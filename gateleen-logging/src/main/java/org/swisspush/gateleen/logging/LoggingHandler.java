@@ -141,13 +141,13 @@ public class LoggingHandler {
 
             Appender appender = null;
             if (destinationOptions.containsKey(FILE)) {
-                log.debug("found destination entry with type 'file' for: " + filterDestination);
+                log.debug("found destination entry with type 'file' for: {}", filterDestination);
                 appender = getFileAppender(filterDestination, destinationOptions.get(FILE));
             } else if (destinationOptions.containsKey("address")) {
-                log.debug("found destination entry with type 'eventBus' for: " + filterDestination);
+                log.debug("found destination entry with type 'eventBus' for: {}", filterDestination);
                 appender = getEventBusAppender(filterDestination, destinationOptions);
             } else {
-                log.warn("Unknown typeLocation for destination: " + filterDestination);
+                log.warn("Unknown typeLocation for destination: {}", filterDestination);
             }
 
             if (appender != null) {
@@ -165,7 +165,7 @@ public class LoggingHandler {
         // ... or use the default logger
         else {
             if (!filterDestination.equals(DEFAULT)) {
-                log.warn("no destination entry with name '" + filterDestination + "' found, using default logger instead");
+                log.warn("no destination entry with name '{}' found, using default logger instead", filterDestination);
             }
 
             // use default logger!
@@ -235,7 +235,7 @@ public class LoggingHandler {
              * </appender>
              */
 
-            log.debug("file path: " + System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
+            log.debug("file path: {}", System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
 
             DailyRollingFileAppender appender = new DailyRollingFileAppender();
             appender.setName(filterDestination);
@@ -326,11 +326,11 @@ public class LoggingHandler {
     }
 
     private void aboutToLogRequest(String currentDestination) {
-        log.info("About to log to destination " + currentDestination);
+        log.info("About to log to destination {}", currentDestination);
     }
 
     private void errorLogRequest(String currentDestination, Exception ex) {
-        log.error("Error logging to destination " + currentDestination + ". Cause: " + ex.toString());
+        log.error("Error logging to destination {}. Cause: {}", currentDestination, ex.toString());
     }
 
     private JsonObject headersAsJson(MultiMap headers) {

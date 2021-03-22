@@ -69,9 +69,9 @@ public class EventBusWriter extends Writer {
                     @Override
                     public void handle(AsyncResult<Message<JsonObject>> reply) {
                         if (reply.succeeded() && "ok".equals(reply.result().body().getString("status"))) {
-                            log.debug("Successfully sent to (and got reply from) eventBus address " + address);
+                            log.debug("Successfully sent to (and got reply from) eventBus address {}", address);
                         } else {
-                            log.error("Failed to send (not publish) to the eventBus: " + reply.cause());
+                            log.error("Failed to send (not publish) to the eventBus: {}", reply.cause());
                         }
                     }
                 });

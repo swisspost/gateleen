@@ -42,7 +42,7 @@ public class Translator extends StatusCodeTranslator {
             for (Map.Entry<Pattern, Integer> entry : rule.getTranslateStatus().entrySet()) {
                 if (entry.getKey().matcher("" + statusCode).matches()) {
                     if (log != null) {
-                        log.debug("Translated status " + statusCode + " to " + entry.getValue());
+                        log.debug("Translated status {} to {}", statusCode, entry.getValue());
                     }
                     translatedStatus = entry.getValue();
                     break;

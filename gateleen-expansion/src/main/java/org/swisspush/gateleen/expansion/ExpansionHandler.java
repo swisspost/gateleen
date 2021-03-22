@@ -187,36 +187,42 @@ public class ExpansionHandler implements RuleChangesObserver{
         if (properties != null && properties.containsKey(MAX_SUBREQUEST_PROPERTY)) {
             try {
                 maxSubRequestCount = Integer.parseInt((String) properties.get(MAX_SUBREQUEST_PROPERTY));
-                log.info("Setting maximum allowed subrequest count to " + maxSubRequestCount + " from properties");
+                log.info("Setting maximum allowed subrequest count to {} from properties", maxSubRequestCount);
             } catch (Exception e) {
                 maxSubRequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
-                log.warn("Setting maximum allowed subrequest count to a default of " + maxSubRequestCount + ", since defined value for " + MAX_SUBREQUEST_PROPERTY + " in properties is not a number");
+                log.warn("Setting maximum allowed subrequest count to a default of {}, since defined " +
+                        "value for {} in properties is not a number", maxSubRequestCount, MAX_SUBREQUEST_PROPERTY);
             }
         } else {
             maxSubRequestCount = MAX_SUBREQUEST_COUNT_DEFAULT;
-            log.warn("Setting maximum allowed subrequest count to a default of " + maxSubRequestCount + ", since no property " + MAX_SUBREQUEST_PROPERTY + " is defined!");
+            log.warn("Setting maximum allowed subrequest count to a default of {}, since no property {} is defined!",
+                    maxSubRequestCount, MAX_SUBREQUEST_PROPERTY);
         }
 
         if (properties != null && properties.containsKey(MAX_EXPANSION_LEVEL_SOFT_PROPERTY)) {
             try {
                 maxExpansionLevelSoft = Integer.parseInt((String) properties.get(MAX_EXPANSION_LEVEL_SOFT_PROPERTY));
-                log.info("Setting maximum expansion level soft value to " + maxExpansionLevelSoft + " from properties");
+                log.info("Setting maximum expansion level soft value to {} from properties", maxExpansionLevelSoft);
             } catch (Exception e) {
-                log.warn("Setting maximum expansion level soft value to a default of " + maxExpansionLevelSoft + ", since defined value for " + MAX_EXPANSION_LEVEL_SOFT_PROPERTY + " in properties is not a number");
+                log.warn("Setting maximum expansion level soft value to a default of {}, since defined value for {} " +
+                        "in properties is not a number", maxExpansionLevelSoft, MAX_EXPANSION_LEVEL_SOFT_PROPERTY);
             }
         } else {
-            log.info("Setting maximum expansion level soft value to a default of " + maxExpansionLevelSoft + ", since no property " + MAX_EXPANSION_LEVEL_SOFT_PROPERTY + " is defined!");
+            log.info("Setting maximum expansion level soft value to a default of {}, since no property {} is defined!",
+                    maxExpansionLevelSoft, MAX_EXPANSION_LEVEL_SOFT_PROPERTY);
         }
 
         if (properties != null && properties.containsKey(MAX_EXPANSION_LEVEL_HARD_PROPERTY)) {
             try {
                 maxExpansionLevelHard = Integer.parseInt((String) properties.get(MAX_EXPANSION_LEVEL_HARD_PROPERTY));
-                log.info("Setting maximum expansion level hard value to " + maxExpansionLevelHard + " from properties");
+                log.info("Setting maximum expansion level hard value to {} from properties", maxExpansionLevelHard);
             } catch (Exception e) {
-                log.warn("Setting maximum expansion level hard value to a default of " + maxExpansionLevelHard + ", since defined value for " + MAX_EXPANSION_LEVEL_HARD_PROPERTY + " in properties is not a number");
+                log.warn("Setting maximum expansion level hard value to a default of {}, since defined value for {} " +
+                        "in properties is not a number", maxExpansionLevelHard, MAX_EXPANSION_LEVEL_HARD_PROPERTY);
             }
         } else {
-            log.info("Setting maximum expansion level soft hard to a default of " + maxExpansionLevelHard + ", since no property " + MAX_EXPANSION_LEVEL_HARD_PROPERTY + " is defined!");
+            log.info("Setting maximum expansion level soft hard to a default of {}, since no property {} is defined!",
+                    maxExpansionLevelHard, MAX_EXPANSION_LEVEL_HARD_PROPERTY);
         }
     }
 
@@ -313,8 +319,8 @@ public class ExpansionHandler implements RuleChangesObserver{
         }
 
         if(expandLevel > maxExpansionLevelSoft){
-            log.warn("Expand level '"+expandLevel+"' is greater than the maximum soft expand level '" +
-                    maxExpansionLevelSoft + "'. Using '"+maxExpansionLevelSoft+"' instead");
+            log.warn("Expand level '{}' is greater than the maximum soft expand level '{}'. Using '{}' instead",
+                    expandLevel, maxExpansionLevelSoft, maxExpansionLevelSoft);
             expandLevel = maxExpansionLevelSoft;
         }
 
@@ -331,14 +337,14 @@ public class ExpansionHandler implements RuleChangesObserver{
         final Set<String> finalOriginalParams = originalParams;
 
         final String targetUri = ExpansionDeltaUtil.constructRequestUri(req.path(), req.params(), parameter_to_remove_for_all_request, null, SlashHandling.END_WITH_SLASH);
-        log.debug("constructed uri for request: " + targetUri);
+        log.debug("constructed uri for request: {}", targetUri);
 
         Integer finalExpandLevel = expandLevel;
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
             HttpServerRequestUtil.prepareResponse(req, cRes);
 
             if (log.isTraceEnabled()) {
-                log.trace(" x-delta for " + targetUri + " is " + cRes.headers().get("x-delta"));
+                log.trace(" x-delta for {} is {}", targetUri, cRes.headers().get("x-delta"));
             }
 
             cRes.bodyHandler(data -> {
@@ -408,12 +414,12 @@ public class ExpansionHandler implements RuleChangesObserver{
         try {
             Integer value = Integer.valueOf(expandValue);
             if(value < 0){
-                log.warn("expand parameter value '"+expandValue+"' is not a positive number");
+                log.warn("expand parameter value '{}' is not a positive number", expandValue);
                 return null;
             }
             return value;
         } catch (NumberFormatException ex){
-            log.warn("expand parameter value '"+expandValue+"' is not a valid number");
+            log.warn("expand parameter value '{}' is not a valid number", expandValue);
             return null;
         }
     }
@@ -445,7 +451,7 @@ public class ExpansionHandler implements RuleChangesObserver{
         }
 
         if ( log.isTraceEnabled() ) {
-            log.trace("currently using zip mode: " + zipType);
+            log.trace("currently using zip mode: {}", zipType);
         }
 
         removeZipParameter(request);
@@ -469,13 +475,13 @@ public class ExpansionHandler implements RuleChangesObserver{
         final HttpClientRequest cReq = httpClient.request(HttpMethod.POST, targetUri + "?storageExpand=true", cRes -> {
             cRes.bodyHandler(data -> {
                 if (StatusCode.NOT_FOUND.getStatusCode() == cRes.statusCode()) {
-                    log.debug("requested resource could not be found: " + targetUri);
+                    log.debug("requested resource could not be found: {}", targetUri);
                     handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.NOT_FOUND)));
                 } else if (StatusCode.INTERNAL_SERVER_ERROR.getStatusCode() == cRes.statusCode()) {
-                    log.error("error in request resource : " + targetUri + " message : " + data.toString());
+                    log.error("error in request resource : {} message : {}",targetUri, data.toString());
                     handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(data.toString(), StatusCode.INTERNAL_SERVER_ERROR)));
                 } else if (StatusCode.METHOD_NOT_ALLOWED.getStatusCode() == cRes.statusCode()) {
-                    log.error("POST requests (storageExpand) not allowed for uri: " + targetUri);
+                    log.error("POST requests (storageExpand) not allowed for uri: {}", targetUri);
                     handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.METHOD_NOT_ALLOWED)));
                 } else {
                     String eTag = geteTag(cRes.headers());
@@ -532,7 +538,7 @@ public class ExpansionHandler implements RuleChangesObserver{
         final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, targetUri, cRes -> {
 
             if (log.isTraceEnabled()) {
-                log.trace(" x-delta for " + targetUri + " is " + cRes.headers().get("x-delta"));
+                log.trace(" x-delta for {} is {}",targetUri, cRes.headers().get("x-delta"));
             }
 
             handler.storeXDeltaResponseHeader(cRes.headers().get("x-delta"));
@@ -544,10 +550,10 @@ public class ExpansionHandler implements RuleChangesObserver{
                 String eTag = geteTag(cRes.headers());
 
                 if (StatusCode.NOT_FOUND.getStatusCode() == cRes.statusCode()) {
-                    log.debug("requested resource could not be found: " + targetUri);
+                    log.debug("requested resource could not be found: {}", targetUri);
                     handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.NOT_FOUND)));
                 } else if (StatusCode.INTERNAL_SERVER_ERROR.getStatusCode() == cRes.statusCode()) {
-                    log.debug("error in request resource : " + targetUri);
+                    log.debug("error in request resource : {}", targetUri);
                     handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.INTERNAL_SERVER_ERROR)));
                 } else {
                     /*
@@ -565,7 +571,7 @@ public class ExpansionHandler implements RuleChangesObserver{
                             handleCollectionResource(removeParameters(targetUri), req, recursionLevel, subRequestCounter, recursionHandlerType, handler, data, eTag);
                         } catch (ResourceCollectionException e) {
                             if (log.isTraceEnabled()) {
-                                log.trace("handling collection failed with: " + e.getMessage());
+                                log.trace("handling collection failed with: {}", e.getMessage());
                             }
                             handleSimpleResource(removeParameters(targetUri), handler, data, eTag);
                         }
@@ -604,7 +610,7 @@ public class ExpansionHandler implements RuleChangesObserver{
     private void handleSimpleResource(final String targetUri, final Handler<ResourceNode> handler, final Buffer data, final String eTag) {
         String resourceName = ExpansionDeltaUtil.extractCollectionFromPath(targetUri);
         if (log.isTraceEnabled()) {
-            log.trace("Simple resource: " + resourceName);
+            log.trace("Simple resource: {}", resourceName);
         }
 
         // pure data is passed to the handler
@@ -657,8 +663,8 @@ public class ExpansionHandler implements RuleChangesObserver{
         CollectionResourceContainer collectionResourceContainer = ExpansionDeltaUtil.verifyCollectionResponse(targetUri, data, null);
         Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
         if (log.isTraceEnabled()) {
-            log.trace("Collection resource: " + collectionResourceContainer.getCollectionName());
-            log.trace("actual recursion level: " + recursionLevel);
+            log.trace("Collection resource: {}", collectionResourceContainer.getCollectionName());
+            log.trace("actual recursion level: {}", recursionLevel);
         }
 
         // list of all subresources (if any)
@@ -666,7 +672,7 @@ public class ExpansionHandler implements RuleChangesObserver{
 
         if (subResourceNames.size() == 0) {
             if (log.isTraceEnabled()) {
-                log.trace("No sub resource available for: " + collectionResourceContainer.getCollectionName());
+                log.trace("No sub resource available for: {}", collectionResourceContainer.getCollectionName());
             }
 
             ResourceNode node = new ResourceNode(collectionResourceContainer.getCollectionName(), new JsonArray(), eTag);
@@ -677,7 +683,7 @@ public class ExpansionHandler implements RuleChangesObserver{
             // normal processing
             if (!maxRecursionLevelReached) {
                 if (log.isTraceEnabled()) {
-                    log.trace("max. recursion reached for " + collectionResourceContainer.getCollectionName());
+                    log.trace("max. recursion reached for {}", collectionResourceContainer.getCollectionName());
                 }
 
                 final DeltaHandler<ResourceNode> parentHandler = RecursiveHandlerFactory.createHandler(recursionHandlerType, subResourceNames, collectionResourceContainer.getCollectionName(), eTag, handler);
@@ -687,7 +693,7 @@ public class ExpansionHandler implements RuleChangesObserver{
                 } else {
                     for (String childResourceName : subResourceNames) {
                         if (log.isTraceEnabled()) {
-                            log.trace("processing child resource: " + childResourceName);
+                            log.trace("processing child resource: {}", childResourceName);
                         }
 
                         // if the child is not a collection, we remove the parameter
@@ -704,7 +710,7 @@ public class ExpansionHandler implements RuleChangesObserver{
 
                 for (String childResourceName : subResourceNames) {
                     if (log.isTraceEnabled()) {
-                        log.trace("(max level reached) processing child resource: " + childResourceName);
+                        log.trace("(max level reached) processing child resource: {}", childResourceName);
                     }
 
                     jsonArray.add(childResourceName);

@@ -200,12 +200,12 @@ public class MonitoringHandler {
         requestPerRuleMonitoringProperty = StringUtils.getStringOrEmpty(System.getProperty(REQUEST_PER_RULE_PROPERTY));
         if(StringUtils.isNotEmpty(requestPerRuleMonitoringProperty)){
             requestPerRuleMonitoringActive = true;
-            log.info("Activated request per rule monitoring for request header property '" + requestPerRuleMonitoringProperty + "'");
+            log.info("Activated request per rule monitoring for request header property '{}'", requestPerRuleMonitoringProperty);
             configureSamplingAndExpiry();
             registerRequestPerRuleMonitoringTimer();
         } else {
             requestPerRuleMonitoringActive = false;
-            log.info("Request per rule monitoring not active since system property '" + REQUEST_PER_RULE_PROPERTY + "' was not set (or empty)");
+            log.info("Request per rule monitoring not active since system property '{}' was not set (or empty)", REQUEST_PER_RULE_PROPERTY);
         }
     }
 
@@ -234,17 +234,19 @@ public class MonitoringHandler {
 
         try {
             this.requestPerRuleSampling = Long.parseLong(sampling);
-            log.info("Initializing request per rule monitoring with a sampling rate of [ms] " + requestPerRuleSampling);
+            log.info("Initializing request per rule monitoring with a sampling rate of [ms] {}", requestPerRuleSampling);
         } catch (NumberFormatException ex){
-            log.warn("Unable to parse system property '" + REQUEST_PER_RULE_SAMPLING_PROPERTY + "'. Using default value instead: " + REQUEST_PER_RULE_DEFAULT_SAMPLING);
+            log.warn("Unable to parse system property '{}'. Using default value instead: {}",
+                    REQUEST_PER_RULE_SAMPLING_PROPERTY, REQUEST_PER_RULE_DEFAULT_SAMPLING);
             this.requestPerRuleSampling = REQUEST_PER_RULE_DEFAULT_SAMPLING;
         }
 
         try {
             this.requestPerRuleExpiry = Long.parseLong(expiry);
-            log.info("Initializing request per rule monitoring with an expiry value of [ms] " + requestPerRuleExpiry);
+            log.info("Initializing request per rule monitoring with an expiry value of [ms] {}", requestPerRuleExpiry);
         } catch (NumberFormatException ex){
-            log.warn("Unable to parse system property '" + REQUEST_PER_RULE_EXPIRY_PROPERTY + "'. Using default value instead: " + REQUEST_PER_RULE_DEFAULT_EXPIRY);
+            log.warn("Unable to parse system property '{}'. Using default value instead: {}",
+                    REQUEST_PER_RULE_EXPIRY_PROPERTY, REQUEST_PER_RULE_DEFAULT_EXPIRY);
             this.requestPerRuleExpiry= REQUEST_PER_RULE_DEFAULT_EXPIRY;
         }
     }
@@ -277,7 +279,7 @@ public class MonitoringHandler {
     }
 
     private void submitRequestPerRuleMonitoringMetrics(){
-        log.info("About to send " + getRequestPerRuleMonitoringMap().size() + " request per rule monitoring values to metrics");
+        log.info("About to send {} request per rule monitoring values to metrics", getRequestPerRuleMonitoringMap().size());
         for (Iterator<Map.Entry<String, Long>> it = getRequestPerRuleMonitoringMap().entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<String, Long> entry = it.next();
             vertx.eventBus().publish(getMonitoringAddress(),
@@ -296,7 +298,7 @@ public class MonitoringHandler {
             MultiMap headers = new CaseInsensitiveHeaders().add(EXPIRE_AFTER_HEADER, String.valueOf(requestPerRuleExpiry));
             storage.put(path, headers, Buffer.buffer(obj.encode()), status -> {
                 if (status != StatusCode.OK.getStatusCode()) {
-                    log.error("Error putting resource " + path + " to storage");
+                    log.error("Error putting resource {} to storage", path);
                 }
             });
         } else {
@@ -359,7 +361,7 @@ public class MonitoringHandler {
 
     private void updatePendingRequestCount(boolean incrementCount) {
         final String action = incrementCount ? "inc" : "dec";
-        log.trace("Updating count for pending requests: " + action + "rementing");
+        log.trace("Updating count for pending requests: {} remaining", action);
         vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + PENDING_REQUESTS_METRIC).put(METRIC_ACTION, action));
     }
 
@@ -389,7 +391,7 @@ public class MonitoringHandler {
                 final long count = reply.result().body().getLong(VALUE);
                 vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "update").put("n", count));
             } else {
-                log.error("Error gathering queue size for queue '" + queue + "'");
+                log.error("Error gathering queue size for queue '{}'", queue);
             }
         });
     }
@@ -439,7 +441,7 @@ public class MonitoringHandler {
                             resultMap.put(name, count);
                         }
                     } else {
-                        log.error("Error gathering size of queue " + name);
+                        log.error("Error gathering size of queue {}", name);
                     }
 
                     if (subCommandCount.get() == 0) {

@@ -69,7 +69,7 @@ public class QueueProcessor {
                 try {
                     queuedRequestTry = new HttpRequest(jsonRequest);
                 } catch (Exception exception) {
-                    log.error("Could not build request: " + message.body().toString() + " error is " + exception.getMessage());
+                    log.error("Could not build request: {} error is {}", message.body().toString(), exception.getMessage());
                     message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
                     return;
                 }
@@ -100,7 +100,7 @@ public class QueueProcessor {
                     });
                 }
             });
-            log.info("registered queue processing consumer on address: " + this.consumer.address());
+            log.info("registered queue processing consumer on address: {}", this.consumer.address());
         } else {
             log.info("queue processing is already started");
         }

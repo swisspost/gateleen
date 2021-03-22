@@ -27,7 +27,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
 
     @Override
     public void addRoute(String urlPattern, Route route) {
-        log.debug("Creating route for url pattern " + urlPattern + " and route destination " + route.getHook().getDestination());
+        log.debug("Creating route for url pattern {} and route destination {}", urlPattern, route.getHook().getDestination());
 
         /*
          * Because we perform a cleanup before
@@ -48,7 +48,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
 
     @Override
     public void removeRoute(String urlPattern) {
-        log.debug("Removing route for url pattern " + urlPattern);
+        log.debug("Removing route for url pattern {}", urlPattern);
 
         String routeKey = findFirstMatchingKey(routes, urlPattern);
 

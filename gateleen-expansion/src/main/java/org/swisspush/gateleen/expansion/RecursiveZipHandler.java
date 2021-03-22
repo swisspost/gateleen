@@ -54,7 +54,7 @@ public class RecursiveZipHandler implements DeltaHandler<ResourceNode> {
             // serious error (eg. max. request limit exceeded)
             if (node.getObject() instanceof ResourceCollectionException && node.getNodeName().equals(ExpansionHandler.SERIOUS_EXCEPTION)) {
                 if (log.isTraceEnabled()) {
-                    log.trace("(serious error) handle collection '" + collectionName + "'.");
+                    log.trace("(serious error) handle collection '{}'.", collectionName);
                 }
 
                 // only the first serious error will be 'passed' down the handler
@@ -67,7 +67,7 @@ public class RecursiveZipHandler implements DeltaHandler<ResourceNode> {
                 // node with list
                 if (node.getPath().equals(HANDLER_PATH)) {
                     if (log.isTraceEnabled()) {
-                        log.trace("adding collection of '" + node.getNodeName() + "' to parent '" + collectionName + "'.");
+                        log.trace("adding collection of '{}' to parent '{}'.", node.getNodeName(), collectionName);
                     }
 
                     nodes.addAll((List<ResourceNode>) node.getObject());
@@ -75,7 +75,7 @@ public class RecursiveZipHandler implements DeltaHandler<ResourceNode> {
                 // node with simple resource
                 else if (!node.getPath().isEmpty()) {
                     if (log.isTraceEnabled()) {
-                        log.trace("adding resource '" + node.getNodeName() + "' to collection '" + collectionName + "'.");
+                        log.trace("adding resource '{}' to collection '{}'.", node.getNodeName(), collectionName);
                     }
 
                     /*
@@ -114,7 +114,7 @@ public class RecursiveZipHandler implements DeltaHandler<ResourceNode> {
     @Override
     public void storeXDeltaResponseHeader(String xDeltaResponseNumber) {
         if (log.isTraceEnabled()) {
-            log.trace("storeXDeltaResponseHeader > " + xDeltaResponseNumber);
+            log.trace("storeXDeltaResponseHeader > {}", xDeltaResponseNumber);
         }
 
         // do we have a x-delta number?

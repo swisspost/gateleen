@@ -166,7 +166,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
                             registerDelegate(delegateBody, key);
                         }
                         else {
-                            LOG.warn("Could not get URL '" + delegatesUri + key + "/definition'.");
+                            LOG.warn("Could not get URL '{}/definition'.", delegatesUri + key);
                         }
 
                         // send a ready flag
@@ -204,7 +204,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
                     if (buffer != null) {
                         registerDelegate(buffer, messages[MESSAGE_NAME]);
                     } else {
-                        LOG.warn("Could not get URL '" + messages[MESSAGE_URL] + "' (getting delegate).");
+                        LOG.warn("Could not get URL '{}' (getting delegate).", messages[MESSAGE_URL]);
                     }
                 });
             }

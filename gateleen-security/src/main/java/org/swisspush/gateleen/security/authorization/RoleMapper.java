@@ -60,7 +60,7 @@ public class RoleMapper implements ConfigurationResource {
                 try {
                     roleMappers = roleMapperFactory.parseRoleMapper(buffer);
                 } catch (ValidationException validationException) {
-                    log.error("Could not parse acl for role mapper: " + validationException.toString());
+                    log.error("Could not parse acl for role mapper: {}", validationException.toString());
                 }
             } else {
                 log.info("No RoleMappers found in storage");

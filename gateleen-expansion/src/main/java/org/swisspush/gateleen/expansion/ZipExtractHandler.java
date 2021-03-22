@@ -165,11 +165,11 @@ public class ZipExtractHandler {
                 }
                 else {
                     // return 404 - not found
-                    log.error("could not extract {} from {}", new Object[] { insidePath, zipUrl });
+                    log.error("could not extract {} from {}", insidePath, zipUrl);
                     createResponse(req, StatusCode.NOT_FOUND.getStatusCode(),StatusCode.NOT_FOUND.getStatusMessage(), null, null);
                 }
             } catch (Exception e) {
-                log.error("could not extract {} from {}: {}", new Object[] { insidePath, zipUrl, e.getMessage() });
+                log.error("could not extract {} from {}: {}", insidePath, zipUrl, e.getMessage());
                 createResponse(req, StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(),StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage(), null, null);
             }
         });

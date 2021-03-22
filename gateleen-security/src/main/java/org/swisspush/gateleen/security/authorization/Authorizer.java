@@ -187,7 +187,7 @@ public class Authorizer implements LoggableResource {
                     try {
                         checker.checkConfigResource(buffer);
                     } catch (ValidationException validationException) {
-                        log.warn("Could not parse acl: " + validationException.toString());
+                        log.warn("Could not parse acl: {}", validationException.toString());
                         ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, Authorizer.class);
                         request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                         request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
@@ -218,7 +218,8 @@ public class Authorizer implements LoggableResource {
                     if (status == StatusCode.OK.getStatusCode()) {
                         eb.publish(UPDATE_ADDRESS, "*");
                     } else {
-                        log.warn("Could not delete '" + (request.uri() == null ? "<null>" : request.uri()) + "'. Error code is '" + (status == null ? "<null>" : status) + "'.");
+                        log.warn("Could not delete '{}'. Error code is '{}'.", (request.uri() == null ? "<null>" : request.uri()),
+                                (status == null ? "<null>" : status));
                         request.response().setStatusCode(status);
                     }
                     ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), Authorizer.class);

@@ -219,13 +219,13 @@ public class RoleAuthorizer implements ConfigurationResource {
         storage.get(aclRoot + role, buffer -> {
             if (buffer != null) {
                 try {
-                    log.info("Applying acl for " + role);
+                    log.info("Applying acl for {}", role);
                     mergeAcl(role, buffer);
                 } catch (ValidationException validationException) {
-                    log.error("Could not parse acls: " + validationException.toString());
+                    log.error("Could not parse acls: {}", validationException.toString());
                 }
             } else {
-                log.error("No acl for role " + role + " found in storage");
+                log.error("No acl for role {} found in storage", role);
             }
         });
     }

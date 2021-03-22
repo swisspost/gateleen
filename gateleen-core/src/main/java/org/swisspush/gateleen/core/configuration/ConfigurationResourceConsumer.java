@@ -32,7 +32,7 @@ public abstract class ConfigurationResourceConsumer implements ConfigurationReso
         if (configurationResourceManager != null
                 && StringUtils.isNotEmptyTrimmed(configResourceUri)
                 && StringUtils.isNotEmptyTrimmed(schemaResourceName)) {
-            log.info("Register resource and observer for config resource uri " + configResourceUri);
+            log.info("Register resource and observer for config resource uri {}", configResourceUri);
             String schema = ResourcesUtils.loadResource(schemaResourceName, true);
             configurationResourceManager.registerResource(configResourceUri, schema);
             configurationResourceManager.registerObserver(this, configResourceUri);

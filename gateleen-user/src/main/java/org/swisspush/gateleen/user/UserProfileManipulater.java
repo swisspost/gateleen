@@ -70,9 +70,10 @@ public class UserProfileManipulater {
 
         if (!isValidValueInHeader && valueInHeader != null) {
             log.error("UserProfileManipulator - got the header attribute "
-                    + "[" + profileProperty.getHeaderName() + "," + headers.get(profileProperty.getHeaderName()) + "], "
-                    + "according the validation regex " + "[" + profileProperty.getValidationRegex() + "] "
-                    + "this is not a valid value, we don't set it into the profile");
+                    + "[{},{}], according the validation regex [{}] this is not a valid value, we don't set it into the profile",
+                    profileProperty.getHeaderName(),
+                    headers.get(profileProperty.getHeaderName()),
+                    profileProperty.getValidationRegex());
         }
 
         // Decision what value to use
@@ -94,8 +95,7 @@ public class UserProfileManipulater {
                             valueToUse = valueInProfile;
                             break;
                         default:
-                            log.error("Invalid update strategy: "
-                                    + profileProperty.getUpdateStrategy() + ". Assume UPDATE_ALWAYS.");
+                            log.error("Invalid update strategy: {}. Assume UPDATE_ALWAYS.", profileProperty.getUpdateStrategy());
                             valueToUse = valueInHeader;
                             break;
                     }
