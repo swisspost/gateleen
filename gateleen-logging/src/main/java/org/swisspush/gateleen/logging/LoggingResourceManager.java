@@ -76,7 +76,7 @@ public class LoggingResourceManager implements LoggableResource {
                     log.warn("Could not reconfigure logging resources (filters and headers)", e);
                 }
             } else {
-                log.warn("Could not get URL '" + (loggingUri == null ? "<null>" : loggingUri) + "'.");
+                log.warn("Could not get URL '{}'.", (loggingUri == null ? "<null>" : loggingUri));
             }
         });
     }
@@ -85,7 +85,7 @@ public class LoggingResourceManager implements LoggableResource {
         extractLoggingFilterValues(buffer);
 
         for (Map<String, String> payloadFilters : getLoggingResource().getPayloadFilters()) {
-            log.info("Applying Logging-Filter: " + payloadFilters);
+            log.info("Applying Logging-Filter: {}", payloadFilters);
         }
 
         switch (getLoggingResource().getHeaderLogStrategy()) {
@@ -96,7 +96,7 @@ public class LoggingResourceManager implements LoggableResource {
             log.info("No headers will be logged");
             break;
         case LOG_LIST:
-            log.info("Headers to log: " + getLoggingResource().getHeaders().toString());
+            log.info("Headers to log: {}", getLoggingResource().getHeaders().toString());
         }
     }
 
@@ -106,7 +106,7 @@ public class LoggingResourceManager implements LoggableResource {
                 try {
                     extractLoggingFilterValues(loggingResourceBuffer);
                 } catch (ValidationException validationException) {
-                    log.error("Could not parse logging resource: " + validationException.toString());
+                    log.error("Could not parse logging resource: {}", validationException.toString());
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, LoggingResourceManager.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
@@ -198,7 +198,7 @@ public class LoggingResourceManager implements LoggableResource {
                         destinationEntries.put(name, options);
                     }
                     else {
-                        log.warn("Could not configure destination '" + name + "'. Missing typeLocation (file|address).");
+                        log.warn("Could not configure destination '{}'. Missing typeLocation (file|address).", name);
                     }
                 }
                 getLoggingResource().addFilterDestinations(destinationEntries);

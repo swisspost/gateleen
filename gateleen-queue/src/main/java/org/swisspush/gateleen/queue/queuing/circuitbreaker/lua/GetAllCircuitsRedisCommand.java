@@ -48,7 +48,7 @@ public class GetAllCircuitsRedisCommand implements RedisCommand {
                 String message = event.cause().getMessage();
                 if(message != null && message.startsWith("NOSCRIPT")) {
                     log.warn("GetAllCircuitsRedisCommand script couldn't be found, reload it");
-                    log.warn("amount the script got loaded: " + String.valueOf(executionCounter));
+                    log.warn("amount the script got loaded: {}", executionCounter);
                     if(executionCounter > 10) {
                         future.fail("amount the script got loaded is higher than 10, we abort");
                     } else {

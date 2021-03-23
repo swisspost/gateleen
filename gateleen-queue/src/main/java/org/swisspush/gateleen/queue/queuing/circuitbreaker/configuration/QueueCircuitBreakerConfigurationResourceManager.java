@@ -101,7 +101,7 @@ public class QueueCircuitBreakerConfigurationResourceManager implements Loggable
                 try {
                     extractConfigurationValues(configResourceBuffer);
                 } catch (ValidationException validationException) {
-                    log.error("Could not parse circuit breaker configuration resource: " + validationException.toString());
+                    log.error("Could not parse circuit breaker configuration resource: {}", validationException.toString());
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, QueueCircuitBreakerConfigurationResourceManager.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
@@ -150,12 +150,12 @@ public class QueueCircuitBreakerConfigurationResourceManager implements Loggable
             if (buffer != null) {
                 try {
                     extractConfigurationValues(buffer);
-                    log.info("Applying circuit breaker configuration values : " + getConfigurationResource().toString());
+                    log.info("Applying circuit breaker configuration values : {}", getConfigurationResource().toString());
                 } catch (ValidationException e) {
                     log.warn("Could not reconfigure circuitbreaker", e);
                 }
             } else {
-                log.warn("Could not get URL '" + (circuitBreakerConfigUri == null ? "<null>" : circuitBreakerConfigUri) + "'.");
+                log.warn("Could not get URL '{}'.", (circuitBreakerConfigUri == null ? "<null>" : circuitBreakerConfigUri));
             }
             notifyRefreshables();
         });

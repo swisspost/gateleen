@@ -28,7 +28,7 @@ public abstract class RecursiveRootHandlerBase implements DeltaHandler<ResourceN
      */
     void handleResponseError(final HttpServerRequest req, final ResourceCollectionException exception) {
         if (log.isTraceEnabled()) {
-            log.trace("got a ResourceCollectionException: " + exception.getMessage());
+            log.trace("got a ResourceCollectionException: {}", exception.getMessage());
         }
 
         ResponseStatusCodeLogUtil.debug(req, exception.getStatusCode(), RecursiveRootHandlerBase.class);
@@ -72,7 +72,7 @@ public abstract class RecursiveRootHandlerBase implements DeltaHandler<ResourceN
     @Override
     public void storeXDeltaResponseHeader(String xDeltaResponseNumber) {
         if (log.isTraceEnabled()) {
-            log.trace(" (root) storeXDeltaResponseHeader > " + xDeltaResponseNumber);
+            log.trace(" (root) storeXDeltaResponseHeader > {}", xDeltaResponseNumber);
         }
 
         // do we have a x-delta number?

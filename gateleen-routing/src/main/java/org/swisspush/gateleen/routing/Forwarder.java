@@ -81,10 +81,10 @@ public class Forwarder implements Handler<RoutingContext> {
                 String headerValue = profile.getString(headerKey);
                 if (headerKey != null && headerValue != null) {
                     profileValues.put(USER_HEADER_PREFIX + headerKey, headerValue);
-                    log.debug("Sending header-information for key " + headerKey + ", value = " + headerValue);
+                    log.debug("Sending header-information for key {}, value = {}", headerKey, headerValue);
                 } else {
                     if (headerKey != null) {
-                        log.debug("We should send profile information '" + headerKey + "' but this information was not found in profile.");
+                        log.debug("We should send profile information '{}' but this information was not found in profile.", headerKey);
                     } else {
                         log.debug("We should send profile information but header key is null.");
                     }
@@ -135,11 +135,11 @@ public class Forwarder implements Handler<RoutingContext> {
         monitoringHandler.updateRequestsMeter(target, req.uri());
         monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getMetricName());
         final String targetUri = urlPattern.matcher(req.uri()).replaceFirst(rule.getPath()).replaceAll("\\/\\/", "/");
-        log.debug("Forwarding request: " + req.uri() + " to " + rule.getScheme() + "://" + target + targetUri + " with rule " + rule.getRuleIdentifier());
+        log.debug("Forwarding request: {} to {}://{} with rule {}", req.uri(), rule.getScheme(), target + targetUri, rule.getRuleIdentifier());
         final String userId = extractUserId(req, log);
 
         if (userId != null && rule.getProfile() != null && userProfilePath != null) {
-            log.debug("Get profile information for user '" + userId + "' to append to headers");
+            log.debug("Get profile information for user '{}' to append to headers", userId);
             String userProfileKey = String.format(userProfilePath, userId);
             req.pause(); // pause the request to avoid problems with starting another async request (storage)
             storage.get(userProfileKey, buffer -> {
@@ -148,10 +148,10 @@ public class Forwarder implements Handler<RoutingContext> {
                 if (buffer != null) {
                     JsonObject profile = new JsonObject(buffer.toString());
                     profileHeaderMap = createProfileHeaderValues(profile, log);
-                    log.debug("Got profile information of user '" + userId + "'");
-                    log.debug("Going to send parts of the profile in header: " + profileHeaderMap);
+                    log.debug("Got profile information of user '{}'", userId);
+                    log.debug("Going to send parts of the profile in header: {}", profileHeaderMap);
                 } else {
-                    log.debug("No profile information found in local storage for user '" + userId + "'");
+                    log.debug("No profile information found in local storage for user '{}'", userId);
                 }
                 handleRequest(req, bodyData, targetUri, log, profileHeaderMap);
             });

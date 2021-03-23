@@ -104,7 +104,7 @@ public class ContentTypeConstraintHandler extends ConfigurationResourceConsumer 
     @Override
     public void resourceChanged(String resourceUri, Buffer resource) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
-            log.info("Content-Type constraint configuration resource " + resourceUri + " was updated. Going to initialize with new configuration");
+            log.info("Content-Type constraint configuration resource {} was updated. Going to initialize with new configuration", resourceUri);
             initializeConstraintConfiguration(resource);
         }
     }
@@ -112,7 +112,7 @@ public class ContentTypeConstraintHandler extends ConfigurationResourceConsumer 
     @Override
     public void resourceRemoved(String resourceUri) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
-            log.info("Content-Type constraint configuration resource " + resourceUri + " was removed.");
+            log.info("Content-Type constraint configuration resource {} was removed.", resourceUri);
             repository.clearConstraints();
             initialized = false;
         }

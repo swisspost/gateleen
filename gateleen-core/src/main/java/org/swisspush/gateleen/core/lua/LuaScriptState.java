@@ -40,7 +40,7 @@ public class LuaScriptState {
      * @param luaScriptType
      */
     private void composeLuaScript(LuaScript luaScriptType) {
-        log.info("read the lua script for script type: " + luaScriptType + " with logoutput: " + logoutput);
+        log.info("read the lua script for script type: {} with logoutput: {}", luaScriptType, logoutput);
         this.script = readLuaScriptFromClasspath(luaScriptType);
         this.sha = DigestUtils.sha1Hex(this.script);
     }
@@ -88,18 +88,19 @@ public class LuaScriptState {
             Long exists = resultArray.result().getLong(0);
             // if script already
             if(Long.valueOf(1).equals(exists)) {
-                log.debug("RedisStorage script already exists in redis cache: " + luaScriptType);
+                log.debug("RedisStorage script already exists in redis cache: {}", luaScriptType);
                 redisCommand.exec(executionCounterIncr);
             } else {
-                log.info("load lua script for script type: " + luaScriptType + " logutput: " + logoutput);
+                log.info("load lua script for script type: {} logutput: {}", luaScriptType, logoutput);
                 redisClient.scriptLoad(script, stringAsyncResult -> {
                     String newSha = stringAsyncResult.result();
-                    log.info("got sha from redis for lua script: " + luaScriptType + ": " + newSha);
+                    log.info("got sha from redis for lua script: {}: {}", luaScriptType, newSha);
                     if(!newSha.equals(sha)) {
-                        log.warn("the sha calculated by myself: " + sha + " doesn't match with the sha from redis: " + newSha + ". We use the sha from redis");
+                        log.warn("the sha calculated by myself: {} doesn't match with the sha from redis: {}. " +
+                                "We use the sha from redis", sha, newSha);
                     }
                     sha = newSha;
-                    log.info("execute redis command for script type: " + luaScriptType + " with new sha: " + sha);
+                    log.info("execute redis command for script type: {} with new sha: {}", luaScriptType, sha);
                     redisCommand.exec(executionCounterIncr);
                 });
             }

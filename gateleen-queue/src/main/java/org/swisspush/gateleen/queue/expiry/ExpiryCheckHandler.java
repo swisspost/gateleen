@@ -62,7 +62,7 @@ public final class ExpiryCheckHandler {
         if (serverTimestamp == null) {
             String nowAsISO = dfISO8601.print(Instant.now());
 
-            log.debug("Setting " + SERVER_TIMESTAMP_HEADER + " value to " + nowAsISO + "  since header " + SERVER_TIMESTAMP_HEADER + " is not defined");
+            log.debug("Setting {} value to {} since header {} is not defined", SERVER_TIMESTAMP_HEADER, nowAsISO, SERVER_TIMESTAMP_HEADER);
 
             headers.set(SERVER_TIMESTAMP_HEADER, nowAsISO);
         } else {
@@ -110,7 +110,9 @@ public final class ExpiryCheckHandler {
         } catch (NumberFormatException e) {
             // Throwing exceptions is not allowed by design.
             // See: "https://github.com/swisspush/gateleen/pull/209#discussion_r177712751"
-            log.warn("Conceal exception (because we're not allowed to throw by design): " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            log.warn("Conceal exception (because we're not allowed to throw by design): {}: {}",
+                    e.getClass().getSimpleName(),
+                    e.getMessage());
             return Optional.empty();
         }
     }
@@ -253,7 +255,7 @@ public final class ExpiryCheckHandler {
     private static DateTime getExpirationTime(DateTime timestamp, int expireAfter) {
         DateTime expirationTime = timestamp.plusSeconds(expireAfter);
 
-        log.debug("getExpirationTime: " + expirationTime);
+        log.debug("getExpirationTime: {}", expirationTime);
 
         return expirationTime;
     }

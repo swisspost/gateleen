@@ -40,7 +40,7 @@ public class NullForwarder implements Handler<RoutingContext> {
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), eventBus);
         final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
-        log.debug("Not forwarding request: " + ctx.request().uri() + " with rule " + rule.getRuleIdentifier());
+        log.debug("Not forwarding request: {} with rule {}", ctx.request().uri(), rule.getRuleIdentifier());
         final VertxHttpHeaders requestHeaders = new VertxHttpHeaders();
         requestHeaders.addAll(ctx.request().headers());
 

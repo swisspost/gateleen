@@ -44,7 +44,7 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
      */
     public RecursiveExpansionHandler(List<String> subResourceNames, String collectionName, String collectioneTag, DeltaHandler<ResourceNode> parentHandler) {
         if (log.isTraceEnabled()) {
-            log.trace("RecursiveExpansionHandler created for collection '" + collectionName + "' with a child count of " + subResourceNames.size() + ".");
+            log.trace("RecursiveExpansionHandler created for collection '{}' with a child count of {}.", collectionName, subResourceNames.size());
         }
 
         this.xDeltaResponseNumber = new AtomicLong(0);
@@ -111,7 +111,7 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
                 try {
                     node.setObject(new JsonObject(((Buffer) node.getObject()).toString("UTF-8")));
                 } catch (Exception e) {
-                    log.error("Error in result of sub resource with path '" + node.getPath() + "' Message: " + e.getMessage());
+                    log.error("Error in result of sub resource with path '{}' Message: {}", node.getPath(), e.getMessage());
                     node.setObject(new ResourceCollectionException(e.getMessage()));
                 }
             }
@@ -119,7 +119,7 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
             // Json Object or Array
             if (node.getObject() instanceof JsonObject || node.getObject() instanceof JsonArray) {
                 if (log.isTraceEnabled()) {
-                    log.trace("handle collection '" + collectionName + "' for node '" + node.getNodeName() + "'.");
+                    log.trace("handle collection '{}' for node '{}'.", collectionName, node.getNodeName());
                 }
 
                 nodeMap.put(node.getNodeName(), node);
@@ -129,7 +129,7 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
                 // serious error (eg. max. request limit exceeded)
                 if (node.getNodeName().equals(ExpansionHandler.SERIOUS_EXCEPTION)) {
                     if (log.isTraceEnabled()) {
-                        log.trace("(serious error) handle collection '" + collectionName + "'.");
+                        log.trace("(serious error) handle collection '{}'.", collectionName);
                     }
 
                     // only the first serious error will be 'passed' down the handler
@@ -140,7 +140,7 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
                 // resource related error occured
                 else {
                     if (log.isTraceEnabled()) {
-                        log.trace("(no serious error) handle collection '" + collectionName + "'.");
+                        log.trace("(no serious error) handle collection '{}'.", collectionName);
                     }
 
                     resourceCollectionExceptionMap.put(node.getNodeName(), (ResourceCollectionException) node.getObject());
@@ -201,7 +201,7 @@ public class RecursiveExpansionHandler implements DeltaHandler<ResourceNode> {
     @Override
     public void storeXDeltaResponseHeader(String xDeltaResponseNumber) {
         if (log.isTraceEnabled()) {
-            log.trace("storeXDeltaResponseHeader > " + xDeltaResponseNumber);
+            log.trace("storeXDeltaResponseHeader > {}", xDeltaResponseNumber);
         }
 
         // do we have a x-delta number?

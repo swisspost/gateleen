@@ -56,7 +56,7 @@ public class QueueingStrategyFactory {
 
         Object queueingStrategyConfigObj = hookConfiguration.getValue(QUEUEING_STRATEGY_PROPERTY);
         if(!(queueingStrategyConfigObj instanceof JsonObject)){
-            LOG.warn("Invalid 'queueingStrategy' configuration found: " + queueingStrategyConfigObj + ". Using DefaultQueueingStrategy instead");
+            LOG.warn("Invalid 'queueingStrategy' configuration found: {}. Using DefaultQueueingStrategy instead", queueingStrategyConfigObj);
             return queueingStrategy;
         }
 
@@ -64,7 +64,7 @@ public class QueueingStrategyFactory {
         Strategy strategy = Strategy.fromString(queueingStrategyConfig.getString("type"));
 
         if(strategy == null){
-            LOG.warn("Invalid 'queueingStrategy' configuration found: " + queueingStrategyConfig.encode() + ". Using DefaultQueueingStrategy instead");
+            LOG.warn("Invalid 'queueingStrategy' configuration found: {}. Using DefaultQueueingStrategy instead", queueingStrategyConfig.encode());
             return queueingStrategy;
         }
 
@@ -76,7 +76,7 @@ public class QueueingStrategyFactory {
                 queueingStrategy = buildReducedPropagationQueueingStrategy(queueingStrategyConfig);
                 break;
             default:
-            LOG.warn("Unknown strategy '"+strategy+"'. Using DefaultQueueingStrategy instead");
+            LOG.warn("Unknown strategy '{}'. Using DefaultQueueingStrategy instead", strategy);
         }
 
         return queueingStrategy;
@@ -88,11 +88,11 @@ public class QueueingStrategyFactory {
             if(intervalMs != null){
                 return new ReducedPropagationQueueingStrategy(intervalMs);
             } else {
-                LOG.warn("Got a 'ReducedPropagationQueueingStrategy' configuration with an invalid interval value: " + queueingStrategyConfig.encode());
+                LOG.warn("Got a 'ReducedPropagationQueueingStrategy' configuration with an invalid interval value: {}", queueingStrategyConfig.encode());
                 return new DefaultQueueingStrategy();
             }
         }catch (Exception ex){
-            LOG.warn("Got a 'ReducedPropagationQueueingStrategy' configuration with an invalid interval value: " + queueingStrategyConfig.encode());
+            LOG.warn("Got a 'ReducedPropagationQueueingStrategy' configuration with an invalid interval value: {}", queueingStrategyConfig.encode());
             return new DefaultQueueingStrategy();
         }
     }

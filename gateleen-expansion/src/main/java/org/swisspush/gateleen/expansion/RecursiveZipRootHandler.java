@@ -74,7 +74,7 @@ public class RecursiveZipRootHandler extends RecursiveRootHandlerBase {
 
                 // set level for store
                 if (zipType.equals(RecursiveHandlerFactory.RecursiveHandlerTypes.STORE)) {
-                    if ( log.isTraceEnabled() ) {
+                    if (log.isTraceEnabled() ) {
                         log.trace("setting zip level to store");
                     }
 
@@ -85,8 +85,8 @@ public class RecursiveZipRootHandler extends RecursiveRootHandlerBase {
 
                 for (ResourceNode resourceNode : zipableNodes) {
                     if (log.isTraceEnabled()) {
-                        log.trace("Create zip for: " + resourceNode.getNodeName());
-                        log.trace("   >> " + resourceNode.getPath());
+                        log.trace("Create zip for: {}", resourceNode.getNodeName());
+                        log.trace("   >> {}", resourceNode.getPath());
                     }
 
                     zipEntry(zipOutputStream, resourceNode);

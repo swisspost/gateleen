@@ -93,7 +93,7 @@ public class PropertyHandler {
      * @param propertyName
      */
     public void addProperty(String url, String value, String propertyName) {
-        log.info("register property handler for property '" + propertyName + "' on url '" + url + "' and value id '" + value + "'.");
+        log.info("register property handler for property '{}' on url '{}' and value id '{}'.", propertyName, url, value);
         String adaptedUrl = serverUri + url;
 
         if (propertyUrls.containsKey(adaptedUrl)) {
@@ -141,7 +141,7 @@ public class PropertyHandler {
                 }
 
                 if (!found) {
-                    log.warn("id for the request PUT " + request.uri() + " could not be found: " + body.toString());
+                    log.warn("id for the request PUT {} could not be found: {}", request.uri(), body.toString());
                 }
 
                 // everythin is fine

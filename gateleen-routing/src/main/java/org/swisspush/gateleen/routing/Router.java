@@ -159,7 +159,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                     log.error("Could not reconfigure routing", e);
                 }
             } else {
-                log.warn("Could not get URL '" + (rulesUri == null ? "<null>" : rulesUri) + "' (getting rules).");
+                log.warn("Could not get URL '{}' (getting rules).", (rulesUri == null ? "<null>" : rulesUri));
             }
         }));
     }
@@ -179,7 +179,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 try {
                     new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
                 } catch (ValidationException validationException) {
-                    log.error("Could not parse rules: " + validationException.toString());
+                    log.error("Could not parse rules: {}", validationException.toString());
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, Router.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
@@ -270,7 +270,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             message = "No Message provided!";
         }
         getRouterStateMap().put(ROUTER_BROKEN_KEY, message);
-        log.error("routing is broken. message: " + message);
+        log.error("routing is broken. message: {}", message);
     }
 
     private void resetRouterBrokenState() {
@@ -305,7 +305,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             }
 
             if (rule.getMethods() == null) {
-                log.info("Installing " + rule.getScheme().toUpperCase() + " forwarder for all methods: " + rule.getUrlPattern());
+                log.info("Installing {} forwarder for all methods: {}", rule.getScheme().toUpperCase(), rule.getUrlPattern());
                 newRouter.routeWithRegex(rule.getUrlPattern()).handler(forwarder);
             } else {
                 installMethodForwarder(newRouter, rule, forwarder);
@@ -315,7 +315,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
     private void installMethodForwarder(io.vertx.ext.web.Router newRouter, Rule rule, Handler<RoutingContext> forwarder) {
         for (String method : rule.getMethods()) {
-            log.info("Installing " + rule.getScheme().toUpperCase() + " forwarder for methods " + method + " to " + rule.getUrlPattern());
+            log.info("Installing {} forwarder for methods {} to {}", rule.getScheme().toUpperCase(), method, rule.getUrlPattern());
             switch (method) {
                 case "GET":
                     newRouter.getWithRegex(rule.getUrlPattern()).handler(forwarder);
@@ -362,19 +362,19 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             newRouter.put(serverUri + "/simulator/.*").handler(ctx -> ctx.request().bodyHandler(buffer -> {
                 try {
                     final JsonObject obj = new JsonObject(buffer.toString());
-                    log.debug("Simulator got " + obj.getLong("delay") + " " + obj.getLong("size"));
+                    log.debug("Simulator got {} {}", obj.getLong("delay"), obj.getLong("size"));
                     vertx.setTimer(obj.getLong("delay"), event -> {
                         try {
                             char[] body = new char[obj.getInteger("size")];
                             ctx.response().end(new String(body));
                             log.debug("Simulator sent response");
                         } catch (Exception e) {
-                            log.error("Simulator error " + e.getMessage());
+                            log.error("Simulator error {}", e.getMessage());
                             ctx.response().end();
                         }
                     });
                 } catch (Exception e) {
-                    log.error("Simulator error " + e.getMessage());
+                    log.error("Simulator error {}", e.getMessage());
                     ctx.response().end();
                 }
             }));
@@ -459,20 +459,20 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     @Override
     public void resourceChanged(String resourceUri, Buffer resource) {
         if (configResourceUri != null && configResourceUri.equals(resourceUri)) {
-            log.info("Got notified about configuration resource update for " + resourceUri);
+            log.info("Got notified about configuration resource update for {}", resourceUri);
             try {
                 JsonObject obj = new JsonObject(resource);
                 Integer requestHopsLimitValue = obj.getInteger(REQUEST_HOPS_LIMIT_PROPERTY);
                 if (requestHopsLimitValue != null) {
-                    log.info("Got value '" + requestHopsLimitValue + "' for property '" + REQUEST_HOPS_LIMIT_PROPERTY +
-                            "'. Request hop validation is now activated");
+                    log.info("Got value '{}' for property '{}'. Request hop validation is now activated",
+                            requestHopsLimitValue, REQUEST_HOPS_LIMIT_PROPERTY);
                     requestHopsLimit = requestHopsLimitValue;
                 } else {
-                    log.warn("No value for property '" + REQUEST_HOPS_LIMIT_PROPERTY + "' found. Request hop validation will not be activated");
+                    log.warn("No value for property '{}' found. Request hop validation will not be activated", REQUEST_HOPS_LIMIT_PROPERTY);
                     requestHopsLimit = null;
                 }
             } catch (DecodeException ex) {
-                log.warn("Unable to decode configuration resource for " + resourceUri + ". Reason: " + ex.getMessage());
+                log.warn("Unable to decode configuration resource for {}. Reason: {}", resourceUri, ex.getMessage());
                 requestHopsLimit = null;
             }
         }
@@ -481,7 +481,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     @Override
     public void resourceRemoved(String resourceUri) {
         if (configResourceUri != null && configResourceUri.equals(resourceUri)) {
-            log.info("Configuration resource " + resourceUri + " was removed. Request hop validation is disabled");
+            log.info("Configuration resource {} was removed. Request hop validation is disabled", resourceUri);
             requestHopsLimit = null;
         }
     }
@@ -500,7 +500,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
     private void initializeConfigurationResourceManagement() {
         if (configurationResourceManager != null && StringUtils.isNotEmptyTrimmed(configResourceUri)) {
-            log.info("Register resource and observer for config resource uri " + configResourceUri);
+            log.info("Register resource and observer for config resource uri {}", configResourceUri);
             String schema = ResourcesUtils.loadResource("gateleen_routing_schema_config", true);
             configurationResourceManager.registerResource(configResourceUri, schema);
             configurationResourceManager.registerObserver(this, configResourceUri);

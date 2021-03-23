@@ -61,7 +61,7 @@ public class ConfigurationResourceManager implements LoggableResource {
                 } else if (ConfigurationResourceChangeType.REMOVE == type) {
                     notifyObserversAboutRemovedResource(requestUri);
                 } else {
-                    log.warn("Not supported configuration resource change type '" + type + "' received. Doing nothing with it");
+                    log.warn("Not supported configuration resource change type '{}' received. Doing nothing with it", type);
                 }
             } else {
                 log.warn("Invalid configuration resource change message received. Don't notify anybody!");
@@ -85,7 +85,7 @@ public class ConfigurationResourceManager implements LoggableResource {
 
     public void registerObserver(ConfigurationResourceObserver observer, String resourceUri) {
         if(!getRegisteredResources().containsKey(resourceUri)){
-            log.warn("No registered resource with uri " + resourceUri + " found");
+            log.warn("No registered resource with uri {} found", resourceUri);
         }
         List<ConfigurationResourceObserver> observersByResourceUri = getObserversByResourceUri(resourceUri);
         observersByResourceUri.add(observer);
@@ -110,7 +110,7 @@ public class ConfigurationResourceManager implements LoggableResource {
         String resourceSchema = getRegisteredResources().get(request.uri());
 
         if(HttpMethod.PUT == request.method()) {
-            requestLog.info("Refresh resource " + resourceUri);
+            requestLog.info("Refresh resource {}", resourceUri);
             request.bodyHandler(buffer -> configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
                 if (event.failed() || (event.succeeded() && !event.result().isSuccess())) {
                     requestLog.error("Could not parse configuration resource for uri '" + resourceUri + "' message: " + event.result().getMessage());
@@ -145,7 +145,7 @@ public class ConfigurationResourceManager implements LoggableResource {
         }
 
         if(HttpMethod.DELETE == request.method()) {
-            requestLog.info("Remove resource " + resourceUri);
+            requestLog.info("Remove resource {}", resourceUri);
             storage.delete(resourceUri, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
                     JsonObject object = new JsonObject();
@@ -202,7 +202,7 @@ public class ConfigurationResourceManager implements LoggableResource {
     }
 
     private void notifyObserversAboutRemovedResource(String requestUri) {
-        log.debug("About to notify observers that resource " + requestUri + " has been removed");
+        log.debug("About to notify observers that resource {} has been removed", requestUri);
         List<ConfigurationResourceObserver> observersByResourceUri = getObserversByResourceUri(requestUri);
         for (ConfigurationResourceObserver observer : observersByResourceUri) {
             observer.resourceRemoved(requestUri);
@@ -223,7 +223,7 @@ public class ConfigurationResourceManager implements LoggableResource {
                     }
                 }
             } else {
-                log.warn("Could not get URL '" + (requestUri == null ? "<null>" : requestUri) + "'.");
+                log.warn("Could not get URL '{}'.", (requestUri == null ? "<null>" : requestUri));
             }
         });
     }

@@ -57,7 +57,7 @@ public class Validator {
                     validateRecursively(data, newSegments, base, jsonBuffer, path, type, log, callback);
                 }
             } else {
-                log.warn("Could not get path " + base);
+                log.warn("Could not get path {}", base);
                 if (base.replaceFirst("/$", "").endsWith(path)) {
                     log.info("try again with lowdash instead of last segment (variableId)");
                     String baseWithLowDash = base.replaceFirst("[^/]*/$", "") + "_/";
@@ -147,8 +147,8 @@ public class Validator {
                 }
                 final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
                 if(valMsgs.isEmpty()) {
-                    log.debug("Valid ("+type+")");
-                    log.debug("Used schema: "+base);
+                    log.debug("Valid ({})", type);
+                    log.debug("Used schema: {}", base);
                     callback.handle(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
                 } else {
                     JsonArray validationDetails = extractMessagesAsJson(valMsgs, log);
@@ -167,7 +167,7 @@ public class Validator {
                     log.warn(msgBuilder.toString());
 
                     callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString(), validationDetails));
-                    log.warn("Used schema: "+base);
+                    log.warn("Used schema: {}", base);
                 }
             } catch (IOException e) {
                 String message = "Cannot read JSON " + " (" + type + ")";

@@ -52,7 +52,7 @@ public class RedisMonitor {
                         vertx.eventBus().publish(getMonitoringAddress(),
                                 new JsonObject().put("name", prefix + metricName).put("action", "set").put("n", value));
                     } else {
-                        log.warn("Cannot collect zcard from redis for key " + elementCountKey);
+                        log.warn("Cannot collect zcard from redis for key {}", elementCountKey);
                     }
                 });
             }
