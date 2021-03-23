@@ -44,16 +44,18 @@ public class HttpResourceStorage implements ResourceStorage {
 
     @Override
     public void get(final String path, final Handler<Buffer> bodyHandler) {
-        log.debug("Reading " + path);
+        log.debug("Reading {}", path);
         HttpClientRequest request = client.get(path, response -> {
             response.exceptionHandler(exception -> {
-                log.error("Reading " + path + " failed: " + exception.getMessage());
+                log.error("Reading {} failed: {}", path, exception.getMessage());
                 bodyHandler.handle(null);
             });
             if (response.statusCode() == StatusCode.OK.getStatusCode()) {
                 response.bodyHandler(bodyHandler);
             } else {
-                log.debug("Got status code other than 200. Status code = " + (response == null ? "<null>" : response.statusCode()) + ", status message is '" + ((response == null || response.statusMessage() == null) ? "<null>" : response.statusMessage()) + "'.");
+                log.debug("Got status code other than 200. Status code = {}, status message is '{}'.",
+                        (response == null ? "<null>" : response.statusCode()),
+                        ((response == null || response.statusMessage() == null) ? "<null>" : response.statusMessage()));
                 bodyHandler.handle(null);
             }
         });
@@ -78,13 +80,13 @@ public class HttpResourceStorage implements ResourceStorage {
 
         HttpClientRequest request = client.put(uri, response -> {
             response.exceptionHandler(exception -> {
-                log.error("Exception on response to PUT from " + uri + ": " + exception.getMessage());
+                log.error("Exception on response to PUT from {}: {}", uri, exception.getMessage());
                 doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
             });
             response.endHandler(event -> doneHandler.handle(response.statusCode()));
         });
         request.exceptionHandler(exception -> {
-            log.error("Putting " + uri + " failed: " + exception.getMessage());
+            log.error("Putting {} failed: {}", uri, exception.getMessage());
             doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
         });
 
@@ -108,13 +110,13 @@ public class HttpResourceStorage implements ResourceStorage {
     public void delete(final String uri, final Handler<Integer> doneHandler) {
         HttpClientRequest request = client.delete(uri, response -> {
             response.exceptionHandler(exception -> {
-                log.error("Exception on response to DELETE from " + uri + ": " + exception.getMessage());
+                log.error("Exception on response to DELETE from {}: {}", uri, exception.getMessage());
                 doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
             });
             response.endHandler(event -> doneHandler.handle(response.statusCode()));
         });
         request.exceptionHandler(exception -> {
-            log.error("Deleting " + uri + " failed: " + exception.getMessage());
+            log.error("Deleting {} failed: {}", uri, exception.getMessage());
             doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
         });
         request.setTimeout(TIMEOUT);

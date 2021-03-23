@@ -7,13 +7,11 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.lock.Lock;
 
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.*;
 
 /**
  * Tests for the {@link LockUtil} class
@@ -38,7 +36,7 @@ public class LockUtilTest {
         LockUtil.acquireLock(null, "someLock", "someToken", 100, log).setHandler(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
-            Mockito.verify(log, Mockito.times(1)).info(Matchers.eq("No lock implementation defined, going to pretend like we got the lock"));
+            Mockito.verify(log, Mockito.times(1)).info(eq("No lock implementation defined, going to pretend like we got the lock"));
             async.complete();
         });
     }
@@ -50,8 +48,8 @@ public class LockUtilTest {
         LockUtil.acquireLock(lock, "someLock", "someToken", 100, log).setHandler(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
-            Mockito.verify(log, Mockito.times(1)).debug(Matchers.eq("Trying to acquire lock 'someLock' with token 'someToken' and expiry 100ms"));
-            Mockito.verify(log, Mockito.times(1)).debug(Matchers.eq("Acquired lock 'someLock' with token 'someToken'"));
+            Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to acquire lock '{}' with token '{}' and expiry {}ms"), eq("someLock"), eq("someToken"), eq(100L));
+            Mockito.verify(log, Mockito.times(1)).debug(eq("Acquired lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
             async.complete();
         });
     }
@@ -63,7 +61,7 @@ public class LockUtilTest {
         LockUtil.acquireLock(lock, "someLock", "someToken", 100, log).setHandler(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result());
-            Mockito.verify(log, Mockito.times(1)).debug(Matchers.eq("Trying to acquire lock 'someLock' with token 'someToken' and expiry 100ms"));
+            Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to acquire lock '{}' with token '{}' and expiry {}ms"), eq("someLock"), eq("someToken"), eq(100L));
             async.complete();
         });
     }
@@ -82,29 +80,29 @@ public class LockUtilTest {
     @Test
     public void testReleaseLockWithoutLockImplementationDefined(TestContext context) {
         LockUtil.releaseLock(null, "someLock", "someToken", log);
-        Mockito.verify(log, Mockito.timeout(100).times(1)).info(Matchers.eq("No lock implementation defined, going to pretend like we released the lock"));
+        Mockito.verify(log, Mockito.timeout(100).times(1)).info(eq("No lock implementation defined, going to pretend like we released the lock"));
     }
 
     @Test
     public void testReleaseLockSuccess(TestContext context) {
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.TRUE));
         LockUtil.releaseLock(lock, "someLock", "someToken", log);
-        Mockito.verify(log, Mockito.times(1)).debug(Matchers.eq("Trying to release lock 'someLock' with token 'someToken'"));
-        Mockito.verify(log, Mockito.times(1)).debug(Matchers.eq("Released lock 'someLock' with token 'someToken'"));
+        Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to release lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
+        Mockito.verify(log, Mockito.times(1)).debug(eq("Released lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
     }
 
     @Test
     public void testReleaseLockFail(TestContext context) {
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.FALSE));
         LockUtil.releaseLock(lock, "someLock", "someToken", log);
-        Mockito.verify(log, Mockito.times(1)).debug(Matchers.eq("Trying to release lock 'someLock' with token 'someToken'"));
+        Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to release lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
     }
 
     @Test
     public void testReleaseLockError(TestContext context) {
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.failedFuture("Booom"));
         LockUtil.releaseLock(lock, "someLock", "someToken", log);
-        Mockito.verify(log, Mockito.times(1)).debug(Matchers.eq("Trying to release lock 'someLock' with token 'someToken'"));
-        Mockito.verify(log, Mockito.times(1)).error(Matchers.eq("Could not release lock 'someLock'. Message: Booom"));
+        Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to release lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
+        Mockito.verify(log, Mockito.times(1)).error(eq("Could not release lock '{}'. Message: {}"), eq("someLock"), eq("Booom"));
     }
 }

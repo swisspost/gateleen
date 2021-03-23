@@ -39,7 +39,8 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
          */
         removeListener(listener.getListenerId());
 
-        log.debug("Add listener " + listener.getListener() + " for resource " + listener.getMonitoredUrl() + " with id " + listener.getListenerId());
+        log.debug("Add listener {} for resource {} with id {}", listener.getListener(), listener.getMonitoredUrl(),
+                listener.getListenerId());
 
         /*
          * do we have already a set of listeners
@@ -63,7 +64,7 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
 
     @Override
     public void removeListener(String listenerId) {
-        log.debug("Remove listener for id " + listenerId);
+        log.debug("Remove listener for id {}", listenerId);
 
         Listener listenerToRemove = listenerToUrlMap.get(listenerId);
 

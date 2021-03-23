@@ -276,9 +276,11 @@ public class HookHandler implements LoggableResource {
 
                     final Optional<DateTime> expirationTime = listener.getHook().getExpirationTime();
                     if (!expirationTime.isPresent()) {
-                        log.trace("Listener " + listener.getListenerId() + " will never expire.");
+                        if(log.isTraceEnabled()) {
+                            log.trace("Listener {} will never expire.", listener.getListenerId());
+                        }
                     } else if (expirationTime.get().isBefore(now)) {
-                        log.debug("Listener " + listener.getListenerId() + " expired at " + expirationTime.get() + " and current time is " + now);
+                        log.debug("Listener {} expired at {} and current time is {}", listener.getListenerId(), expirationTime.get(), now);
                         listenerRepository.removeListener(listener.getListenerId());
                         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListenerId());
                     }
@@ -290,7 +292,9 @@ public class HookHandler implements LoggableResource {
                     Route route = routes.get(key);
                     final Optional<DateTime> expirationTime = route.getHook().getExpirationTime();
                     if (!expirationTime.isPresent()) {
-                        log.trace("Route " + key + " will never expire.");
+                        if(log.isTraceEnabled()) {
+                            log.trace("Route {} will never expire.", key);
+                        }
                     } else if (expirationTime.get().isBefore(now)) {
                         routeRepository.removeRoute(key);
                     }
@@ -336,7 +340,7 @@ public class HookHandler implements LoggableResource {
                             registerRoute(routeBody);
                         }
                         else {
-                            log.warn("Could not get URL '" + routeBase + key + "' (getting hook route).");
+                            log.warn("Could not get URL '{}' (getting hook route).", routeBase + key);
                         }
 
                         // send a ready flag
@@ -346,7 +350,7 @@ public class HookHandler implements LoggableResource {
                     });
                 }
             } else {
-                log.warn("Could not get URL '" + routeBase + "' (getting hook route).");
+                log.warn("Could not get URL '{}' (getting hook route).", routeBase);
                 // send a ready flag
                 readyHandler.handle( null );
             }
@@ -382,7 +386,7 @@ public class HookHandler implements LoggableResource {
                             registerListener(listenerBody);
                         }
                         else {
-                            log.warn("Could not get URL '" + listenerBase + key + "' (getting hook listener).");
+                            log.warn("Could not get URL '{}' (getting hook listener).", listenerBase + key);
                         }
 
                         // send a ready flag
@@ -392,7 +396,7 @@ public class HookHandler implements LoggableResource {
                     });
                 }
             } else {
-                log.warn("Could not get URL '" + listenerBase + "' (getting hook listener).");
+                log.warn("Could not get URL '{}' (getting hook listener).", listenerBase);
                 // send a ready flag
                 readyHandler.handle( null );
             }
@@ -414,7 +418,7 @@ public class HookHandler implements LoggableResource {
                     if (buffer != null) {
                         registerRoute(buffer);
                     } else {
-                        log.warn("Could not get URL '" + (event.body() == null ? "<null>" : event.body()) + "' (getting hook route).");
+                        log.warn("Could not get URL '{}' (getting hook route).", (event.body() == null ? "<null>" : event.body()));
                     }
                 });
             }
@@ -445,7 +449,7 @@ public class HookHandler implements LoggableResource {
                     if (buffer != null) {
                         registerListener(buffer);
                     } else {
-                        log.warn("Could not get URL '" + (event.body() == null ? "<null>" : event.body()) + "' (getting hook listener).");
+                        log.warn("Could not get URL '{}' (getting hook listener).", (event.body() == null ? "<null>" : event.body()));
                     }
                 });
             }
@@ -626,7 +630,7 @@ public class HookHandler implements LoggableResource {
                 // mark request as already listed
                 selfRequest.headers().add(HOOK_ROUTES_LISTED, "true");
 
-                selfRequest.exceptionHandler(exception -> log.warn("HookHandler: listing of collections (routes) failed: " + request.uri() + ": " + exception.getMessage()));
+                selfRequest.exceptionHandler(exception -> log.warn("HookHandler: listing of collections (routes) failed: {}: {}", request.uri(), exception.getMessage()));
                 selfRequest.setTimeout(120000); // avoids blocking other requests
                 selfRequest.end();
 
@@ -651,7 +655,7 @@ public class HookHandler implements LoggableResource {
         Route route = routeRepository.getRoute(request.uri());
 
         if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
-            log.debug("Forward request " + request.uri());
+            log.debug("Forward request {}", request.uri());
             route.forward(request);
             return true;
         } else {
@@ -685,7 +689,7 @@ public class HookHandler implements LoggableResource {
      */
     private void callListener(final HttpServerRequest request, final Buffer buffer, final List<Listener> filteredListeners, final Handler<Void> handler) {
         for (Listener listener : filteredListeners) {
-            log.debug("Enqueue request matching " + request.method() + " " + listener.getMonitoredUrl() + " with listener " + listener.getListener());
+            log.debug("Enqueue request matching {} {} with listener {}", request.method(), listener.getMonitoredUrl(), listener.getListener());
 
                 /*
                  * url suffix (path) after monitored url
@@ -703,12 +707,12 @@ public class HookHandler implements LoggableResource {
             // internal
             if (listener.getHook().getDestination().startsWith("/")) {
                 targetUri = listener.getListener() + path;
-                log.debug(" > internal target: " + targetUri);
+                log.debug(" > internal target: {}", targetUri);
             }
             // external
             else {
                 targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
-                log.debug(" > external target: " + targetUri);
+                log.debug(" > external target: {}", targetUri);
             }
 
             // Create a new multimap, copied from the original request,
@@ -749,10 +753,12 @@ public class HookHandler implements LoggableResource {
                     reducedPropagationManager.processIncomingRequest(request.method(), targetUri, queueHeaders, buffer,
                             queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationIntervalMs(), handler);
                 } else {
-                    log.error("ReducedPropagationQueueingStrategy without configured ReducedPropagationManager. Not going to handle (enqueue) anything!");
+                    log.error("ReducedPropagationQueueingStrategy without configured ReducedPropagationManager. " +
+                            "Not going to handle (enqueue) anything!");
                 }
             } else {
-                log.error("QueueingStrategy '"+queueingStrategy.getClass().getSimpleName()+"' is not handled. Could be an error, check the source code!");
+                log.error("QueueingStrategy '{}' is not handled. Could be an error, check the source code!",
+                        queueingStrategy.getClass().getSimpleName());
             }
         }
 
@@ -817,7 +823,7 @@ public class HookHandler implements LoggableResource {
                     Route route = routeRepository.getRoute(request.uri());
 
                     if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
-                        log.debug("Forward request (consumed) " + request.uri());
+                        log.debug("Forward request (consumed) {}", request.uri());
                         route.forward(request, buffer);
                     } else {
                         // mark the original request as hooked
@@ -861,7 +867,7 @@ public class HookHandler implements LoggableResource {
      * @param request request
      */
     private void handleRouteUnregistration(final HttpServerRequest request) {
-        log.debug("handleRouteUnregistration > " + request.uri());
+        log.debug("handleRouteUnregistration > {}", request.uri());
 
         // eg. /server/hooks/v1/registrations/+my+storage+id+
         final String routeStorageUri = hookRootUri + HOOK_ROUTE_STORAGE_PATH + getStorageIdentifier(request.uri());
@@ -896,7 +902,7 @@ public class HookHandler implements LoggableResource {
      * @param request request
      */
     private void handleRouteRegistration(final HttpServerRequest request) {
-        log.debug("handleRouteRegistration > " + request.uri());
+        log.debug("handleRouteRegistration > {}", request.uri());
 
         request.bodyHandler(hookData -> {
             if(isHookJsonInvalid(request, hookData)) {
@@ -975,7 +981,7 @@ public class HookHandler implements LoggableResource {
      * @param request request
      */
     private void handleListenerUnregistration(final HttpServerRequest request) {
-        log.debug("handleListenerUnregistration > " + request.uri());
+        log.debug("handleListenerUnregistration > {}", request.uri());
 
         // eg. /server/hooks/v1/registrations/listeners/http+myservice+1
         final String listenerStorageUri = hookRootUri + HOOK_LISTENER_STORAGE_PATH + getUniqueListenerId(request.uri());
@@ -1010,7 +1016,7 @@ public class HookHandler implements LoggableResource {
      * @param request request
      */
     private void handleListenerRegistration(final HttpServerRequest request) {
-        log.debug("handleListenerRegistration > " + request.uri());
+        log.debug("handleListenerRegistration > {}", request.uri());
 
         request.bodyHandler(hookData -> {
             if (isListenerJsonInvalid(request, hookData)) {
@@ -1038,7 +1044,7 @@ public class HookHandler implements LoggableResource {
             final String expirationTime = extractExpTimeAndManipulatePassedRequestAndReturnExpTime(request)
                     .orElse(null);
             if (log.isDebugEnabled()) {
-                log.debug("Hook " + request.uri() + " expirationTime is " + expirationTime + ".");
+                log.debug("Hook {} expirationTime is {}.", request.uri(), expirationTime);
             }
 
             /*
@@ -1130,7 +1136,7 @@ public class HookHandler implements LoggableResource {
      * @param requestBody - copy of request body
      */
     private void createSelfRequest(final HttpServerRequest request, final Buffer requestBody, final Handler<Void> afterHandler) {
-        log.debug("Create self request for " + request.uri());
+        log.debug("Create self request for {}", request.uri());
 
         HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
             /*
@@ -1154,7 +1160,7 @@ public class HookHandler implements LoggableResource {
             selfRequest.headers().setAll(request.headers());
         }
 
-        selfRequest.exceptionHandler(exception -> log.warn("HookHandler HOOK_ERROR: Failed self request to " + request.uri() + ": " + exception.getMessage()));
+        selfRequest.exceptionHandler(exception -> log.warn("HookHandler HOOK_ERROR: Failed self request to {}: {}", request.uri(), exception.getMessage()));
 
         selfRequest.setTimeout(120000); // avoids blocking other requests
 
@@ -1188,7 +1194,7 @@ public class HookHandler implements LoggableResource {
     private void unregisterRoute(String requestUrl) {
         String routedUrl = getRoutedUrlSegment(requestUrl);
 
-        log.debug("Unregister route " + routedUrl);
+        log.debug("Unregister route {}", routedUrl);
 
         routeRepository.removeRoute(routedUrl);
         monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
@@ -1202,7 +1208,7 @@ public class HookHandler implements LoggableResource {
     private void unregisterListener(String requestUrl) {
         String listenerId = getUniqueListenerId(requestUrl);
 
-        log.debug("Unregister listener " + listenerId);
+        log.debug("Unregister listener {}", listenerId);
 
         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + getListenerUrlSegment(requestUrl));
         listenerRepository.removeListener(listenerId);
@@ -1221,7 +1227,7 @@ public class HookHandler implements LoggableResource {
         String requestUrl = storageObject.getString(REQUESTURL);
 
         if (log.isTraceEnabled()) {
-            log.trace("Request URL: " + requestUrl);
+            log.trace("Request URL: {}", requestUrl);
         }
 
         // target = "http/colin/1234578" or destination url for internal forwarder (set later by if statement)
@@ -1231,7 +1237,7 @@ public class HookHandler implements LoggableResource {
         String listenerId = getUniqueListenerId(requestUrl);
 
         if (log.isTraceEnabled()) {
-            log.trace("Target (1st): " + target);
+            log.trace("Target (1st): {}", target);
         }
 
         // create and add a new Forwarder (or replace an already existing forwarder)
@@ -1276,7 +1282,7 @@ public class HookHandler implements LoggableResource {
             final String expirationTimeExpression = storageObject.getString(EXPIRATION_TIME);
 
             if (expirationTimeExpression == null) {
-                log.debug("Register listener and route " + target + " with infinite expiration.");
+                log.debug("Register listener and route {} with infinite expiration.", target);
                 hook.setExpirationTime(null);
             } else {
                 DateTime expirationTime;
@@ -1286,7 +1292,7 @@ public class HookHandler implements LoggableResource {
                     log.warn("Listener " + listenerId + " for target " + target + " has an invalid expiration time " + expirationTimeExpression + " and will not be registred!", e);
                     return;
                 }
-                log.debug("Register listener and route " + target + " with expiration at " + expirationTime);
+                log.debug("Register listener and route {} with expiration at {}", target, expirationTime);
                 hook.setExpirationTime(expirationTime);
             }
         }
@@ -1307,12 +1313,12 @@ public class HookHandler implements LoggableResource {
             routeRepository.addRoute(urlPattern, createRoute(urlPattern, hook));
 
             if (log.isTraceEnabled()) {
-                log.trace("external target, add route for urlPattern: " + urlPattern);
+                log.trace("external target, add route for urlPattern: {}", urlPattern);
             }
         }
 
         if (log.isTraceEnabled()) {
-            log.trace("Target (2nd): " + target);
+            log.trace("Target (2nd): {}", target);
         }
 
         // create and add a new listener (or update an already existing listener)
@@ -1355,7 +1361,7 @@ public class HookHandler implements LoggableResource {
         // For backward compatibility we still parse the old "staticHeaders" - but now create a manipulator chain accordingly
         JsonObject staticHeaders = jsonHook.getJsonObject(STATIC_HEADERS);
         if (staticHeaders != null) {
-            log.warn("you use the deprecated \"staticHeaders\" syntax in your hook (" + jsonHook+ "). Please migrate to the more flexible \"headers\" syntax");
+            log.warn("you use the deprecated \"staticHeaders\" syntax in your hook ({}). Please migrate to the more flexible \"headers\" syntax", jsonHook);
             hook.setHeaderFunction(HeaderFunctions.parseStaticHeadersFromJson(staticHeaders));
         }
     }
@@ -1401,7 +1407,7 @@ public class HookHandler implements LoggableResource {
         String requestUrl = storageObject.getString(REQUESTURL);
         String routedUrl = getRoutedUrlSegment(requestUrl);
 
-        log.debug("Register route to  " + routedUrl);
+        log.debug("Register route to {}", routedUrl);
 
         // create and add a new Forwarder (or replace an already existing forwarder)
         JsonObject jsonHook = storageObject.getJsonObject(HOOK);
@@ -1448,11 +1454,11 @@ public class HookHandler implements LoggableResource {
             try {
                 hook.setExpirationTime(ExpiryCheckHandler.parseDateTime(expirationTimeExpression));
             } catch (Exception e) {
-                log.warn("Route " + routedUrl + " has an invalid expiration time " + expirationTimeExpression + " and will not be registred!");
+                log.warn("Route {} has an invalid expiration time {} and will not be registred!", routedUrl, expirationTimeExpression);
                 return;
             }
         } else {
-            log.warn("Route " + routedUrl + " has no expiration time and will not be registred!");
+            log.warn("Route {} has no expiration time and will not be registred!", routedUrl);
             return;
         }
 

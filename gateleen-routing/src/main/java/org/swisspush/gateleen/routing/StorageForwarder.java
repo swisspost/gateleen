@@ -61,7 +61,8 @@ public class StorageForwarder implements Handler<RoutingContext> {
         monitoringHandler.updateRequestsMeter("localhost", ctx.request().uri());
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), ctx.request().uri());
-        log.debug("Forwarding request: " + ctx.request().uri() + " to storage " + rule.getStorage() + " " + targetUri + " with rule " + rule.getRuleIdentifier());
+        log.debug("Forwarding request: {} to storage {} {} with rule {}", ctx.request().uri(), rule.getStorage(),
+                targetUri, rule.getRuleIdentifier());
         final VertxHttpHeaders requestHeaders = new VertxHttpHeaders();
         requestHeaders.addAll(ctx.request().headers());
 

@@ -224,7 +224,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
     public void install(Router router) {
         BridgeOptions bridgeOptions = buildBridgeOptions();
         router.route(sockPath).handler(SockJSHandler.create(vertx, getSockJSHandlerOptions()).bridge(bridgeOptions, be -> {
-            log.debug("SockJS bridge event: " + be.type().toString());
+            log.debug("SockJS bridge event: {}", be.type().toString());
             if(!websocketConnectionsEnabled && BridgeEventType.SOCKET_CREATED == be.type()){
                 log.info("WebSocket connections are disabled. Not allowing another connection");
                 be.complete(false);
@@ -232,17 +232,17 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                 be.complete(true);
             }
         }));
-        log.info("Installed SockJS endpoint on " + sockPath);
-        log.info("Installed event bus bridge with options: " + bridgeOptionsToString(bridgeOptions));
-        log.info("Installed SockJS with handler options: " + sockJSHandlerOptionsToString());
-        log.info("Listening to requests on " + adressPathPattern.pattern());
-        log.info("Using address prefix " + addressPrefix);
+        log.info("Installed SockJS endpoint on {}", sockPath);
+        log.info("Installed event bus bridge with options: {}", bridgeOptionsToString(bridgeOptions));
+        log.info("Installed SockJS with handler options: {}", sockJSHandlerOptionsToString());
+        log.info("Listening to requests on {}", adressPathPattern.pattern());
+        log.info("Using address prefix {}", addressPrefix);
     }
 
     @Override
     public void resourceChanged(String resourceUri, Buffer resource) {
         if(configResourceUri() != null && configResourceUri().equals(resourceUri)){
-            log.info("Got notified about configuration resource update for " + resourceUri);
+            log.info("Got notified about configuration resource update for {}", resourceUri);
             try {
                 JsonObject obj = new JsonObject(resource);
                 Boolean websockets_enabled = obj.getBoolean("websockets_enabled");
@@ -252,7 +252,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                     log.warn("No value for property 'websockets_enabled' found. Therefore not changing any configuration");
                 }
             } catch (DecodeException ex){
-                log.warn("Unable to decode configuration resource for " + resourceUri + ". Reason: " + ex.getMessage());
+                log.warn("Unable to decode configuration resource for {}. Reason: {}", resourceUri, ex.getMessage());
             }
         }
     }
@@ -260,7 +260,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
     @Override
     public void resourceRemoved(String resourceUri) {
         if(configResourceUri() != null && configResourceUri().equals(resourceUri)){
-            log.info("Configuration resource "+resourceUri+" was removed. Using default values instead");
+            log.info("Configuration resource {} was removed. Using default values instead", resourceUri);
             websocketConnectionsEnabled = DEFAULT_WEBSOCKET_CONNECTION_STATE;
         }
     }

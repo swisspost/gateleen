@@ -91,7 +91,7 @@ public class DeltaHandler {
                 // increment and get update-id
                 redisClient.incr(SEQUENCE_KEY, reply -> {
                     if(reply.failed()){
-                        log.error("incr command for redisKey " + SEQUENCE_KEY + " failed with cause: " + logCause(reply));
+                        log.error("incr command for redisKey {} failed with cause: {}", SEQUENCE_KEY, logCause(reply));
                         handleError(request, "error incrementing/accessing sequence for update-id");
                         return;
                     }
@@ -103,7 +103,7 @@ public class DeltaHandler {
                     // save to storage
                     saveDelta(resourceKey, updateId, expireAfter, event -> {
                         if(event.failed()){
-                            log.error("setex command for redisKey " + resourceKey + " failed with cause: " + logCause(event));
+                            log.error("setex command for redisKey {} failed with cause: {}", resourceKey, logCause(event));
                             handleError(request, "error saving delta information");
                             request.resume();
                         } else {
@@ -137,7 +137,7 @@ public class DeltaHandler {
         final String etagResourceKey = getResourceKey(request.path(), true);
         redisClient.get(etagResourceKey, event -> {
             if(event.failed()){
-                log.error("get command for redisKey " + etagResourceKey + " failed with cause: " + logCause(event));
+                log.error("get command for redisKey {} failed with cause: {}", etagResourceKey, logCause(event));
                 callback.handle(Boolean.TRUE);
                 return;
             }
@@ -167,7 +167,7 @@ public class DeltaHandler {
         Long expireAfter = getExpireAfterValue(request, log);
         saveDelta(etagResourceKey, requestEtag, expireAfter, event ->{
             if(event.failed()){
-                log.error("setex command for redisKey " + etagResourceKey + " failed with cause: " + logCause(event));
+                log.error("setex command for redisKey {} failed with cause: {}", etagResourceKey, logCause(event));
             }
             updateCallback.handle(Boolean.TRUE);
         });
@@ -192,7 +192,6 @@ public class DeltaHandler {
     }
     
     private Long extractNumberDeltaParameter(String deltaStringId, HttpServerRequest request, Logger log) {
-        String updateIdValue = null;
         try {
             return Long.parseLong(deltaStringId);
         } catch (Exception exception) {
@@ -205,7 +204,7 @@ public class DeltaHandler {
         request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
         request.response().setStatusMessage("Invalid delta parameter");
         request.response().end(request.response().getStatusMessage());
-        log.error("Bad Request: " + request.response().getStatusMessage() + " '" + deltaStringId + "'");
+        log.error("Bad Request: {} '{}'", request.response().getStatusMessage(), deltaStringId);
     }
 
     private DeltaResourcesContainer getDeltaResourceNames(List<String> subResourceNames, JsonArray storageUpdateIds, long updateId) {
@@ -235,7 +234,7 @@ public class DeltaHandler {
 
         final HttpMethod method = HttpMethod.GET;
         final String targetUri = ExpansionDeltaUtil.constructRequestUri(request.path(), request.params(), null, null, SlashHandling.KEEP);
-        log.debug("constructed uri for request: " + targetUri);
+        log.debug("constructed uri for request: {}", targetUri);
 
         final HttpClientRequest cReq = httpClient.request(method, targetUri, cRes -> {
             HttpServerRequestUtil.prepareResponse(request, cRes);
@@ -257,18 +256,18 @@ public class DeltaHandler {
                         final long updateIdNumber = extractNumberDeltaParameter(updateId, request, log);
 
                         if(log.isTraceEnabled())  {
-                            log.trace("DeltaHandler: deltaResourceKeys for targetUri ("+targetUri+"): " + deltaResourceKeys.toString());
+                            log.trace("DeltaHandler: deltaResourceKeys for targetUri ({}): {}", targetUri, deltaResourceKeys.toString());
                         }
 
                         if(deltaResourceKeys.size() > 0) {
                             if(log.isTraceEnabled())  {
-                                log.trace("DeltaHandler: targetUri ("+targetUri+") using mget command.");
+                                log.trace("DeltaHandler: targetUri ({}) using mget command.", targetUri);
                             }
 
                             // read update-ids
                             redisClient.mgetMany(deltaResourceKeys, event -> {
                                 if(event.failed()){
-                                    log.error("mget command failed with cuase: " + logCause(event));
+                                    log.error("mget command failed with cuase: {}", logCause(event));
                                     handleError(request, "error reading delta information");
                                     return;
                                 }
@@ -282,7 +281,7 @@ public class DeltaHandler {
 
                         } else {
                             if(log.isTraceEnabled())  {
-                                log.trace("DeltaHandler: targetUri ("+targetUri+") NOT using database");
+                                log.trace("DeltaHandler: targetUri ({}) NOT using database", targetUri);
                             }
                             request.response().putHeader(DELTA_HEADER, "" + updateIdNumber);
                             request.response().end(data);
@@ -311,7 +310,7 @@ public class DeltaHandler {
         request.handler(cReq::write);
         request.endHandler(v -> {
             cReq.end();
-            log.debug("Request done. Request : " + cReq);
+            log.debug("Request done. Request : {}", cReq);
         });
         cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, targetUri, DeltaHandler.class));
         request.resume();
@@ -354,7 +353,7 @@ public class DeltaHandler {
         MultiMap requestHeaders = request.headers();
         String expireAfterHeaderValue = requestHeaders.get(EXPIRE_AFTER_HEADER);
         if (expireAfterHeaderValue == null) {
-            log.debug("Setting NO expiry on delta key because header " + EXPIRE_AFTER_HEADER + " not defined");
+            log.debug("Setting NO expiry on delta key because header {} not defined", EXPIRE_AFTER_HEADER);
             return null; // no expiry
         }
 
@@ -363,13 +362,14 @@ public class DeltaHandler {
 
             // redis returns an error if setex is called with negativ values
             if (value < 0) {
-                log.warn("Setting NO expiry on delta key because because defined value for header " + EXPIRE_AFTER_HEADER + " is a negative number: {}", expireAfterHeaderValue);
+                log.warn("Setting NO expiry on delta key because because defined value for header {} is a negative number: {}",
+                        EXPIRE_AFTER_HEADER, expireAfterHeaderValue);
                 return null; // no expiry
             }
-            log.debug("Setting expiry on delta key to {} seconds as defined in header " + EXPIRE_AFTER_HEADER, value);
+            log.debug("Setting expiry on delta key to {} seconds as defined in header {}", value, EXPIRE_AFTER_HEADER);
             return value;
         } catch (Exception e) {
-            log.warn("Setting NO expiry on delta key becase header " + EXPIRE_AFTER_HEADER + " is not a number: {}", expireAfterHeaderValue);
+            log.warn("Setting NO expiry on delta key because header {} is not a number: {}", EXPIRE_AFTER_HEADER, expireAfterHeaderValue);
             return null; // default: no expiry
         }
     }

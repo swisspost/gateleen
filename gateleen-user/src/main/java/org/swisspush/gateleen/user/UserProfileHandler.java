@@ -112,7 +112,7 @@ public class UserProfileHandler implements LoggableResource {
                         request.response().end(mergedProfile.encode());
                     } else {
                         // Special case: Something updated in profile
-                        log.debug("Updated the profile in a GET request (special case). Request path is " + request.path() + ".");
+                        log.debug("Updated the profile in a GET request (special case). Request path is {}.", request.path());
                         storage.put(request.path(), Buffer.buffer(profile.encode()), status -> request.response().end(mergedProfile.encode()));
                     }
                 } else {
@@ -139,7 +139,8 @@ public class UserProfileHandler implements LoggableResource {
                     request.resume();
                 } else {
                     // Not Found, create a new profile.
-                    log.debug("Tried to put (merge) a profile, path is '" + ((request.path() == null || request == null) ? "<null>" : request.path()) + "', but profile was not found. Create a new profile.");
+                    log.debug("Tried to put (merge) a profile, path is '{}', but profile was not found. Create a new profile.",
+                            ((request.path() == null || request == null) ? "<null>" : request.path()));
                     JsonObject profile = userProfileManipulater.createProfileWithLanguage(request.headers());
                     cleanupUserProfile(profile, updatedProfile -> storage.put(request.path() + "?merge=true", Buffer.buffer(updatedProfile.encode()), status -> request.resume()));
                 }
@@ -185,7 +186,7 @@ public class UserProfileHandler implements LoggableResource {
         JsonObject profileCopy = profile.copy();
         Set<String> profileFieldNames = profileCopy.fieldNames();
         profileFieldNames.stream().filter(fieldName -> !userProfileConfiguration.isAllowedProfileProperty(fieldName)).forEach(fieldName -> {
-            log.debug("Removing property '" + fieldName + "' from user profile");
+            log.debug("Removing property '{}' from user profile", fieldName);
             profile.remove(fieldName);
         });
         profileCallback.handle(profile);
@@ -227,13 +228,13 @@ public class UserProfileHandler implements LoggableResource {
         storage.get(userProfileConfiguration.getRoleProfilesRoot() + role + "/" + roleProfileKey, buffer -> {
             if (buffer != null) {
                 try {
-                    log.debug("Applying role profile for " + role);
+                    log.debug("Applying role profile for {}", role);
                     mergeRole(role, buffer);
                 } catch (IllegalArgumentException e) {
                     log.error("Could not reconfigure routing", e);
                 }
             } else {
-                log.error("No profile for role " + role + " found in storage");
+                log.error("No profile for role {} found in storage", role);
             }
         });
     }

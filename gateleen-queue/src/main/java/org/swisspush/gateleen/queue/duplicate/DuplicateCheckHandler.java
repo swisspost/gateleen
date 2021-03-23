@@ -48,7 +48,7 @@ public final class DuplicateCheckHandler {
             timeToLive = Integer.parseInt(ttl);
         } catch (NumberFormatException e) {
             timeToLive = DEFAULT_TTL;
-            log.error("Can't parse value '" + ttl + "' for time to live. Should be a number. Using default value '" + DEFAULT_TTL + "'");
+            log.error("Can't parse value '{}' for time to live. Should be a number. Using default value '{}'", ttl, DEFAULT_TTL);
         }
         return timeToLive;
     }
@@ -62,7 +62,7 @@ public final class DuplicateCheckHandler {
         // read from storage
         redisClient.get(redisKey, reply -> {
             if(reply.failed()){
-                log.error("get command for redisKey '" + redisKey + "' resulted in cause " + logCause(reply));
+                log.error("get command for redisKey '{}' resulted in cause {}", redisKey, logCause(reply));
                 return;
             }
 
@@ -70,20 +70,20 @@ public final class DuplicateCheckHandler {
                 // save to storage
                 redisClient.setnx(redisKey, DEFAULT_REDIS_ENTRY_VALUE, setnxReply -> {
                     if(setnxReply.failed()){
-                        log.error("set command for redisKey '" + redisKey + "' resulted in cause " + logCause(setnxReply));
+                        log.error("set command for redisKey '{}' resulted in cause {}", redisKey, logCause(setnxReply));
                         return;
                     }
 
                     // set expire
                     redisClient.expire(redisKey, ttl, expireReply -> {
                         if(expireReply.failed()){
-                            log.error("expire command for redisKey '" + redisKey + "' resulted in cause " + logCause(expireReply));
+                            log.error("expire command for redisKey '{}' resulted in cause {}", redisKey, logCause(expireReply));
                         }
                     });
                 });
                 callback.handle(Boolean.FALSE);
             } else {
-                log.info("received a duplicate request for redisKey: " + redisKey);
+                log.info("received a duplicate request for redisKey: {}", redisKey);
                 callback.handle(Boolean.TRUE);
             }
         });

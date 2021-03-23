@@ -39,7 +39,7 @@ public class RecursiveExpansionRootHandler extends RecursiveRootHandlerBase {
     @Override
     public void handle(ResourceNode node) {
         if (log.isTraceEnabled()) {
-            log.trace("parent handler called > " + (node != null ? node.getNodeName() : "not found"));
+            log.trace("parent handler called > {}", (node != null ? node.getNodeName() : "not found"));
         }
 
         /*
@@ -60,7 +60,7 @@ public class RecursiveExpansionRootHandler extends RecursiveRootHandlerBase {
                 try {
                     node.setObject(new JsonObject(((Buffer) node.getObject()).toString("UTF-8")));
                 } catch (Exception e) {
-                    log.error("Error in result of sub resource '" + node.getNodeName() + "' Message: " + e.getMessage());
+                    log.error("Error in result of sub resource '{}' Message: {}", node.getNodeName(), e.getMessage());
                     node.setObject(new ResourceCollectionException(e.getMessage()));
                 }
             }
@@ -130,8 +130,8 @@ public class RecursiveExpansionRootHandler extends RecursiveRootHandlerBase {
         JsonObject result = responseObject;
 
         if (log.isTraceEnabled()) {
-            log.trace("Header from request:  " + req.headers().get(IF_NONE_MATCH_HEADER));
-            log.trace("Header from response: " + etagFromResources);
+            log.trace("Header from request:  {}", req.headers().get(IF_NONE_MATCH_HEADER));
+            log.trace("Header from response: {}", etagFromResources);
         }
 
         if (etagFromResources != null) {

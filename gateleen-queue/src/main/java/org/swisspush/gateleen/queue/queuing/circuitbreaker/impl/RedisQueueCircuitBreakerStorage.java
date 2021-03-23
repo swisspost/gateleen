@@ -68,7 +68,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
             } else {
                 String stateAsString = event.result();
                 if(StringUtils.isEmpty(stateAsString)){
-                    log.info("No status information found for circuit " + patternAndCircuitHash.getPattern().pattern() + ". Using default value " + QueueCircuitState.CLOSED);
+                    log.info("No status information found for circuit {}. Using default value {}",
+                            patternAndCircuitHash.getPattern().pattern(), QueueCircuitState.CLOSED);
                 }
                 future.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
             }
@@ -85,7 +86,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
             } else {
                 String stateAsString = event.result();
                 if(StringUtils.isEmpty(stateAsString)){
-                    log.info("No status information found for circuit " + circuitHash + ". Using default value " + QueueCircuitState.CLOSED);
+                    log.info("No status information found for circuit {}. Using default value {}", circuitHash, QueueCircuitState.CLOSED);
                 }
                 future.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
             }

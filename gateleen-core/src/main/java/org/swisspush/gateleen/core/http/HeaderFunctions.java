@@ -56,7 +56,7 @@ public class HeaderFunctions {
      * @param config the JSON configuration for the header manipulator chain
      */
     public static HeaderFunction parseFromJson(JsonArray config) throws IllegalArgumentException {
-        LOG.debug("creating header function chain from " + config);
+        LOG.debug("creating header function chain from {}", config);
 
         Consumer<EvalScope> chain = null;
         for (int pos = 0; pos < config.size(); pos++) {

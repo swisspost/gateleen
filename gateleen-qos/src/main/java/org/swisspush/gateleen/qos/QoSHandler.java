@@ -173,7 +173,7 @@ public class QoSHandler implements LoggableResource {
                     log.error("Could not reconfigure QoS", e);
                 }
             } else {
-                log.warn("Could not get URL '" + (qosSettingsUri == null ? "<null>" : qosSettingsUri) + "' (getting settings).");
+                log.warn("Could not get URL '{}' (getting settings).", (qosSettingsUri == null ? "<null>" : qosSettingsUri));
             }
         });
     }
@@ -302,7 +302,7 @@ public class QoSHandler implements LoggableResource {
                 try {
                     validateConfigurationValues(buffer);
                 } catch (ValidationException validationException) {
-                    log.error("Could not parse QoS config resource: " + validationException.toString());
+                    log.error("Could not parse QoS config resource: {}", validationException.toString());
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, QoSHandler.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
@@ -399,7 +399,7 @@ public class QoSHandler implements LoggableResource {
         if (qosSettings.containsKey(JSON_FIELD_SENTINELS)) {
             JsonObject jsonSentinels = qosSettings.getJsonObject(JSON_FIELD_SENTINELS);
             for (String sentinelName : jsonSentinels.fieldNames()) {
-                log.debug("Creating a new QoS sentinel object for metric: " + sentinelName);
+                log.debug("Creating a new QoS sentinel object for metric: {}", sentinelName);
 
                 JsonObject jsonSentinel = jsonSentinels.getJsonObject(sentinelName);
                 QoSSentinel sentinel = new QoSSentinel(sentinelName);
@@ -416,7 +416,8 @@ public class QoSHandler implements LoggableResource {
                     Double minLowestPercentileValueMs = jsonSentinel.getDouble("minLowestPercentileValueMs");
                     sentinel.setLowestPercentileMinValue(minLowestPercentileValueMs);
                     if(sentinel.getLowestPercentileValue() < minLowestPercentileValueMs){
-                        log.debug("Set lowest percentile value "+sentinel.getLowestPercentileValue()+" of sentinel '"+sentinelName+"' to a minLowestPercentileValueMs value of " + minLowestPercentileValueMs);
+                        log.debug("Set lowest percentile value {} of sentinel '{}' to a minLowestPercentileValueMs value of {}",
+                                sentinel.getLowestPercentileValue(), sentinelName, minLowestPercentileValueMs);
                         sentinel.setLowestPercentileValue(minLowestPercentileValueMs);
                     }
                 }
@@ -481,7 +482,7 @@ public class QoSHandler implements LoggableResource {
             JsonObject jsonRules = qosSettings.getJsonObject(JSON_FIELD_RULES);
 
             for (String urlPatternRegExp : jsonRules.fieldNames()) {
-                log.debug("Creating a new QoS rule object for URL pattern: " + urlPatternRegExp);
+                log.debug("Creating a new QoS rule object for URL pattern: {}", urlPatternRegExp);
 
                 JsonObject jsonRule = jsonRules.getJsonObject(urlPatternRegExp);
 
@@ -602,7 +603,7 @@ public class QoSHandler implements LoggableResource {
         try {
             extendedValidation(config, sentinels, rules);
         } catch (ValidationException e) {
-            log.error("QoS is disabled now. Message: " + e.getMessage());
+            log.error("QoS is disabled now. Message: {}", e.getMessage());
             return;
         }
 
@@ -613,7 +614,7 @@ public class QoSHandler implements LoggableResource {
         // create a new timer ...
         // ... only if we have sentinels AND rules
         if (!qosSentinels.isEmpty() && !qosRules.isEmpty()) {
-            log.debug("Start periodic timer every " + globalQoSConfig.getPeriod() + "s");
+            log.debug("Start periodic timer every {}s", globalQoSConfig.getPeriod());
             // evaluation timer
             timerId = vertx.setPeriodic(globalQoSConfig.getPeriod() * 1000, event -> {
                 log.debug("Timer fired: executing evaluateQoSActions");
@@ -700,16 +701,23 @@ public class QoSHandler implements LoggableResource {
                         double currentRatio = currentResponseTime / sentinel.getLowestPercentileValue();
                         currentSentinelRatios.add(currentRatio);
 
-                        log.debug("sentinel '" + sentinel.getName() + "': percentile="+sentinel.getPercentile()+", lowestPercentileValue=" + sentinel.getLowestPercentileValue()
-                                + ", lowestPercentileMinValue=" + sentinel.getLowestPercentileMinValue()
-                                + ", currentSampleCount=" + currentSampleCount
-                                + ", currentResponseTime=" + currentResponseTime
-                                + ", currentRatio=" + currentRatio);
+                        log.debug("sentinel '{}': percentile={}, lowestPercentileValue={}, lowestPercentileMinValue={}, " +
+                                        "currentSampleCount={}, currentResponseTime={}, currentRatio={}",
+                                sentinel.getName(),
+                                sentinel.getPercentile(),
+                                sentinel.getLowestPercentileValue(),
+                                sentinel.getLowestPercentileMinValue(),
+                                currentSampleCount,
+                                currentResponseTime,
+                                currentRatio);
 
                         // increment valid counter
                         validSentinels++;
                     } else {
-                        log.warn("Sentinel " + sentinel.getName() + " doesn't have enough samples yet (" + currentSampleCount + "/" + globalQoSConfig.getMinSampleCount() + ")");
+                        log.warn("Sentinel {} doesn't have enough samples yet ({}/{})",
+                                sentinel.getName(),
+                                currentSampleCount,
+                                globalQoSConfig.getMinSampleCount());
                     }
                 } else {
                     log.warn("MBean {} for sentinel {} is not ready yet ...", name, sentinel.getName());
