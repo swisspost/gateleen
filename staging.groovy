@@ -49,6 +49,9 @@ class Staging {
                 break
             case "close":
                 println "trying to close nexus repository ..."
+                //see: https://issues.sonatype.org/browse/OSSRH-27145
+                println("Waiting 10 secs before continue")
+                sleep(10000);
                 doWithRetry(this.&close, repositoryId)
                 println " > done"
                 break
@@ -63,6 +66,9 @@ class Staging {
                 break
             case "promote":
                 println "trying to promote nexus repository ..."
+                //see: https://issues.sonatype.org/browse/OSSRH-27145
+                println("Waiting 30 secs before continue")
+                sleep(30000);
                 doWithRetry(this.&promote, repositoryId)
                 println " > done"
                 break
