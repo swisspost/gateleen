@@ -288,7 +288,11 @@ public class DeltaHandler {
                         }
                     } catch (ResourceCollectionException exception) {
                         final HttpServerResponse response = request.response();
-                        log.error("Failed to handle get for collection", exception);
+                        if (StatusCode.NOT_FOUND.equals(exception.getStatusCode())) {
+                            log.info("Failed to handle get for collection because collection could not be found");
+                        } else {
+                            log.error("Failed to handle get for collection", exception);
+                        }
                         response.setStatusCode(exception.getStatusCode().getStatusCode());
                         response.setStatusMessage(exception.getStatusCode().getStatusMessage());
                         response.putHeader("Content-Type", "text/plain");
