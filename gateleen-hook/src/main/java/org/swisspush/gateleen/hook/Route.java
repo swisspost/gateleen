@@ -33,8 +33,9 @@ public class Route {
     private static final boolean CLIENT_DEFAULT_EXPAND_IN_STORAGE = false;
     private static final int CLIENT_DEFAULT_LOG_EXPIRY = 4 * 3600;
 
-    private static Pattern URL_PARSE_PATTERN = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>[0-9]+))?(?<path>/.*)$");
-    private static Logger LOG = LoggerFactory.getLogger(Route.class);
+    private static final Pattern URL_PARSE_PATTERN = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>[0-9]+))?(?<path>/.*)$");
+    private static final Logger LOG = LoggerFactory.getLogger(Route.class);
+    private static final Logger CLEANUP_LOGGER = LoggerFactory.getLogger(Route.class.getName() + "Cleanup");
 
     private Vertx vertx;
     private LoggingResourceManager loggingResourceManager;
@@ -216,7 +217,7 @@ public class Route {
     public void cleanup() {
         if ( ! rule.getScheme().equals("local") ) {
             vertx.setTimer(GRACE_PERIOD, event -> {
-                LOG.debug("Cleaning up one client for route of " + urlPattern);
+                CLEANUP_LOGGER.debug("Cleaning up one client for route of " + urlPattern);
                 client.close();
             });
         }

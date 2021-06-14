@@ -49,6 +49,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private final LoggingResourceManager loggingResourceManager;
     private final MonitoringHandler monitoringHandler;
     private final Logger log = LoggerFactory.getLogger(Router.class);
+    private final Logger cleanupLogger = LoggerFactory.getLogger(Router.class.getName() + "Cleanup");
     private final Vertx vertx;
     private final Set<HttpClient> httpClients = new HashSet<>();
     private final HttpClient selfClient;
@@ -337,7 +338,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         final HashSet<HttpClient> clientsToClose = new HashSet<>(httpClients);
         vertx.setTimer(GRACE_PERIOD, event -> {
             if (clientsToClose.size() > 0) {
-                log.debug("Cleaning up {} clients", clientsToClose.size());
+                cleanupLogger.debug("Cleaning up {} clients", clientsToClose.size());
             }
             for (HttpClient client : clientsToClose) {
                 client.close();
