@@ -174,7 +174,7 @@ public class Server extends AbstractVerticle {
                 new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
                 storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
                 corsHandler = new CORSHandler();
-                deltaHandler = new DeltaHandler(redisClient, selfClient);
+                deltaHandler = new DeltaHandler(redisClient, selfClient, true);
                 expansionHandler = new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");

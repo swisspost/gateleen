@@ -27,6 +27,8 @@ import java.util.Set;
 public class DeltaHandler {
 
     private static final String DELTA_PARAM = "delta";
+    private static final String LIMIT_PARAM = "limit";
+    private static final String OFFSET_PARAM = "offset";
     private static final String DELTA_HEADER = "x-delta";
     private static final String IF_NONE_MATCH_HEADER = "if-none-match";
     // used as marker header to know that we should let the request continue to the router
@@ -42,9 +44,16 @@ public class DeltaHandler {
     private HttpClient httpClient;
     private RedisClient redisClient;
 
+    private boolean rejectLimitOffsetRequests;
+
     public DeltaHandler(RedisClient redisClient, HttpClient httpClient) {
+        this(redisClient, httpClient, false);
+    }
+
+    public DeltaHandler(RedisClient redisClient, HttpClient httpClient, boolean rejectLimitOffsetRequests) {
         this.redisClient = redisClient;
         this.httpClient = httpClient;
+        this.rejectLimitOffsetRequests = rejectLimitOffsetRequests;
     }
 
     public boolean isDeltaRequest(HttpServerRequest request) {
@@ -79,7 +88,11 @@ public class DeltaHandler {
         if (isDeltaGETRequest(request)) {
             String updateId = extractStringDeltaParameter(request, log);
             if (updateId != null) {
-                handleCollectionGET(request, updateId, log);
+                if(rejectLimitOffsetRequests(request)){
+                    respondLimitOffsetParameterForbidden(request, log);
+                } else {
+                    handleCollectionGET(request, updateId, log);
+                }
             }
         }
     }
@@ -198,6 +211,14 @@ public class DeltaHandler {
             respondInvalidDeltaParameter(deltaStringId, request, log);
             return null;
         }
+    }
+
+    private void respondLimitOffsetParameterForbidden(HttpServerRequest request, Logger log){
+        String errorMsg = "limit/offset parameter not allowed for delta requests";
+        request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+        request.response().end(errorMsg);
+        log.warn(errorMsg);
     }
 
     private void respondInvalidDeltaParameter(String deltaStringId, HttpServerRequest request, Logger log){
@@ -335,6 +356,13 @@ public class DeltaHandler {
         JsonObject result = new JsonObject();
         result.put(collectionName, arr);
         return result;
+    }
+
+    private boolean rejectLimitOffsetRequests(HttpServerRequest request){
+        if (!rejectLimitOffsetRequests) {
+            return false;
+        }
+        return request.params().contains(LIMIT_PARAM) || request.params().contains(OFFSET_PARAM);
     }
 
     private void handleError(HttpServerRequest request, String errorMessage) {
