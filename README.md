@@ -147,4 +147,4 @@ This is a list of the custom headers used by Gateleen.
 
 ## Dependencies
 * [vertx-rest-storage](https://github.com/swisspush/vertx-rest-storage) at least release [v2.0.2](https://github.com/swisspush/vertx-rest-storage/releases/tag/v2.0.2)
-* [vertx-redisques](https://github.com/swisspush/vertx-redisques) at least release [v.2.0.1](https://github.com/swisspush/vertx-redisques/releases/tag/2.0.1)
+* [vertx-redisques](https://github.com/swisspush/vertx-redisques) at least release [v.2.0.1](https://github.com/swisspush/vertx-redisques/releases/tag/2.0.1) 
