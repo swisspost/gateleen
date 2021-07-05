@@ -13,7 +13,7 @@ import java.util.Map;
  * <p>
  * Utility class providing handy methods to deal with Strings.
  * </p>
- * 
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public final class StringUtils {
@@ -26,7 +26,7 @@ public final class StringUtils {
      * <p>
      * Checks if a CharSequence is empty ("") or null.
      * </p>
-     * 
+     *
      * <pre>
      * StringUtils.isEmpty(null)      = true
      * StringUtils.isEmpty("")        = true
@@ -34,7 +34,7 @@ public final class StringUtils {
      * StringUtils.isEmpty("bob")     = false
      * StringUtils.isEmpty("  bob  ") = false
      * </pre>
-     * 
+     *
      * @param cs the CharSequence to check, may be null
      * @return {@code true} if the CharSequence is empty or null
      */
@@ -46,7 +46,7 @@ public final class StringUtils {
      * <p>
      * Checks if a CharSequence is not empty ("") and not null.
      * </p>
-     * 
+     *
      * <pre>
      * StringUtils.isNotEmpty(null)      = false
      * StringUtils.isNotEmpty("")        = false
@@ -54,7 +54,7 @@ public final class StringUtils {
      * StringUtils.isNotEmpty("bob")     = true
      * StringUtils.isNotEmpty("  bob  ") = true
      * </pre>
-     * 
+     *
      * @param cs the CharSequence to check, may be null
      * @return {@code true} if the CharSequence is not empty and not null
      */
@@ -89,7 +89,7 @@ public final class StringUtils {
      * <p>
      * The String is trimmed using {@link String#trim()}. Trim removes start and end characters &lt;= 32.
      * </p>
-     * 
+     *
      * <pre>
      * StringUtils.trim(null)          = null
      * StringUtils.trim("")            = ""
@@ -97,7 +97,7 @@ public final class StringUtils {
      * StringUtils.trim("abc")         = "abc"
      * StringUtils.trim("    abc    ") = "abc"
      * </pre>
-     * 
+     *
      * @param str the String to be trimmed, may be null
      * @return the trimmed string, {@code null} if null String input
      */
@@ -109,7 +109,7 @@ public final class StringUtils {
      * <p>
      * Returns a trimmed String containing the provided value or an empty ("") String.
      * </p>
-     * 
+     *
      * <pre>
      * StringUtils.getStringOrEmpty(null)      = ""
      * StringUtils.getStringOrEmpty("")        = ""
@@ -117,7 +117,7 @@ public final class StringUtils {
      * StringUtils.getStringOrEmpty("bob")     = "bob"
      * StringUtils.getStringOrEmpty("  bob  ") = "bob"
      * </pre>
-     * 
+     *
      * @param inputString the String to check, may be null
      * @return the trimmed inputString or an empty ("") String
      */
@@ -143,7 +143,7 @@ public final class StringUtils {
      * </pre>
      *
      * @param inputString the String to check, may be null
-     * @param def the default value to return when inputString is null or empty
+     * @param def         the default value to return when inputString is null or empty
      * @return the trimmed inputString or the provided default value
      */
     public static String getStringOrDefault(String inputString, String def) {
@@ -157,6 +157,44 @@ public final class StringUtils {
 
     /**
      * Returns a String with replaced wildcard values from the provided properties.
+     * <p>
+     * See example below:
+     * <pre>
+     * <b>Input Variant Plain string:</b>
+     * contentWithWildcards: "This is a very ${adjective} helper method"
+     * properties: com.google.common.collect.ImmutableMap.of("adjective", "nice")
+     *
+     * <b>Output:</b>
+     * "This is a very nice helper method"
+     *
+     *
+     * <b>Input Variant JSON non string attribute:</b>
+     * contentWithWildcards: "attribute" : "$${number.replace}"
+     * properties: com.google.common.collect.ImmutableMap.of("number.replace", "1234")
+     *
+     * <b>Output:</b>
+     * "attribute" : 1234
+     * </pre>
+     *
+     * @param contentWithWildcards the String containing the wildcards to replace
+     * @param properties           the properties with the replacement values for the wildcards
+     * @return the String with replaced wildcard values. Returns the input String when input String or
+     * properties are <code>null</code>
+     */
+    public static String replaceWildcardConfigs(String contentWithWildcards,
+        Map<String, Object> properties) {
+        if (properties == null || contentWithWildcards == null) {
+            return contentWithWildcards;
+        }
+        String tmpResult = replaceJsonNonStringAttributeWildcardConfigs(contentWithWildcards,
+            properties);
+        return replacePlainStringWildcardConfigs(tmpResult, properties);
+    }
+
+
+    /**
+     * Returns a String with replaced wildcard values from the provided properties.
+     * <p>
      * See example below:
      * <pre>
      * <b>Input:</b>
@@ -168,17 +206,76 @@ public final class StringUtils {
      * </pre>
      *
      * @param contentWithWildcards the String containing the wildcards to replace
-     * @param properties the properties with the replacement values for the wildcards
-     * @return the String with replaced wildcard values. Returns the input String when input String or properties are <code>null</code>
+     * @param properties           the properties with the replacement values for the wildcards
+     * @return the String with replaced wildcard values. Returns the input String when input String or
+     * properties are <code>null</code>
      */
-    public static String replaceWildcardConfigs(String contentWithWildcards, Map<String, Object> properties) {
-        if(properties == null || contentWithWildcards == null) {
+    private static String replacePlainStringWildcardConfigs(String contentWithWildcards,
+        Map<String, Object> properties) {
+        if (properties == null || contentWithWildcards == null) {
             return contentWithWildcards;
         }
         Engine engine = new Engine();
+        return wildcardReplacementEngineIgnition(engine, contentWithWildcards, properties);
+    }
+
+    /**
+     * Returns a String with replaced Json NonStringified Attributes wildcard values from the provided
+     * properties.
+     * <p>
+     * See example below:
+     * <pre>
+     * <b>Input Variant JSON with non string target type attribute:</b>
+     * jsonWithWildcards: "attribute" : "$${number.replace}"
+     * properties: com.google.common.collect.ImmutableMap.of("number.replace", "1234")
+     *
+     * <b>Output:</b>
+     * "attribute" : 1234
+     * </pre>
+     *
+     * @param jsonWithWildcards the JSON String containing the attributes  with non string target type
+     *                          wildcards to replace
+     * @param properties        the properties with the replacement values for the wildcards
+     * @return the String with replaced wildcard values. Returns the input String when input String or
+     * properties are <code>null</code>
+     */
+    private static String replaceJsonNonStringAttributeWildcardConfigs(String jsonWithWildcards,
+        Map<String, Object> properties) {
+        Engine engine = new Engine();
+        engine.setExprStartToken("\"$${");
+        engine.setExprEndToken("}\"");
+        return wildcardReplacementEngineIgnition(engine, jsonWithWildcards, properties);
+    }
+
+    /**
+     * Returns a String with replaced wildcard values from the provided properties and the given tag
+     * replacement engine.
+     * <p>
+     * See example below:
+     * <pre>
+     * <b>Input:</b>
+     * contentWithWildcards: "This is a very ${adjective} helper method"
+     * properties: com.google.common.collect.ImmutableMap.of("adjective", "nice")
+     *
+     * <b>Output:</b>
+     * "This is a very nice helper method"
+     * </pre>
+     *
+     * @param engine               the Engine used with the configured replacement tags
+     * @param contentWithWildcards the String containing the wildcards to replace
+     * @param properties           the properties with the replacement values for the wildcards
+     * @return the String with replaced wildcard values. Returns the input String when input String or
+     * properties are <code>null</code>
+     */
+    private static String wildcardReplacementEngineIgnition(Engine engine, String contentWithWildcards,
+        Map<String, Object> properties) {
+        if (properties == null || contentWithWildcards == null) {
+            return contentWithWildcards;
+        }
         engine.setModelAdaptor(new DefaultModelAdaptor() {
             @Override
-            public Object getValue(TemplateContext context, Token arg1, List<String> arg2, String expression) {
+            public Object getValue(TemplateContext context, Token arg1, List<String> arg2,
+                String expression) {
                 // First look in model map. Needed for dot-separated properties
                 Object value = context.model.get(expression);
                 if (value != null) {
@@ -189,7 +286,8 @@ public final class StringUtils {
             }
 
             @Override
-            protected Object traverse(Object obj, List<String> arg1, int arg2, ErrorHandler arg3, Token token) {
+            protected Object traverse(Object obj, List<String> arg1, int arg2, ErrorHandler arg3,
+                Token token) {
                 // Throw exception if a token cannot be resolved instead of returning empty string.
                 if (obj == null) {
                     throw new IllegalArgumentException("Could not resolve " + token);
@@ -203,4 +301,5 @@ public final class StringUtils {
             throw new IllegalArgumentException(e);
         }
     }
+
 }
