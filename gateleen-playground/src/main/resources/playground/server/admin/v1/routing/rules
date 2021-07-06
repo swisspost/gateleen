@@ -25,7 +25,7 @@
     "path": "/playground/server/pages/index.html",
     "storage": "main"
   },
-  "/playground/([^/]*\\\\.html)": {
+  "/playground/([^/]*\\\\\\\\.html)": {
     "description": "Pages",
     "path": "/playground/server/pages/$1",
     "storage": "main"
