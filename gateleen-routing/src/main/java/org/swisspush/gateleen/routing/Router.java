@@ -301,6 +301,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
             } else {
                 HttpClient client = vertx.createHttpClient(rule.buildHttpClientOptions());
+                client = new DeferCloseHttpClient(vertx, client); // <- Decorate for better close-handling
                 forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
                 newClients.add(client);
             }
@@ -336,10 +337,9 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
     private void cleanup() {
         final HashSet<HttpClient> clientsToClose = new HashSet<>(httpClients);
+        log.debug("setTimeout({}ms) to close {} clients later", GRACE_PERIOD, clientsToClose.size());
         vertx.setTimer(GRACE_PERIOD, event -> {
-            if (clientsToClose.size() > 0) {
-                cleanupLogger.debug("Cleaning up {} clients", clientsToClose.size());
-            }
+            cleanupLogger.debug("GRACE_PERIOD of {} expired. Cleaning up {} clients", GRACE_PERIOD, clientsToClose.size());
             for (HttpClient client : clientsToClose) {
                 client.close();
             }

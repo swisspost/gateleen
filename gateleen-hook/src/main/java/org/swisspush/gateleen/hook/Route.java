@@ -217,7 +217,7 @@ public class Route {
     public void cleanup() {
         if ( ! rule.getScheme().equals("local") ) {
             vertx.setTimer(GRACE_PERIOD, event -> {
-                CLEANUP_LOGGER.debug("Cleaning up one client for route of " + urlPattern);
+                CLEANUP_LOGGER.debug("Cleaning up one client for route of {}", urlPattern);
                 client.close();
             });
         }
