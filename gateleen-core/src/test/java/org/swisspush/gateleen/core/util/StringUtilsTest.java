@@ -95,4 +95,21 @@ public class StringUtilsTest {
         String contentWithWildcards = "This is a very ${adjective} helper method";
         StringUtils.replaceWildcardConfigs(contentWithWildcards, new HashMap<>());
     }
+
+
+    @Test
+    public void testReplaceJSONAttributeWildcardConfigs(TestContext context){
+        Map<String, Object> properties = ImmutableMap.of("wildcard", "value");
+        String expectedResult = "\"attribute\" : value";
+
+        // check that the old stuff with normal tag (invalid json) still works
+        String contentWithWildcards = "\"attribute\" : ${wildcard}";
+        context.assertEquals( expectedResult, StringUtils.replaceWildcardConfigs(contentWithWildcards, properties));
+
+        // now check that the new special tag (valid json) does it's job properly as well, the result must be the same
+        // but this time, the given JSON is valid
+        contentWithWildcards = "\"attribute\" : \"$${wildcard}\"";
+        context.assertEquals(expectedResult, StringUtils.replaceWildcardConfigs(contentWithWildcards, properties));
+    }
+
 }

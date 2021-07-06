@@ -59,7 +59,12 @@ describe('hook', function(){
           'methods':['PUT', 'POST' ],
           'destination':'/context/server/event/v1/channels/gateleen-hook-js-0123',
           'expireAfter':10,
-          'staticHeaders':{'x-queue-mode':'transient'}
+          'headers': [
+            {
+              'header':'x-queue-mode',
+              'value':'transient'
+            }
+          ]
         }
       ).respond(200,'OK');
       Hook.listen('/context/path', function() {});
@@ -73,7 +78,12 @@ describe('hook', function(){
           'methods':['PUT', 'POST' ],
           'destination':'/context/server/event/v1/channels/gateleen-hook-js-0123',
           'expireAfter':10,
-          'staticHeaders':{'x-queue-mode':'transient'}
+          'headers': [
+            {
+              'header':'x-queue-mode',
+              'value':'transient'
+            }
+          ]
         }
       ).respond(200,'OK');
       Hook.listen('http://server/context/path', function() {});
