@@ -3,9 +3,7 @@ package org.swisspush.gateleen.core.util;
 import com.google.common.collect.ImmutableMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -132,7 +130,8 @@ public class StringUtilsTest {
     @Test
     public void testApplyPlaygroundRoutingRules(TestContext context) throws Exception {
         Map<String, Object> properties = ImmutableMap.of("pathVariable", "my/test/path","portVariable","123");
-        Path path = Paths.get("gateleen-test/playground/server/admin/v1/rules");
+        URL url = getClass().getClassLoader().getResource("tokenReplacementTest.json");
+        Path path = Paths.get(url.toURI());
         String rules = new String(Files.readAllBytes(path));
         String result =  StringUtils.replaceWildcardConfigs(rules, properties);
         context.assertTrue(result.indexOf("/playground/([^/]*\\\\.html)")>=0);
