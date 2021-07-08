@@ -52,7 +52,7 @@ public class CORSTest extends AbstractTest {
                 .body("foo", equalTo("bar"))
                 .header("Access-Control-Allow-Origin", is("http://127.0.0.1:8888"))
                 .header("Access-Control-Allow-Credentials", is("true"))
-                .header("Access-Control-Allow-Methods", is("GET, POST, OPTIONS, PUT, DELETE"));
+                .header("Access-Control-Allow-Methods", is("GET, PATCH, POST, OPTIONS, PUT, DELETE"));
         async.complete();
     }
 
@@ -78,7 +78,7 @@ public class CORSTest extends AbstractTest {
                 .body("foo", equalTo("bar"))
                 .header("Access-Control-Allow-Origin", is("http://127.0.0.1:8888"))
                 .header("Access-Control-Allow-Credentials", is("true"))
-                .header("Access-Control-Allow-Methods", is("GET, POST, OPTIONS, PUT, DELETE"));
+                .header("Access-Control-Allow-Methods", is("GET, PATCH, POST, OPTIONS, PUT, DELETE"));
 
         async.complete();
     }

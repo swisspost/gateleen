@@ -44,7 +44,7 @@ public class CORSHandler {
         if (addCORSheaders && originHeader != null) {
             request.response().headers().set("Access-Control-Allow-Origin", originHeader);
             request.response().headers().set("Access-Control-Allow-Credentials", "true");
-            request.response().headers().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+            request.response().headers().set("Access-Control-Allow-Methods", "GET, PATCH, POST, OPTIONS, PUT, DELETE");
             if (HttpMethod.OPTIONS == request.method()) {
                 request.response().headers().set("Access-Control-Allow-Headers", request.headers().get("Access-Control-Request-Headers"));
             }
