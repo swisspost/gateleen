@@ -18,6 +18,9 @@ import java.util.Map;
  */
 public final class StringUtils {
 
+    private static final String JSON_NUMERIC_START_TOKEN = "\"$${";
+    private static final String JSON_NUMERIC_END_TOKEN = "}\"";
+
     private StringUtils() {
         // prevent instantiation
     }
@@ -186,11 +189,9 @@ public final class StringUtils {
         if (properties == null || contentWithWildcards == null) {
             return contentWithWildcards;
         }
-        String tmpResult = replaceJsonNonStringAttributeWildcardConfigs(contentWithWildcards,
-            properties);
+        String tmpResult = replaceJsonNonStringAttributeWildcardConfigs(contentWithWildcards, properties);
         return replacePlainStringWildcardConfigs(tmpResult, properties);
     }
-
 
     /**
      * Returns a String with replaced wildcard values from the provided properties.
@@ -233,18 +234,29 @@ public final class StringUtils {
      * "attribute" : 1234
      * </pre>
      *
-     * @param jsonWithWildcards the JSON String containing the attributes  with non string target type
+     * @param contentWithWildcards the JSON String containing the attributes  with non string target type
      *                          wildcards to replace
      * @param properties        the properties with the replacement values for the wildcards
      * @return the String with replaced wildcard values. Returns the input String when input String or
      * properties are <code>null</code>
      */
-    private static String replaceJsonNonStringAttributeWildcardConfigs(String jsonWithWildcards,
-        Map<String, Object> properties) {
+    private static String replaceJsonNonStringAttributeWildcardConfigs(String contentWithWildcards, Map<String, Object> properties) {
+        if (properties == null || contentWithWildcards == null) {
+            return contentWithWildcards;
+        }
+        // we don't touch it if not really necessary
+        if (contentWithWildcards.indexOf(JSON_NUMERIC_START_TOKEN) < 0) {
+            return contentWithWildcards;
+        }
         Engine engine = new Engine();
-        engine.setExprStartToken("\"$${");
-        engine.setExprEndToken("}\"");
-        return wildcardReplacementEngineIgnition(engine, jsonWithWildcards, properties);
+        engine.setExprStartToken(JSON_NUMERIC_START_TOKEN);
+        engine.setExprEndToken(JSON_NUMERIC_END_TOKEN);
+        String contentWithoutWildcards = wildcardReplacementEngineIgnition(engine, contentWithWildcards, properties);
+        // Note: due to the implicit string conversions of Java we just lost our escapes here and we must add
+        //       it again in order to have it prepared for the standard variable replacement.
+        //       Therefore we extend it again from two Backslash
+        //       to four backslash where it applies:  "rule/\\.txt"  -> "rule/\\\\.txt"
+        return contentWithoutWildcards.replaceAll("\\\\","\\\\\\\\");
     }
 
     /**
@@ -267,8 +279,7 @@ public final class StringUtils {
      * @return the String with replaced wildcard values. Returns the input String when input String or
      * properties are <code>null</code>
      */
-    private static String wildcardReplacementEngineIgnition(Engine engine, String contentWithWildcards,
-        Map<String, Object> properties) {
+    private static String wildcardReplacementEngineIgnition(Engine engine, String contentWithWildcards, Map<String, Object> properties) {
         if (properties == null || contentWithWildcards == null) {
             return contentWithWildcards;
         }

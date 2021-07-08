@@ -1,0 +1,79 @@
+{
+  "/playground/service/unavailable/(.*)": {
+    "description": "Respond every request with status code 503",
+    "path": "/playground/server/return-with-status-code/503"
+  },
+  "/playground/cb/1/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/cb/2/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/cb/3/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/cb/4/(.*)": {
+    "description": "CircuitBreaker Test",
+    "url": "http://localhost:1234/playground/server/tests/exp/$1"
+  },
+  "/playground/dummy/path": {
+    "description": "Check variable replacement test",
+    "path": "${pathVariable}",
+    "port": "$${portVariable}"
+  },
+  "/playground/": {
+    "description": "Home Page",
+    "metricName": "home_page",
+    "path": "/playground/server/pages/index.html",
+    "storage": "main"
+  },
+  "/playground/([^/]*\\\\.html)": {
+    "description": "Pages",
+    "path": "/playground/server/pages/$1",
+    "storage": "main"
+  },
+  "/playground/css/(.*)": {
+    "description": "Pages CSS",
+    "path": "/playground/server/pages/css/$1",
+    "storage": "main"
+  },
+  "/playground/js/(.*)": {
+    "description": "Pages JS",
+    "path": "/playground/server/pages/js/$1",
+    "storage": "main"
+  },
+  "/playground/img/(.*)": {
+    "description": "Pages Images",
+    "path": "/playground/server/pages/img/$1",
+    "storage": "main"
+  },
+  "/playground/server/storage/empty": {
+    "description": "Placeholder to make this folder appear when browsing",
+    "path": "/playground/server/storage/empty",
+    "storage": "main"
+  },
+  "/playground/server/storage(.*)": {
+    "path": "/playground$1",
+    "storage": "main"
+  },
+  "/playground/server/queuecircuitbreaker/circuit/(.*)": {
+    "description": "CircuitBreaker API",
+    "url": "http://localhost:7013/playground/server/queuecircuitbreaker/circuit/$1"
+  },
+  "/playground/server/redisques/(.*)": {
+    "description": "Redisques API",
+    "url": "http://localhost:7015/queuing/$1"
+  },
+  "/null/(.*)": {
+    "description": "Default Nirvana path, any resource routed to this destination is discarded immediately after any registered listener hooks are notified"
+  },
+  "/(.*)": {
+    "metricName": "resource_storage",
+    "description": "Resource Storage",
+    "path": "/$1",
+    "storage": "main"
+  }
+}
