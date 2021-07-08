@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.routing;
 
 import com.jayway.restassured.RestAssured;
+import com.jayway.restassured.parsing.Parser;
 import com.jayway.restassured.response.Response;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -33,6 +34,7 @@ public class RuleUpdateTest {
     private static final int port = 7012;
     private static final String baseURI = "http://" + host;
     private static final String routingRulesPath = "/playground/server/admin/v1/routing/rules";
+    private static final Vertx vertx = Vertx.vertx();
     private final int gateleenGracePeriod;
     private static String origRules;
 
@@ -58,33 +60,35 @@ public class RuleUpdateTest {
     }
 
     @BeforeClass
-    public static void config() throws IOException {
-        RestAssured.baseURI = baseURI;
+    public static void mockServerIsRunning() throws IOException, InterruptedException {
         RestAssured.port = port;
-        RestAssured.basePath = "/";
-        logger.info("Testing against: " + RestAssured.baseURI + ":" + RestAssured.port);
+        RestAssured.registerParser("application/json; charset=utf-8", Parser.JSON);
+        RestAssured.defaultParser = Parser.JSON;
+
+        logger.info("Testing against: {}:{}", RestAssured.baseURI, RestAssured.port);
 
         // Setup a custom upstream server we can use to download our resource (through gateleen).
-        httpServer = Vertx.vertx().createHttpServer().requestHandler(req -> {
+        httpServer = vertx.createHttpServer().requestHandler(req -> {
+            logger.debug("Upstream: {} {}", req.method(), req.uri());
             HttpServerResponse rsp = req.response();
             req.exceptionHandler(event -> {
-                logger.info("exceptionHandler()");
+                logger.info("Upstream: exceptionHandler(\"{}\")", event.getCause().getMessage());
                 rsp.close();
             });
             rsp.setChunked(true);
             InputStream largeResource = newLargeResource(largeResourceSeed, largeResourceSize);
-            byte[] buf = new byte[1024*1024];
+            byte[] buf = new byte[1024 * 1024];
             Buffer vBuf = Buffer.buffer(buf);
             rsp.drainHandler(event -> {
                 int readLen;
-                logger.debug("pump()");
+                logger.debug("Upstream: pump()");
                 try {
                     readLen = largeResource.read(buf);
                 } catch (IOException e) {
                     throw new RuntimeException("Not impl", e);
                 }
                 if (readLen == -1){
-                    logger.info("response.end()");
+                    logger.info("Upstream: rsp.end()");
                     rsp.end();
                     return;
                 }
@@ -93,8 +97,11 @@ public class RuleUpdateTest {
             });
         });
         httpServer.listen(upstreamPort, upstreamHost);
+        logger.info("Mock httpServer.listen( {}, \"{}\")", upstreamPort, upstreamHost);
         // Then register that server as a static route.
         putCustomUpstreamRoute();
+        // Give it some time to properly initialize.
+        Thread.sleep(42);
     }
 
     @AfterClass
@@ -108,10 +115,9 @@ public class RuleUpdateTest {
     }
 
     @Test
-    public void gateleenMustProperlyCloseItsDownstreamResponse() throws InterruptedException, IOException {
+    public void completesALongRunningStreamProperly() throws InterruptedException, IOException {
 
-        // Initiate a GET request to our large-resource. But give gateleen some time to update rules beforehand.
-        Thread.sleep(42);
+        logger.debug("Initiate a GET request to our large-resource");
         final InputStream body = newLazyResponseStream(largeResourcePath, gateleenGracePeriod + 12_000);
 
         // The response stream now has started (but we don't consume anything yet). So
@@ -142,14 +148,14 @@ public class RuleUpdateTest {
                 logger.trace(String.format("Read %9d of %9d bytes (%3d%%)", bytesSoFar, largeResourceSize, bytesSoFar*100 / largeResourceSize));
             }
             logger.info("EOF reached after {} bytes of expected {} bytes.", bytesSoFar, largeResourceSize);
-            Assert.assertEquals(largeResourceSize, bytesSoFar);
+            Assert.assertEquals("RspBody expected to be complete", largeResourceSize, bytesSoFar);
         }
     }
 
     @Test
-    public void errorInStreamMustBeRecognizableOnClient() throws IOException, InterruptedException {
+    public void relaysCorrectContentFromUpstream() throws IOException, InterruptedException {
 
-        // Initiate a GET request to our large-resource.
+        logger.debug("Initiate a GET request to our large-resource");
         final InputStream body = newLazyResponseStream(largeResourcePath, gateleenGracePeriod + 12_000);
 
         // The response stream now has started (but we don't consume anything yet). So
@@ -186,7 +192,7 @@ public class RuleUpdateTest {
                     if (cExp != cAct) { // Only to log some debugging info.
                         int offset = i > 5 ? bytesSoFar + i - 5 : bytesSoFar;
                         int snipLength = Math.min(42, readLen - i); // Print maximally
-                       logger.debug("Stream at offset={} length={} is: '{}'",
+                        logger.debug("Stream at offset={} length={} is: '{}'",
                                 offset, snipLength, new String(dload, offset - bytesSoFar, snipLength, ISO_8859_1));
                     }
                     Assert.assertEquals("Stream must not contain incorrect data", cExp, cAct);
@@ -222,15 +228,19 @@ public class RuleUpdateTest {
         Assert.assertTrue(path.startsWith("/"));
 
         // Request
-        final URL url = new URL(baseURI + ":" + port + path);
+        final String method = "GET";
+        final String urlStr = baseURI + ":" + port + path;
+        logger.debug("{} {}", method, urlStr);
+
+        final URL url = new URL(urlStr);
         final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setDoInput( true );
+        connection.setDoInput(true);
         connection.setReadTimeout(readTimeoutMs);
-        connection.setRequestProperty( "Method" , "GET" );
-        connection.setRequestProperty( "Accept" , "application/octet-stream" ); // NO! I don't wanna your index.html ...
+        connection.setRequestProperty("Method", method);
+        connection.setRequestProperty("Accept", "application/octet-stream"); // NO! I don't wanna your index.html ...
 
         // Response
-        Assert.assertEquals(200, connection.getResponseCode());
+        Assert.assertEquals(method + " " + urlStr, 200, connection.getResponseCode());
         return connection.getInputStream();
     }
 
@@ -245,11 +255,15 @@ public class RuleUpdateTest {
      */
     private static void customPut(String path, String contentType, InputStream body) throws IOException {
         Assert.assertTrue(path.startsWith("/"));
-        HttpURLConnection connection = (HttpURLConnection) new URL(baseURI + ":" + port + path).openConnection();
+        final String method = "PUT";
+        final String uriStr = baseURI + ":" + port + path;
+        logger.debug("{} {}", method, uriStr);
+
+        HttpURLConnection connection = (HttpURLConnection) new URL(uriStr).openConnection();
         connection.setDoOutput(true);
         connection.setDoInput(true);
         connection.setChunkedStreamingMode(8192);
-        connection.setRequestMethod("PUT");
+        connection.setRequestMethod(method);
         connection.addRequestProperty("Content-Type", contentType);
         byte[] buf = new byte[1024];
         OutputStream snk = connection.getOutputStream();
@@ -266,9 +280,11 @@ public class RuleUpdateTest {
     }
 
     private void triggerRoutingRulesUpdate() {
+        logger.debug("GET {}", routingRulesPath);
         Response rsp = RestAssured.get(routingRulesPath);
         Assert.assertEquals(200, rsp.statusCode());
-        RestAssured.given().header("Content-Type", "application/json").body(rsp.body().print()).put(routingRulesPath);
+        logger.debug("PUT {}", routingRulesPath);
+        RestAssured.given().header("Content-Type", "application/json").body(rsp.body().asString()).put(routingRulesPath);
     }
 
     private static void putCustomUpstreamRoute() throws IOException {
@@ -277,12 +293,13 @@ public class RuleUpdateTest {
             return;
         }
         // Get rules
+        logger.debug("GET {}", routingRulesPath);
         Response rsp = RestAssured.get(routingRulesPath);
         Assert.assertEquals(200, rsp.statusCode());
 
         // Prepend our custom rule for our upstream server. Kind like a hack but
         // playground has no route configured to a external host.
-        origRules = rsp.body().print();
+        origRules = rsp.body().asString();
         String customRules = origRules.replaceFirst("^\\{", "{\"" + upstreamPath + "/(.*)\": {" +
                 "    \"url\": \"http://" + upstreamHost + ":" + upstreamPort + "/\\$1\"" +
                 "},");
