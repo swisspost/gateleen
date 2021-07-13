@@ -4,7 +4,10 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.*;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.shareddata.LocalMap;
@@ -13,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
+import org.swisspush.gateleen.core.http.HttpClientFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
@@ -56,6 +60,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private final ResourceStorage storage;
     private final JsonObject info;
     private final Map<String, Object> properties;
+    private final HttpClientFactory httpClientFactory;
     private final Handler<Void>[] doneHandlers;
     private final LocalMap<String, Object> sharedData;
     private boolean initialized = false;
@@ -68,6 +73,18 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private Integer requestHopsLimit = null;
     private final Set<DefaultRouteType> defaultRouteTypes;
 
+    /**
+     * @return
+     *      A builder which assists to create a router instance.
+     */
+    public static RouterBuilder builder() {
+        return new RouterBuilder();
+    }
+
+    /**
+     * In some cases using {@link #builder()} is more convenient than messing
+     * around with such an amount of arguments.
+     */
     public Router(Vertx vertx,
                   final ResourceStorage storage,
                   final Map<String, Object> properties,
@@ -95,6 +112,10 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 doneHandlers);
     }
 
+    /**
+     * In some cases using {@link #builder()} is more convenient than messing
+     * around with such an amount of arguments.
+     */
     public Router(Vertx vertx,
                   final ResourceStorage storage,
                   final Map<String, Object> properties,
@@ -108,6 +129,40 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                   int storagePort,
                   Set<DefaultRouteType> defaultRouteTypes,
                   Handler<Void>... doneHandlers) {
+        this(vertx,
+                storage,
+                properties,
+                loggingResourceManager,
+                monitoringHandler,
+                selfClient,
+                serverPath,
+                rulesPath,
+                userProfilePath,
+                info,
+                storagePort,
+                defaultRouteTypes,
+                HttpClientFactory.of(vertx),
+                doneHandlers);
+    }
+
+    /**
+     * In some cases using {@link #builder()} is more convenient than messing
+     * around with such an amount of arguments.
+     */
+    Router(Vertx vertx,
+           final ResourceStorage storage,
+           final Map<String, Object> properties,
+           LoggingResourceManager loggingResourceManager,
+           MonitoringHandler monitoringHandler,
+           HttpClient selfClient,
+           String serverPath,
+           String rulesPath,
+           String userProfilePath,
+           JsonObject info,
+           int storagePort,
+           Set<DefaultRouteType> defaultRouteTypes,
+           HttpClientFactory httpClientFactory,
+           Handler<Void>... doneHandlers) {
         this.storage = storage;
         this.properties = properties;
         this.loggingResourceManager = loggingResourceManager;
@@ -120,6 +175,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.serverUri = serverPath;
         this.info = info;
         this.defaultRouteTypes = defaultRouteTypes;
+        this.httpClientFactory = httpClientFactory;
         this.doneHandlers = doneHandlers;
 
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
@@ -300,7 +356,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             } else if (rule.getScheme().equals("local")) {
                 forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
             } else {
-                HttpClient client = vertx.createHttpClient(rule.buildHttpClientOptions());
+                HttpClient client = httpClientFactory.createHttpClient(rule.buildHttpClientOptions());
                 forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
                 newClients.add(client);
             }
@@ -336,10 +392,9 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
     private void cleanup() {
         final HashSet<HttpClient> clientsToClose = new HashSet<>(httpClients);
+        log.debug("setTimeout({}ms) to close {} clients later", GRACE_PERIOD, clientsToClose.size());
         vertx.setTimer(GRACE_PERIOD, event -> {
-            if (clientsToClose.size() > 0) {
-                cleanupLogger.debug("Cleaning up {} clients", clientsToClose.size());
-            }
+            cleanupLogger.debug("GRACE_PERIOD of {} expired. Cleaning up {} clients", GRACE_PERIOD, clientsToClose.size());
             for (HttpClient client : clientsToClose) {
                 client.close();
             }

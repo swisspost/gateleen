@@ -3,6 +3,8 @@ package org.swisspush.gateleen.playground;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
@@ -51,6 +53,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBrea
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
 import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
+import org.swisspush.gateleen.routing.DeferCloseHttpClient;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
@@ -246,15 +249,24 @@ public class Server extends AbstractVerticle {
 
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
 
-                router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient, SERVER_ROOT,
-                        SERVER_ROOT + "/admin/v1/routing/rules", SERVER_ROOT + "/users/v1/%s/profile", info, storagePort,
-                        (Handler<Void>) aVoid -> {
+                router = Router.builder()
+                        .withServerPath(SERVER_ROOT)
+                        .withRulesPath(SERVER_ROOT + "/admin/v1/routing/rules")
+                        .withUserProfilePath(SERVER_ROOT + "/users/v1/%s/profile")
+                        .withVertx(vertx)
+                        .withSelfClient(selfClient)
+                        .withStorage(storage).withStoragePort(storagePort)
+                        .withInfo(info)
+                        .withMonitoringHandler(monitoringHandler)
+                        .withLoggingResourceManager(loggingResourceManager)
+                        .withResourceLogging(true)
+                        .withRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config")
+                        .withHttpClientFactory(this::createHttpClientForRouter)
+                        .addDoneHandler(aVoid -> {
                             hookHandler.init();
                             delegateHandler.init();
-                        });
-                router.enableResourceLogging(true);
-                String routerConfigurationResource = SERVER_ROOT + "/admin/v1/routing/config";
-                router.enableRoutingConfiguration(configurationResourceManager, routerConfigurationResource);
+                        })
+                        .build();
 
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
@@ -320,4 +332,13 @@ public class Server extends AbstractVerticle {
             }
         });
     }
+
+    private HttpClient createHttpClientForRouter(HttpClientOptions opts) {
+        // Setup an original vertx http client.
+        HttpClient client = vertx.createHttpClient(opts);
+        // But decorate it for advanced close handling
+        client = new DeferCloseHttpClient(vertx, client);
+        return client;
+    }
+
 }
