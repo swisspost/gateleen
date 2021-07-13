@@ -3,6 +3,10 @@ package org.swisspush.gateleen.core.util;
 import com.google.common.collect.ImmutableMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -110,6 +114,29 @@ public class StringUtilsTest {
         // but this time, the given JSON is valid
         contentWithWildcards = "\"attribute\" : \"$${wildcard}\"";
         context.assertEquals(expectedResult, StringUtils.replaceWildcardConfigs(contentWithWildcards, properties));
+
+    }
+
+    @Test
+    public void testApplyRoutingRuleWithEscapes(TestContext context) throws Exception {
+        Map<String, Object> properties = ImmutableMap.of("dummy", "value");
+        String test = "/playground/[^/]*\\\\.html";
+        String expected = "/playground/[^/]*\\.html";
+        String result = StringUtils.replaceWildcardConfigs(test, properties);
+        context.assertEquals(expected, result);
+        context.assertTrue("/playground/test.html".matches(result));
+    }
+
+    @Test
+    public void testApplyPlaygroundRoutingRules(TestContext context) throws Exception {
+        Map<String, Object> properties = ImmutableMap.of("pathVariable", "my/test/path","portVariable","123");
+        URL url = getClass().getClassLoader().getResource("tokenReplacementTest.json");
+        Path path = Paths.get(url.toURI());
+        String rules = new String(Files.readAllBytes(path));
+        String result =  StringUtils.replaceWildcardConfigs(rules, properties);
+        context.assertTrue(result.indexOf("/playground/([^/]*\\\\.html)")>=0);
+        context.assertTrue(result.indexOf("\"path\": \"my/test/path\"")>=0);
+        context.assertTrue(result.indexOf("\"port\": 123")>=0);
     }
 
 }
