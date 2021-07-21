@@ -20,16 +20,17 @@ Adding hooks requires a validation against a schema to be positive. Check the sc
 
 **Payload**
 
-| Property          | Required | Description                              | 
-|:----------------- | :------: | :--------------------------------------- | 
-| destination       | yes | A valid URL (absolute) where the requests should be redirected to. |
-| methods           | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
-| *expireAfter*     | no  | *DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead* |
-| staticHeaders     | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
-| headers           | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)|
-| collection        | no  | This property specifies if the given URL is a resource or a collection. If this property is not set, the default is true (collection). |
-| listable          | no  | This property specifies if a route is listed if a GET is performed on its parent or not. The default is false or set by the value passed during the initialization. | 
-| translateStatus   | no  | This property defines a mapping to translate http respond status values. | 
+| Property           | Required | Description                              | 
+|:------------------ | :------: | :--------------------------------------- | 
+| destination        | yes | A valid URL (absolute) where the requests should be redirected to. |
+| methods            | no  | An array of valid HTTP methods (PUT, GET, DELETE, ...) to define for which requests the redirection should be performed. As a default all requests will be redirected. |
+| *expireAfter*      | no  | *DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead* |
+| staticHeaders      | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
+| headers            | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)|
+| collection         | no  | This property specifies if the given URL is a resource or a collection. If this property is not set, the default is true (collection). |
+| listable           | no  | This property specifies if a route is listed if a GET is performed on its parent or not. The default is false or set by the value passed during the initialization. | 
+| translateStatus    | no  | This property defines a mapping to translate http respond status values. | 
+| connectionPoolSize | no  | This property defines the max number of TCP connections which will be open in parallel to the destination system (Default 50) | 
 
 > <font color="orange"><b>Attention:</b> </font>A route has a default expiration time of **1 hour**. After this time the route will expire and be removed from the storage, as well as the HookHandler.<br />
 To update / refresh a route, simply perform another registration.<br />
