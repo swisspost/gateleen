@@ -1468,6 +1468,8 @@ public class HookHandler implements LoggableResource {
         // Configure connection pool size
         hook.setConnectionPoolSize(jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME));
 
+        hook.setMaxWaitQueueSize(jsonHook.getInteger(HttpHook.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME));
+
         boolean mustCreateNewRoute = true;
         Route existingRoute = routeRepository.getRoutes().get(routedUrl);
         if (existingRoute != null) {
@@ -1502,6 +1504,7 @@ public class HookHandler implements LoggableResource {
         same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
         same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
         same &= Objects.equals(oldHook.getConnectionPoolSize() ,      newHook.getConnectionPoolSize());
+        same &= Objects.equals(oldHook.getMaxWaitQueueSize() ,        newHook.getMaxWaitQueueSize());
 
         // queueingStrategy, filter, queueExpireAfter and hookTriggerType are not relevant for Route-Hooks
         // Though, headerFunction WOULD BE relevant - but we can't compare them for equality

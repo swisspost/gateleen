@@ -18,7 +18,9 @@ import java.util.regex.Pattern;
  */
 public class HttpHook {
     public static final String CONNECTION_POOL_SIZE_PROPERTY_NAME = Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME;
+    public static final String CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME = Rule.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME;
     public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE;
+    public static final int CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE = Rule.CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE;
     private String destination;
     private List<String> methods;
     private Map<Pattern, Integer> translateStatus;
@@ -32,6 +34,7 @@ public class HttpHook {
     private boolean listable = false;
     private boolean collection = true;
     private Integer connectionPoolSize = null;
+    private Integer maxWaitQueueSize = null;
     private ProxyOptions proxyOptions = null;
 
     /**
@@ -269,6 +272,25 @@ public class HttpHook {
             throw new IllegalArgumentException("Values below 1 not valid.");
         }
         this.connectionPoolSize = connectionPoolSize;
+    }
+
+    /**
+     * @return Max count of connections made to configured destination. This may
+     *      returning null in case there's no value specified. Callers may catch
+     *      that by fall back to a default.
+     */
+    public Integer getMaxWaitQueueSize() {
+        return maxWaitQueueSize;
+    }
+
+    /**
+     * See {@link #getMaxWaitQueueSize()}.
+     */
+    public void setMaxWaitQueueSize(Integer maxWaitQueueSize) {
+        if (maxWaitQueueSize != null && maxWaitQueueSize < -1){
+            throw new IllegalArgumentException("Values below -1 not valid.");
+        }
+        this.maxWaitQueueSize = maxWaitQueueSize;
     }
 
     /**
