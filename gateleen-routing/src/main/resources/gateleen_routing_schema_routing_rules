@@ -63,7 +63,7 @@
 					"default": 50
 				},
 				"maxWaitQueueSize": {
-                	"description": "The maximum number of connections wait in the queue.",
+                	"description": "The maximum number of requests allowed in the wait queue.",
                 	"type": "integer",
                 	"default": -1
                 },

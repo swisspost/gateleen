@@ -12,9 +12,9 @@ import java.util.regex.Pattern;
 
 public class Rule {
     public static final String CONNECTION_POOL_SIZE_PROPERTY_NAME = "connectionPoolSize";
-    public static final String CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME = "maxWaitQueueSize";
+    public static final String MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME = "maxWaitQueueSize";
     public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = 50;
-    public static final int CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE = -1;
+    public static final int MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE = -1;
     private String scheme;
     private String host;
     private String metricName;

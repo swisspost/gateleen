@@ -81,7 +81,7 @@ public class RuleFactory {
             int defaultTimeoutSec = 30;
             ruleObj.setTimeout(1000 * rule.getInteger("timeout", defaultTimeoutSec));
             ruleObj.setPoolSize(rule.getInteger(Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME, Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE));
-            ruleObj.setMaxWaitQueueSize(rule.getInteger(Rule.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME, Rule.CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE));
+            ruleObj.setMaxWaitQueueSize(rule.getInteger(Rule.MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME, Rule.MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE));
             ruleObj.setKeepAlive(rule.getBoolean("keepAlive", true));
             ruleObj.setExpandOnBackend(rule.getBoolean("expandOnBackend", false));
             ruleObj.setStorageExpand(rule.getBoolean("storageExpand", false));

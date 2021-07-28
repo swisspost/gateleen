@@ -18,9 +18,9 @@ import java.util.regex.Pattern;
  */
 public class HttpHook {
     public static final String CONNECTION_POOL_SIZE_PROPERTY_NAME = Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME;
-    public static final String CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME = Rule.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME;
+    public static final String CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME = Rule.MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME;
     public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE;
-    public static final int CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE = Rule.CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE;
+    public static final int CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE = Rule.MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE;
     private String destination;
     private List<String> methods;
     private Map<Pattern, Integer> translateStatus;
@@ -275,7 +275,7 @@ public class HttpHook {
     }
 
     /**
-     * @return Max count of connections made to configured destination. This may
+     * @return Maximum number of requests allowed in the wait queue. This may
      *      returning null in case there's no value specified. Callers may catch
      *      that by fall back to a default.
      */
