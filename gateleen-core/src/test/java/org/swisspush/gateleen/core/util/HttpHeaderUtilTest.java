@@ -41,4 +41,25 @@ public class HttpHeaderUtilTest {
         testContext.assertEquals(2, headers.size());
     }
 
+    @Test
+    public void getHeaderValueTest(TestContext testContext) {
+
+        // Mock an example header
+        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        headers.add("dummy-header", "123");
+        headers.add("even-more-dummy-header", "anyvalue");
+        headers.add("host", "host:1234");
+
+        String value = HttpHeaderUtil.getHeaderValue(headers, "Host");
+        // Assert correct returned value found even with unequal case
+        testContext.assertEquals(value,"host:1234");
+
+        value = HttpHeaderUtil.getHeaderValue(headers, "someHeader");
+        // Assert not found
+        testContext.assertNull(value);
+
+    }
+
+
+
 }
