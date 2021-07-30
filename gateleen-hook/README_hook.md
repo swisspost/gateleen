@@ -31,7 +31,7 @@ Adding hooks requires a validation against a schema to be positive. Check the sc
 | listable           | no  | This property specifies if a route is listed if a GET is performed on its parent or not. The default is false or set by the value passed during the initialization. | 
 | translateStatus    | no  | This property defines a mapping to translate http respond status values. | 
 | connectionPoolSize | no  | This property defines the max number of TCP connections which will be open in parallel to the destination system (Default 50) | 
-| maxWaitQueueSize   | no  | This property defines the max number of requests allowed in the wait queue. (Default -1, unbounded) | 
+| maxWaitQueueSize   | no  | This property defines the max number of requests allowed in the wait queue of the connection pool to the destination. If set to 0 then new incoming requests are rejected immediately if the pool is full (max connectionPoolSize reached), otherwise the requests are queued until the maxWaitQueueSize is reached and dispatched once connections in the pool become available. (Default -1, unbounded) | 
 
 > <font color="orange"><b>Attention:</b> </font>A route has a default expiration time of **1 hour**. After this time the route will expire and be removed from the storage, as well as the HookHandler.<br />
 To update / refresh a route, simply perform another registration.<br />
