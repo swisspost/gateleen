@@ -1,7 +1,7 @@
 language: java
-dist: trusty
+dist: xenial
 jdk:
-  - oraclejdk8
+  - oraclejdk11
 services:
   - redis-server
 before_install:
@@ -16,6 +16,10 @@ before_install:
 #  We also download the newest version of Chrome Driver that still supports our old version of Chrome (v. 48).
   - wget https://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip
   - unzip chromedriver_linux64.zip -d gateleen-test/src/test/resources/
+# install groovy
+  - curl -s get.sdkman.io | bash
+  - source "$HOME/.sdkman/bin/sdkman-init.sh"
+  - sdk install groovy 3.0.8
 install:
     - mvn install -Dmaven.javadoc.skip=true -PpublicRepos -B -V
 before_script:
