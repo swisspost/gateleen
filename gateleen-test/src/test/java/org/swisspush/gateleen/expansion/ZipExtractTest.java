@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.expansion;
 
 import com.google.common.io.Files;
-import com.jayway.restassured.response.Response;
+import io.restassured.response.Response;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -12,8 +12,8 @@ import org.swisspush.gateleen.AbstractTest;
 
 import java.io.File;
 
-import static com.jayway.restassured.RestAssured.delete;
-import static com.jayway.restassured.RestAssured.given;
+import static io.restassured.RestAssured.delete;
+import static io.restassured.RestAssured.given;
 
 /**
  * Tests the ZipExtractHandler.

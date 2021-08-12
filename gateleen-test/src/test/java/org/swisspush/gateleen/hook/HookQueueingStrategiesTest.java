@@ -2,7 +2,7 @@ package org.swisspush.gateleen.hook;
 
 import com.google.common.collect.ImmutableMap;
 import com.jayway.awaitility.Awaitility;
-import com.jayway.restassured.RestAssured;
+import io.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -14,7 +14,7 @@ import org.swisspush.gateleen.TestUtils;
 
 import java.util.List;
 
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;

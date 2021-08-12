@@ -11,7 +11,7 @@ import org.junit.Test;
 import io.vertx.core.json.JsonObject;
 import org.junit.runner.RunWith;
 
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.*;
 
 /**

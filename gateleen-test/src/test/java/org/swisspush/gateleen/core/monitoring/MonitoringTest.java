@@ -3,7 +3,7 @@ package org.swisspush.gateleen.core.monitoring;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 import com.google.common.collect.ImmutableMap;
-import com.jayway.restassured.RestAssured;
+import io.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -18,7 +18,7 @@ import javax.management.ObjectName;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
 
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 
 /**
  * Tests that the monitoring of the duration of storage requests does not
