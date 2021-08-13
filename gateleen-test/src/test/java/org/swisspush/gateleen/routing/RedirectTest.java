@@ -1,20 +1,20 @@
 package org.swisspush.gateleen.routing;
 
-import static io.restassured.RestAssured.delete;
-import static io.restassured.RestAssured.get;
-import static io.restassured.RestAssured.given;
-import java.io.File;
-
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
-import io.vertx.core.json.JsonObject;
-import io.restassured.RestAssured;
-import io.restassured.http.ContentType;
+import org.junit.runner.RunWith;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
-import org.junit.runner.RunWith;
+
+import java.io.File;
+import java.io.IOException;
+
+import static io.restassured.RestAssured.*;
 
 @RunWith(VertxUnitRunner.class)
 public class RedirectTest extends AbstractTest {
@@ -27,7 +27,7 @@ public class RedirectTest extends AbstractTest {
         RestAssured.requestSpecification.basePath(SERVER_ROOT + "/pages");
     }
 
-    private void init() {
+    private void init() throws IOException {
         delete();
 
         // add a routing
@@ -35,12 +35,15 @@ public class RedirectTest extends AbstractTest {
         rules = TestUtils.addRoutingRuleMainStorage(rules);
         TestUtils.putRoutingRules(rules);
 
+        // create a simple temp file
+        File empty = File.createTempFile("redirect-test", "empty.html");
+
         // add file to check
-        given().multiPart(new File("classpath:empty.html")).put("empty.html").then().assertThat().statusCode(200);
+        given().contentType("multipart/json").multiPart(empty).put("empty.html").then().assertThat().statusCode(200);
     }
 
     @Test
-    public void testGetHTMLResourceWithoutTrailingSlash(TestContext context) throws InterruptedException {
+    public void testGetHTMLResourceWithoutTrailingSlash(TestContext context) throws IOException {
         Async async = context.async();
         init();
         get("empty.html").then().assertThat().statusCode(200).assertThat().contentType(ContentType.HTML);
@@ -48,7 +51,7 @@ public class RedirectTest extends AbstractTest {
     }
 
     @Test
-    public void testGetHTMLResourceWithTrailingSlash(TestContext context) throws InterruptedException {
+    public void testGetHTMLResourceWithTrailingSlash(TestContext context) throws IOException {
         Async async = context.async();
         init();
         get("empty.html/").then().assertThat().statusCode(200).assertThat().contentType(ContentType.HTML);

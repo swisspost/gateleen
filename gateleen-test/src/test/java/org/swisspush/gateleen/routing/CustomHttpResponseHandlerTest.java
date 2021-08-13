@@ -6,13 +6,13 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 
 import static io.restassured.RestAssured.*;
-import static io.restassured.RestAssured.delete;
 import static org.hamcrest.core.StringContains.containsString;
 
 /**
@@ -105,10 +105,16 @@ public class CustomHttpResponseHandlerTest extends AbstractTest {
         rules = TestUtils.addRoutingRule(rules, ruleName, statuscode1234RoutingRule);
         TestUtils.putRoutingRules(rules);
 
-        // GET should now return status code 1234
-        when().get("/resources/res_1").then().assertThat()
+        // GET should now return status code 999
+        try {
+            when().get("/resources/res_1").then().assertThat()
                 .statusCode(999)
                 .body(containsString("999 Unknown Status (999)"));
+        } catch (IllegalArgumentException e) {
+            // Rest-assured is now throwing an error when the status code is outside the range 100-599
+            // so just catch it and check the message. -> because gateleen DID return the status code we expect
+            Assert.assertEquals("Status code must be greater than 100 and less than 600, was 999.", e.getMessage());
+        }
 
         async.complete();
     }

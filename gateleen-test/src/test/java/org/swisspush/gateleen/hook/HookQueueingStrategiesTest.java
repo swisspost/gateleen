@@ -78,18 +78,18 @@ public class HookQueueingStrategiesTest extends AbstractTest {
         when().get("pushnotification/queuing/queues/")
                 .then().assertThat()
                 .body("queues", hasItem(queueName));
-        given().urlEncodingEnabled(false).when().get("pushnotification/queuing/queues/" + queueName)
+        given().urlEncodingEnabled(true).when().get("pushnotification/queuing/queues/" + queueName)
                 .then().assertThat()
                 .body(queueName, hasSize(3));
 
         // check that no queue items do have a payload
-        String responseIndex0 = given().urlEncodingEnabled(false)
+        String responseIndex0 = given().urlEncodingEnabled(true)
                 .when().get("pushnotification/queuing/queues/" + queueName + "/0")
                 .then().extract().response().asString();
-        String responseIndex1 = given().urlEncodingEnabled(false)
+        String responseIndex1 = given().urlEncodingEnabled(true)
                 .when().get("pushnotification/queuing/queues/" + queueName + "/1")
                 .then().extract().response().asString();
-        String responseIndex2 = given().urlEncodingEnabled(false)
+        String responseIndex2 = given().urlEncodingEnabled(true)
                 .when().get("pushnotification/queuing/queues/" + queueName + "/2")
                 .then().extract().response().asString();
 
@@ -147,7 +147,7 @@ public class HookQueueingStrategiesTest extends AbstractTest {
                 .then().assertThat()
                 .body("queues", hasItem(queueName))
                 .body("queues", not(hasItem(managerQueue)));
-        given().urlEncodingEnabled(false).when().get("pushnotification/queuing/queues/" + queueName)
+        given().urlEncodingEnabled(true).when().get("pushnotification/queuing/queues/" + queueName)
                 .then().assertThat()
                 .body(queueName, hasSize(3));
         when().get("pushnotification/queuing/locks/")
@@ -158,10 +158,10 @@ public class HookQueueingStrategiesTest extends AbstractTest {
         // after 5s an unlocked manager queue with a single queue item should exist and the original queue should be empty
         // and its lock should have been deleted
         Awaitility.await().until(() -> when().get("pushnotification/queuing/queues/").then().assertThat().body("queues", hasItem(managerQueue)));
-        given().urlEncodingEnabled(false).when().get("pushnotification/queuing/queues/" + managerQueue)
+        given().urlEncodingEnabled(true).when().get("pushnotification/queuing/queues/" + managerQueue)
                 .then().assertThat()
                 .body(managerQueue, hasSize(1));
-        given().urlEncodingEnabled(false).when().get("pushnotification/queuing/queues/" + queueName)
+        given().urlEncodingEnabled(true).when().get("pushnotification/queuing/queues/" + queueName)
                 .then().assertThat()
                 .body(queueName, empty());
 
@@ -181,7 +181,7 @@ public class HookQueueingStrategiesTest extends AbstractTest {
                 .then().assertThat()
                 .body("queues", hasItem(queueName))
                 .body("queues", hasItem(managerQueue));
-        given().urlEncodingEnabled(false).when().get("pushnotification/queuing/queues/" + queueName)
+        given().urlEncodingEnabled(true).when().get("pushnotification/queuing/queues/" + queueName)
                 .then().assertThat()
                 .body(queueName, hasSize(2));
         when().get("pushnotification/queuing/locks/")
@@ -193,10 +193,10 @@ public class HookQueueingStrategiesTest extends AbstractTest {
         // and its lock should have been deleted
         TestUtils.waitSomeTime(5);
         Awaitility.await().until(() -> when().get("pushnotification/queuing/queues/").then().assertThat().body("queues", hasItem(managerQueue)));
-        given().urlEncodingEnabled(false).when().get("pushnotification/queuing/queues/" + managerQueue)
+        given().urlEncodingEnabled(true).when().get("pushnotification/queuing/queues/" + managerQueue)
                 .then().assertThat()
                 .body(managerQueue, hasSize(1));
-        given().urlEncodingEnabled(false).when().get("pushnotification/queuing/queues/" + queueName)
+        given().urlEncodingEnabled(true).when().get("pushnotification/queuing/queues/" + queueName)
                 .then().assertThat()
                 .body(queueName, empty());
 
