@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.swisspush.gateleen</groupId>
         <artifactId>gateleen</artifactId>
-        <version>1.1.78-SNAPSHOT</version>
+        <version>1.2.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>gateleen-logging</artifactId>
