@@ -1,8 +1,8 @@
 package org.swisspush.gateleen.routing;
 
-import com.jayway.restassured.RestAssured;
-import com.jayway.restassured.parsing.Parser;
-import com.jayway.restassured.response.Response;
+import io.restassured.RestAssured;
+import io.restassured.parsing.Parser;
+import io.restassured.response.Response;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
