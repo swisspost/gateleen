@@ -3,7 +3,7 @@ package org.swisspush.gateleen.hook;
 import com.google.common.collect.ImmutableMap;
 import com.jayway.awaitility.Awaitility;
 import com.jayway.awaitility.Duration;
-import com.jayway.restassured.RestAssured;
+import io.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -17,7 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.containsString;
 
 /**

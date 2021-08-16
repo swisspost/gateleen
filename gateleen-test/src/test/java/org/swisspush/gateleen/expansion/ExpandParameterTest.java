@@ -8,7 +8,7 @@ import org.junit.runner.RunWith;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.core.util.StatusCode;
 
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItems;

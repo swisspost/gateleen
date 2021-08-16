@@ -7,7 +7,7 @@
  */
 package org.swisspush.gateleen.core.property;
 
-import static com.jayway.restassured.RestAssured.with;
+import static io.restassured.RestAssured.with;
 
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;

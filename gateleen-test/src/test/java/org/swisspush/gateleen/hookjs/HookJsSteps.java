@@ -9,8 +9,8 @@
 package org.swisspush.gateleen.hookjs;
 
 import com.jayway.awaitility.Duration;
-import com.jayway.restassured.RestAssured;
-import com.jayway.restassured.http.ContentType;
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
 import cucumber.api.java.After;
 import cucumber.api.java.en.And;
 import cucumber.api.java.en.Given;
