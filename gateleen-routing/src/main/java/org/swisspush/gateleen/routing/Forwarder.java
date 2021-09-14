@@ -60,6 +60,7 @@ public class Forwarder implements Handler<RoutingContext> {
     private static final String ETAG_HEADER = "Etag";
     private static final String IF_NONE_MATCH_HEADER = "if-none-match";
     private static final String SELF_REQUEST_HEADER = "x-self-request";
+    private static final String HOST_HEADER = "Host";
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
 
@@ -218,17 +219,24 @@ public class Forwarder implements Handler<RoutingContext> {
 
         // apply the configured rules headers to the request headers
         MultiMap headers = cReq.headers();
+        String hostHeaderBefore = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
         final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
-
-        // check if we have already a Host header in the request
-        // either given from the caller or a previously applied rule
-        // don't overwrite the Host header if there is already one
-        // https://github.com/swisspush/gateleen/issues/394
-        String hostHeader = HttpHeaderUtil.getHeaderValue(headers, "Host");
-        if (hostHeader == null) {
+        String hostHeaderAfter = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
+        // see https://github.com/swisspush/gateleen/issues/394
+        if (hostHeaderAfter == null ||
+            (hostHeaderAfter != null && hostHeaderAfter.equals(hostHeaderBefore))) {
+            // there was no host header before or the host header was not updated by the rule given, therefore
+            // the host header will be forced overwritten always independent of the incoming value.
+            // This allows us to configure for certain routings to external url a dedicated Host header
+            // which will not be overwritten.
+            //
             // https://jira.post.ch/browse/NEMO-1494
             // the Host has to be set, if only added it will add a second value and not overwrite existing ones
-            headers.set("Host", target.split("/")[0]);
+            String newHost = target.split("/")[0];
+            headers.set(HOST_HEADER, newHost);
+            log.debug("Host header replaced by default target value: {}", newHost);
+        } else {
+            log.debug("Host header replaced by rule value: {}", hostHeaderAfter);
         }
 
         if (evalScope.getErrorMessage() != null) {
