@@ -212,7 +212,6 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.headers().set("Authorization", "Basic " + base64UsernamePassword);
         }
 
-
         MultiMap headers = cReq.headers();
         String hostHeaderBefore = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
         final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
