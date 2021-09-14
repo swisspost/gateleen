@@ -212,25 +212,21 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.headers().set("Authorization", "Basic " + base64UsernamePassword);
         }
 
-
         MultiMap headers = cReq.headers();
-        String hostHeaderBefore = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
+        final String hostHeaderBefore = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
         final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
-        String hostHeaderAfter = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
+        final String hostHeaderAfter = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
         // see https://github.com/swisspush/gateleen/issues/394
-        if (hostHeaderAfter == null ||
-            (hostHeaderAfter != null && hostHeaderAfter.equals(hostHeaderBefore))) {
-            // there was no host header before or the host header was not updated by the rule given, therefore
-            // the host header will be forced overwritten always independent of the incoming value.
-            // This allows us to configure for certain routings to external url a dedicated Host header
-            // which will not be overwritten.
-            //
-            // https://jira.post.ch/browse/NEMO-1494
-            // the Host has to be set, if only added it will add a second value and not overwrite existing ones
-            String newHost = target.split("/")[0];
+        if (hostHeaderAfter == null || hostHeaderAfter.equals(hostHeaderBefore)) {
+            // there was no host header before or the host header was not updated by the rule given,
+            // therefore it will be forced overwritten always independent of the incoming value.
+            final String newHost = target.split("/")[0];
             headers.set(HOST_HEADER, newHost);
             log.debug("Host header replaced by default target value: {}", newHost);
         } else {
+            // the host header was changed by the configured routing and therefore
+            // it is not updated. This allows us to configure for certain routings to external
+            // url a dedicated Host header which will not be overwritten.
             log.debug("Host header replaced by rule value: {}", hostHeaderAfter);
         }
 
