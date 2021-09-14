@@ -1,9 +1,9 @@
 package org.swisspush.gateleen.core.storage;
 
-import static com.jayway.restassured.RestAssured.delete;
-import static com.jayway.restassured.RestAssured.get;
-import static com.jayway.restassured.RestAssured.put;
-import static com.jayway.restassured.RestAssured.with;
+import static io.restassured.RestAssured.delete;
+import static io.restassured.RestAssured.get;
+import static io.restassured.RestAssured.put;
+import static io.restassured.RestAssured.with;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -13,7 +13,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import io.vertx.core.json.JsonObject;
-import com.jayway.restassured.RestAssured;
+import io.restassured.RestAssured;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 import org.junit.runner.RunWith;

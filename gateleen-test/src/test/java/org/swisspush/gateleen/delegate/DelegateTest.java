@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.delegate;
 
-import com.jayway.restassured.RestAssured;
-import com.jayway.restassured.response.Response;
+import io.restassured.RestAssured;
+import io.restassured.response.Response;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -18,7 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 
 /**
  * Testclass for the DelegateHandler and it features.

@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 /**

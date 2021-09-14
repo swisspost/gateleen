@@ -1,8 +1,8 @@
 package org.swisspush.gateleen.merge;
 
 import com.google.common.collect.ImmutableMap;
-import com.jayway.restassured.RestAssured;
-import com.jayway.restassured.response.Response;
+import io.restassured.RestAssured;
+import io.restassured.response.Response;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
@@ -16,8 +16,8 @@ import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 
-import static com.jayway.restassured.RestAssured.delete;
-import static com.jayway.restassured.RestAssured.given;
+import static io.restassured.RestAssured.delete;
+import static io.restassured.RestAssured.given;
 
 /**
  * Tests some features of the MergeHandler.

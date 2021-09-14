@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.expansion;
 
 import org.swisspush.gateleen.AbstractTest;
-import com.jayway.restassured.response.Response;
+import io.restassured.response.Response;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -10,7 +10,7 @@ import org.junit.runner.RunWith;
 
 import java.util.List;
 
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 
 /**
  * Tests the expand feature with the limit and offset parameter.

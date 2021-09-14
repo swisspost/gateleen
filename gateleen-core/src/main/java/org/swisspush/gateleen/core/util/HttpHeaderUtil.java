@@ -1,7 +1,6 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
-import java.util.Map.Entry;
 
 
 public class HttpHeaderUtil {
@@ -29,28 +28,6 @@ public class HttpHeaderUtil {
         headers.remove(CONNECTION);
 
         return headers;
-    }
-
-    /**
-     * Helper method to find the first occurrence of a http header within the given List of headers.
-     *
-     * @param headers   The Map with the header key - value pairs to be evaluated
-     * @param headerKey The key for the header pair we are searching for in the given map. Note that
-     *                  the key searching is non case sensitive.
-     * @return The found header value or null if none found
-     */
-    public static <T extends MultiMap> String getHeaderValue(T headers, String headerKey) {
-        String matchKey = headerKey.toLowerCase();
-        for (Entry<String, String> entry : headers.entries()) {
-            if (entry.getKey().toLowerCase().equals(matchKey)) {
-                String value = entry.getValue();
-                if (value != null) {
-                    return value.trim();
-                }
-                return null;
-            }
-        }
-        return null;
     }
 
 }

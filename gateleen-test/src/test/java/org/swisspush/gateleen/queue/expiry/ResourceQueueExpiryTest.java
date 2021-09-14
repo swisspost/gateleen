@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.queue.expiry;
 
 import com.jayway.awaitility.Duration;
-import com.jayway.restassured.RestAssured;
+import io.restassured.RestAssured;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -15,7 +15,7 @@ import java.util.Map;
 
 import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.awaitility.Duration.TEN_SECONDS;
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
 

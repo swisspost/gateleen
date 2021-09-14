@@ -2,7 +2,7 @@ package org.swisspush.gateleen.queue;
 
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
-import com.jayway.restassured.RestAssured;
+import io.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -14,7 +14,7 @@ import java.util.Set;
 
 import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.awaitility.Duration.*;
-import static com.jayway.restassured.RestAssured.*;
+import static io.restassured.RestAssured.*;
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
 import static org.hamcrest.CoreMatchers.*;

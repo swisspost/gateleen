@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.swisspush.gateleen</groupId>
         <artifactId>gateleen</artifactId>
-        <version>1.1.76-SNAPSHOT</version>
+        <version>1.2.3-SNAPSHOT</version>
     </parent>
 
     <artifactId>gateleen-runconfig</artifactId>
@@ -119,8 +119,8 @@
             <artifactId>vertx-redis-client</artifactId>
         </dependency>
         <dependency>
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>

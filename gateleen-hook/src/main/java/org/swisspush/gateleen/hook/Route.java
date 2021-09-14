@@ -115,6 +115,17 @@ public class Route {
             }
         }
 
+        { // Evaluate connection wait queue size
+            Integer maxWaitQueueSize = httpHook.getMaxWaitQueueSize();
+            if (maxWaitQueueSize == null) {
+                LOG.trace("No maxWaitQueueSize specified for route '{}' using default of {}.", rule.getRuleIdentifier(), HttpHook.CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE);
+                rule.setMaxWaitQueueSize(HttpHook.CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE);
+            } else {
+                LOG.trace("Using maxWaitQueueSize {} for route '{}'.", maxWaitQueueSize, rule.getRuleIdentifier());
+                rule.setMaxWaitQueueSize(maxWaitQueueSize);
+            }
+        }
+
         if (!httpHook.getMethods().isEmpty()) {
             rule.setMethods(httpHook.getMethods().toArray(new String[httpHook.getMethods().size()]));
         }

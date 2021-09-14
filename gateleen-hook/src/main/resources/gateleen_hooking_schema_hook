@@ -85,6 +85,11 @@
 			"type": "integer",
 			"default": 50
 		},
+		"maxWaitQueueSize": {
+        	"description": "The maximum number of requests allowed in the wait queue.",
+        	"type": "integer",
+        	"default": -1
+        },
 		"collection": {
 			"description": "only used for route hook",
 			"type": "boolean"

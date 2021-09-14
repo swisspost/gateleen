@@ -6,34 +6,27 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpConnection;
-import io.vertx.core.http.HttpHeaders;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.*;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.web.RoutingContext;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeoutException;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.HttpHeaderUtil;
-import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.logging.LoggingWriteStream;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
+
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 
 /**
  * Forwards requests to the backend.
@@ -212,12 +205,14 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.headers().set("x-rp-unique-id", uniqueId);
         }
         setProfileHeaders(log, profileHeaderMap, cReq);
-
+        // https://jira/browse/NEMO-1494
+        // the Host has to be set, if only added it will add a second value and not overwrite existing ones
+        cReq.headers().set("Host", target.split("/")[0]);
         if (base64UsernamePassword != null) {
             cReq.headers().set("Authorization", "Basic " + base64UsernamePassword);
         }
 
-        // apply the configured rules headers to the request headers
+
         MultiMap headers = cReq.headers();
         String hostHeaderBefore = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
         final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);

@@ -12,7 +12,9 @@ import java.util.regex.Pattern;
 
 public class Rule {
     public static final String CONNECTION_POOL_SIZE_PROPERTY_NAME = "connectionPoolSize";
+    public static final String MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME = "maxWaitQueueSize";
     public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = 50;
+    public static final int MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE = -1;
     private String scheme;
     private String host;
     private String metricName;
@@ -20,6 +22,7 @@ public class Rule {
     private String portWildcard;
     private String path;
     private int poolSize;
+    private int maxWaitQueueSize;
     private boolean keepAlive;
     private boolean expandOnBackend;
     private boolean storageExpand;
@@ -101,6 +104,14 @@ public class Rule {
 
     public void setPoolSize(int poolSize) {
         this.poolSize = poolSize;
+    }
+
+    public int getMaxWaitQueueSize() {
+        return maxWaitQueueSize;
+    }
+
+    public void setMaxWaitQueueSize(int maxWaitQueueSize) {
+        this.maxWaitQueueSize = maxWaitQueueSize;
     }
 
     public boolean isKeepAlive() {
@@ -217,6 +228,7 @@ public class Rule {
                 .setConnectTimeout(getTimeout ())
                 .setKeepAlive     (isKeepAlive())
                 .setPipelining    (false        )
+                .setMaxWaitQueueSize(getMaxWaitQueueSize())
         ;
         if ("https".equals(getScheme())) {
             options.setSsl(true).setVerifyHost(false).setTrustAll(true);

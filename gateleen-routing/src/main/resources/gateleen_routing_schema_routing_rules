@@ -62,6 +62,11 @@
 					"type": "integer",
 					"default": 50
 				},
+				"maxWaitQueueSize": {
+                	"description": "The maximum number of requests allowed in the wait queue.",
+                	"type": "integer",
+                	"default": -1
+                },
 				"keepAlive": {
 					"description": "Keeps the connection to the backend open.\nThis may improve performance but degrades the reliability in case of failure, requests can be lost.\nHas no effect for local/storage forwarding.",
 					"default": false,
