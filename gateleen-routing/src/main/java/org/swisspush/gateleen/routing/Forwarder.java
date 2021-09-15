@@ -184,6 +184,38 @@ public class Forwarder implements Handler<RoutingContext> {
         }
     }
 
+    /**
+     * Execute the HeaderFunctions chain and apply the configured rules headers therefore
+     * @param log The logger to be used
+     * @param headers The headers which must be updated according the current forwarders rule
+     * @return null if everything is properly done or a error message if something went wrong.
+     */
+    String applyHeaderFunctions(final Logger log, MultiMap headers) {
+        final String hostHeaderBefore = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
+        final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
+        final String hostHeaderAfter = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
+        // see https://github.com/swisspush/gateleen/issues/394
+        if (hostHeaderAfter == null || hostHeaderAfter.equals(hostHeaderBefore)) {
+            // there was no host header before or the host header was not updated by the rule given,
+            // therefore it will be forced overwritten independent of the incoming value if necessary.
+            final String newHost = target.split("/")[0];
+            if (newHost != null && !newHost.isEmpty() && !newHost.equals(hostHeaderAfter)) {
+                headers.set(HOST_HEADER, newHost);
+                log.debug("Host header {} replaced by default target value: {}",
+                    hostHeaderBefore,
+                    newHost);
+            }
+        } else {
+            // the host header was changed by the configured routing and therefore
+            // it is not updated. This allows us to configure for certain routings to external
+            // url a dedicated Host header which will not be overwritten.
+            log.debug("Host header {} replaced by rule value: {}",
+                hostHeaderBefore,
+                hostHeaderAfter);
+        }
+        return evalScope.getErrorMessage();
+    }
+
     private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap) {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req, vertx.eventBus());
 
@@ -212,43 +244,18 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.headers().set("x-rp-unique-id", uniqueId);
         }
         setProfileHeaders(log, profileHeaderMap, cReq);
-        // https://jira/browse/NEMO-1494
-        // the Host has to be set, if only added it will add a second value and not overwrite existing ones
-        cReq.headers().set("Host", target.split("/")[0]);
+
         if (base64UsernamePassword != null) {
             cReq.headers().set("Authorization", "Basic " + base64UsernamePassword);
         }
 
-        MultiMap headers = cReq.headers();
-        final String hostHeaderBefore = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
-        final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
-        final String hostHeaderAfter = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
-        // see https://github.com/swisspush/gateleen/issues/394
-        if (hostHeaderAfter == null || hostHeaderAfter.equals(hostHeaderBefore)) {
-            // there was no host header before or the host header was not updated by the rule given,
-            // therefore it will be forced overwritten independent of the incoming value if necessary.
-            final String newHost = target.split("/")[0];
-            if (newHost != null && !newHost.isEmpty() && !newHost.equals(hostHeaderAfter)) {
-                headers.set(HOST_HEADER, newHost);
-                log.debug("Host header {} replaced by default target value: {}",
-                    hostHeaderBefore,
-                    newHost);
-            }
-        } else {
-            // the host header was changed by the configured routing and therefore
-            // it is not updated. This allows us to configure for certain routings to external
-            // url a dedicated Host header which will not be overwritten.
-            log.debug("Host header {} replaced by rule value: {}",
-                hostHeaderBefore,
-                hostHeaderAfter);
-        }
-
-        if (evalScope.getErrorMessage() != null) {
-            log.warn("Problem invoking Header functions: {}", evalScope.getErrorMessage());
+        final String errorMessage = applyHeaderFunctions(log, cReq.headers());
+        if (errorMessage != null) {
+            log.warn("Problem invoking Header functions: {}", errorMessage);
             final HttpServerResponse response = req.response();
             response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
             response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-            response.end(evalScope.getErrorMessage());
+            response.end(errorMessage);
             return;
         }
 
