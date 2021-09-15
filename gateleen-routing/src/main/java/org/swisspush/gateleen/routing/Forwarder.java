@@ -6,27 +6,34 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.*;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpConnection;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.http.HeaderFunctions;
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.*;
-import org.swisspush.gateleen.logging.LoggingHandler;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.logging.LoggingWriteStream;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
-
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.logging.LoggingHandler;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.LoggingWriteStream;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 /**
  * Forwards requests to the backend.
@@ -219,15 +226,21 @@ public class Forwarder implements Handler<RoutingContext> {
         // see https://github.com/swisspush/gateleen/issues/394
         if (hostHeaderAfter == null || hostHeaderAfter.equals(hostHeaderBefore)) {
             // there was no host header before or the host header was not updated by the rule given,
-            // therefore it will be forced overwritten always independent of the incoming value.
+            // therefore it will be forced overwritten independent of the incoming value if necessary.
             final String newHost = target.split("/")[0];
-            headers.set(HOST_HEADER, newHost);
-            log.debug("Host header replaced by default target value: {}", newHost);
+            if (newHost != null && !newHost.isEmpty() && !newHost.equals(hostHeaderAfter)) {
+                headers.set(HOST_HEADER, newHost);
+                log.debug("Host header {} replaced by default target value: {}",
+                    hostHeaderBefore,
+                    newHost);
+            }
         } else {
             // the host header was changed by the configured routing and therefore
             // it is not updated. This allows us to configure for certain routings to external
             // url a dedicated Host header which will not be overwritten.
-            log.debug("Host header replaced by rule value: {}", hostHeaderAfter);
+            log.debug("Host header {} replaced by rule value: {}",
+                hostHeaderBefore,
+                hostHeaderAfter);
         }
 
         if (evalScope.getErrorMessage() != null) {

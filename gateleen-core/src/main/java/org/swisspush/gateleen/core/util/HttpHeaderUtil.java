@@ -2,6 +2,8 @@ package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
 import java.util.Map.Entry;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 
 public class HttpHeaderUtil {
@@ -39,10 +41,10 @@ public class HttpHeaderUtil {
      *                  the key searching is non case sensitive.
      * @return The found header value or null if none found
      */
-    public static <T extends MultiMap> String getHeaderValue(T headers, String headerKey) {
+    public @Nullable static <T extends MultiMap> String getHeaderValue(@Nonnull T headers, @Nonnull String headerKey) {
         String matchKey = headerKey.toLowerCase();
         for (Entry<String, String> entry : headers.entries()) {
-            if (entry.getKey().toLowerCase().equals(matchKey)) {
+            if (entry.getKey().equalsIgnoreCase(matchKey)) {
                 String value = entry.getValue();
                 if (value != null) {
                     return value.trim();
