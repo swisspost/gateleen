@@ -7,7 +7,6 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Assert;
 import org.junit.Before;
@@ -33,15 +32,15 @@ public class ForwarderTest {
   private LoggingResourceManager loggingResourceManager;
   private MonitoringHandler monitoringHandler;
   private HttpClient httpClient;
-  private String serverUrl;
-  private String rulesPath;
-  private String userProfilePath;
   private ResourceStorage storage;
   private Logger logger;
 
-  private final static String DEFAULTHOST = "DEFAULTHOST";
-  private final static int DEFAULTPORT = 1234;
+  private static final String DEFAULTHOST = "DEFAULTHOST";
+  private static final int DEFAULTPORT = 1234;
   private static final String HOST_HEADER = "Host";
+  private static final String SERVER_URL = "/gateleen/server";
+  private static final String RULES_PATH = SERVER_URL + "/admin/v1/routing/rules";
+  private static final String USER_PROFILE_PATH = SERVER_URL + "/users/v1/%s/profile";
 
   private static final String RULES = "{\n"
       + "  \"/ruleWithoutHeader\": {\n"
@@ -77,59 +76,56 @@ public class ForwarderTest {
     loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
     monitoringHandler = Mockito.mock(MonitoringHandler.class);
     httpClient = Mockito.mock(HttpClient.class);
-    serverUrl = "/gateleen/server";
-    rulesPath = serverUrl + "/admin/v1/routing/rules";
-    userProfilePath = serverUrl + "/users/v1/%s/profile";
-    storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES));
+    storage = new MockResourceStorage(ImmutableMap.of(RULES_PATH, RULES));
     logger = LoggerFactory.getLogger(ForwarderTest.class.getName());
   }
 
   @Test
-  public void testHeaderFunctionsWithHostHeader(TestContext context) {
+  public void testHeaderFunctionsWithHostHeader() {
     Rule rule = extractRule("/ruleWithHostHeader");
     Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
-        monitoringHandler, userProfilePath);
+        monitoringHandler, USER_PROFILE_PATH);
     MultiMap reqHeaders = new VertxHttpHeaders();
     reqHeaders.add(HOST_HEADER, "oldHost1234");
     String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
     Assert.assertNull(errorMessage);
-    Assert.assertTrue(reqHeaders.get(HOST_HEADER).equals("newHost"));
+    Assert.assertEquals(reqHeaders.get(HOST_HEADER),"newHost");
   }
 
   @Test
-  public void testHeaderFunctionsDefaultWithHostHeader(TestContext context) {
+  public void testHeaderFunctionsDefaultWithHostHeader() {
     Rule rule = extractRule("/ruleWithHostHeader");
     Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
-        monitoringHandler, userProfilePath);
+        monitoringHandler, USER_PROFILE_PATH);
     MultiMap reqHeaders = new VertxHttpHeaders();
     reqHeaders.add(HOST_HEADER, DEFAULTHOST + ":" + DEFAULTPORT);
     String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
     Assert.assertNull(errorMessage);
-    Assert.assertTrue(reqHeaders.get(HOST_HEADER).equals("newHost"));
+    Assert.assertEquals(reqHeaders.get(HOST_HEADER),"newHost");
   }
 
   @Test
-  public void testHeaderFunctionsWithoutHostHeader(TestContext context) {
+  public void testHeaderFunctionsWithoutHostHeader() {
     Rule rule = extractRule("/ruleWithoutHeader");
     Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
-        monitoringHandler, userProfilePath);
+        monitoringHandler, USER_PROFILE_PATH);
     MultiMap reqHeaders = new VertxHttpHeaders();
     reqHeaders.add(HOST_HEADER, "oldHost:1234");
     String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
     Assert.assertNull(errorMessage);
-    Assert.assertTrue(reqHeaders.get(HOST_HEADER).equals(DEFAULTHOST + ":" + DEFAULTPORT));
+    Assert.assertEquals(reqHeaders.get(HOST_HEADER),DEFAULTHOST + ":" + DEFAULTPORT);
   }
 
   @Test
-  public void testHeaderFunctionsDefaultWithoutHostHeader(TestContext context) {
+  public void testHeaderFunctionsDefaultWithoutHostHeader() {
     Rule rule = extractRule("/ruleWithoutHeader");
     Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
-        monitoringHandler, userProfilePath);
+        monitoringHandler, USER_PROFILE_PATH);
     MultiMap reqHeaders = new VertxHttpHeaders();
     reqHeaders.add(HOST_HEADER, DEFAULTHOST + ":" + DEFAULTPORT);
     String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
     Assert.assertNull(errorMessage);
-    Assert.assertTrue(reqHeaders.get(HOST_HEADER).equals(DEFAULTHOST + ":" + DEFAULTPORT));
+    Assert.assertEquals(reqHeaders.get(HOST_HEADER),DEFAULTHOST + ":" + DEFAULTPORT);
   }
 
 
