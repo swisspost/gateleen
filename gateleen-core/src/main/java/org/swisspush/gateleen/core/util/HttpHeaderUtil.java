@@ -42,9 +42,8 @@ public class HttpHeaderUtil {
      * @return The found header value or null if none found
      */
     public @Nullable static <T extends MultiMap> String getHeaderValue(@Nonnull T headers, @Nonnull String headerKey) {
-        String matchKey = headerKey.toLowerCase();
         for (Entry<String, String> entry : headers.entries()) {
-            if (entry.getKey().equalsIgnoreCase(matchKey)) {
+            if (entry.getKey().equalsIgnoreCase(headerKey)) {
                 String value = entry.getValue();
                 if (value != null) {
                     return value.trim();
