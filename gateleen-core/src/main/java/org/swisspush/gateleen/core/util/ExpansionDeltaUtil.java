@@ -250,7 +250,7 @@ public final class ExpansionDeltaUtil {
 
     private static void checkResponse(HttpServerRequest request) throws ResourceCollectionException {
         StatusCode statusCode = StatusCode.fromCode(request.response().getStatusCode());
-        if (statusCode != null && statusCode != StatusCode.OK) {
+        if (statusCode != null && statusCode != StatusCode.OK && statusCode != StatusCode.FOUND) {
             throw new ResourceCollectionException(request.response().getStatusMessage(), statusCode);
         }
     }

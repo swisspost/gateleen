@@ -27,6 +27,7 @@ public final class ResponseStatusCodeLogUtil {
             debug(request, statusCode.getStatusCode(), statusCode.getStatusMessage(), caller);
         } else {
             RequestLoggerFactory.getLogger(caller, request).debug(responseLogStringUnknownStatusCode(request));
+            removeSelfRequestHeaders(request);
         }
     }
 
@@ -57,6 +58,7 @@ public final class ResponseStatusCodeLogUtil {
             info(request, statusCode.getStatusCode(), statusCode.getStatusMessage(), caller);
         } else {
             RequestLoggerFactory.getLogger(caller, request).info(responseLogStringUnknownStatusCode(request));
+            removeSelfRequestHeaders(request);
         }
     }
 
