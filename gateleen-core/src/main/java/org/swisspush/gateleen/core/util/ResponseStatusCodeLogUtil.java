@@ -23,7 +23,12 @@ public final class ResponseStatusCodeLogUtil {
      * @param caller caller
      */
     public static void debug(HttpServerRequest request, StatusCode statusCode, Class<?> caller) {
-        debug(request, statusCode.getStatusCode(), statusCode.getStatusMessage(), caller);
+        if(statusCode != null) {
+            debug(request, statusCode.getStatusCode(), statusCode.getStatusMessage(), caller);
+        } else {
+            RequestLoggerFactory.getLogger(caller, request).debug(responseLogStringUnknownStatusCode(request));
+            removeSelfRequestHeaders(request);
+        }
     }
 
     /**
@@ -49,7 +54,12 @@ public final class ResponseStatusCodeLogUtil {
      * @param caller caller
      */
     public static void info(HttpServerRequest request, StatusCode statusCode, Class<?> caller) {
-        info(request, statusCode.getStatusCode(), statusCode.getStatusMessage(), caller);
+        if(statusCode != null) {
+            info(request, statusCode.getStatusCode(), statusCode.getStatusMessage(), caller);
+        } else {
+            RequestLoggerFactory.getLogger(caller, request).info(responseLogStringUnknownStatusCode(request));
+            removeSelfRequestHeaders(request);
+        }
     }
 
     /**
@@ -82,6 +92,10 @@ public final class ResponseStatusCodeLogUtil {
 
     private static String responseLogString(HttpServerRequest request, int statusCode, String statusMessage) {
         return "Responding " + request.method() + " request to " + request.uri() + " with status code " + statusCode + " " + statusMessage;
+    }
+
+    private static String responseLogStringUnknownStatusCode(HttpServerRequest request) {
+        return "Responding " + request.method() + " request to " + request.uri() + " with unknown status code";
     }
 
     private static void removeSelfRequestHeaders(HttpServerRequest request){

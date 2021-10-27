@@ -6,27 +6,34 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.*;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpConnection;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.web.RoutingContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.http.HeaderFunctions;
-import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.*;
-import org.swisspush.gateleen.logging.LoggingHandler;
-import org.swisspush.gateleen.logging.LoggingResourceManager;
-import org.swisspush.gateleen.logging.LoggingWriteStream;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
-
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
+import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.logging.LoggingHandler;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
+import org.swisspush.gateleen.logging.LoggingWriteStream;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 /**
  * Forwards requests to the backend.
@@ -53,6 +60,7 @@ public class Forwarder implements Handler<RoutingContext> {
     private static final String ETAG_HEADER = "Etag";
     private static final String IF_NONE_MATCH_HEADER = "if-none-match";
     private static final String SELF_REQUEST_HEADER = "x-self-request";
+    private static final String HOST_HEADER = "Host";
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
 
@@ -162,7 +170,7 @@ public class Forwarder implements Handler<RoutingContext> {
 
     /**
      * Returns the userId defined in the on-behalf-of-header if provided, the userId from user-header otherwise.
-     * 
+     *
      * @param request request
      * @param log log
      */
@@ -174,6 +182,38 @@ public class Forwarder implements Handler<RoutingContext> {
         } else {
             return request.headers().get(USER_HEADER);
         }
+    }
+
+    /**
+     * Execute the HeaderFunctions chain and apply the configured rules headers therefore
+     * @param log The logger to be used
+     * @param headers The headers which must be updated according the current forwarders rule
+     * @return null if everything is properly done or a error message if something went wrong.
+     */
+    String applyHeaderFunctions(final Logger log, MultiMap headers) {
+        final String hostHeaderBefore = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
+        final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
+        final String hostHeaderAfter = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
+        // see https://github.com/swisspush/gateleen/issues/394
+        if (hostHeaderAfter == null || hostHeaderAfter.equals(hostHeaderBefore)) {
+            // there was no host header before or the host header was not updated by the rule given,
+            // therefore it will be forced overwritten independent of the incoming value if necessary.
+            final String newHost = target.split("/")[0];
+            if (newHost != null && !newHost.isEmpty() && !newHost.equals(hostHeaderAfter)) {
+                headers.set(HOST_HEADER, newHost);
+                log.debug("Host header {} replaced by default target value: {}",
+                    hostHeaderBefore,
+                    newHost);
+            }
+        } else {
+            // the host header was changed by the configured routing and therefore
+            // it is not updated. This allows us to configure for certain routings to external
+            // url a dedicated Host header which will not be overwritten.
+            log.debug("Host header {} replaced by rule value: {}",
+                hostHeaderBefore,
+                hostHeaderAfter);
+        }
+        return evalScope.getErrorMessage();
     }
 
     private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap) {
@@ -204,22 +244,18 @@ public class Forwarder implements Handler<RoutingContext> {
             cReq.headers().set("x-rp-unique-id", uniqueId);
         }
         setProfileHeaders(log, profileHeaderMap, cReq);
-        // https://jira/browse/NEMO-1494
-        // the Host has to be set, if only added it will add a second value and not overwrite existing ones
-        cReq.headers().set("Host", target.split("/")[0]);
+
         if (base64UsernamePassword != null) {
             cReq.headers().set("Authorization", "Basic " + base64UsernamePassword);
         }
 
-
-        MultiMap headers = cReq.headers();
-        final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
-        if (evalScope.getErrorMessage() != null) {
-            log.warn("Problem invoking Header functions: {}", evalScope.getErrorMessage());
+        final String errorMessage = applyHeaderFunctions(log, cReq.headers());
+        if (errorMessage != null) {
+            log.warn("Problem invoking Header functions: {}", errorMessage);
             final HttpServerResponse response = req.response();
             response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
             response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-            response.end(evalScope.getErrorMessage());
+            response.end(errorMessage);
             return;
         }
 
