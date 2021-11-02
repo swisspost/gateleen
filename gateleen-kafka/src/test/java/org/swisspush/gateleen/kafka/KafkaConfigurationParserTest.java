@@ -32,7 +32,7 @@ public class KafkaConfigurationParserTest {
         // Note that the order of the parsed configurations matters!
         KafkaConfiguration config_1 = configurations.get(0);
         context.assertEquals(Pattern.compile("my.topic.*").pattern(), config_1.getTopic().pattern());
-        Map<String, String> expected_1 = new HashMap<String, String>() {{
+        Map<String, String> expected_1 = new HashMap<>() {{
             put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("bootstrap.servers", "localhost:9092");
@@ -41,7 +41,7 @@ public class KafkaConfigurationParserTest {
 
         KafkaConfiguration config_2 = configurations.get(1);
         context.assertEquals(Pattern.compile(".").pattern(), config_2.getTopic().pattern());
-        Map<String, String> expected_2 = new HashMap<String, String>() {{
+        Map<String, String> expected_2 = new HashMap<>() {{
             put("bootstrap.servers", "localhost:9093");
             put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
@@ -58,7 +58,7 @@ public class KafkaConfigurationParserTest {
         // Note that the order of the parsed configurations matters!
         KafkaConfiguration config_1 = configurations.get(0);
         context.assertEquals(Pattern.compile("my.topic.*").pattern(), config_1.getTopic().pattern());
-        Map<String, String> expected_1 = new HashMap<String, String>() {{
+        Map<String, String> expected_1 = new HashMap<>() {{
             put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("bootstrap.servers", "localhost:9092");
@@ -77,7 +77,7 @@ public class KafkaConfigurationParserTest {
         // Note that the order of the parsed configurations matters!
         KafkaConfiguration config = configurations.get(0);
         context.assertEquals(Pattern.compile("my.properties.topic.*").pattern(), config.getTopic().pattern());
-        Map<String, String> expected_1 = new HashMap<String, String>() {{
+        Map<String, String> expected_1 = new HashMap<>() {{
             put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("acks", "all");
             put("bootstrap.servers", "localhost:9095");

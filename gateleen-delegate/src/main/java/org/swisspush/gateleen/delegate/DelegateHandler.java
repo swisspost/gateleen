@@ -117,7 +117,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
             initMethods.add(this::loadStoredDelegates);
 
             // ready handler, calls the doneHandler when everything is done and the DelegateHandler is ready to use
-            Handler<Void> readyHandler = new Handler<Void>() {
+            Handler<Void> readyHandler = new Handler<>() {
                 // count of methods with may return an OK (ready)
                 private AtomicInteger readyCounter = new AtomicInteger(initMethods.size());
 

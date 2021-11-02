@@ -232,7 +232,7 @@ public class Exchange {
      * @return Predicate
      */
     public static <T extends HttpEntity<JSONObject>> Predicate<T> body(final com.jayway.jsonpath.Predicate bodyPredicate) {
-        return new Predicate<T>() {
+        return new Predicate<>() {
             JsonPath path;
 
             @Override
@@ -255,7 +255,7 @@ public class Exchange {
      * @return Predicate
      */
     public static <T extends HttpEntity<JSONObject>> Predicate<T> headers(final Predicate<HttpHeaders> headersPredicate) {
-        return new Predicate<T>() {
+        return new Predicate<>() {
             @Override
             public boolean apply(T entity) {
                 return headersPredicate.apply(entity.getHeaders());
@@ -271,7 +271,7 @@ public class Exchange {
      * @return Predicate
      */
     public static <T extends HttpEntity<JSONObject>, U extends CharSequence> Predicate<T> header(final String key, final Predicate<U> stringPredicate) {
-        return new Predicate<T>() {
+        return new Predicate<>() {
             @Override
             public boolean apply(T entity) {
                 List<String> found = entity.getHeaders().get(key);

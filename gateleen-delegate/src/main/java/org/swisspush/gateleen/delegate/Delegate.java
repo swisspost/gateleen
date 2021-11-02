@@ -274,7 +274,7 @@ public class Delegate {
      * @return a doneHandler
      */
     private Handler<HttpClientResponse> installDoneHandler(final HttpServerRequest request, final String delegateExecutionRequestJsonPayload) {
-        return new Handler<HttpClientResponse>() {
+        return new Handler<>() {
             private AtomicInteger currentIndex = new AtomicInteger(0);
 
             @Override

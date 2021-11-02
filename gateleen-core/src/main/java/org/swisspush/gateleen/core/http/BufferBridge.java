@@ -28,24 +28,21 @@ public class BufferBridge {
     }
 
     protected void pump() {
-        vertx.runOnContext(new Handler<Void>() {
-            @Override
-            public void handle(Void event) {
-                try {
-                    if (!queue.isEmpty()) {
-                        log.trace("Pumping from queue");
-                        dataHandler.handle(queue.poll());
-                        pump();
-                    } else {
-                        if (ended && endHandler != null) {
-                            log.trace("Ending from pump");
-                            endHandler.handle(null);
-                        }
+        vertx.runOnContext(event -> {
+            try {
+                if (!queue.isEmpty()) {
+                    log.trace("Pumping from queue");
+                    dataHandler.handle(queue.poll());
+                    pump();
+                } else {
+                    if (ended && endHandler != null) {
+                        log.trace("Ending from pump");
+                        endHandler.handle(null);
                     }
-                } catch (Exception e) {
-                    if (exceptionHandler != null) {
-                        exceptionHandler.handle(e);
-                    }
+                }
+            } catch (Exception e) {
+                if (exceptionHandler != null) {
+                    exceptionHandler.handle(e);
                 }
             }
         });

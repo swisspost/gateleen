@@ -1,25 +1,23 @@
 package org.swisspush.gateleen.player;
 
+import com.google.common.collect.FluentIterable;
+import com.jayway.awaitility.Duration;
+import org.junit.Ignore;
+import org.junit.Test;
 import org.swisspush.gateleen.player.exchange.Exchange;
+import org.swisspush.gateleen.player.exchange.IgnoreHeadersTransformer;
 import org.swisspush.gateleen.player.log.Collector;
 import org.swisspush.gateleen.player.log.EventBusCollector;
 import org.swisspush.gateleen.player.log.ResourceRequestLog;
 import org.swisspush.gateleen.player.player.ExchangeHandler;
 import org.swisspush.gateleen.player.player.Player;
-import com.google.common.collect.FluentIterable;
-import com.jayway.awaitility.Duration;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.swisspush.gateleen.player.exchange.IgnoreHeadersTransformer;
 
 import java.util.Iterator;
 
 import static com.google.common.base.Predicates.alwaysTrue;
 import static com.google.common.base.Predicates.equalTo;
 import static com.jayway.awaitility.Awaitility.await;
-import static org.swisspush.gateleen.player.exchange.Exchange.assertSameExchange;
-import static org.swisspush.gateleen.player.exchange.Exchange.header;
-import static org.swisspush.gateleen.player.exchange.Exchange.request;
+import static org.swisspush.gateleen.player.exchange.Exchange.*;
 
 /**
  * @author https://github.com/lbovet [Laurent Bovet]

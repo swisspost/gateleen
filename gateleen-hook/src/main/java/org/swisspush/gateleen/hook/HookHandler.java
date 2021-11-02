@@ -233,7 +233,7 @@ public class HookHandler implements LoggableResource {
         initMethods.add(this::registerCleanupHandler);
 
         // ready handler, calls the doneHandler when everything is done and the HookHandler is ready to use
-        Handler<Void> readyHandler = new Handler<Void>() {
+        Handler<Void> readyHandler = new Handler<>() {
             // count of methods with may return an OK (ready)
             private AtomicInteger readyCounter = new AtomicInteger(initMethods.size());
 
@@ -262,44 +262,42 @@ public class HookHandler implements LoggableResource {
      * @param readyHandler - the ready handler
      */
     private void registerCleanupHandler(Handler<Void> readyHandler) {
-        vertx.setPeriodic(DEFAULT_CLEANUP_TIME, new Handler<Long>() {
-            public void handle(Long timerID) {
-                log.trace("Running hook cleanup ...");
+        vertx.setPeriodic(DEFAULT_CLEANUP_TIME, timerID -> {
+            log.trace("Running hook cleanup ...");
 
-                DateTime now = DateTime.now();
+            DateTime now = DateTime.now();
 
-                // Loop through listeners first
-                for (Listener listener : listenerRepository.getListeners()) {
+            // Loop through listeners first
+            for (Listener listener : listenerRepository.getListeners()) {
 
-                    final Optional<DateTime> expirationTime = listener.getHook().getExpirationTime();
-                    if (!expirationTime.isPresent()) {
-                        if(log.isTraceEnabled()) {
-                            log.trace("Listener {} will never expire.", listener.getListenerId());
-                        }
-                    } else if (expirationTime.get().isBefore(now)) {
-                        log.debug("Listener {} expired at {} and current time is {}", listener.getListenerId(), expirationTime.get(), now);
-                        listenerRepository.removeListener(listener.getListenerId());
-                        routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListenerId());
+                final Optional<DateTime> expirationTime = listener.getHook().getExpirationTime();
+                if (!expirationTime.isPresent()) {
+                    if(log.isTraceEnabled()) {
+                        log.trace("Listener {} will never expire.", listener.getListenerId());
                     }
+                } else if (expirationTime.get().isBefore(now)) {
+                    log.debug("Listener {} expired at {} and current time is {}", listener.getListenerId(), expirationTime.get(), now);
+                    listenerRepository.removeListener(listener.getListenerId());
+                    routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListenerId());
                 }
-
-                // Loop through routes
-                Map<String, Route> routes = routeRepository.getRoutes();
-                for (String key : routes.keySet()) {
-                    Route route = routes.get(key);
-                    final Optional<DateTime> expirationTime = route.getHook().getExpirationTime();
-                    if (!expirationTime.isPresent()) {
-                        if(log.isTraceEnabled()) {
-                            log.trace("Route {} will never expire.", key);
-                        }
-                    } else if (expirationTime.get().isBefore(now)) {
-                        routeRepository.removeRoute(key);
-                    }
-                }
-                monitoringHandler.updateListenerCount(listenerRepository.size());
-                monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
-                log.trace("done");
             }
+
+            // Loop through routes
+            Map<String, Route> routes = routeRepository.getRoutes();
+            for (String key : routes.keySet()) {
+                Route route = routes.get(key);
+                final Optional<DateTime> expirationTime = route.getHook().getExpirationTime();
+                if (!expirationTime.isPresent()) {
+                    if(log.isTraceEnabled()) {
+                        log.trace("Route {} will never expire.", key);
+                    }
+                } else if (expirationTime.get().isBefore(now)) {
+                    routeRepository.removeRoute(key);
+                }
+            }
+            monitoringHandler.updateListenerCount(listenerRepository.size());
+            monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+            log.trace("done");
         });
 
         // method done / no async processing pending
@@ -408,26 +406,16 @@ public class HookHandler implements LoggableResource {
      */
     private void registerRouteRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
-        vertx.eventBus().consumer(SAVE_ROUTE_ADDRESS, new Handler<Message<String>>() {
-            @Override
-            public void handle(final Message<String> event) {
-                hookStorage.get(event.body(), buffer -> {
-                    if (buffer != null) {
-                        registerRoute(buffer);
-                    } else {
-                        log.warn("Could not get URL '{}' (getting hook route).", (event.body() == null ? "<null>" : event.body()));
-                    }
-                });
+        vertx.eventBus().consumer(SAVE_ROUTE_ADDRESS, (Handler<Message<String>>) event -> hookStorage.get(event.body(), buffer -> {
+            if (buffer != null) {
+                registerRoute(buffer);
+            } else {
+                log.warn("Could not get URL '{}' (getting hook route).", (event.body() == null ? "<null>" : event.body()));
             }
-        });
+        }));
 
         // Receive listener remove notifications
-        vertx.eventBus().consumer(REMOVE_ROUTE_ADDRESS, new Handler<Message<String>>() {
-            @Override
-            public void handle(final Message<String> event) {
-                unregisterRoute(event.body());
-            }
-        });
+        vertx.eventBus().consumer(REMOVE_ROUTE_ADDRESS, (Handler<Message<String>>) event -> unregisterRoute(event.body()));
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -439,26 +427,16 @@ public class HookHandler implements LoggableResource {
      */
     public void registerListenerRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
-        vertx.eventBus().consumer(SAVE_LISTENER_ADDRESS, new Handler<Message<String>>() {
-            @Override
-            public void handle(final Message<String> event) {
-                hookStorage.get(event.body(), buffer -> {
-                    if (buffer != null) {
-                        registerListener(buffer);
-                    } else {
-                        log.warn("Could not get URL '{}' (getting hook listener).", (event.body() == null ? "<null>" : event.body()));
-                    }
-                });
+        vertx.eventBus().consumer(SAVE_LISTENER_ADDRESS, (Handler<Message<String>>) event -> hookStorage.get(event.body(), buffer -> {
+            if (buffer != null) {
+                registerListener(buffer);
+            } else {
+                log.warn("Could not get URL '{}' (getting hook listener).", (event.body() == null ? "<null>" : event.body()));
             }
-        });
+        }));
 
         // Receive listener remove notifications
-        vertx.eventBus().consumer(REMOVE_LISTENER_ADDRESS, new Handler<Message<String>>() {
-            @Override
-            public void handle(final Message<String> event) {
-                unregisterListener(event.body());
-            }
-        });
+        vertx.eventBus().consumer(REMOVE_LISTENER_ADDRESS, (Handler<Message<String>>) event -> unregisterListener(event.body()));
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -542,7 +520,7 @@ public class HookHandler implements LoggableResource {
         // GET request / routes not yet listed
         if ( request.method().equals(HttpMethod.GET) && ! routesListed ) {
             // route collection available for parent?
-            final List<String> collections = new ArrayList<String>(routeRepository.getCollections(request.uri()));
+            final List<String> collections = new ArrayList<>(routeRepository.getCollections(request.uri()));
 
             if ( ! collections.isEmpty() ) {
                 String parentUri = request.uri().contains("?") ? request.uri().substring(0, request.uri().indexOf('?')) : request.uri();
@@ -797,7 +775,7 @@ public class HookHandler implements LoggableResource {
      * @return the before handler
      */
     private Handler<Void> installBeforeHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> beforeListener, final Handler<Void> afterHandler) {
-        Handler<Void> beforeHandler = new Handler<Void>() {
+        Handler<Void> beforeHandler = new Handler<>() {
             private AtomicInteger currentCount = new AtomicInteger(0);
             private boolean sent = false;
 
