@@ -70,7 +70,7 @@ public class HookHandler implements LoggableResource {
     private static final String SAVE_ROUTE_ADDRESS = "gateleen.hook-route-insert";
     private static final String REMOVE_ROUTE_ADDRESS = "gateleen.hook-route-remove";
 
-    private static final int DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME = 1 * 60 * 60; // 1h in seconds
+    private static final int DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME = 60 * 60; // 1h in seconds
 
     private static final int DEFAULT_CLEANUP_TIME = 15000; // 15 seconds
     public static final String REQUESTURL = "requesturl";
