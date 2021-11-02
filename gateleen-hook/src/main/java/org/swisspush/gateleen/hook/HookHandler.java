@@ -24,10 +24,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.CollectionContentComparator;
-import org.swisspush.gateleen.core.util.HttpRequestHeader;
-import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
-import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.hook.queueingstrategy.*;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -222,8 +219,8 @@ public class HookHandler implements LoggableResource {
         this.doneHandler = doneHandler;
         this.hookStorage = hookStorage;
 
-        URL url = HookHandler.class.getResource("/gateleen_hooking_schema_hook");
-        jsonSchemaHook = JsonSchemaFactory.getInstance().getSchema(url);
+        String hookSchema = ResourcesUtils.loadResource("gateleen_hooking_schema_hook", true);
+        jsonSchemaHook = JsonSchemaFactory.getInstance().getSchema(hookSchema);
     }
 
     public void init() {

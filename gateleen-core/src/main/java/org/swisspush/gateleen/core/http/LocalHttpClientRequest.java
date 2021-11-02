@@ -222,6 +222,11 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
+        public void fail(int i, Throwable throwable) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public RoutingContext put(String key, Object obj) {
             throw new UnsupportedOperationException();
         }

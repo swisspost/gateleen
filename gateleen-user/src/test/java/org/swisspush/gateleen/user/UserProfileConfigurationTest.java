@@ -7,7 +7,7 @@ import java.util.Map;
 
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsNull.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * @author https://github.com/floriankammermann [Florian Kammermann] on 02.07.2015
