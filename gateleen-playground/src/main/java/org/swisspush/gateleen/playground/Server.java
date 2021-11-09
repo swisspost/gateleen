@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import org.swisspush.gateleen.cache.CacheHandler;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
@@ -133,6 +134,7 @@ public class Server extends AbstractVerticle {
     private KafkaHandler kafkaHandler;
     private CustomHttpResponseHandler customHttpResponseHandler;
     private ContentTypeConstraintHandler contentTypeConstraintHandler;
+    private CacheHandler cacheHandler;
 
     public static void main(String[] args) {
         Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event ->
@@ -181,6 +183,8 @@ public class Server extends AbstractVerticle {
                 expansionHandler = new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
+
+                cacheHandler = new CacheHandler();
 
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 qosHandler.enableResourceLogging(true);
@@ -296,6 +300,7 @@ public class Server extends AbstractVerticle {
                         .authorizer(authorizer)
                         .validationResourceManager(validationResourceManager)
                         .validationHandler(validationHandler)
+                        .cacheHandler(cacheHandler)
                         .corsHandler(corsHandler)
                         .deltaHandler(deltaHandler)
                         .expansionHandler(expansionHandler)

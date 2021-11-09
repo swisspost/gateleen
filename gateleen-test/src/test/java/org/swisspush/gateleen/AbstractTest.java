@@ -19,6 +19,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.cache.CacheHandler;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
@@ -198,6 +199,7 @@ public abstract class AbstractTest {
 
                 RunConfig runConfig =
                         RunConfig.with()
+                                .cacheHandler(new CacheHandler())
                                 .corsHandler(new CORSHandler())
                                 .deltaHandler(new DeltaHandler(redisClient, selfClient))
                                 .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))

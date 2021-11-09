@@ -95,6 +95,7 @@
             <modules>
                 <module>gateleen-testhelper</module>
                 <module>gateleen-core</module>
+                <module>gateleen-cache</module>
                 <module>gateleen-kafka</module>
                 <module>gateleen-validation</module>
                 <module>gateleen-logging</module>
@@ -124,6 +125,7 @@
             <modules>
                 <module>gateleen-testhelper</module>
                 <module>gateleen-core</module>
+                <module>gateleen-cache</module>
                 <module>gateleen-kafka</module>
                 <module>gateleen-delegate</module>
                 <module>gateleen-delta</module>

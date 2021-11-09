@@ -15,6 +15,7 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Log4jConfigurer;
+import org.swisspush.gateleen.cache.CacheHandler;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
@@ -83,6 +84,7 @@ public class RunConfig {
     private Vertx vertx;
     private RedisClient redisClient;
     private Router router;
+    private CacheHandler cacheHandler;
     private CORSHandler corsHandler;
     private ContentTypeConstraintHandler contentTypeConstraintHandler;
     private SchedulerResourceManager schedulerResourceManager;
@@ -119,7 +121,8 @@ public class RunConfig {
                      DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler,
                      QoSHandler qosHandler, PropertyHandler propertyHandler, ZipExtractHandler zipExtractHandler,
                      DelegateHandler delegateHandler, MergeHandler mergeHandler, KafkaHandler kafkaHandler,
-                     CustomHttpResponseHandler customHttpResponseHandler, ContentTypeConstraintHandler contentTypeConstraintHandler) {
+                     CustomHttpResponseHandler customHttpResponseHandler, ContentTypeConstraintHandler contentTypeConstraintHandler,
+                     CacheHandler cacheHandler) {
         this.vertx = vertx;
         this.redisClient = redisClient;
         this.verticleClass = verticleClass;
@@ -149,6 +152,7 @@ public class RunConfig {
         this.kafkaHandler = kafkaHandler;
         this.customHttpResponseHandler = customHttpResponseHandler;
         this.contentTypeConstraintHandler = contentTypeConstraintHandler;
+        this.cacheHandler = cacheHandler;
         init();
     }
 
@@ -181,7 +185,9 @@ public class RunConfig {
                 builder.mergeHandler,
                 builder.kafkaHandler,
                 builder.customHttpResponseHandler,
-                builder.contentTypeConstraintHandler);
+                builder.contentTypeConstraintHandler,
+                builder.cacheHandler
+        );
     }
 
     private void init(){
@@ -241,6 +247,7 @@ public class RunConfig {
         private ZipExtractHandler zipExtractHandler;
         private DelegateHandler delegateHandler;
         private MergeHandler mergeHandler;
+        private CacheHandler cacheHandler;
 
         public RunConfigBuilder(){}
 
@@ -356,6 +363,11 @@ public class RunConfig {
 
         public RunConfigBuilder mergeHandler(MergeHandler mergeHandler) {
             this.mergeHandler = mergeHandler;
+            return this;
+        }
+
+        public RunConfigBuilder cacheHandler(CacheHandler cacheHandler) {
+            this.cacheHandler = cacheHandler;
             return this;
         }
 
@@ -573,6 +585,9 @@ public class RunConfig {
                         setISO8601Timestamps(request);
                         request.bodyHandler(new QueuingHandler(vertx, redisClient, request, monitoringHandler));
                     } else {
+                        if (cacheHandler != null && cacheHandler.handle(request)) {
+                            return;
+                        }
                         if (copyResourceHandler != null && copyResourceHandler.handle(request)) {
                             return;
                         }
