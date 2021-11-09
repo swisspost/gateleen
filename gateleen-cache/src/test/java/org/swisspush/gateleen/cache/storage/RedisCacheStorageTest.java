@@ -46,7 +46,7 @@ public class RedisCacheStorageTest {
     @Before
     public void setUp(){
         vertx = Vertx.vertx();
-        redisCacheStorage = new RedisCacheStorage(vertx, RedisClient.create(vertx, new RedisOptions()), 50);
+        redisCacheStorage = new RedisCacheStorage(vertx, RedisClient.create(vertx, new RedisOptions()), 2000);
         jedis = new Jedis(new HostAndPort("localhost", 6379));
         try {
             jedis.flushAll();
@@ -266,7 +266,7 @@ public class RedisCacheStorageTest {
         jedis.del(CACHE_PREFIX + "cache_item_2");
 
         // wait for cleanup
-        await().atMost(1, SECONDS).until(() ->
+        await().atMost(3, SECONDS).until(() ->
                         jedis.scard(CACHED_REQUESTS),
                 equalTo(2L)
         );
