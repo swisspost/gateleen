@@ -52,11 +52,7 @@ public class AclFactory {
             checkPropertiesValid(path, methods, id);
             if (path != null) {
                 PatternHolder holder = new PatternHolder(path);
-                Set<String> methodSet = result.get(holder);
-                if (methodSet == null) {
-                    methodSet = new HashSet<>();
-                    result.put(holder, methodSet);
-                }
+                Set<String> methodSet = result.computeIfAbsent(holder, k -> new HashSet<>());
                 if (methods != null) {
                     for (Object methodObj : methods) {
                         String method = (String) methodObj;

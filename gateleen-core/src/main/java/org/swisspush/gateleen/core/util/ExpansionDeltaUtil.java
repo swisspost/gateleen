@@ -94,7 +94,7 @@ public final class ExpansionDeltaUtil {
      * @throws ResourceCollectionException ResourceCollectionException
      */
     public static List<String> extractCollectionResourceNames(JsonArray collectionArray) throws ResourceCollectionException {
-        List<String> collectionResourceNames = new ArrayList<String>();
+        List<String> collectionResourceNames = new ArrayList<>();
         for (Object colEntry : collectionArray) {
             if (!(colEntry instanceof String)) {
                 throw new ResourceCollectionException("the backend doesn't seem to support delta-handling on this resource", StatusCode.BAD_REQUEST);

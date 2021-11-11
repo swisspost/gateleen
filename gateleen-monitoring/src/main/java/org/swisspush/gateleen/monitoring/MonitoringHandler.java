@@ -270,7 +270,7 @@ public class MonitoringHandler {
             String headerValue = StringUtils.getStringOrDefault(request.getHeader(requestPerRuleMonitoringProperty), UNKNOWN_VALUE);
             if(StringUtils.isNotEmptyTrimmed(metricName)){
                 String key = headerValue + "." + metricName;
-                getRequestPerRuleMonitoringMap().merge(key, 1L, (oldValue, one) -> oldValue + one);
+                getRequestPerRuleMonitoringMap().merge(key, 1L, Long::sum);
             } else {
                 Logger requestlog = RequestLoggerFactory.getLogger(MonitoringHandler.class, request);
                 requestlog.warn("Request per rule monitoring is active but was called without a rule metricName. This request will be ignored.");
@@ -476,7 +476,7 @@ public class MonitoringHandler {
     }
 
     private void sortResultMap(List<Map.Entry<String, Long>> input) {
-        Ordering<Map.Entry<String, Long>> byMapValues = new Ordering<Map.Entry<String, Long>>() {
+        Ordering<Map.Entry<String, Long>> byMapValues = new Ordering<>() {
             @Override
             public int compare(Map.Entry<String, Long> left, Map.Entry<String, Long> right) {
                 return left.getValue().compareTo(right.getValue());

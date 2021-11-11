@@ -119,13 +119,13 @@ public class HookHandlerTest {
         hookHandler.handle(putRequest);
 
         // verify that enqueue has been called WITH the payload
-        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<>() {
             @Override
             public boolean matches(Object argument) {
                 HttpRequest req = (HttpRequest) argument;
                 return HttpMethod.PUT == req.getMethod()
                         && req.getUri().contains(uri)
-                        && new Integer(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
+                        && Integer.valueOf(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
                         && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
             }
         }), anyString(), any(Handler.class));
@@ -147,13 +147,13 @@ public class HookHandlerTest {
         hookHandler.handle(putRequest);
 
         // verify that enqueue has been called WITH the payload
-        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<>() {
             @Override
             public boolean matches(Object argument) {
                 HttpRequest req = (HttpRequest) argument;
                 return HttpMethod.PUT == req.getMethod()
                         && req.getUri().contains(uri)
-                        && new Integer(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
+                        && Integer.valueOf(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
                         && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
             }
         }), anyString(), any(Handler.class));
@@ -175,13 +175,13 @@ public class HookHandlerTest {
         hookHandler.handle(putRequest);
 
         // verify that enqueue has been called WITHOUT the payload but with 'Content-Length : 0' header
-        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<>() {
             @Override
             public boolean matches(Object argument) {
                 HttpRequest req = (HttpRequest) argument;
                 return HttpMethod.PUT == req.getMethod()
                         && req.getUri().contains(uri)
-                        && new Integer(0).equals(getInteger(req.getHeaders(), CONTENT_LENGTH))
+                        && Integer.valueOf(0).equals(getInteger(req.getHeaders(), CONTENT_LENGTH))
                         && Arrays.equals(req.getPayload(), new byte[0]); // should not be original payload anymore
             }
         }), anyString(), any(Handler.class));
@@ -190,7 +190,7 @@ public class HookHandlerTest {
         hookHandler.handle(putRequestWithoutContentLengthHeader);
 
         // verify that enqueue has been called WITHOUT the payload and WITHOUT 'Content-Length' header
-        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<>() {
             @Override
             public boolean matches(Object argument) {
                 HttpRequest req = (HttpRequest) argument;
@@ -266,13 +266,13 @@ public class HookHandlerTest {
         hookHandler.handle(putRequest);
 
         // verify that enqueue has been called WITH the payload
-        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<HttpRequest>() {
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(new ArgumentMatcher<>() {
             @Override
             public boolean matches(Object argument) {
                 HttpRequest req = (HttpRequest) argument;
                 return HttpMethod.PUT == req.getMethod()
                         && req.getUri().contains(uri)
-                        && new Integer(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
+                        && Integer.valueOf(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
                         && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
             }
         }), anyString(), any(Handler.class));
@@ -450,7 +450,7 @@ public class HookHandlerTest {
 
     @Test
     public void listenerRegistration_rejectNotWhitelistedHttpMethods(TestContext testContext) {
-        final List<String> badMethods = Collections.unmodifiableList(new ArrayList<String>() {{
+        final List<String> badMethods = Collections.unmodifiableList(new ArrayList<>() {{
             // Some valid HTTP methods gateleen not accepts.
             add("CONNECT");
             add("TRACE");

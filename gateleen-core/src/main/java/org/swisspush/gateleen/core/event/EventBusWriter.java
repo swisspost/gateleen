@@ -65,14 +65,11 @@ public class EventBusWriter extends Writer {
             }
 
             if(TransmissionMode.send == transmissionMode){
-                eventBus.send(address, buffer.toString(), options, new Handler<AsyncResult<Message<JsonObject>>>() {
-                    @Override
-                    public void handle(AsyncResult<Message<JsonObject>> reply) {
-                        if (reply.succeeded() && "ok".equals(reply.result().body().getString("status"))) {
-                            log.debug("Successfully sent to (and got reply from) eventBus address {}", address);
-                        } else {
-                            log.error("Failed to send (not publish) to the eventBus: {}", reply.cause());
-                        }
+                eventBus.send(address, buffer.toString(), options, (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                    if (reply.succeeded() && "ok".equals(reply.result().body().getString("status"))) {
+                        log.debug("Successfully sent to (and got reply from) eventBus address {}", address);
+                    } else {
+                        log.error("Failed to send (not publish) to the eventBus: {}", reply.cause());
                     }
                 });
             } else {

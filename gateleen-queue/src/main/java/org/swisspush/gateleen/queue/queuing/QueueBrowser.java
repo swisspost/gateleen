@@ -24,9 +24,8 @@ import java.util.*;
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
- * @deprecated Use http api from vertx-redisques (version greater than v2.2.4) directly. See https://github.com/swisspush/vertx-redisques
- *
  * @author https://github.com/lbovet [Laurent Bovet]
+ * @deprecated Use http api from vertx-redisques (version greater than v2.2.4) directly. See https://github.com/swisspush/vertx-redisques
  */
 public class QueueBrowser implements Handler<HttpServerRequest> {
 
@@ -86,26 +85,23 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         router.getWithRegex(prefix + "/queues/[^/]+").handler(ctx -> {
             final String queue = lastPart(ctx.request().path(), "/");
             String limitParam = null;
-            if(ctx.request() != null && ctx.request().params().contains("limit")) {
+            if (ctx.request() != null && ctx.request().params().contains("limit")) {
                 limitParam = ctx.request().params().get("limit");
             }
-            eb.send(redisquesAddress, buildGetQueueItemsOperation(queue, limitParam), new Handler<AsyncResult<Message<JsonObject>>>() {
-                @Override
-                public void handle(AsyncResult<Message<JsonObject>> reply) {
-                    JsonObject replyBody = reply.result().body();
-                    if (OK.equals(replyBody.getString(STATUS))) {
-                        List<Object> list = reply.result().body().getJsonArray(VALUE).getList();
-                        JsonArray items = new JsonArray();
-                        for (Object item : list.toArray()) {
-                            items.add((String) item);
-                        }
-                        JsonObject result = new JsonObject().put(queue, items);
-                        jsonResponse(ctx.response(), result);
-                    } else {
-                        ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
-                        ctx.response().end(reply.result().body().getString("message"));
-                        log.warn("Error in routerMatcher.getWithRegEx. Command = '" + (replyBody.getString("command") == null ? "<null>" : replyBody.getString("command")) + "'.");
+            eb.send(redisquesAddress, buildGetQueueItemsOperation(queue, limitParam), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                JsonObject replyBody = reply.result().body();
+                if (OK.equals(replyBody.getString(STATUS))) {
+                    List<Object> list = reply.result().body().getJsonArray(VALUE).getList();
+                    JsonArray items = new JsonArray();
+                    for (Object item : list.toArray()) {
+                        items.add((String) item);
                     }
+                    JsonObject result = new JsonObject().put(queue, items);
+                    jsonResponse(ctx.response(), result);
+                } else {
+                    ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
+                    ctx.response().end(reply.result().body().getString("message"));
+                    log.warn("Error in routerMatcher.getWithRegEx. Command = '" + (replyBody.getString("command") == null ? "<null>" : replyBody.getString("command")) + "'.");
                 }
             });
         });
@@ -122,18 +118,15 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         router.getWithRegex(prefix + "/queues/([^/]+)/[0-9]+").handler(ctx -> {
             final String queue = lastPart(ctx.request().path().substring(0, ctx.request().path().length() - 2), "/");
             final int index = Integer.parseInt(lastPart(ctx.request().path(), "/"));
-            eb.send(redisquesAddress, buildGetQueueItemOperation(queue, index), new Handler<AsyncResult<Message<JsonObject>>>() {
-                @Override
-                public void handle(AsyncResult<Message<JsonObject>> reply) {
-                    JsonObject replyBody = reply.result().body();
-                    if (OK.equals(replyBody.getString(STATUS))) {
-                        ctx.response().putHeader(CONTENT_TYPE, APPLICATION_JSON);
-                        ctx.response().end(decode(reply.result().body().getString(VALUE)));
-                    } else {
-                        ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
-                        ctx.response().setStatusMessage(StatusCode.NOT_FOUND.getStatusMessage());
-                        ctx.response().end("Not Found");
-                    }
+            eb.send(redisquesAddress, buildGetQueueItemOperation(queue, index), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                JsonObject replyBody = reply.result().body();
+                if (OK.equals(replyBody.getString(STATUS))) {
+                    ctx.response().putHeader(CONTENT_TYPE, APPLICATION_JSON);
+                    ctx.response().end(decode(reply.result().body().getString(VALUE)));
+                } else {
+                    ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
+                    ctx.response().setStatusMessage(StatusCode.NOT_FOUND.getStatusMessage());
+                    ctx.response().end("Not Found");
                 }
             });
         });
@@ -145,12 +138,8 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
                 final int index = Integer.parseInt(lastPart(ctx.request().path(), "/"));
                 ctx.request().bodyHandler(buffer -> {
                     String strBuffer = encode(buffer.toString());
-                    eb.send(redisquesAddress, buildReplaceQueueItemOperation(queue, index, strBuffer), new Handler<AsyncResult<Message<JsonObject>>>() {
-                        @Override
-                        public void handle(AsyncResult<Message<JsonObject>> reply) {
-                            checkReply(reply.result(), ctx.request(), StatusCode.NOT_FOUND);
-                        }
-                    });
+                    eb.send(redisquesAddress, buildReplaceQueueItemOperation(queue, index, strBuffer),
+                            (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.NOT_FOUND));
                 });
             });
         });
@@ -159,12 +148,8 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         router.deleteWithRegex(prefix + "/queues/([^/]+)/[0-9]+").handler(ctx -> {
             final String queue = part(ctx.request().path(), "/", 2);
             final int index = Integer.parseInt(lastPart(ctx.request().path(), "/"));
-            checkLocked(queue, ctx.request(), aVoid -> eb.send(redisquesAddress, buildDeleteQueueItemOperation(queue, index), new Handler<AsyncResult<Message<JsonObject>>>() {
-                @Override
-                public void handle(AsyncResult<Message<JsonObject>> reply) {
-                    checkReply(reply.result(), ctx.request(), StatusCode.NOT_FOUND);
-                }
-            }));
+            checkLocked(queue, ctx.request(), aVoid -> eb.send(redisquesAddress, buildDeleteQueueItemOperation(queue, index),
+                    (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.NOT_FOUND)));
         });
 
         // Add item
@@ -172,54 +157,41 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
             final String queue = part(ctx.request().path(), "/", 1);
             ctx.request().bodyHandler(buffer -> {
                 String strBuffer = encode(buffer.toString());
-                eb.send(redisquesAddress, buildAddQueueItemOperation(queue, strBuffer), new Handler<AsyncResult<Message<JsonObject>>>() {
-                    @Override
-                    public void handle(AsyncResult<Message<JsonObject>> reply) {
-                        checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST);
-                    }
-                });
+                eb.send(redisquesAddress, buildAddQueueItemOperation(queue, strBuffer),
+                        (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST));
             });
         });
 
         // get all locks
-        router.getWithRegex(prefix + "/locks/").handler(ctx -> eb.send(redisquesAddress, buildGetAllLocksOperation(), new Handler<AsyncResult<Message<JsonObject>>>() {
-            @Override
-            public void handle(AsyncResult<Message<JsonObject>> reply) {
-                if (OK.equals(reply.result().body().getString(STATUS))) {
-                    jsonResponse(ctx.response(), reply.result().body().getJsonObject(VALUE));
-                } else {
-                    ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
-                    ctx.response().setStatusMessage(StatusCode.NOT_FOUND.getStatusMessage());
-                    ctx.response().end("Not Found");
-                }
-            }
-        }));
+        router.getWithRegex(prefix + "/locks/").handler(ctx -> eb.send(redisquesAddress, buildGetAllLocksOperation(),
+                (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                    if (OK.equals(reply.result().body().getString(STATUS))) {
+                        jsonResponse(ctx.response(), reply.result().body().getJsonObject(VALUE));
+                    } else {
+                        ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
+                        ctx.response().setStatusMessage(StatusCode.NOT_FOUND.getStatusMessage());
+                        ctx.response().end("Not Found");
+                    }
+                }));
 
         // add lock
         router.putWithRegex(prefix + "/locks/[^/]+").handler(ctx -> {
             String queue = lastPart(ctx.request().path(), "/");
-            eb.send(redisquesAddress, buildPutLockOperation(queue, extractUser(ctx.request())), new Handler<AsyncResult<Message<JsonObject>>>() {
-                @Override
-                public void handle(AsyncResult<Message<JsonObject>> reply) {
-                    checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST);
-                }
-            });
+            eb.send(redisquesAddress, buildPutLockOperation(queue, extractUser(ctx.request())),
+                    (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST));
         });
 
         // get single lock
         router.getWithRegex(prefix + "/locks/[^/]+").handler(ctx -> {
             String queue = lastPart(ctx.request().path(), "/");
-            eb.send(redisquesAddress, buildGetLockOperation(queue), new Handler<AsyncResult<Message<JsonObject>>>() {
-                @Override
-                public void handle(AsyncResult<Message<JsonObject>> reply) {
-                    if (OK.equals(reply.result().body().getString(STATUS))) {
-                        ctx.response().putHeader(CONTENT_TYPE, APPLICATION_JSON);
-                        ctx.response().end(reply.result().body().getString(VALUE));
-                    } else {
-                        ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
-                        ctx.response().setStatusMessage(StatusCode.NOT_FOUND.getStatusMessage());
-                        ctx.response().end(NO_SUCH_LOCK);
-                    }
+            eb.send(redisquesAddress, buildGetLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                if (OK.equals(reply.result().body().getString(STATUS))) {
+                    ctx.response().putHeader(CONTENT_TYPE, APPLICATION_JSON);
+                    ctx.response().end(reply.result().body().getString(VALUE));
+                } else {
+                    ctx.response().setStatusCode(StatusCode.NOT_FOUND.getStatusCode());
+                    ctx.response().setStatusMessage(StatusCode.NOT_FOUND.getStatusMessage());
+                    ctx.response().end(NO_SUCH_LOCK);
                 }
             });
         });
@@ -227,12 +199,8 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         // delete single lock
         router.deleteWithRegex(prefix + "/locks/[^/]+").handler(ctx -> {
             String queue = lastPart(ctx.request().path(), "/");
-            eb.send(redisquesAddress, buildDeleteLockOperation(queue), new Handler<AsyncResult<Message<JsonObject>>>() {
-                @Override
-                public void handle(AsyncResult<Message<JsonObject>> reply) {
-                    checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST);
-                }
-            });
+            eb.send(redisquesAddress, buildDeleteLockOperation(queue),
+                    (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST));
         });
 
         // Gathering queues monitoring informations
@@ -257,7 +225,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
 
     private String extractUser(HttpServerRequest request) {
         String user = request.headers().get("x-rp-usr");
-        if(user == null){
+        if (user == null) {
             user = "Unknown";
         }
         return user;
@@ -395,18 +363,15 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
 
     private void checkLocked(String queue, final HttpServerRequest request, final Handler<Void> handler) {
         request.pause();
-        eb.send(redisquesAddress, buildGetLockOperation(queue), new Handler<AsyncResult<Message<JsonObject>>>() {
-            @Override
-            public void handle(AsyncResult<Message<JsonObject>> reply) {
-                if (NO_SUCH_LOCK.equals(reply.result().body().getString(STATUS))) {
-                    request.resume();
-                    request.response().setStatusCode(StatusCode.CONFLICT.getStatusCode());
-                    request.response().setStatusMessage("Queue must be locked to perform this operation");
-                    request.response().end("Queue must be locked to perform this operation");
-                } else {
-                    handler.handle(null);
-                    request.resume();
-                }
+        eb.send(redisquesAddress, buildGetLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            if (NO_SUCH_LOCK.equals(reply.result().body().getString(STATUS))) {
+                request.resume();
+                request.response().setStatusCode(StatusCode.CONFLICT.getStatusCode());
+                request.response().setStatusMessage("Queue must be locked to perform this operation");
+                request.response().end("Queue must be locked to perform this operation");
+            } else {
+                handler.handle(null);
+                request.resume();
             }
         });
     }
