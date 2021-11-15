@@ -17,6 +17,10 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
 import org.swisspush.gateleen.cache.CacheHandler;
+import org.swisspush.gateleen.cache.fetch.CacheDataFetcher;
+import org.swisspush.gateleen.cache.fetch.DefaultCacheDataFetcher;
+import org.swisspush.gateleen.cache.storage.CacheStorage;
+import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
@@ -102,6 +106,8 @@ public class Server extends AbstractVerticle {
     private HttpServer mainServer;
     private RedisClient redisClient;
     private ResourceStorage storage;
+    private CacheStorage cacheStorage;
+    private CacheDataFetcher cacheDataFetcher;
     private Authorizer authorizer;
     private Router router;
 
@@ -184,7 +190,9 @@ public class Server extends AbstractVerticle {
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
 
-                cacheHandler = new CacheHandler();
+                cacheStorage = new RedisCacheStorage(vertx, redisClient, 20 * 1000);
+                cacheDataFetcher = new DefaultCacheDataFetcher(selfClient);
+                cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage);
 
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 qosHandler.enableResourceLogging(true);

@@ -3,6 +3,7 @@ package org.swisspush.gateleen.cache.storage;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.RedisClient;
@@ -37,7 +38,7 @@ public class RedisCacheStorage implements CacheStorage {
 
         vertx.setPeriodic(storageCleanupIntervalMs, event -> {
             cleanup().setHandler(cleanupResult -> {
-                if(cleanupResult.failed()){
+                if (cleanupResult.failed()) {
                     log.warn("storage cleanup has failed", cleanupResult.cause());
                 } else {
                     log.debug("Successfully cleaned {} entries from storage", cleanupResult.result());
@@ -57,15 +58,25 @@ public class RedisCacheStorage implements CacheStorage {
     }
 
     @Override
-    public Future<Optional<String>> cachedRequest(String cacheIdentifier) {
-        Future<Optional<String>> future = Future.future();
+    public Future<Optional<JsonObject>> cachedRequest(String cacheIdentifier) {
+        Future<Optional<JsonObject>> future = Future.future();
         redisClient.get(CACHE_PREFIX + cacheIdentifier, event -> {
-            if(event.failed()){
-                String message = "Failed to get cached request '"+cacheIdentifier+"'. Cause: " + logCause(event);
+            if (event.failed()) {
+                String message = "Failed to get cached request '" + cacheIdentifier + "'. Cause: " + logCause(event);
                 log.error(message);
                 future.fail(message);
             } else {
-                future.complete(Optional.ofNullable(event.result()));
+                if(event.result() == null) {
+                    future.complete(Optional.empty());
+                    return;
+                }
+
+                try {
+                    future.complete(Optional.of(new JsonObject(event.result())));
+                } catch (DecodeException ex) {
+                    log.error("Failed to decode cached request", ex);
+                    future.fail(ex);
+                }
             }
         });
         return future;
@@ -85,7 +96,7 @@ public class RedisCacheStorage implements CacheStorage {
     public Future<Long> cacheEntriesCount() {
         Future<Long> future = Future.future();
         redisClient.scard(CACHED_REQUESTS, reply -> {
-            if(reply.failed()){
+            if (reply.failed()) {
                 String message = "Failed to get count of cached requests. Cause: " + logCause(reply);
                 log.error(message);
                 future.fail(message);
@@ -101,7 +112,7 @@ public class RedisCacheStorage implements CacheStorage {
     public Future<Set<String>> cacheEntries() {
         Future<Set<String>> future = Future.future();
         redisClient.smembers(CACHED_REQUESTS, reply -> {
-            if(reply.failed()){
+            if (reply.failed()) {
                 String message = "Failed to get cached requests. Cause: " + logCause(reply);
                 log.error(message);
                 future.fail(message);
@@ -127,8 +138,8 @@ public class RedisCacheStorage implements CacheStorage {
         return future;
     }
 
-    private static String logCause(AsyncResult result){
-        if(result.cause() != null){
+    private static String logCause(AsyncResult result) {
+        if (result.cause() != null) {
             return result.cause().getMessage();
         }
         return null;

@@ -11,7 +11,7 @@ public interface CacheStorage {
 
     Future<Void> cacheRequest(String cacheIdentifier, JsonObject cachedObject, Duration cacheExpiry);
 
-    Future<Optional<String>> cachedRequest(String cacheIdentifier);
+    Future<Optional<JsonObject>> cachedRequest(String cacheIdentifier);
 
     Future<Long> clearCache();
 

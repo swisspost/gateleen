@@ -20,6 +20,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.cache.CacheHandler;
+import org.swisspush.gateleen.cache.fetch.DefaultCacheDataFetcher;
+import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
@@ -108,6 +110,7 @@ public abstract class AbstractTest {
     protected final static Map<String, Object> props = new HashMap<>();
     protected static SchedulerResourceManager schedulerResourceManager;
     protected static HookHandler hookHandler;
+    protected static CacheHandler cacheHandler;
     protected static CustomHttpResponseHandler customHttpResponseHandler;
 
     /**
@@ -165,6 +168,8 @@ public abstract class AbstractTest {
                 DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, DELEGATE_ROOT, props, null);
                 MergeHandler mergeHandler = new MergeHandler(selfClient);
 
+                cacheHandler = new CacheHandler(new DefaultCacheDataFetcher(selfClient), new RedisCacheStorage(vertx, redisClient, 60000));
+
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
 
                 // ------
@@ -199,7 +204,7 @@ public abstract class AbstractTest {
 
                 RunConfig runConfig =
                         RunConfig.with()
-                                .cacheHandler(new CacheHandler())
+                                .cacheHandler(cacheHandler)
                                 .corsHandler(new CORSHandler())
                                 .deltaHandler(new DeltaHandler(redisClient, selfClient))
                                 .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))
