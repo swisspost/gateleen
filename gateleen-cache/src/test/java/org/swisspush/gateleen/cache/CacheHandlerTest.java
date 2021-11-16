@@ -13,6 +13,7 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.cache.fetch.CacheDataFetcher;
 import org.swisspush.gateleen.cache.storage.CacheStorage;
@@ -260,8 +261,16 @@ public class CacheHandlerTest {
 
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
         verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
-        verify(response, timeout(1000).times(1)).end(new JsonObject().put("entries",
-                new JsonArray().add("/cached/res/1").add("/cached/res/2").add("/cached/res/3")).encode());
+
+        ArgumentCaptor<String> argumentCaptor = ArgumentCaptor.forClass(String.class);
+        verify(response, timeout(1000).times(1)).end(argumentCaptor.capture());
+
+        JsonArray entries = new JsonObject(argumentCaptor.getValue()).getJsonArray("entries");
+        context.assertEquals(3, entries.size());
+        context.assertTrue(entries.contains("/cached/res/1"));
+        context.assertTrue(entries.contains("/cached/res/2"));
+        context.assertTrue(entries.contains("/cached/res/3"));
+
         context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
     }
 
