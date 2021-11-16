@@ -190,9 +190,11 @@ public class Server extends AbstractVerticle {
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
 
-                cacheStorage = new RedisCacheStorage(vertx, redisClient, 20 * 1000);
+                Lock lock = new RedisBasedLock(redisClient);
+
+                cacheStorage = new RedisCacheStorage(vertx, lock, redisClient, 20 * 1000);
                 cacheDataFetcher = new DefaultCacheDataFetcher(selfClient);
-                cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage);
+                cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
 
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 qosHandler.enableResourceLogging(true);
@@ -228,8 +230,6 @@ public class Server extends AbstractVerticle {
 
                 roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 roleProfileHandler.enableResourceLogging(true);
-
-                Lock lock = new RedisBasedLock(redisClient);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
                 reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient),

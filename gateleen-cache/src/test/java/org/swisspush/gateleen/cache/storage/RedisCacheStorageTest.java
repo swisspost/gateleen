@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.cache.storage;
 
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
@@ -13,6 +14,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.swisspush.gateleen.core.lock.Lock;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
@@ -25,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import static com.jayway.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
 import static org.swisspush.gateleen.cache.storage.RedisCacheStorage.CACHED_REQUESTS;
 import static org.swisspush.gateleen.cache.storage.RedisCacheStorage.CACHE_PREFIX;
 
@@ -40,13 +45,19 @@ public class RedisCacheStorageTest {
     public Timeout rule = Timeout.seconds(50);
 
     private Vertx vertx;
+    private Lock lock;
     private Jedis jedis;
     private RedisCacheStorage redisCacheStorage;
 
     @Before
     public void setUp(){
         vertx = Vertx.vertx();
-        redisCacheStorage = new RedisCacheStorage(vertx, RedisClient.create(vertx, new RedisOptions()), 2000);
+
+        lock = Mockito.mock(Lock.class);
+        Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.succeededFuture(Boolean.TRUE));
+        Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.TRUE));
+
+        redisCacheStorage = new RedisCacheStorage(vertx, lock, RedisClient.create(vertx, new RedisOptions()), 2000);
         jedis = new Jedis(new HostAndPort("localhost", 6379));
         try {
             jedis.flushAll();
@@ -60,6 +71,14 @@ public class RedisCacheStorageTest {
         if(jedis != null){
             jedis.close();
         }
+    }
+
+    private String jsonObjectStr(String value) {
+        return jsonObject(value).encode();
+    }
+
+    private JsonObject jsonObject(String value){
+        return new JsonObject().put("key", value);
     }
 
     @Test
@@ -148,9 +167,9 @@ public class RedisCacheStorageTest {
 
         // prepare
         jedis.sadd(CACHED_REQUESTS, "cache_item_1", "cache_item_2", "cache_item_3");
-        jedis.set(CACHE_PREFIX + "cache_item_1", "payload_1");
-        jedis.set(CACHE_PREFIX + "cache_item_2", "payload_2");
-        jedis.set(CACHE_PREFIX + "cache_item_3", "payload_3");
+        jedis.set(CACHE_PREFIX + "cache_item_1", jsonObjectStr("payload_1"));
+        jedis.set(CACHE_PREFIX + "cache_item_2", jsonObjectStr("payload_2"));
+        jedis.set(CACHE_PREFIX + "cache_item_3", jsonObjectStr("payload_3"));
 
         // verify
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_1"));
@@ -162,7 +181,7 @@ public class RedisCacheStorageTest {
 
         redisCacheStorage.cachedRequest("cache_item_2").setHandler(event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(Optional.of("payload_2"), event.result());
+            context.assertEquals(Optional.of(jsonObject("payload_2")), event.result());
 
             redisCacheStorage.cachedRequest("cache_item_99").setHandler(event1 -> {
                 context.assertTrue(event1.succeeded());
@@ -197,9 +216,9 @@ public class RedisCacheStorageTest {
 
         // prepare
         jedis.sadd(CACHED_REQUESTS, "cache_item_1", "cache_item_2", "cache_item_3");
-        jedis.set(CACHE_PREFIX + "cache_item_1", "payload_1");
-        jedis.set(CACHE_PREFIX + "cache_item_2", "payload_2");
-        jedis.set(CACHE_PREFIX + "cache_item_3", "payload_3");
+        jedis.set(CACHE_PREFIX + "cache_item_1", jsonObjectStr("payload_1"));
+        jedis.set(CACHE_PREFIX + "cache_item_2", jsonObjectStr("payload_2"));
+        jedis.set(CACHE_PREFIX + "cache_item_3", jsonObjectStr("payload_3"));
 
         // verify
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_1"));
@@ -249,9 +268,9 @@ public class RedisCacheStorageTest {
     public void testCleanup(TestContext context){
         // prepare
         jedis.sadd(CACHED_REQUESTS, "cache_item_1", "cache_item_2", "cache_item_3");
-        jedis.set(CACHE_PREFIX + "cache_item_1", "payload_1");
-        jedis.set(CACHE_PREFIX + "cache_item_2", "payload_2");
-        jedis.set(CACHE_PREFIX + "cache_item_3", "payload_3");
+        jedis.set(CACHE_PREFIX + "cache_item_1", jsonObjectStr("payload_1"));
+        jedis.set(CACHE_PREFIX + "cache_item_2", jsonObjectStr("payload_2"));
+        jedis.set(CACHE_PREFIX + "cache_item_3", jsonObjectStr("payload_3"));
 
         // verify
         context.assertEquals(3L, jedis.scard(CACHED_REQUESTS));

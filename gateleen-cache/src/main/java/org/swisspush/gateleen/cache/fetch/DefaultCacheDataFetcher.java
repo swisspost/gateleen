@@ -19,6 +19,8 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
 
     private static final String SELF_REQUEST_HEADER = "x-self-request";
     private static final String CACHE_CONTROL_HEADER = "Cache-Control";
+    private static final String CONTENT_TYPE_HEADER = "Content-Type";
+    private static final String CONTENT_TYPE_JSON = "application/json";
 
     public DefaultCacheDataFetcher(HttpClient httpClient) {
         this.httpClient = httpClient;
@@ -34,6 +36,14 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
 
             cRes.bodyHandler(data -> {
                 if (StatusCode.OK.getStatusCode() == cRes.statusCode()) {
+
+                    String contentType = cRes.getHeader(CONTENT_TYPE_HEADER);
+                    if(contentType != null && !contentType.contains(CONTENT_TYPE_JSON)){
+                        log.warn("Content-Type {} is not supported", contentType);
+                        future.complete(Result.err(StatusCode.UNSUPPORTED_MEDIA_TYPE));
+                        return;
+                    }
+
                     try {
                         future.complete(Result.ok(new JsonObject(data)));
                     } catch (DecodeException ex) {
@@ -62,7 +72,7 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
         cReq.headers().setAll(requestHeaders);
         cReq.headers().set("Accept", "application/json");
         cReq.headers().set(SELF_REQUEST_HEADER, "true");
-        cReq.setChunked(false);
+        cReq.setChunked(true);
         cReq.end();
 
         return future;

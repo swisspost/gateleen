@@ -3,6 +3,7 @@ package org.swisspush.gateleen.cache;
 import com.google.common.base.Splitter;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import org.swisspush.gateleen.core.util.StringUtils;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Handler class dealing with cached responses.
@@ -35,13 +37,27 @@ public class CacheHandler {
 
     private final CacheDataFetcher dataFetcher;
     private final CacheStorage cacheStorage;
+    private final String cacheAdminUri;
 
-    public CacheHandler(CacheDataFetcher dataFetcher, CacheStorage cacheStorage) {
+    public CacheHandler(CacheDataFetcher dataFetcher, CacheStorage cacheStorage, String cacheAdminUri) {
         this.dataFetcher = dataFetcher;
         this.cacheStorage = cacheStorage;
+        this.cacheAdminUri = cacheAdminUri;
     }
 
     public boolean handle(final HttpServerRequest request) {
+        if (request.uri().startsWith(cacheAdminUri)) {
+            if(request.uri().equals(cacheAdminUri + "/clear") && HttpMethod.POST == request.method()) {
+                handleClearCache(request);
+            } else if (request.uri().equals(cacheAdminUri + "/count") && HttpMethod.GET == request.method()) {
+                handleCacheCount(request);
+            } else if (request.uri().equals(cacheAdminUri + "/entries") && HttpMethod.GET == request.method()) {
+                handleCacheEntries(request);
+            } else {
+                respondWith(StatusCode.METHOD_NOT_ALLOWED, request);
+            }
+            return true;
+        }
         if (HttpMethod.GET != request.method() || !containsCacheHeaders(request)) {
             return false;
         }
@@ -66,7 +82,7 @@ public class CacheHandler {
             Optional<JsonObject> cachedRequest = event.result();
             if(cachedRequest.isPresent()) {
                 log.debug("Request to {} found in cache storage", request.uri());
-                respondCachedRequest(request, cachedRequest.get());
+                respondWithPayload(request, cachedRequest.get());
             } else {
                 updateCacheAndRespond(request, cacheIdentifier, expireMs.get());
             }
@@ -95,7 +111,7 @@ public class CacheHandler {
                 if (event1.failed()){
                     log.warn("Failed to store request to cache", event1.cause());
                 }
-                respondCachedRequest(request, fetchedData);
+                respondWithPayload(request, fetchedData);
             });
 
         });
@@ -137,6 +153,52 @@ public class CacheHandler {
         }
     }
 
+    private void handleClearCache(final HttpServerRequest request) {
+        log.debug("About to clear all cached entries manually");
+        cacheStorage.clearCache().setHandler(event -> {
+            if(event.failed()) {
+                log.warn("Error while clearing cache", event.cause());
+                respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
+            }
+            Long clearedCount = event.result();
+            log.debug("Cleared {} cache entries", clearedCount);
+            JsonObject clearedObj = new JsonObject().put("cleared", clearedCount);
+            respondWithPayload(request, clearedObj);
+        });
+    }
+
+    private void handleCacheEntries(final HttpServerRequest request) {
+        log.debug("About to get cached entries list");
+        cacheStorage.cacheEntries().setHandler(event -> {
+            if(event.failed()) {
+                log.warn("Error while getting cached entries list", event.cause());
+                respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
+            }
+            Set<String> cachedEntries = event.result();
+            log.debug("{} entries in cache", cachedEntries.size());
+            JsonArray entriesArray = new JsonArray();
+            for (String cachedEntry : cachedEntries) {
+                entriesArray.add(cachedEntry);
+            }
+            JsonObject clearedObj = new JsonObject().put("entries", entriesArray);
+            respondWithPayload(request, clearedObj);
+        });
+    }
+
+    private void handleCacheCount(final HttpServerRequest request) {
+        log.debug("About to get cached entries count");
+        cacheStorage.cacheEntriesCount().setHandler(event -> {
+            if(event.failed()) {
+                log.warn("Error while getting cached entries count", event.cause());
+                respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
+            }
+            Long count = event.result();
+            log.debug("{} entries in cache", count);
+            JsonObject clearedObj = new JsonObject().put("count", count);
+            respondWithPayload(request, clearedObj);
+        });
+    }
+
     private void respondWith(StatusCode statusCode, final HttpServerRequest request) {
         ResponseStatusCodeLogUtil.info(request, statusCode, CacheHandler.class);
         request.response().setStatusCode(statusCode.getStatusCode());
@@ -145,7 +207,7 @@ public class CacheHandler {
         request.resume();
     }
 
-    private void respondCachedRequest(final HttpServerRequest request, JsonObject cachedRequestPayload) {
+    private void respondWithPayload(final HttpServerRequest request, JsonObject cachedRequestPayload) {
         ResponseStatusCodeLogUtil.info(request, StatusCode.OK, CacheHandler.class);
         request.response().setStatusCode(StatusCode.OK.getStatusCode());
         request.response().setStatusMessage(StatusCode.OK.getStatusMessage());

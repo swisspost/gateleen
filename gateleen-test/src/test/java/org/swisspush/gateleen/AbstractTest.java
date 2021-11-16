@@ -168,7 +168,10 @@ public abstract class AbstractTest {
                 DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, DELEGATE_ROOT, props, null);
                 MergeHandler mergeHandler = new MergeHandler(selfClient);
 
-                cacheHandler = new CacheHandler(new DefaultCacheDataFetcher(selfClient), new RedisCacheStorage(vertx, redisClient, 60000));
+                cacheHandler = new CacheHandler(
+                        new DefaultCacheDataFetcher(selfClient),
+                        new RedisCacheStorage(vertx, lock, redisClient, 60000),
+                        SERVER_ROOT + "/cache");
 
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
 

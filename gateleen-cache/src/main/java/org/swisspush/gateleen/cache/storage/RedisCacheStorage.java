@@ -9,7 +9,9 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
+import org.swisspush.gateleen.core.util.Address;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -19,32 +21,59 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.swisspush.gateleen.core.util.LockUtil.acquireLock;
+import static org.swisspush.gateleen.core.util.LockUtil.releaseLock;
+
 public class RedisCacheStorage implements CacheStorage {
 
     private Logger log = LoggerFactory.getLogger(RedisCacheStorage.class);
 
+    private final Lock lock;
     private final RedisClient redisClient;
     private LuaScriptState clearCacheLuaScriptState;
     private LuaScriptState cacheRequestLuaScriptState;
 
     public static final String CACHED_REQUESTS = "gateleen.cache-cached-requests";
     public static final String CACHE_PREFIX = "gateleen.cache:";
+    public static final String STORAGE_CLEANUP_TASK_LOCK = "cacheStorageCleanupTask";
 
-    public RedisCacheStorage(Vertx vertx, RedisClient redisClient, long storageCleanupIntervalMs) {
+    public RedisCacheStorage(Vertx vertx, Lock lock, RedisClient redisClient, long storageCleanupIntervalMs) {
+        this.lock = lock;
         this.redisClient = redisClient;
 
         clearCacheLuaScriptState = new LuaScriptState(CacheLuaScripts.CLEAR_CACHE, redisClient, false);
         cacheRequestLuaScriptState = new LuaScriptState(CacheLuaScripts.CACHE_REQUEST, redisClient, false);
 
         vertx.setPeriodic(storageCleanupIntervalMs, event -> {
-            cleanup().setHandler(cleanupResult -> {
-                if (cleanupResult.failed()) {
-                    log.warn("storage cleanup has failed", cleanupResult.cause());
+            String token = token(STORAGE_CLEANUP_TASK_LOCK);
+            acquireLock(this.lock, STORAGE_CLEANUP_TASK_LOCK, token, lockExpiry(storageCleanupIntervalMs), log).setHandler(lockEvent -> {
+                if (lockEvent.succeeded()) {
+                    if (lockEvent.result()) {
+                        cleanup().setHandler(cleanupResult -> {
+                            if (cleanupResult.failed()) {
+                                log.warn("storage cleanup has failed", cleanupResult.cause());
+                                releaseLock(lock, STORAGE_CLEANUP_TASK_LOCK, token, log);
+                            } else {
+                                log.debug("Successfully cleaned {} entries from storage", cleanupResult.result());
+                            }
+                        });
+                    }
                 } else {
-                    log.debug("Successfully cleaned {} entries from storage", cleanupResult.result());
+                    log.error("Could not acquire lock '{}'. Message: {}", STORAGE_CLEANUP_TASK_LOCK, lockEvent.cause().getMessage());
                 }
             });
         });
+    }
+
+    private String token(String appendix) {
+        return Address.instanceAddress() + "_" + System.currentTimeMillis() + "_" + appendix;
+    }
+
+    private long lockExpiry(long taskInterval) {
+        if (taskInterval <= 1) {
+            return 1;
+        }
+        return taskInterval / 2;
     }
 
     @Override
@@ -66,7 +95,7 @@ public class RedisCacheStorage implements CacheStorage {
                 log.error(message);
                 future.fail(message);
             } else {
-                if(event.result() == null) {
+                if (event.result() == null) {
                     future.complete(Optional.empty());
                     return;
                 }

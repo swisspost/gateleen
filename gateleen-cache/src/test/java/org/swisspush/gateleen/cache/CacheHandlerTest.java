@@ -6,6 +6,7 @@ import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -20,7 +21,9 @@ import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.util.Result;
 import org.swisspush.gateleen.core.util.StatusCode;
 
+import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.cache.CacheHandler.*;
@@ -34,7 +37,7 @@ public class CacheHandlerTest {
 
     @Before
     public void setUp() {
-        cacheHandler = new CacheHandler(dataFetcher, cacheStorage);
+        cacheHandler = new CacheHandler(dataFetcher, cacheStorage, "/playground/server/cache");
     }
 
     @Test
@@ -207,6 +210,74 @@ public class CacheHandlerTest {
         context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
     }
 
+    @Test
+    public void testCacheAdminFunctionNotSupported(TestContext context) {
+        HttpServerResponse response = spy(new Response());
+
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/foobar", new CaseInsensitiveHeaders(), response);
+        context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
+
+        verify(response, times(1)).setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
+        verify(response, timeout(1000).times(1)).end();
+    }
+
+    @Test
+    public void testCacheAdminFunctionClearCache(TestContext context) {
+        HttpServerResponse response = spy(new Response());
+        when(cacheStorage.clearCache()).thenReturn(Future.succeededFuture(99L));
+
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.POST, "/playground/server/cache/clear", new CaseInsensitiveHeaders(), response);
+        context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
+
+        verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
+        verify(response, timeout(1000).times(1)).end(new JsonObject().put("cleared", 99L).encode());
+        context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
+    }
+
+    @Test
+    public void testCacheAdminFunctionEntriesCount(TestContext context) {
+        HttpServerResponse response = spy(new Response());
+        when(cacheStorage.cacheEntriesCount()).thenReturn(Future.succeededFuture(15L));
+
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/count", new CaseInsensitiveHeaders(), response);
+        context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
+
+        verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
+        verify(response, timeout(1000).times(1)).end(new JsonObject().put("count", 15L).encode());
+        context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
+    }
+
+    @Test
+    public void testCacheAdminFunctionEntries(TestContext context) {
+        HttpServerResponse response = spy(new Response());
+        when(cacheStorage.cacheEntries()).thenReturn(Future.succeededFuture(Set.of("/cached/res/1", "/cached/res/2", "/cached/res/3")));
+
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/entries", new CaseInsensitiveHeaders(), response);
+        context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
+
+        verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
+        verify(response, timeout(1000).times(1)).end(new JsonObject().put("entries",
+                new JsonArray().add("/cached/res/1").add("/cached/res/2").add("/cached/res/3")).encode());
+        context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
+    }
+
+    @Test
+    public void testCacheAdminFunctionEntriesEmpty(TestContext context) {
+        HttpServerResponse response = spy(new Response());
+        when(cacheStorage.cacheEntries()).thenReturn(Future.succeededFuture(Collections.emptySet()));
+
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/entries", new CaseInsensitiveHeaders(), response);
+        context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
+
+        verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
+        verify(response, timeout(1000).times(1)).end(new JsonObject().put("entries", new JsonArray()).encode());
+        context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
+    }
 
     private class Request extends DummyHttpServerRequest {
         private CaseInsensitiveHeaders headers;
