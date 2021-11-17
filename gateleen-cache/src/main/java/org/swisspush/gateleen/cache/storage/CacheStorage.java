@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.cache.storage;
 
 import io.vertx.core.Future;
-import io.vertx.core.json.JsonObject;
+import io.vertx.core.buffer.Buffer;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -9,9 +9,9 @@ import java.util.Set;
 
 public interface CacheStorage {
 
-    Future<Void> cacheRequest(String cacheIdentifier, JsonObject cachedObject, Duration cacheExpiry);
+    Future<Void> cacheRequest(String cacheIdentifier, Buffer cachedObject, Duration cacheExpiry);
 
-    Future<Optional<JsonObject>> cachedRequest(String cacheIdentifier);
+    Future<Optional<Buffer>> cachedRequest(String cacheIdentifier);
 
     Future<Long> clearCache();
 

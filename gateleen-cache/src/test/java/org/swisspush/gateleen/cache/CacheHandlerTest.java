@@ -2,6 +2,7 @@ package org.swisspush.gateleen.cache;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -36,6 +37,10 @@ public class CacheHandlerTest {
     private CacheDataFetcher dataFetcher = mock(CacheDataFetcher.class);
     private CacheStorage cacheStorage = mock(CacheStorage.class);
 
+    private Buffer bufferFromJson(JsonObject jsonObject) {
+        return Buffer.buffer(jsonObject.encode());
+    }
+
     @Before
     public void setUp() {
         cacheHandler = new CacheHandler(dataFetcher, cacheStorage, "/playground/server/cache");
@@ -43,7 +48,7 @@ public class CacheHandlerTest {
 
     @Test
     public void testOnlyGETRequestsWithCacheControlHeadersAreHandled(TestContext context) {
-        when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.of(new JsonObject())));
+        when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.of(bufferFromJson(new JsonObject()))));
         HttpServerResponse response = spy(new Response());
 
         Request putRequest = new Request(HttpMethod.PUT, "/some/path", new CaseInsensitiveHeaders(), response);
@@ -105,7 +110,7 @@ public class CacheHandlerTest {
 
     @Test
     public void testCachedRequestFromCacheStorage(TestContext context) {
-        JsonObject dataObj = new JsonObject().put("foo", "bar");
+        Buffer dataObj = bufferFromJson(new JsonObject().put("foo", "bar"));
         HttpServerResponse response = spy(new Response());
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.of(dataObj)));
 
@@ -116,7 +121,7 @@ public class CacheHandlerTest {
 
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
         verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
-        verify(response, timeout(1000).times(1)).end(eq(dataObj.encode()));
+        verify(response, timeout(1000).times(1)).end(eq(dataObj));
     }
 
     @Test
@@ -172,7 +177,7 @@ public class CacheHandlerTest {
 
     @Test
     public void testCachedRequestFromDataFetcherOKButCacheToStorageFails(TestContext context) {
-        JsonObject dataObj = new JsonObject().put("foo", "bar");
+        Buffer dataObj = bufferFromJson(new JsonObject().put("foo", "bar"));
         HttpServerResponse response = spy(new Response());
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.empty()));
         when(dataFetcher.fetchData(anyString(), any(), anyLong())).thenReturn(Future.succeededFuture(Result.ok(dataObj)));
@@ -187,12 +192,12 @@ public class CacheHandlerTest {
         verify(cacheStorage, times(1)).cacheRequest(eq(getRequestWithCacheControlHeaders.uri), eq(dataObj), any());
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
         verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
-        verify(response, timeout(1000).times(1)).end(dataObj.encode());
+        verify(response, timeout(1000).times(1)).end(dataObj);
     }
 
     @Test
     public void testCachedRequestFromDataFetcherOKAndCacheToStorageWriteOK(TestContext context) {
-        JsonObject dataObj = new JsonObject().put("foo", "bar");
+        Buffer dataObj = bufferFromJson(new JsonObject().put("foo", "bar"));
         HttpServerResponse response = spy(new Response());
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.empty()));
         when(dataFetcher.fetchData(anyString(), any(), anyLong())).thenReturn(Future.succeededFuture(Result.ok(dataObj)));
@@ -207,7 +212,7 @@ public class CacheHandlerTest {
         verify(cacheStorage, times(1)).cacheRequest(eq(getRequestWithCacheControlHeaders.uri), eq(dataObj), any());
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
         verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
-        verify(response, timeout(1000).times(1)).end(dataObj.encode());
+        verify(response, timeout(1000).times(1)).end(dataObj);
         context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
     }
 
@@ -233,7 +238,7 @@ public class CacheHandlerTest {
 
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
         verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
-        verify(response, timeout(1000).times(1)).end(new JsonObject().put("cleared", 99L).encode());
+        verify(response, timeout(1000).times(1)).end(bufferFromJson(new JsonObject().put("cleared", 99L)));
         context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
     }
 
@@ -247,7 +252,7 @@ public class CacheHandlerTest {
 
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
         verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
-        verify(response, timeout(1000).times(1)).end(new JsonObject().put("count", 15L).encode());
+        verify(response, timeout(1000).times(1)).end(bufferFromJson(new JsonObject().put("count", 15L)));
         context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
     }
 
@@ -262,7 +267,7 @@ public class CacheHandlerTest {
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
         verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
 
-        ArgumentCaptor<String> argumentCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Buffer> argumentCaptor = ArgumentCaptor.forClass(Buffer.class);
         verify(response, timeout(1000).times(1)).end(argumentCaptor.capture());
 
         JsonArray entries = new JsonObject(argumentCaptor.getValue()).getJsonArray("entries");
@@ -284,7 +289,7 @@ public class CacheHandlerTest {
 
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
         verify(response, times(1)).setStatusMessage(StatusCode.OK.getStatusMessage());
-        verify(response, timeout(1000).times(1)).end(new JsonObject().put("entries", new JsonArray()).encode());
+        verify(response, timeout(1000).times(1)).end(bufferFromJson(new JsonObject().put("entries", new JsonArray())));
         context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
     }
 

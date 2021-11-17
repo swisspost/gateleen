@@ -3,9 +3,8 @@ package org.swisspush.gateleen.cache.storage;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.DecodeException;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
 import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,34 +76,28 @@ public class RedisCacheStorage implements CacheStorage {
     }
 
     @Override
-    public Future<Void> cacheRequest(String cacheIdentifier, JsonObject cachedObject, Duration cacheExpiry) {
+    public Future<Void> cacheRequest(String cacheIdentifier, Buffer cachedObject, Duration cacheExpiry) {
         Future<Void> future = Future.future();
         List<String> keys = Collections.singletonList(CACHED_REQUESTS);
-        List<String> arguments = List.of(CACHE_PREFIX, cacheIdentifier, cachedObject.encode(), String.valueOf(cacheExpiry.toMillis()));
+        List<String> arguments = List.of(CACHE_PREFIX, cacheIdentifier, cachedObject.toString(), String.valueOf(cacheExpiry.toMillis()));
         CacheRequestRedisCommand cmd = new CacheRequestRedisCommand(cacheRequestLuaScriptState, keys, arguments, redisClient, log, future);
         cmd.exec(0);
         return future;
     }
 
     @Override
-    public Future<Optional<JsonObject>> cachedRequest(String cacheIdentifier) {
-        Future<Optional<JsonObject>> future = Future.future();
+    public Future<Optional<Buffer>> cachedRequest(String cacheIdentifier) {
+        Future<Optional<Buffer>> future = Future.future();
         redisClient.get(CACHE_PREFIX + cacheIdentifier, event -> {
             if (event.failed()) {
                 String message = "Failed to get cached request '" + cacheIdentifier + "'. Cause: " + logCause(event);
                 log.error(message);
                 future.fail(message);
             } else {
-                if (event.result() == null) {
+                if (event.result() != null) {
+                    future.complete(Optional.of(Buffer.buffer(event.result())));
+                } else {
                     future.complete(Optional.empty());
-                    return;
-                }
-
-                try {
-                    future.complete(Optional.of(new JsonObject(event.result())));
-                } catch (DecodeException ex) {
-                    log.error("Failed to decode cached request", ex);
-                    future.fail(ex);
                 }
             }
         });

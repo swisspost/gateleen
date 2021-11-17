@@ -2,6 +2,7 @@ package org.swisspush.gateleen.cache.storage;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -73,6 +74,10 @@ public class RedisCacheStorageTest {
         }
     }
 
+    private Buffer bufferFromJson(JsonObject jsonObject) {
+        return Buffer.buffer(jsonObject.encode());
+    }
+
     private String jsonObjectStr(String value) {
         return jsonObject(value).encode();
     }
@@ -92,7 +97,7 @@ public class RedisCacheStorageTest {
         context.assertFalse(jedis.exists(CACHED_REQUESTS));
         context.assertFalse(jedis.exists(resourceKey));
 
-        redisCacheStorage.cacheRequest(resourceName, new JsonObject().put("foo", "bar"), Duration.ofMillis(500)).setHandler(event -> {
+        redisCacheStorage.cacheRequest(resourceName, bufferFromJson(new JsonObject().put("foo", "bar")), Duration.ofMillis(500)).setHandler(event -> {
             context.assertTrue(event.succeeded());
 
             context.assertTrue(jedis.sismember(CACHED_REQUESTS, resourceName));
@@ -117,7 +122,7 @@ public class RedisCacheStorageTest {
         context.assertFalse(jedis.exists(CACHED_REQUESTS));
         context.assertFalse(jedis.exists(resourceKey));
 
-        redisCacheStorage.cacheRequest(resourceName, new JsonObject().put("foo", "bar"), Duration.ofMillis(500)).setHandler(event -> {
+        redisCacheStorage.cacheRequest(resourceName, bufferFromJson(new JsonObject().put("foo", "bar")), Duration.ofMillis(500)).setHandler(event -> {
             context.assertTrue(event.succeeded());
 
             context.assertTrue(jedis.sismember(CACHED_REQUESTS, resourceName));
@@ -126,7 +131,7 @@ public class RedisCacheStorageTest {
             context.assertEquals(new JsonObject().put("foo", "bar").encode(), jedis.get(resourceKey));
 
             // replace cache entry
-            redisCacheStorage.cacheRequest(resourceName, new JsonObject().put("foo", "not bar"), Duration.ofMillis(800)).setHandler(event2 -> {
+            redisCacheStorage.cacheRequest(resourceName, bufferFromJson(new JsonObject().put("foo", "not bar")), Duration.ofMillis(800)).setHandler(event2 -> {
                 context.assertTrue(event2.succeeded());
 
                 context.assertTrue(jedis.sismember(CACHED_REQUESTS, resourceName));
@@ -181,7 +186,7 @@ public class RedisCacheStorageTest {
 
         redisCacheStorage.cachedRequest("cache_item_2").setHandler(event -> {
             context.assertTrue(event.succeeded());
-            context.assertEquals(Optional.of(jsonObject("payload_2")), event.result());
+            context.assertEquals(Optional.of(bufferFromJson(jsonObject("payload_2"))), event.result());
 
             redisCacheStorage.cachedRequest("cache_item_99").setHandler(event1 -> {
                 context.assertTrue(event1.succeeded());

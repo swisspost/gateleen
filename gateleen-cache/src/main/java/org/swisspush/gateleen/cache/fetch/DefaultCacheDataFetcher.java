@@ -2,11 +2,10 @@ package org.swisspush.gateleen.cache.fetch;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.json.DecodeException;
-import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.Result;
@@ -27,8 +26,8 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
     }
 
     @Override
-    public Future<Result<JsonObject, StatusCode>> fetchData(final String requestUri, MultiMap requestHeaders, long requestTimeoutMs) {
-        Future<Result<JsonObject, StatusCode>> future = Future.future();
+    public Future<Result<Buffer, StatusCode>> fetchData(final String requestUri, MultiMap requestHeaders, long requestTimeoutMs) {
+        Future<Result<Buffer, StatusCode>> future = Future.future();
 
         requestHeaders.remove(CACHE_CONTROL_HEADER);
 
@@ -44,12 +43,7 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
                         return;
                     }
 
-                    try {
-                        future.complete(Result.ok(new JsonObject(data)));
-                    } catch (DecodeException ex) {
-                        log.warn("Error while parsing fetched cache data", ex);
-                        future.complete(Result.err(StatusCode.INTERNAL_SERVER_ERROR));
-                    }
+                    future.complete(Result.ok(data));
                 } else {
                     StatusCode statusCode = StatusCode.fromCode(cRes.statusCode());
                     if(statusCode == null) {

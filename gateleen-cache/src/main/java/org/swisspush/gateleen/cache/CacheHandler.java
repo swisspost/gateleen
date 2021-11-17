@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.cache;
 
 import com.google.common.base.Splitter;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
@@ -32,7 +33,7 @@ public class CacheHandler {
     private static final String NO_CACHE = "no-cache";
     private static final String MAX_AGE = "max-age=";
     private static final String MAX_AGE_ZERO = MAX_AGE + "0";
-    private static final int TIMEOUT = 30000;
+    private static final int TIMEOUT_MS = 30000;
     private final Logger log = LoggerFactory.getLogger(CacheHandler.class);
 
     private final CacheDataFetcher dataFetcher;
@@ -47,11 +48,11 @@ public class CacheHandler {
 
     public boolean handle(final HttpServerRequest request) {
         if (request.uri().startsWith(cacheAdminUri)) {
-            if(request.uri().equals(cacheAdminUri + "/clear") && HttpMethod.POST == request.method()) {
+            if(HttpMethod.POST == request.method() && request.uri().equals(cacheAdminUri + "/clear")) {
                 handleClearCache(request);
-            } else if (request.uri().equals(cacheAdminUri + "/count") && HttpMethod.GET == request.method()) {
+            } else if (HttpMethod.GET == request.method() && request.uri().equals(cacheAdminUri + "/count")) {
                 handleCacheCount(request);
-            } else if (request.uri().equals(cacheAdminUri + "/entries") && HttpMethod.GET == request.method()) {
+            } else if (HttpMethod.GET == request.method() && request.uri().equals(cacheAdminUri + "/entries")) {
                 handleCacheEntries(request);
             } else {
                 respondWith(StatusCode.METHOD_NOT_ALLOWED, request);
@@ -79,7 +80,7 @@ public class CacheHandler {
                 return;
             }
 
-            Optional<JsonObject> cachedRequest = event.result();
+            Optional<Buffer> cachedRequest = event.result();
             if(cachedRequest.isPresent()) {
                 log.debug("Request to {} found in cache storage", request.uri());
                 respondWithPayload(request, cachedRequest.get());
@@ -93,20 +94,20 @@ public class CacheHandler {
 
     private void updateCacheAndRespond(final HttpServerRequest request, String cacheIdentifier, Long expireMs){
         log.debug("Request to {} not found in cache storage, going to fetch it.", request.uri());
-        dataFetcher.fetchData(request.uri(), request.headers(), TIMEOUT).setHandler(event -> {
+        dataFetcher.fetchData(request.uri(), request.headers(), TIMEOUT_MS).setHandler(event -> {
             if(event.failed()) {
                 log.warn("Failed to fetch data from request", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
                 return;
             }
 
-            Result<JsonObject, StatusCode> result = event.result();
+            Result<Buffer, StatusCode> result = event.result();
             if(result.isErr()) {
                 respondWith(result.err(), request);
                 return;
             }
 
-            JsonObject fetchedData = result.ok();
+            Buffer fetchedData = result.ok();
             cacheStorage.cacheRequest(cacheIdentifier, fetchedData, Duration.ofMillis(expireMs)).setHandler(event1 -> {
                 if (event1.failed()){
                     log.warn("Failed to store request to cache", event1.cause());
@@ -145,7 +146,7 @@ public class CacheHandler {
 
         String headerValue = headerValues.get(0);
         try {
-            Long expireSeconds = Long.valueOf(headerValue);
+            long expireSeconds = Long.parseLong(headerValue);
             return Optional.of(expireSeconds * 1000);
         } catch (NumberFormatException ex) {
             log.warn("Value of Cache-Control max-age header is not a number: {}", headerValue);
@@ -163,7 +164,7 @@ public class CacheHandler {
             Long clearedCount = event.result();
             log.debug("Cleared {} cache entries", clearedCount);
             JsonObject clearedObj = new JsonObject().put("cleared", clearedCount);
-            respondWithPayload(request, clearedObj);
+            respondWithPayload(request, Buffer.buffer(clearedObj.encode()));
         });
     }
 
@@ -180,8 +181,8 @@ public class CacheHandler {
             for (String cachedEntry : cachedEntries) {
                 entriesArray.add(cachedEntry);
             }
-            JsonObject clearedObj = new JsonObject().put("entries", entriesArray);
-            respondWithPayload(request, clearedObj);
+            JsonObject entriesObj = new JsonObject().put("entries", entriesArray);
+            respondWithPayload(request, Buffer.buffer(entriesObj.encode()));
         });
     }
 
@@ -195,7 +196,7 @@ public class CacheHandler {
             Long count = event.result();
             log.debug("{} entries in cache", count);
             JsonObject clearedObj = new JsonObject().put("count", count);
-            respondWithPayload(request, clearedObj);
+            respondWithPayload(request, Buffer.buffer(clearedObj.encode()));
         });
     }
 
@@ -207,12 +208,12 @@ public class CacheHandler {
         request.resume();
     }
 
-    private void respondWithPayload(final HttpServerRequest request, JsonObject cachedRequestPayload) {
+    private void respondWithPayload(final HttpServerRequest request, Buffer cachedRequestPayload) {
         ResponseStatusCodeLogUtil.info(request, StatusCode.OK, CacheHandler.class);
         request.response().setStatusCode(StatusCode.OK.getStatusCode());
         request.response().setStatusMessage(StatusCode.OK.getStatusMessage());
         request.response().headers().add(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
-        request.response().end(cachedRequestPayload.encode());
+        request.response().end(cachedRequestPayload);
         request.resume();
     }
 }
