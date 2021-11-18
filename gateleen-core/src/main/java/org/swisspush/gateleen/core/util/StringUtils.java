@@ -211,19 +211,21 @@ public final class StringUtils {
      * @return the String with replaced wildcard values. Returns the input String when input String or
      * properties are <code>null</code>
      */
-    private static synchronized String replacePlainStringWildcardConfigs(String contentWithWildcards,
+    private static String replacePlainStringWildcardConfigs(String contentWithWildcards,
         Map<String, Object> properties) {
         if (properties == null || contentWithWildcards == null) {
             return contentWithWildcards;
         }
         /*
-         * Note that this Engine is meant to be thread safe but it actually isn't because the TokenStream used by
-         * the Engine uses a MiniParser which in turn is not thread, see:
+         * Note that the Engine is meant to be thread safe but it actually isn't because the TokenStream used by
+         * the Engine uses a MiniParser which in turn is not thread safe, see:
          * https://github.com/HubSpot/jmte/blob/a1177fd89858ef55bb1d92acb4b1bb78bb7cac25/src/com/floreysoft/jmte/token/TokenStream.java#L39
          * Hence we synchronize access in this method.
          */
-        Engine engine = new Engine();
-        return wildcardReplacementEngineIgnition(engine, contentWithWildcards, properties);
+        synchronized (Engine.class) {
+            Engine engine = new Engine();
+            return wildcardReplacementEngineIgnition(engine, contentWithWildcards, properties);
+       }
     }
 
     /**
@@ -246,7 +248,7 @@ public final class StringUtils {
      * @return the String with replaced wildcard values. Returns the input String when input String or
      * properties are <code>null</code>
      */
-    private static synchronized String replaceJsonNonStringAttributeWildcardConfigs(String contentWithWildcards, Map<String, Object> properties) {
+    private static String replaceJsonNonStringAttributeWildcardConfigs(String contentWithWildcards, Map<String, Object> properties) {
         if (properties == null || contentWithWildcards == null) {
             return contentWithWildcards;
         }
@@ -255,20 +257,22 @@ public final class StringUtils {
             return contentWithWildcards;
         }
         /*
-         * Note that this Engine is meant to be thread safe but it actually isn't because the TokenStream used by
+         * Note that the Engine is meant to be thread safe but it actually isn't because the TokenStream used by
          * the Engine uses a MiniParser which in turn is not thread safe, see:
          * https://github.com/HubSpot/jmte/blob/a1177fd89858ef55bb1d92acb4b1bb78bb7cac25/src/com/floreysoft/jmte/token/TokenStream.java#L39
          * Hence we synchronize access in this method.
          */
-        Engine engine = new Engine();
-        engine.setExprStartToken(JSON_NUMERIC_START_TOKEN);
-        engine.setExprEndToken(JSON_NUMERIC_END_TOKEN);
-        String contentWithoutWildcards = wildcardReplacementEngineIgnition(engine, contentWithWildcards, properties);
-        // Note: due to the implicit string conversions of Java we just lost our escapes here and we must add
-        //       it again in order to have it prepared for the standard variable replacement.
-        //       Therefore we extend it again from two Backslash
-        //       to four backslash where it applies:  "rule/\\.txt"  -> "rule/\\\\.txt"
-        return contentWithoutWildcards.replaceAll("\\\\","\\\\\\\\");
+        synchronized (Engine.class) {
+            Engine engine = new Engine();
+            engine.setExprStartToken(JSON_NUMERIC_START_TOKEN);
+            engine.setExprEndToken(JSON_NUMERIC_END_TOKEN);
+            String contentWithoutWildcards = wildcardReplacementEngineIgnition(engine, contentWithWildcards, properties);
+            // Note: due to the implicit string conversions of Java we just lost our escapes here and we must add
+            //       it again in order to have it prepared for the standard variable replacement.
+            //       Therefore we extend it again from two Backslash
+            //       to four backslash where it applies:  "rule/\\.txt"  -> "rule/\\\\.txt"
+            return contentWithoutWildcards.replaceAll("\\\\","\\\\\\\\");
+        }
     }
 
     /**
