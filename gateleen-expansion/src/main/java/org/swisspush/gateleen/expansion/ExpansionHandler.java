@@ -96,6 +96,7 @@ public class ExpansionHandler implements RuleChangesObserver{
     private int maxExpansionLevelHard = Integer.MAX_VALUE;
 
     private final Vertx vertx;
+    private final SlicedLoopFactory slicedLoopFactory;
     private HttpClient httpClient;
     private Map<String, Object> properties;
     private String serverRoot;
@@ -116,6 +117,14 @@ public class ExpansionHandler implements RuleChangesObserver{
     private RuleFeaturesProvider ruleFeaturesProvider = new RuleFeaturesProvider(new ArrayList<>());
 
     /**
+     * @deprecated For backward compatibility only. Use other constructor instead.
+     */
+    @Deprecated
+    public ExpansionHandler(Vertx vertx, final ResourceStorage storage, HttpClient httpClient, final Map<String, Object> properties, String serverRoot, final String rulesPath) {
+        this(vertx, storage, httpClient, new SlicedLoopFactory(vertx, new DeferredReactorEnqueue(vertx)), properties, serverRoot, rulesPath);
+    }
+
+    /**
      * Creates a new instance of the ExpansionHandler.
      *
      * @param vertx vertx
@@ -125,8 +134,9 @@ public class ExpansionHandler implements RuleChangesObserver{
      * @param serverRoot serverRoot
      * @param rulesPath rulesPath
      */
-    public ExpansionHandler(Vertx vertx, final ResourceStorage storage, HttpClient httpClient, final Map<String, Object> properties, String serverRoot, final String rulesPath) {
+    public ExpansionHandler(Vertx vertx, final ResourceStorage storage, HttpClient httpClient, SlicedLoopFactory slicedLoopFactory, final Map<String, Object> properties, String serverRoot, final String rulesPath) {
         this.vertx = vertx;
+        this.slicedLoopFactory = slicedLoopFactory;
         this.httpClient = httpClient;
         this.properties = properties;
         this.serverRoot = serverRoot;
@@ -694,7 +704,7 @@ public class ExpansionHandler implements RuleChangesObserver{
                 if(isStorageExpand(targetUri)){
                     makeStorageExpandRequest(targetUri, subResourceNames, req, handler);
                 } else {
-                    new SlicedLoop<>(vertx, req.uri(), subResourceNames.iterator(), new Destination<>() {
+                    slicedLoopFactory.slicedLoop(req.uri(), subResourceNames.iterator(), new Destination<>() {
                         @Override public void onNext(String childResourceName) {
                             log.trace("processing child resource: {}", childResourceName);
 
@@ -706,6 +716,9 @@ public class ExpansionHandler implements RuleChangesObserver{
                         }
                         @Override public void onEnd() {
                             log.debug("onEnd()");
+                        }
+                        @Override public void onError(RuntimeException e) {
+                            log.error("Failed to serve expansion request: {}", req.uri(), e);
                         }
                     }).resume();
                 }
