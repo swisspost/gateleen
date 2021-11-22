@@ -16,6 +16,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import org.swisspush.gateleen.cache.CacheHandler;
+import org.swisspush.gateleen.cache.fetch.CacheDataFetcher;
+import org.swisspush.gateleen.cache.fetch.DefaultCacheDataFetcher;
+import org.swisspush.gateleen.cache.storage.CacheStorage;
+import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
@@ -101,6 +106,8 @@ public class Server extends AbstractVerticle {
     private HttpServer mainServer;
     private RedisClient redisClient;
     private ResourceStorage storage;
+    private CacheStorage cacheStorage;
+    private CacheDataFetcher cacheDataFetcher;
     private Authorizer authorizer;
     private Router router;
 
@@ -133,6 +140,7 @@ public class Server extends AbstractVerticle {
     private KafkaHandler kafkaHandler;
     private CustomHttpResponseHandler customHttpResponseHandler;
     private ContentTypeConstraintHandler contentTypeConstraintHandler;
+    private CacheHandler cacheHandler;
 
     public static void main(String[] args) {
         Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event ->
@@ -182,6 +190,12 @@ public class Server extends AbstractVerticle {
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
 
+                Lock lock = new RedisBasedLock(redisClient);
+
+                cacheStorage = new RedisCacheStorage(vertx, lock, redisClient, 20 * 1000);
+                cacheDataFetcher = new DefaultCacheDataFetcher(selfClient);
+                cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
+
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 qosHandler.enableResourceLogging(true);
 
@@ -216,8 +230,6 @@ public class Server extends AbstractVerticle {
 
                 roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 roleProfileHandler.enableResourceLogging(true);
-
-                Lock lock = new RedisBasedLock(redisClient);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
                 reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient),
@@ -296,6 +308,7 @@ public class Server extends AbstractVerticle {
                         .authorizer(authorizer)
                         .validationResourceManager(validationResourceManager)
                         .validationHandler(validationHandler)
+                        .cacheHandler(cacheHandler)
                         .corsHandler(corsHandler)
                         .deltaHandler(deltaHandler)
                         .expansionHandler(expansionHandler)
