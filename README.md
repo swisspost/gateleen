@@ -85,10 +85,11 @@ mvn install -PnonUiIntegrationTests
 
 ## Modules
 
-| Module                                                                         | Description                              |
-|:---------------------------------------------------------------------------------:| ---------------------------------------- |
+| Module                                                                   | Description                              |
+|:------------------------------------------------------------------------:| ---------------------------------------- |
 | [core](gateleen-core/README_core.md)                                     | HTTP infrastructure and hierarchical resource storage that can be used as cache, intermediate storage for backend-pushed data, user and apps data |
-| [delegate](gateleen-delegate/README_delegate.md)                                  | With the delegate feature a client is able to delegate requests to perform prespecified tasks.  |
+| [cache](gateleen-cache/README_cache.md)                                  | Cache JSON responses locally to reduce load on backends and increase performance. |
+| [delegate](gateleen-delegate/README_delegate.md)                         | With the delegate feature a client is able to delegate requests to perform prespecified tasks.  |
 | [delta](gateleen-delta/README_delta.md)                                  | Traffic optimization allowing clients to fetch only data that actually changed from the last time they fetched it  |
 | [expansion](gateleen-expansion/README_expansion.md)                      | Traffic optimization allowing clients to fetch a sub-tree of data in one request instead of many requests |
 | [hook](gateleen-hook/README_hook.md)                                     | Server push and callback support allowing backends to push data to clients and be notified when data is pushed by clients |
