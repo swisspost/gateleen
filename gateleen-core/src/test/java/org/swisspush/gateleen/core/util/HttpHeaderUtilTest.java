@@ -6,6 +6,8 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.regex.Pattern;
+
 
 @RunWith(VertxUnitRunner.class)
 public class HttpHeaderUtilTest {
@@ -60,6 +62,23 @@ public class HttpHeaderUtilTest {
 
     }
 
+    @Test
+    public void hasMatchingHeaderTest(TestContext testContext) {
 
+        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        headers.add("dummy-header", "123");
+        headers.add("even-more-dummy-header", "anyvalue");
+        headers.add("host", "host:1234");
+
+        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("x-foo")));
+
+        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header")));
+        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: 124")));
+        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: [0-9]{2}")));
+
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header.*")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: 123")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: (123|999)")));
+    }
 
 }

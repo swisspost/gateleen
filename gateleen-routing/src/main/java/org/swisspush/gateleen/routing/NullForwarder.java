@@ -4,6 +4,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.ext.web.RoutingContext;
@@ -11,6 +12,8 @@ import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -37,9 +40,20 @@ public class NullForwarder implements Handler<RoutingContext> {
 
     @Override
     public void handle(final RoutingContext ctx) {
+        final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
+
+        if(rule.getHeadersFilterPattern() != null){
+            log.debug("Looking for request headers with pattern {}", rule.getHeadersFilterPattern().pattern());
+            boolean matchFound = HttpHeaderUtil.hasMatchingHeader(ctx.request().headers(), rule.getHeadersFilterPattern());
+            if(!matchFound){
+                log.info("No request headers found. Request will not be forwarded but responded with {}", StatusCode.BAD_REQUEST);
+                respondError(ctx.request(), StatusCode.BAD_REQUEST);
+                return;
+            }
+        }
+
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), eventBus);
-        final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
         log.debug("Not forwarding request: {} with rule {}", ctx.request().uri(), rule.getRuleIdentifier());
         final VertxHttpHeaders requestHeaders = new VertxHttpHeaders();
         requestHeaders.addAll(ctx.request().headers());
@@ -80,5 +94,20 @@ public class NullForwarder implements Handler<RoutingContext> {
         });
 
         ctx.response().end();
+    }
+
+    private void respondError(HttpServerRequest req, StatusCode statusCode) {
+        try {
+            ResponseStatusCodeLogUtil.info(req, statusCode, NullForwarder.class);
+
+            String msg = statusCode.getStatusMessage();
+            req.response()
+                    .setStatusCode(statusCode.getStatusCode())
+                    .setStatusMessage(msg)
+                    .end(msg);
+        } catch (IllegalStateException ex) {
+            // (nearly) ignore because underlying connection maybe already closed
+            RequestLoggerFactory.getLogger(Forwarder.class, req).info("IllegalStateException while sending error response for {}", req.uri(), ex);
+        }
     }
 }

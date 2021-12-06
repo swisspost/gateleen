@@ -8,6 +8,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import io.vertx.core.json.JsonArray;
@@ -20,6 +21,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonMultiMap;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LoggingHandler;
@@ -58,6 +60,17 @@ public class StorageForwarder implements Handler<RoutingContext> {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), this.eventBus);
         final String targetUri = urlPattern.matcher(ctx.request().uri()).replaceAll(rule.getPath()).replaceAll("\\/\\/", "/");
         final Logger log = RequestLoggerFactory.getLogger(StorageForwarder.class, ctx.request());
+
+        if(rule.getHeadersFilterPattern() != null){
+            log.debug("Looking for request headers with pattern {}", rule.getHeadersFilterPattern().pattern());
+            boolean matchFound = HttpHeaderUtil.hasMatchingHeader(ctx.request().headers(), rule.getHeadersFilterPattern());
+            if(!matchFound){
+                log.info("No request headers found. Request will not be forwarded but responded with {}", StatusCode.BAD_REQUEST);
+                respondError(ctx.request(), StatusCode.BAD_REQUEST);
+                return;
+            }
+        }
+
         monitoringHandler.updateRequestsMeter("localhost", ctx.request().uri());
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), ctx.request().uri());
@@ -160,4 +173,20 @@ public class StorageForwarder implements Handler<RoutingContext> {
             headers.set("x-rp-unique-id", uid);
         }
     }
+
+    private void respondError(HttpServerRequest req, StatusCode statusCode) {
+        try {
+            ResponseStatusCodeLogUtil.info(req, statusCode, NullForwarder.class);
+
+            String msg = statusCode.getStatusMessage();
+            req.response()
+                    .setStatusCode(statusCode.getStatusCode())
+                    .setStatusMessage(msg)
+                    .end(msg);
+        } catch (IllegalStateException ex) {
+            // (nearly) ignore because underlying connection maybe already closed
+            RequestLoggerFactory.getLogger(Forwarder.class, req).info("IllegalStateException while sending error response for {}", req.uri(), ex);
+        }
+    }
+
 }

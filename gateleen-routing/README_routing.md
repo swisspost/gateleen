@@ -82,4 +82,25 @@ with a http status code 503
     }
 }
 ```
- 
+
+## Apply routing rules based on request headers
+Routing rules are applied to requests based on the request url and the http method. By defining the _headersFilter_ property, you are able to also apply a routing rule based on request headers.
+
+Examples:
+```json
+{
+    "/gateleen/server/rule/1/(.*)": {
+        "headersFilter": "x-foo.*",
+        "url": "http://localhost/some/backend/path/$1"
+    },
+    "/gateleen/server/rule/2/(.*)": {
+        "headersFilter": "x-foo: (A|B|C)",
+        "url": "http://localhost/some/backend/path/$1"
+    },
+    "/gateleen/server/rule/3/(.*)": {
+        "headersFilter": "x-foo: [0-9]{3}",
+        "url": "http://localhost/some/backend/path/$1"
+    }
+}
+```
+Each request header entry is validated in the format `<KEY>: <VALUE>`, so you are able to filter for request header names and values.

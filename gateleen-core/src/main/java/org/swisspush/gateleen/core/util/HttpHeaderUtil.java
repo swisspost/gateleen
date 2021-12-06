@@ -1,7 +1,10 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
+
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -52,6 +55,24 @@ public class HttpHeaderUtil {
             }
         }
         return null;
+    }
+
+    /**
+     * Helper method to check the presence of a http header matching the provided pattern. Every header entry is checked
+     * in the format KEY: VALUE
+     *
+     * @param headers   The Map with the header key - value pairs to be evaluated
+     * @param headersPattern The pattern to match the headers against.
+     * @return True if a matching header was found, false otherwise
+     */
+    public static <T extends MultiMap> boolean hasMatchingHeader(@Nonnull T headers, @Nonnull Pattern headersPattern) {
+        for (Map.Entry<String, String> entry : headers) {
+            String header = entry.getKey() + ": " + entry.getValue();
+            if(headersPattern.matcher(header).matches()){
+                return true;
+            }
+        }
+        return false;
     }
 
 }

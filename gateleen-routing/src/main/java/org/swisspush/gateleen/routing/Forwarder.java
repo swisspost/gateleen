@@ -121,6 +121,17 @@ public class Forwarder implements Handler<RoutingContext> {
      */
     public void handle(final HttpServerRequest req, final Buffer bodyData) {
         final Logger log = RequestLoggerFactory.getLogger(Forwarder.class, req);
+
+        if(rule.getHeadersFilterPattern() != null){
+            log.debug("Looking for request headers with pattern {}", rule.getHeadersFilterPattern().pattern());
+            boolean matchFound = HttpHeaderUtil.hasMatchingHeader(req.headers(), rule.getHeadersFilterPattern());
+            if(!matchFound){
+                log.info("No request headers found. Request will not be forwarded but responded with {}", StatusCode.BAD_REQUEST);
+                respondError(req, StatusCode.BAD_REQUEST);
+                return;
+            }
+        }
+
         if(rule.hasPortWildcard()){
             String dynamicPortStr = null;
             try {
@@ -226,7 +237,7 @@ public class Forwarder implements Handler<RoutingContext> {
         final HttpClientRequest cReq = prepareRequest(req, targetUri, log, profileHeaderMap, loggingHandler, startTime);
 
         if (timeout != null) {
-            cReq.setTimeout(Long.valueOf(timeout));
+            cReq.setTimeout(Long.parseLong(timeout));
         } else {
             cReq.setTimeout(rule.getTimeout());
         }

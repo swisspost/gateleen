@@ -16,9 +16,9 @@ public class RegexpValidator {
      * @throws ValidationException
      *      Thrown in case there was a problem compiling passed pattern.
      */
-    public static void throwIfPatternInvalid( String pattern ) throws ValidationException {
+    public static Pattern throwIfPatternInvalid( String pattern ) throws ValidationException {
         try{
-            Pattern.compile( pattern );
+            return Pattern.compile( pattern );
         }catch( PatternSyntaxException e ){
             throw new ValidationException( "Failed to parse regex pattern '"+pattern+"'." , e );
         }
