@@ -40,17 +40,14 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
  *
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class Forwarder implements Handler<RoutingContext> {
+public class Forwarder extends AbstractForwarder {
 
     private String userProfilePath;
     private HttpClient client;
     private Pattern urlPattern;
     private String target;
     private int port;
-    private Rule rule;
     private String base64UsernamePassword;
-    private LoggingResourceManager loggingResourceManager;
-    private MonitoringHandler monitoringHandler;
     private ResourceStorage storage;
     private Vertx vertx;
 
@@ -64,12 +61,12 @@ public class Forwarder implements Handler<RoutingContext> {
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
 
-    public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath) {
+    public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage,
+                     LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                     String userProfilePath) {
+        super(rule, loggingResourceManager, monitoringHandler);
         this.vertx = vertx;
         this.client = client;
-        this.rule = rule;
-        this.loggingResourceManager = loggingResourceManager;
-        this.monitoringHandler = monitoringHandler;
         this.storage = storage;
         this.urlPattern = Pattern.compile(rule.getUrlPattern());
         this.target = rule.getHost() + ":" + rule.getPort();
@@ -122,14 +119,8 @@ public class Forwarder implements Handler<RoutingContext> {
     public void handle(final HttpServerRequest req, final Buffer bodyData) {
         final Logger log = RequestLoggerFactory.getLogger(Forwarder.class, req);
 
-        if(rule.getHeadersFilterPattern() != null){
-            log.debug("Looking for request headers with pattern {}", rule.getHeadersFilterPattern().pattern());
-            boolean matchFound = HttpHeaderUtil.hasMatchingHeader(req.headers(), rule.getHeadersFilterPattern());
-            if(!matchFound){
-                log.info("No request headers found. Request will not be forwarded but responded with {}", StatusCode.BAD_REQUEST);
-                respondError(req, StatusCode.BAD_REQUEST);
-                return;
-            }
+        if (handleHeadersFilter(req)) {
+            return;
         }
 
         if(rule.hasPortWildcard()){
@@ -469,21 +460,6 @@ public class Forwarder implements Handler<RoutingContext> {
                 unpump.run();
             });
         });
-    }
-
-    private void respondError(HttpServerRequest req, StatusCode statusCode) {
-        try {
-            ResponseStatusCodeLogUtil.info(req, statusCode, Forwarder.class);
-
-            String msg = statusCode.getStatusMessage();
-            req.response()
-                    .setStatusCode(statusCode.getStatusCode())
-                    .setStatusMessage(msg)
-                    .end(msg);
-        } catch (IllegalStateException ex) {
-            // (nearly) ignore because underlying connection maybe already closed
-            RequestLoggerFactory.getLogger(Forwarder.class, req).info("IllegalStateException while sending error response for {}", req.uri(), ex);
-        }
     }
 
     private void error(String message, HttpServerRequest request, String uri) {
