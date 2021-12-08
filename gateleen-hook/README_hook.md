@@ -27,6 +27,7 @@ Adding hooks requires a validation against a schema to be positive. Check the sc
 | *expireAfter*      | no  | *DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead* |
 | staticHeaders      | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
 | headers            | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)|
+| headersFilter      | no  | A regular expression to define which requests headers must be present for the route to be used. Each request header entry is validated in the format `<KEY>: <VALUE>`, so you are able to filter for request header names and values.|
 | collection         | no  | This property specifies if the given URL is a resource or a collection. If this property is not set, the default is true (collection). |
 | listable           | no  | This property specifies if a route is listed if a GET is performed on its parent or not. The default is false or set by the value passed during the initialization. | 
 | translateStatus    | no  | This property defines a mapping to translate http respond status values. | 
@@ -44,7 +45,8 @@ To change the expiration time of a route, just pass a _X-Expire-After_ header wi
 PUT /<url>/<resource>/_hooks/route
 {
     "destination": "http://<url>/<target>",
-    "methods": []
+    "methods": [],
+    "headersFilter": "x-foo: (A|B)"
 }
 ```
 #### Remove a route
@@ -141,6 +143,7 @@ GET http://myserver:7012/gateleen/example/
 | queueExpireAfter  | no  | A copied and forwarded request to a listener is always putted into a queue. To ensure to have an expiration time for each request within the given listener queue, you can set a default value (in seconds) with this property. This way you can prevent a queue overflow. The property will only be used for requests, which doesn’t have a _x-queue-expire-after_ header. |
 | staticHeaders     | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones! |
 | headers           | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)|
+| headersFilter     | no  | A regular expression to define which requests headers must be present for the listener to be used. Each request header entry is validated in the format `<KEY>: <VALUE>`, so you are able to filter for request header names and values.|
 | filter            | no  | This property allows you to refine the requests with a regular expression, which you want to receive for the given destination. |
 | type              | no  | Default: before <br> This property allows you to set, if the request to a listener will be sent before or after the original request was performed.<br /> <br /> The valid settings are: <br /> after => request will be forwarded to listener after the original request was performed <br /><br />before => (default) request will be forwarded to a listener before the original request was performed <br /> <br /> This can be useful if you want to use your listeners with the delegate feature and expect a request to be already executed as soon as you execute a delegate. |  
 | fullUrl           | no  | Default: false <br> <br /> Defines whether the hook forwards using the full initial url or only the appendix <br/><br/> Example: <br/><br/> hooked url = http://a/b/c <br/> request.uri() = http://a/b/c/d/e.x <br/> url appendix = /d/e.x |
@@ -161,7 +164,8 @@ PUT http://myserver:7012/gateleen/everything/_hooks/listeners/http/myexample
     "filter": "/gateleen/everything/.*/position.*",
     "headers": [
         { "header":"X-Expire-After", "value":"3600", mode:"complete"}
-    ]    
+    ],
+    "headersFilter": "x-foo: (A|B)"
 }
 ```
 

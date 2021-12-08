@@ -34,6 +34,8 @@ import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Rule;
+import org.swisspush.gateleen.validation.RegexpValidator;
+import org.swisspush.gateleen.validation.ValidationException;
 
 import java.net.URL;
 import java.util.*;
@@ -77,9 +79,10 @@ public class HookHandler implements LoggableResource {
     public static final String EXPIRATION_TIME = "expirationTime";
     public static final String HOOK = "hook";
     public static final String TRANSLATE_STATUS = "translateStatus";
-    public static final String METHODS  = "methods";
-    public static final String DESTINATION  = "destination";
-    public static final String FILTER  = "filter";
+    public static final String METHODS = "methods";
+    public static final String HEADERS_FILTER = "headersFilter";
+    public static final String DESTINATION = "destination";
+    public static final String FILTER = "filter";
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
@@ -93,110 +96,110 @@ public class HookHandler implements LoggableResource {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private Vertx vertx;
+    private final Vertx vertx;
     private final ResourceStorage userProfileStorage;
     private final ResourceStorage hookStorage;
-    private MonitoringHandler monitoringHandler;
-    private LoggingResourceManager loggingResourceManager;
+    private final MonitoringHandler monitoringHandler;
+    private final LoggingResourceManager loggingResourceManager;
     private final HttpClient selfClient;
-    private String userProfilePath;
-    private String hookRootUri;
-    private boolean listableRoutes;
-    private ListenerRepository listenerRepository;
-    private RouteRepository routeRepository;
-    private RequestQueue requestQueue;
+    private final String userProfilePath;
+    private final String hookRootUri;
+    private final boolean listableRoutes;
+    private final ListenerRepository listenerRepository;
+    private final RouteRepository routeRepository;
+    private final RequestQueue requestQueue;
 
-    private ReducedPropagationManager reducedPropagationManager;
+    private final ReducedPropagationManager reducedPropagationManager;
 
     private boolean logHookConfigurationResourceChanges = false;
 
-    private Handler<Void> doneHandler;
+    private final Handler<Void> doneHandler;
 
     private final JsonSchema jsonSchemaHook;
 
 
     /**
      * Creates a new HookHandler.
-     * 
-     * @param vertx vertx
-     * @param selfClient selfClient
-     * @param storage storage
+     *
+     * @param vertx                  vertx
+     * @param selfClient             selfClient
+     * @param storage                storage
      * @param loggingResourceManager loggingResourceManager
-     * @param monitoringHandler monitoringHandler
-     * @param userProfilePath userProfilePath
-     * @param hookRootUri hookRootUri
+     * @param monitoringHandler      monitoringHandler
+     * @param userProfilePath        userProfilePath
+     * @param hookRootUri            hookRootUri
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
                        LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri) {
-        this(vertx,selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
                 new QueueClient(vertx, monitoringHandler));
     }
 
 
     /**
      * Creates a new HookHandler.
-
-     * @param vertx vertx
-     * @param selfClient selfClient
-     * @param storage storage
+     *
+     * @param vertx                  vertx
+     * @param selfClient             selfClient
+     * @param storage                storage
      * @param loggingResourceManager loggingResourceManager
-     * @param monitoringHandler monitoringHandler
-     * @param userProfilePath userProfilePath
-     * @param hookRootUri hookRootUri
-     * @param requestQueue requestQueue
+     * @param monitoringHandler      monitoringHandler
+     * @param userProfilePath        userProfilePath
+     * @param hookRootUri            hookRootUri
+     * @param requestQueue           requestQueue
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
                        LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
-        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false);
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
                        LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
-        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false, null);
     }
 
     /**
      * Creates a new HookHandler.
      *
-     * @param vertx vertx
-     * @param selfClient selfClient
-     * @param storage storage
-     * @param loggingResourceManager loggingResourceManager
-     * @param monitoringHandler monitoringHandler
-     * @param userProfilePath userProfilePath
-     * @param hookRootUri hookRootUri
-     * @param requestQueue requestQueue
-     * @param listableRoutes listableRoutes
+     * @param vertx                     vertx
+     * @param selfClient                selfClient
+     * @param storage                   storage
+     * @param loggingResourceManager    loggingResourceManager
+     * @param monitoringHandler         monitoringHandler
+     * @param userProfilePath           userProfilePath
+     * @param hookRootUri               hookRootUri
+     * @param requestQueue              requestQueue
+     * @param listableRoutes            listableRoutes
      * @param reducedPropagationManager reducedPropagationManager
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
                        LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager) {
-        this(vertx, selfClient,storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, listableRoutes, reducedPropagationManager, null, storage);
     }
 
     /**
      * Creates a new HookHandler.
      *
-     * @param vertx vertx
-     * @param selfClient selfClient
-     * @param userProfileStorage userProfileStorage - where the user profiles are stored
-     * @param loggingResourceManager loggingResourceManager
-     * @param monitoringHandler monitoringHandler
-     * @param userProfilePath userProfilePath
-     * @param hookRootUri hookRootUri
-     * @param requestQueue requestQueue
-     * @param listableRoutes listableRoutes
+     * @param vertx                     vertx
+     * @param selfClient                selfClient
+     * @param userProfileStorage        userProfileStorage - where the user profiles are stored
+     * @param loggingResourceManager    loggingResourceManager
+     * @param monitoringHandler         monitoringHandler
+     * @param userProfilePath           userProfilePath
+     * @param hookRootUri               hookRootUri
+     * @param requestQueue              requestQueue
+     * @param listableRoutes            listableRoutes
      * @param reducedPropagationManager reducedPropagationManager
-     * @param doneHandler doneHandler
-     * @param hookStorage hookStorage - where the hooks are stored
+     * @param doneHandler               doneHandler
+     * @param hookStorage               hookStorage - where the hooks are stored
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
                        LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
@@ -235,20 +238,20 @@ public class HookHandler implements LoggableResource {
         // ready handler, calls the doneHandler when everything is done and the HookHandler is ready to use
         Handler<Void> readyHandler = new Handler<>() {
             // count of methods with may return an OK (ready)
-            private AtomicInteger readyCounter = new AtomicInteger(initMethods.size());
+            private final AtomicInteger readyCounter = new AtomicInteger(initMethods.size());
 
             @Override
             public void handle(Void aVoid) {
-                if ( readyCounter.decrementAndGet() == 0 ) {
+                if (readyCounter.decrementAndGet() == 0) {
                     log.info("HookHandler is ready!");
-                    if ( doneHandler != null ) {
+                    if (doneHandler != null) {
                         doneHandler.handle(null);
                     }
                 }
             }
         };
 
-        initMethods.forEach( handlerConsumer -> handlerConsumer.accept(readyHandler) );
+        initMethods.forEach(handlerConsumer -> handlerConsumer.accept(readyHandler));
     }
 
     @Override
@@ -272,7 +275,7 @@ public class HookHandler implements LoggableResource {
 
                 final Optional<DateTime> expirationTime = listener.getHook().getExpirationTime();
                 if (!expirationTime.isPresent()) {
-                    if(log.isTraceEnabled()) {
+                    if (log.isTraceEnabled()) {
                         log.trace("Listener {} will never expire.", listener.getListenerId());
                     }
                 } else if (expirationTime.get().isBefore(now)) {
@@ -288,7 +291,7 @@ public class HookHandler implements LoggableResource {
                 Route route = routes.get(key);
                 final Optional<DateTime> expirationTime = route.getHook().getExpirationTime();
                 if (!expirationTime.isPresent()) {
-                    if(log.isTraceEnabled()) {
+                    if (log.isTraceEnabled()) {
                         log.trace("Route {} will never expire.", key);
                     }
                 } else if (expirationTime.get().isBefore(now)) {
@@ -326,28 +329,27 @@ public class HookHandler implements LoggableResource {
                 final AtomicInteger storedRoutesCount = new AtomicInteger(routeNames.getList().size());
 
                 // go through the routes ...
-                while( keys.hasNext() ) {
+                while (keys.hasNext()) {
                     final String key = keys.next();
 
                     // ... and load each one
                     hookStorage.get(routeBase + key, routeBody -> {
-                        if ( routeBody != null ) {
+                        if (routeBody != null) {
                             registerRoute(routeBody);
-                        }
-                        else {
+                        } else {
                             log.warn("Could not get URL '{}' (getting hook route).", routeBase + key);
                         }
 
                         // send a ready flag
-                        if ( storedRoutesCount.decrementAndGet() == 0 ) {
-                            readyHandler.handle( null );
+                        if (storedRoutesCount.decrementAndGet() == 0) {
+                            readyHandler.handle(null);
                         }
                     });
                 }
             } else {
                 log.warn("Could not get URL '{}' (getting hook route).", routeBase);
                 // send a ready flag
-                readyHandler.handle( null );
+                readyHandler.handle(null);
             }
         });
     }
@@ -356,6 +358,7 @@ public class HookHandler implements LoggableResource {
      * Loads the stored listeners
      * from the resource hookStorage, if
      * any are available.
+     *
      * @param readyHandler - the ready handler
      */
     private void loadStoredListeners(final Handler<Void> readyHandler) {
@@ -372,28 +375,27 @@ public class HookHandler implements LoggableResource {
                 final AtomicInteger storedListenerCount = new AtomicInteger(listenerNames.getList().size());
 
                 // go through the listeners ...
-                while( keys.hasNext() ) {
+                while (keys.hasNext()) {
                     final String key = keys.next();
 
                     // ... and load each one
                     hookStorage.get(listenerBase + key, listenerBody -> {
-                        if ( listenerBody != null ) {
+                        if (listenerBody != null) {
                             registerListener(listenerBody);
-                        }
-                        else {
+                        } else {
                             log.warn("Could not get URL '{}' (getting hook listener).", listenerBase + key);
                         }
 
                         // send a ready flag
-                        if ( storedListenerCount.decrementAndGet() == 0 ) {
-                            readyHandler.handle( null );
+                        if (storedListenerCount.decrementAndGet() == 0) {
+                            readyHandler.handle(null);
                         }
                     });
                 }
             } else {
                 log.warn("Could not get URL '{}' (getting hook listener).", listenerBase);
                 // send a ready flag
-                readyHandler.handle( null );
+                readyHandler.handle(null);
             }
         });
     }
@@ -448,11 +450,11 @@ public class HookHandler implements LoggableResource {
      * Takes on:
      * <ul>
      * <li>hook un-/registration</li>
-     * <li>enqueueing a request for the registred listeners</li>
-     * <li>forwarding a request to the reistred listeners</li>
+     * <li>enqueueing a request for the registered listeners</li>
+     * <li>forwarding a request to the reistered listeners</li>
      * <li>creating a self request for the original request (if necessary)</li>
      * </ul>
-     * 
+     *
      * @param request request
      * @return true if a request is processed by the handler, otherwise false
      */
@@ -485,7 +487,7 @@ public class HookHandler implements LoggableResource {
         /*
          * 2) Check if we have to queue a request for listeners
          */
-        final List<Listener> listeners = listenerRepository.findListeners(request.uri(), request.method().name());
+        final List<Listener> listeners = listenerRepository.findListeners(request.uri(), request.method().name(), request.headers());
 
         if (!listeners.isEmpty() && !isRequestAlreadyHooked(request)) {
             installBodyHandler(request, listeners);
@@ -518,18 +520,18 @@ public class HookHandler implements LoggableResource {
         boolean routesListed = routesListedHeader != null && routesListedHeader.equals("true");
 
         // GET request / routes not yet listed
-        if ( request.method().equals(HttpMethod.GET) && ! routesListed ) {
+        if (request.method().equals(HttpMethod.GET) && !routesListed) {
             // route collection available for parent?
             final List<String> collections = new ArrayList<>(routeRepository.getCollections(request.uri()));
 
-            if ( ! collections.isEmpty() ) {
+            if (!collections.isEmpty()) {
                 String parentUri = request.uri().contains("?") ? request.uri().substring(0, request.uri().indexOf('?')) : request.uri();
                 final String parentCollection = getCollectionName(parentUri);
 
                 // sort the result array
                 collections.sort(collectionContentComparator);
 
-                if ( log.isTraceEnabled() ) {
+                if (log.isTraceEnabled()) {
                     log.trace("createListingIfRequested > (parentUri) {}, (parentCollection) {}", parentUri, parentCollection);
                 }
 
@@ -539,8 +541,8 @@ public class HookHandler implements LoggableResource {
                     request.response().headers().remove(HOOK_ROUTES_LISTED);
 
                     // if everything is fine, we add the listed collections to the given array
-                    if ( response.statusCode() == StatusCode.OK.getStatusCode() ) {
-                        if ( log.isTraceEnabled() ) {
+                    if (response.statusCode() == StatusCode.OK.getStatusCode()) {
+                        if (log.isTraceEnabled()) {
                             log.trace("createListingIfRequested > use existing array");
                         }
 
@@ -555,8 +557,8 @@ public class HookHandler implements LoggableResource {
                                 collections.forEach(parentCollectionArray::add);
                             }
 
-                            if ( log.isTraceEnabled() ) {
-                                log.trace("createListingIfRequested > response: {}", responseObject.toString() );
+                            if (log.isTraceEnabled()) {
+                                log.trace("createListingIfRequested > response: {}", responseObject.toString());
                             }
 
                             // write the response
@@ -564,8 +566,8 @@ public class HookHandler implements LoggableResource {
                         });
                     }
                     // if nothing is found, we create a new array
-                    else if ( response.statusCode() == StatusCode.NOT_FOUND.getStatusCode() ) {
-                        if ( log.isTraceEnabled() ) {
+                    else if (response.statusCode() == StatusCode.NOT_FOUND.getStatusCode()) {
+                        if (log.isTraceEnabled()) {
                             log.trace("createListingIfRequested > creating new array");
                         }
 
@@ -581,8 +583,8 @@ public class HookHandler implements LoggableResource {
                             // add the listed routes
                             collections.forEach(parentCollectionArray::add);
 
-                            if ( log.isTraceEnabled() ) {
-                                log.trace("createListingIfRequested > response: {}", responseObject.toString() );
+                            if (log.isTraceEnabled()) {
+                                log.trace("createListingIfRequested > response: {}", responseObject.toString());
                             }
 
                             // write the response
@@ -619,7 +621,7 @@ public class HookHandler implements LoggableResource {
     }
 
     private String getCollectionName(String url) {
-        if ( url.endsWith("/") ) {
+        if (url.endsWith("/")) {
             url = url.substring(0, url.lastIndexOf("/"));
         }
 
@@ -629,13 +631,31 @@ public class HookHandler implements LoggableResource {
     private boolean routeRequestIfNeeded(HttpServerRequest request) {
         Route route = routeRepository.getRoute(request.uri());
 
-        if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
+        if (doMethodsMatch(route, request) && doHeadersMatch(route, request)) {
             log.debug("Forward request {}", request.uri());
             route.forward(request);
             return true;
         } else {
             return false;
         }
+    }
+
+    private boolean doMethodsMatch(Route route, HttpServerRequest request) {
+        return route != null &&
+                (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()));
+    }
+
+    private boolean doHeadersMatch(Route route, HttpServerRequest request) {
+        if (route == null) {
+            return false;
+        }
+        if (route.getHook().getHeadersFilterPattern() == null) {
+            return true;
+        }
+
+        Pattern headersFilterPattern = route.getHook().getHeadersFilterPattern();
+        log.debug("Looking for request headers with pattern {}", headersFilterPattern.pattern());
+        return HttpHeaderUtil.hasMatchingHeader(request.headers(), headersFilterPattern);
     }
 
     private void installBodyHandler(final HttpServerRequest request, final List<Listener> listeners) {
@@ -657,21 +677,21 @@ public class HookHandler implements LoggableResource {
     /**
      * Calls the passed listeners and passes the given handler to the enqueued listener requests.
      *
-     * @param request original request
-     * @param buffer buffer
+     * @param request           original request
+     * @param buffer            buffer
      * @param filteredListeners all listeners which should be called
-     * @param handler the handler, which should handle the requests
+     * @param handler           the handler, which should handle the requests
      */
     private void callListener(final HttpServerRequest request, final Buffer buffer, final List<Listener> filteredListeners, final Handler<Void> handler) {
         for (Listener listener : filteredListeners) {
             log.debug("Enqueue request matching {} {} with listener {}", request.method(), listener.getMonitoredUrl(), listener.getListener());
 
-                /*
-                 * url suffix (path) after monitored url
-                 * => monitored url = http://a/b/c
-                 * => request.uri() = http://a/b/c/d/e.x
-                 * => url suffix = /d/e.x
-                 */
+            /*
+             * url suffix (path) after monitored url
+             * => monitored url = http://a/b/c
+             * => request.uri() = http://a/b/c/d/e.x
+             * => url suffix = /d/e.x
+             */
             String path = request.uri();
             if (!listener.getHook().isFullUrl()) {
                 path = request.uri().replace(listener.getMonitoredUrl(), "");
@@ -716,15 +736,15 @@ public class HookHandler implements LoggableResource {
 
             QueueingStrategy queueingStrategy = listener.getHook().getQueueingStrategy();
 
-            if(queueingStrategy instanceof DefaultQueueingStrategy){
+            if (queueingStrategy instanceof DefaultQueueingStrategy) {
                 requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
-            } else if(queueingStrategy instanceof DiscardPayloadQueueingStrategy){
-                if(HttpRequestHeader.containsHeader(queueHeaders, CONTENT_LENGTH)) {
+            } else if (queueingStrategy instanceof DiscardPayloadQueueingStrategy) {
+                if (HttpRequestHeader.containsHeader(queueHeaders, CONTENT_LENGTH)) {
                     queueHeaders.set(CONTENT_LENGTH.getName(), "0");
                 }
                 requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
-            } else if(queueingStrategy instanceof ReducedPropagationQueueingStrategy){
-                if(reducedPropagationManager != null) {
+            } else if (queueingStrategy instanceof ReducedPropagationQueueingStrategy) {
+                if (reducedPropagationManager != null) {
                     reducedPropagationManager.processIncomingRequest(request.method(), targetUri, queueHeaders, buffer,
                             queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationIntervalMs(), handler);
                 } else {
@@ -741,7 +761,7 @@ public class HookHandler implements LoggableResource {
         // we have to ensure, that the original request
         // is executed. This way the after handler will
         // also be called properly.
-        if ( filteredListeners.isEmpty() && handler != null ) {
+        if (filteredListeners.isEmpty() && handler != null) {
             handler.handle(null);
         }
     }
@@ -752,8 +772,8 @@ public class HookHandler implements LoggableResource {
      * The handler calls all listener (after), so this requests happen AFTER the original
      * request is performed.
      *
-     * @param request original request
-     * @param buffer buffer
+     * @param request       original request
+     * @param buffer        buffer
      * @param afterListener list of listeners which should be called after the original request
      * @return the after handler
      */
@@ -767,11 +787,11 @@ public class HookHandler implements LoggableResource {
      * for each listener (before).
      * The request  happens BEFORE the original request is
      * performed.
-
-     * @param request original request
-     * @param buffer buffer
+     *
+     * @param request        original request
+     * @param buffer         buffer
      * @param beforeListener list of listeners which should be called before the original request
-     * @param afterHandler the handler for listeners which have to be called after the original request
+     * @param afterHandler   the handler for listeners which have to be called after the original request
      * @return the before handler
      */
     private Handler<Void> installBeforeHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> beforeListener, final Handler<Void> afterHandler) {
@@ -786,7 +806,7 @@ public class HookHandler implements LoggableResource {
                 // Because this handler is called async. we
                 // have to secure, that it is only executed
                 // once.
-                if ( ( currentCount.incrementAndGet() == beforeListener.size() || beforeListener.isEmpty() ) && !sent) {
+                if ((currentCount.incrementAndGet() == beforeListener.size() || beforeListener.isEmpty()) && !sent) {
                     sent = true;
 
                     /*
@@ -797,7 +817,7 @@ public class HookHandler implements LoggableResource {
                      */
                     Route route = routeRepository.getRoute(request.uri());
 
-                    if (route != null && (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()))) {
+                    if (doMethodsMatch(route, request) && doHeadersMatch(route, request)) {
                         log.debug("Forward request (consumed) {}", request.uri());
                         route.forward(request, buffer);
                     } else {
@@ -838,7 +858,7 @@ public class HookHandler implements LoggableResource {
      * unregistration is detected.
      * This method deletes the route from the resource
      * hookStorage.
-     * 
+     *
      * @param request request
      */
     private void handleRouteUnregistration(final HttpServerRequest request) {
@@ -873,14 +893,14 @@ public class HookHandler implements LoggableResource {
      * resource storage, so it can be reloaded even after
      * a restart of the communication service.
      * The request will be consumed in this process!
-     * 
+     *
      * @param request request
      */
     private void handleRouteRegistration(final HttpServerRequest request) {
         log.debug("handleRouteRegistration > {}", request.uri());
 
         request.bodyHandler(hookData -> {
-            if(isHookJsonInvalid(request, hookData)) {
+            if (isHookJsonInvalid(request, hookData)) {
                 return;
             }
 
@@ -923,7 +943,7 @@ public class HookHandler implements LoggableResource {
             Buffer buffer = Buffer.buffer(storageObject.toString());
             hookStorage.put(routeStorageUri, request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
-                    if(logHookConfigurationResourceChanges){
+                    if (logHookConfigurationResourceChanges) {
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
                     vertx.eventBus().publish(SAVE_ROUTE_ADDRESS, routeStorageUri);
@@ -939,7 +959,7 @@ public class HookHandler implements LoggableResource {
      * Returns the identifier of the hook (only route) used in the
      * resource storage.
      * For listener identifiere take a look at <code>getUniqueListenerId(...)</code>.
-     * 
+     *
      * @param url
      * @return identifier
      */
@@ -952,7 +972,7 @@ public class HookHandler implements LoggableResource {
      * unregistration is detected.
      * This method deletes the listener from the resource
      * storage.
-     * 
+     *
      * @param request request
      */
     private void handleListenerUnregistration(final HttpServerRequest request) {
@@ -987,7 +1007,7 @@ public class HookHandler implements LoggableResource {
      * resource storage, so it can be reloaded even after
      * a restart of the communication service.
      * The request will be consumed in this process!
-     * 
+     *
      * @param request request
      */
     private void handleListenerRegistration(final HttpServerRequest request) {
@@ -1039,7 +1059,7 @@ public class HookHandler implements LoggableResource {
             Buffer buffer = Buffer.buffer(storageObject.toString());
             hookStorage.put(listenerStorageUri, request.headers(), buffer, status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
-                    if(logHookConfigurationResourceChanges){
+                    if (logHookConfigurationResourceChanges) {
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
                     vertx.eventBus().publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
@@ -1106,8 +1126,8 @@ public class HookHandler implements LoggableResource {
     /**
      * Creates a self Request from the original Request.
      * If the requests succeeds (and only then) the after handler is called.
-     * 
-     * @param request - consumed request
+     *
+     * @param request     - consumed request
      * @param requestBody - copy of request body
      */
     private void createSelfRequest(final HttpServerRequest request, final Buffer requestBody, final Handler<Void> afterHandler) {
@@ -1126,7 +1146,7 @@ public class HookHandler implements LoggableResource {
             response.endHandler(v -> request.response().end());
 
             // if everything is fine, we call the after handler
-            if ( response.statusCode() == StatusCode.OK.getStatusCode() ) {
+            if (response.statusCode() == StatusCode.OK.getStatusCode()) {
                 afterHandler.handle(null);
             }
         });
@@ -1152,18 +1172,18 @@ public class HookHandler implements LoggableResource {
      * (register), the handler creates a self request with
      * a copy of the original request. Therefore it's
      * necessary to mark the request as already hooked.
-     * 
+     *
      * @param request request
      * @return true if the original request was already hooked.
      */
     public boolean isRequestAlreadyHooked(HttpServerRequest request) {
         String hooked = request.headers().get(HOOKED_HEADER);
-        return hooked != null ? hooked.equals("true") : false;
+        return hooked != null && hooked.equals("true");
     }
 
     /**
      * Removes the route from the repository.
-     * 
+     *
      * @param requestUrl requestUrl
      */
     private void unregisterRoute(String requestUrl) {
@@ -1177,7 +1197,7 @@ public class HookHandler implements LoggableResource {
 
     /**
      * Removes the listener and its route from the repository.
-     * 
+     *
      * @param requestUrl
      */
     private void unregisterListener(String requestUrl) {
@@ -1193,7 +1213,7 @@ public class HookHandler implements LoggableResource {
     /**
      * Registers or updates an already existing listener and
      * creates the necessary forwarder depending on the hook resource.
-     * 
+     *
      * @param buffer buffer
      */
     @SuppressWarnings("unchecked")
@@ -1225,8 +1245,20 @@ public class HookHandler implements LoggableResource {
             hook.setMethods(jsonMethods.getList());
         }
 
+        String headersFilter = jsonHook.getString(HEADERS_FILTER);
+        if (headersFilter != null) {
+            try {
+                Pattern headersFilterPattern = RegexpValidator.throwIfPatternInvalid(headersFilter);
+                hook.setHeadersFilterPattern(headersFilterPattern);
+            } catch (ValidationException e) {
+                log.warn("Listener {} for target {} has an invalid headersFilter expression {} and will not be registered!",
+                        listenerId, target, headersFilter);
+                return;
+            }
+        }
+
         JsonObject jsonTranslateStatus = jsonHook.getJsonObject(TRANSLATE_STATUS);
-        if(jsonTranslateStatus != null) {
+        if (jsonTranslateStatus != null) {
             for (String pattern : jsonTranslateStatus.fieldNames()) {
                 hook.addTranslateStatus(Pattern.compile(pattern), jsonTranslateStatus.getInteger(pattern));
             }
@@ -1236,16 +1268,16 @@ public class HookHandler implements LoggableResource {
             hook.setFilter(jsonHook.getString(FILTER));
         }
 
-        if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
+        if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null) {
             hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
         }
 
         if (jsonHook.getString(HOOK_TRIGGER_TYPE) != null) {
             try {
                 hook.setHookTriggerType(HookTriggerType.valueOf(jsonHook.getString(HOOK_TRIGGER_TYPE).toUpperCase()));
-            }
-            catch(IllegalArgumentException e) {
-                log.warn("Listener " + listenerId + " for target " + target + " has an invalid trigger type " + jsonHook.getString(HOOK_TRIGGER_TYPE) + " and will not be registred!", e);
+            } catch (IllegalArgumentException e) {
+                log.warn("Listener " + listenerId + " for target " + target + " has an invalid trigger type " +
+                        jsonHook.getString(HOOK_TRIGGER_TYPE) + " and will not be registered!", e);
                 return;
             }
         }
@@ -1264,7 +1296,8 @@ public class HookHandler implements LoggableResource {
                 try {
                     expirationTime = ExpiryCheckHandler.parseDateTime(expirationTimeExpression);
                 } catch (RuntimeException e) {
-                    log.warn("Listener " + listenerId + " for target " + target + " has an invalid expiration time " + expirationTimeExpression + " and will not be registred!", e);
+                    log.warn("Listener " + listenerId + " for target " + target + " has an invalid expiration time " +
+                            expirationTimeExpression + " and will not be registered!", e);
                     return;
                 }
                 log.debug("Register listener and route {} with expiration at {}", target, expirationTime);
@@ -1344,7 +1377,7 @@ public class HookHandler implements LoggableResource {
     /**
      * Creates a listener id, which is unique for the given service, and the
      * monitored url.
-     * 
+     *
      * @param requestUrl requestUrl
      * @return String
      */
@@ -1362,7 +1395,7 @@ public class HookHandler implements LoggableResource {
 
     /**
      * Replaces all unwanted charakters (like "/", ".", ":") with "+".
-     * 
+     *
      * @param urlSegment urlSegment
      * @return String
      */
@@ -1373,7 +1406,7 @@ public class HookHandler implements LoggableResource {
     /**
      * Registers or updates an already existing route and
      * creates the necessary forwarder depending on the hook resource.
-     * 
+     *
      * @param buffer buffer
      */
     @SuppressWarnings("unchecked")
@@ -1393,25 +1426,35 @@ public class HookHandler implements LoggableResource {
             hook.setMethods(jsonMethods.getList());
         }
 
+        String headersFilter = jsonHook.getString(HEADERS_FILTER);
+        if (headersFilter != null) {
+            try {
+                Pattern headersFilterPattern = RegexpValidator.throwIfPatternInvalid(headersFilter);
+                hook.setHeadersFilterPattern(headersFilterPattern);
+            } catch (ValidationException e) {
+                log.warn("Route {} has an invalid headersFilter expression {} and will not be registered!", routedUrl, headersFilter);
+                return;
+            }
+        }
+
         JsonObject jsonTranslateStatus = jsonHook.getJsonObject(TRANSLATE_STATUS);
-        if(jsonTranslateStatus != null) {
+        if (jsonTranslateStatus != null) {
             for (String pattern : jsonTranslateStatus.fieldNames()) {
                 hook.addTranslateStatus(Pattern.compile(pattern), jsonTranslateStatus.getInteger(pattern));
             }
         }
 
-        if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null ) {
+        if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null) {
             hook.setQueueExpireAfter(jsonHook.getInteger(QUEUE_EXPIRE_AFTER));
         }
 
-        if ( jsonHook.getBoolean(LISTABLE) != null ) {
+        if (jsonHook.getBoolean(LISTABLE) != null) {
             hook.setListable(jsonHook.getBoolean(LISTABLE));
-        }
-        else {
+        } else {
             hook.setListable(listableRoutes);
         }
 
-        if ( jsonHook.getBoolean(COLLECTION) != null ) {
+        if (jsonHook.getBoolean(COLLECTION) != null) {
             hook.setCollection(jsonHook.getBoolean(COLLECTION));
         }
 
@@ -1429,11 +1472,11 @@ public class HookHandler implements LoggableResource {
             try {
                 hook.setExpirationTime(ExpiryCheckHandler.parseDateTime(expirationTimeExpression));
             } catch (Exception e) {
-                log.warn("Route {} has an invalid expiration time {} and will not be registred!", routedUrl, expirationTimeExpression);
+                log.warn("Route {} has an invalid expiration time {} and will not be registered!", routedUrl, expirationTimeExpression);
                 return;
             }
         } else {
-            log.warn("Route {} has no expiration time and will not be registred!", routedUrl);
+            log.warn("Route {} has no expiration time and will not be registered!", routedUrl);
             return;
         }
 
@@ -1480,6 +1523,7 @@ public class HookHandler implements LoggableResource {
         same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
         same &= Objects.equals(oldHook.getConnectionPoolSize() ,      newHook.getConnectionPoolSize());
         same &= Objects.equals(oldHook.getMaxWaitQueueSize() ,        newHook.getMaxWaitQueueSize());
+        same &= headersFilterPatternEquals(oldHook.getHeadersFilterPattern(), newHook.getHeadersFilterPattern());
 
         // queueingStrategy, filter, queueExpireAfter and hookTriggerType are not relevant for Route-Hooks
         // Though, headerFunction WOULD BE relevant - but we can't compare them for equality
@@ -1487,11 +1531,19 @@ public class HookHandler implements LoggableResource {
         return !same;
     }
 
+    private boolean headersFilterPatternEquals(Pattern headersFilterPatternLeft, Pattern headersFilterPatternRight) {
+        if(headersFilterPatternLeft != null && headersFilterPatternRight != null){
+            return Objects.equals(headersFilterPatternLeft.pattern(), headersFilterPatternRight.pattern());
+        }
+
+        return headersFilterPatternLeft == null && headersFilterPatternRight == null;
+    }
+
     /**
      * Creates a new dynamic routing for the given hook.
-     * 
+     *
      * @param urlPattern urlPattern
-     * @param hook hook
+     * @param hook       hook
      * @return Route
      */
     private Route createRoute(String urlPattern, HttpHook hook) {
@@ -1502,7 +1554,7 @@ public class HookHandler implements LoggableResource {
      * Returns the url segment to which the route should be hooked.
      * For "http://a/b/c/_hooks/route" this would
      * be "http://a/b/c".
-     * 
+     *
      * @param requestUrl requestUrl
      * @return url segment which requests should be routed
      */
@@ -1514,7 +1566,7 @@ public class HookHandler implements LoggableResource {
      * Returns the url segment to which the listener should be hooked.
      * For "http://a/b/c/_hooks/listeners/http/colin/1234578" this would
      * be "http://a/b/c".
-     * 
+     *
      * @param requestUrl requestUrl
      * @return url segment to which the listener should be hooked.
      */
@@ -1526,7 +1578,7 @@ public class HookHandler implements LoggableResource {
      * Returns the url segment which represents the listener.
      * For "http://a/b/c/_hooks/listeners/http/colin/1234578" this would
      * be "http/colin/1234578".
-     * 
+     *
      * @param requestUrl requestUrl
      * @return url segment
      */
@@ -1541,7 +1593,7 @@ public class HookHandler implements LoggableResource {
 
     /**
      * Checks if the given request is a listener unregistration instruction.
-     * 
+     *
      * @param request request
      * @return boolean
      */
@@ -1551,7 +1603,7 @@ public class HookHandler implements LoggableResource {
 
     /**
      * Checks if the given request is a listener registration instruction.
-     * 
+     *
      * @param request request
      * @return boolean
      */
@@ -1561,7 +1613,7 @@ public class HookHandler implements LoggableResource {
 
     /**
      * Checks if the given request is a route registration instruction.
-     * 
+     *
      * @param request request
      * @return boolean
      */
@@ -1571,7 +1623,7 @@ public class HookHandler implements LoggableResource {
 
     /**
      * Checks if the given request is a route registration instruction.
-     * 
+     *
      * @param request request
      * @return boolean
      */
@@ -1580,11 +1632,9 @@ public class HookHandler implements LoggableResource {
     }
 
     /**
-     * @param request
-     *      Request to extract the value from. This instance gets manipulated
-     *      internally during call.
-     * @return
-     *      Expiration time or empty if infinite.
+     * @param request Request to extract the value from. This instance gets manipulated
+     *                internally during call.
+     * @return Expiration time or empty if infinite.
      */
     private static Optional<String> extractExpTimeAndManipulatePassedRequestAndReturnExpTime(HttpServerRequest request) {
         final int expireAfter = ExpiryCheckHandler.getExpireAfterConcerningCaseOfCorruptHeaderAndInfinite(request.headers())
