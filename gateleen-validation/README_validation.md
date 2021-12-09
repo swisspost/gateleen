@@ -23,7 +23,34 @@ Example of a validation configuration:
         {
             "url": "/gateleen/server/admin/v1/schedulers",
             "method": "GET|PUT"
-        }       
+        },
+        {
+            "url": "/gateleen/server/admin/v1/routing/.*",
+            "method": "PUT"
+        }
+    ]
+}
+```
+The current implementation allows only to use a wildcard at the end of an url.
+Example:
+```json
+{
+    "resources": [
+        {
+            "url": "/gateleen/server/admin/v1/routing/.*",
+            "method": "PUT"
+        }
+    ]
+}
+```
+Regex patterns with multiple wildcards are not supported. The following configuration does not work.
+```json
+{
+    "resources": [
+        {
+            "url": "/gateleen/server/admin/.*/routing/.*",
+            "method": "PUT"
+        }
     ]
 }
 ```
