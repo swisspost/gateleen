@@ -13,7 +13,6 @@ import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
-import org.swisspush.gateleen.core.util.SlicedLoopFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.routing.Rule;
 
@@ -53,7 +52,7 @@ public class ExpansionHandlerTest {
     @Test
     public void testExpansionConfigurationDefaultValues(TestContext context) {
         Map<String, Object> properties = new HashMap<>();
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, properties, ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, properties, ROOT, RULES_ROOT);
 
         context.assertEquals(Integer.MAX_VALUE, expansionHandler.getMaxExpansionLevelSoft(), "max.expansion.level.soft should have the default value");
         context.assertEquals(Integer.MAX_VALUE, expansionHandler.getMaxExpansionLevelHard(), "max.expansion.level.soft should have the default value");
@@ -68,7 +67,7 @@ public class ExpansionHandlerTest {
         properties.put("max.expansion.level.soft", "1000");
         properties.put("max.expansion.level.hard", "1500");
 
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, properties, ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, properties, ROOT, RULES_ROOT);
 
         context.assertEquals(1000, expansionHandler.getMaxExpansionLevelSoft(), "max.expansion.level.soft should have the default value");
         context.assertEquals(1500, expansionHandler.getMaxExpansionLevelHard(), "max.expansion.level.soft should have the default value");
@@ -83,7 +82,7 @@ public class ExpansionHandlerTest {
         properties.put("max.expansion.level.soft", "xyz");
         properties.put("max.expansion.level.hard", "123x");
 
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, properties, ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, properties, ROOT, RULES_ROOT);
 
         context.assertEquals(Integer.MAX_VALUE, expansionHandler.getMaxExpansionLevelSoft(), "max.expansion.level.soft should have the default value");
         context.assertEquals(Integer.MAX_VALUE, expansionHandler.getMaxExpansionLevelHard(), "max.expansion.level.soft should have the default value");
@@ -92,7 +91,7 @@ public class ExpansionHandlerTest {
 
     @Test
     public void testIsExpansionRequest(TestContext context) {
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, new HashMap<>(), ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
 
         CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
         params.set(EXPAND_PARAM, "4");
@@ -117,7 +116,7 @@ public class ExpansionHandlerTest {
 
     @Test
     public void testIsZipRequest(TestContext context) {
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, new HashMap<>(), ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
 
         CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
         params.set(ZIP_PARAM, "true");
@@ -152,7 +151,7 @@ public class ExpansionHandlerTest {
 
     @Test
     public void testIsBackendExpand(TestContext context) {
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, new HashMap<>(), ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
 
         context.assertFalse(expansionHandler.isBackendExpand("/some/request/uri"),
                 "uri should not be a backend expand since no routing rules have been defined yet");
@@ -180,7 +179,7 @@ public class ExpansionHandlerTest {
 
     @Test
     public void testIsStorageExpand(TestContext context) {
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, new HashMap<>(), ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
 
         context.assertFalse(expansionHandler.isStorageExpand("/some/request/uri"),
                 "uri should not be a storage expand since no routing rules have been defined yet");
@@ -208,14 +207,14 @@ public class ExpansionHandlerTest {
 
     @Test
     public void testIsCollection(TestContext context) {
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, new HashMap<>(), ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
         context.assertFalse(expansionHandler.isCollection("/some/collection/uri"));
         context.assertTrue(expansionHandler.isCollection("/some/collection/"));
     }
 
     @Test
     public void testStorageExpandRequestWithExpandLevelLimitExceeded(TestContext context) {
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, new HashMap<>(), ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
 
         List<Rule> rules = new ArrayList<>();
         Rule rule1 = new Rule();
@@ -238,7 +237,7 @@ public class ExpansionHandlerTest {
 
     @Test
     public void testBadRequestResponseForInvalidExpandParameterRequests(TestContext context) {
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, new HashMap<>(), ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
 
         CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
         params.set(EXPAND_PARAM, "foo");
@@ -258,7 +257,7 @@ public class ExpansionHandlerTest {
     public void testBadRequestResponseForExceedingMaxExpansionLevelHard(TestContext context) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("max.expansion.level.hard", "10");
-        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, null, properties, ROOT, RULES_ROOT);
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, properties, ROOT, RULES_ROOT);
 
         CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
         params.set(EXPAND_PARAM, "15");
