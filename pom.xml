@@ -6,7 +6,7 @@
 
     <groupId>org.swisspush.gateleen</groupId>
     <artifactId>gateleen</artifactId>
-    <version>1.2.4-SNAPSHOT</version>
+    <version>1.2.7-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>gateleen</name>
     <description>Middleware library based on Vert.x to build advanced JSON/REST communication servers</description>
@@ -95,6 +95,7 @@
             <modules>
                 <module>gateleen-testhelper</module>
                 <module>gateleen-core</module>
+                <module>gateleen-cache</module>
                 <module>gateleen-kafka</module>
                 <module>gateleen-validation</module>
                 <module>gateleen-logging</module>
@@ -124,6 +125,7 @@
             <modules>
                 <module>gateleen-testhelper</module>
                 <module>gateleen-core</module>
+                <module>gateleen-cache</module>
                 <module>gateleen-kafka</module>
                 <module>gateleen-delegate</module>
                 <module>gateleen-delta</module>
@@ -300,7 +302,7 @@
             <dependency>
                 <groupId>com.floreysoft</groupId>
                 <artifactId>jmte</artifactId>
-                <version>3.2.0</version>
+                <version>7.0.0</version>
             </dependency>
             <dependency>
                 <groupId>log4j</groupId>
@@ -342,6 +344,11 @@
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
                 <version>4.13.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testng</groupId>
+                <artifactId>testng</artifactId>
+                <version>7.4.0</version>
             </dependency>
             <dependency>
                 <groupId>redis.clients</groupId>
