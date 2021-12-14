@@ -31,11 +31,41 @@ public class Validator {
     private static final String SCHEMA_DECLARATION = "http://json-schema.org/draft-04/schema#";
     private String schemaRoot;
 	private ResourceStorage storage;
+	private ValidationSchemaProvider schemaProvider;
 
-	public Validator(ResourceStorage storage, String schemaRoot) {
+	public Validator(ResourceStorage storage, String schemaRoot, ValidationSchemaProvider schemaProvider) {
         this.storage = storage;
         this.schemaRoot = schemaRoot;
+        this.schemaProvider = schemaProvider;
 	}
+
+    public void validate(HttpServerRequest req, String type, Buffer jsonBuffer, String schemaLocation, Handler<ValidationResult> callback) {
+        if(schemaLocation == null) {
+            validate(req, type, jsonBuffer, callback);
+        } else {
+            final Logger log = RequestLoggerFactory.getLogger(Validator.class, req);
+            if (!req.path().startsWith(schemaRoot)) {
+                log.debug("Validating request");
+                schemaProvider.schemaFromLocation(schemaLocation).setHandler(event -> {
+                    if (event.failed()) {
+                        callback.handle(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
+                                "Error while getting schema. Cause: " + event.cause().getMessage()));
+                        return;
+                    }
+
+                    Optional<JsonSchema> schemaOptional = event.result();
+                    if (schemaOptional.isEmpty()) {
+                        callback.handle(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
+                                "No schema found in location " + schemaLocation));
+                        return;
+                    }
+
+                    JsonSchema jsonSchema = schemaOptional.get();
+                    performValidation(jsonSchema, log, schemaLocation, jsonBuffer, type, req.path(), callback);
+                });
+            }
+        }
+    }
 
 	public void validate(HttpServerRequest req, String type, Buffer jsonBuffer, Handler<ValidationResult> callback) {
 		final Logger log = RequestLoggerFactory.getLogger(Validator.class, req);
@@ -129,7 +159,46 @@ public class Validator {
         }
     }
 
-    private static void performValidation(String dataString, JsonObject data, Logger log, String base, Buffer jsonBuffer, String type, String path, Handler<ValidationResult> callback) {
+    private static void performValidation(JsonSchema schema, Logger log, String base, Buffer jsonBuffer, String type,
+                                          String path, Handler<ValidationResult> callback) {
+        try {
+            JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
+            if (jsonNode == null) {
+                throw new IOException("no vaild JSON object: " + jsonBuffer.toString());
+            }
+            final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
+            if(valMsgs.isEmpty()) {
+                log.debug("Valid ({})", type);
+                log.debug("Used schema: {}", base);
+                callback.handle(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+            } else {
+                JsonArray validationDetails = extractMessagesAsJson(valMsgs, log);
+                String messages = StringUtils.getStringOrEmpty(extractMessages(valMsgs));
+                StringBuilder msgBuilder = new StringBuilder();
+                msgBuilder.append("Invalid JSON for ")
+                        .append(path).append(" (")
+                        .append(type).append("). Messages: ")
+                        .append(messages)
+                        .append(" | Report: ").append(getReportAsString(valMsgs));
+
+                if(log.isDebugEnabled()){
+                    msgBuilder.append(" | Validated JSON: ").append(jsonBuffer.toString());
+                }
+
+                log.warn(msgBuilder.toString());
+
+                callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString(), validationDetails));
+                log.warn("Used schema: {}", base);
+            }
+        } catch (IOException e) {
+            String message = "Cannot read JSON " + " (" + type + ")";
+            log.warn(message, e.getMessage());
+            callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
+        }
+    }
+
+    private static void performValidation(String dataString, JsonObject data, Logger log, String base, Buffer jsonBuffer,
+                                          String type, String path, Handler<ValidationResult> callback) {
         if(SCHEMA_DECLARATION.equals(data.getString("$schema"))) {
             JsonSchema schema;
             try {
@@ -140,40 +209,7 @@ public class Validator {
                 callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
                 return;
             }
-            try {
-                JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
-                if (jsonNode == null) {
-                    throw new IOException("no vaild JSON object: " + jsonBuffer.toString());
-                }
-                final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
-                if(valMsgs.isEmpty()) {
-                    log.debug("Valid ({})", type);
-                    log.debug("Used schema: {}", base);
-                    callback.handle(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
-                } else {
-                    JsonArray validationDetails = extractMessagesAsJson(valMsgs, log);
-                    String messages = StringUtils.getStringOrEmpty(extractMessages(valMsgs));
-                    StringBuilder msgBuilder = new StringBuilder();
-                    msgBuilder.append("Invalid JSON for ")
-                            .append(path).append(" (")
-                            .append(type).append("). Messages: ")
-                            .append(messages)
-                            .append(" | Report: ").append(getReportAsString(valMsgs));
-
-                    if(log.isDebugEnabled()){
-                        msgBuilder.append(" | Validated JSON: ").append(jsonBuffer.toString());
-                    }
-
-                    log.warn(msgBuilder.toString());
-
-                    callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString(), validationDetails));
-                    log.warn("Used schema: {}", base);
-                }
-            } catch (IOException e) {
-                String message = "Cannot read JSON " + " (" + type + ")";
-                log.warn(message, e.getMessage());
-                callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
-            }
+            performValidation(schema, log, base, jsonBuffer, type, path, callback);
         } else {
             String message = "No schema for " + path + " (" + type + ") [1]";
             log.warn(message);

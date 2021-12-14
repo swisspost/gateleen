@@ -1,17 +1,29 @@
 package org.swisspush.gateleen.validation;
 
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.http.*;
+import org.mockito.Matchers;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.validation.mocks.HttpServerRequestMock;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+
+import java.util.Optional;
+
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.*;
 
 /**
  * Test class for the ValidationHandler
@@ -23,7 +35,9 @@ public class ValidationHandlerTest {
 
     private Vertx vertx;
     private HttpClient httpClient;
+    private HttpClientRequest clientRequest;
     private ValidationResourceManager validationResourceManager;
+    private ValidationSchemaProvider validationSchemaProvider;
     private MockResourceStorage storage;
 
     private final String VALIDATION_URI = "/gateleen/server/validation";
@@ -33,6 +47,16 @@ public class ValidationHandlerTest {
             "  \"resources\": [\n" +
             "    {\n" +
             "      \"url\": \"/gateleen/resources/someResource\",\n" +
+            "      \"method\": \"GET|PUT\"\n" +
+            "    }\n" +
+            "  ]\n" +
+            "}";
+
+    private final String RESOURCE_GET_PUT_SCHEMA_LOCATION = "{\n" +
+            "  \"resources\": [\n" +
+            "    {\n" +
+            "      \"url\": \"/gateleen/resources/someResource\",\n" +
+            "      \"schemaLocation\": \"/gateleen/path/to/the/schema\",\n" +
             "      \"method\": \"GET|PUT\"\n" +
             "    }\n" +
             "  ]\n" +
@@ -60,111 +84,75 @@ public class ValidationHandlerTest {
             "  ]\n" +
             "}";
 
+    private final String SCHEMA = "{\n" +
+            "  \"$schema\": \"http://json-schema.org/draft-04/schema#\",\n" +
+            "  \"properties\": {\n" +
+            "    \"key\": {\n" +
+            "      \"maxLength\": 5,\n" +
+            "      \"type\": \"string\"\n" +
+            "    }\n" +
+            "  },\n" +
+            "  \"required\": [\n" +
+            "    \"key\"\n" +
+            "  ],\n" +
+            "  \"additionalProperties\": false,\n" +
+            "  \"definitions\": {}\n" +
+            "}";
+
     @Before
-    public void setUp(){
+    public void setUp() {
         vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
 
         httpClient = Mockito.mock(HttpClient.class);
+        clientRequest = Mockito.mock(HttpClientRequest.class);
+        Mockito.when(clientRequest.headers()).thenReturn(new CaseInsensitiveHeaders());
+        Mockito.when(httpClient.request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any()))
+                .thenReturn(clientRequest);
 
         storage = new MockResourceStorage();
         validationResourceManager = new ValidationResourceManager(vertx, storage, VALIDATION_URI);
+        validationSchemaProvider = Mockito.mock(ValidationSchemaProvider.class);
     }
 
-    private void sendValidationResourcesUpdate(String validationResource){
-        class PUTValidationResourceRequest extends HttpServerRequestMock{
-            @Override public HttpMethod method() {
-                return HttpMethod.PUT;
-            }
-
-            @Override public String uri() {
-                return VALIDATION_URI;
-            }
-
-            @Override public String path() {
-                return VALIDATION_URI;
-            }
-        }
-        PUTValidationResourceRequest request = new PUTValidationResourceRequest();
+    private void sendValidationResourcesUpdate(String validationResource) {
+        CustomHttpServerRequest request = new CustomHttpServerRequest(HttpMethod.PUT, VALIDATION_URI);
         request.setBodyContent(validationResource);
         validationResourceManager.handleValidationResource(request);
     }
 
     @Test
-    public void testIsToValidate(TestContext context){
+    public void testIsToValidate(TestContext context) {
         storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT);
-        ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, storage, httpClient, SCHEMA_ROOT);
+        ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
 
         sendValidationResourcesUpdate(RESOURCE_GET_PUT);
 
-        class PUTToUnmanagedResourceRequest extends HttpServerRequestMock{
-            @Override public HttpMethod method() {
-                return HttpMethod.PUT;
-            }
+        CustomHttpServerRequest pUTToUnmanagedResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/some/other/resource");
+        context.assertFalse(validationHandler.isToValidate(pUTToUnmanagedResourceRequest),
+                "PUT Requests to not managed resources should not be validated");
 
-            @Override public String uri() {
-                return "/some/other/resource";
-            }
-
-            @Override public String path() {
-                return "/some/other/resource";
-            }
-        }
-        context.assertFalse(validationHandler.isToValidate(new PUTToUnmanagedResourceRequest()), "PUT Requests to not managed resources should not be validated");
-
-        class PUTToGateleenSomeResourceRequest extends HttpServerRequestMock{
-            @Override public HttpMethod method() {
-                return HttpMethod.PUT;
-            }
-
-            @Override public String uri() {
-                return "/gateleen/resources/someResource";
-            }
-
-            @Override public String path() {
-                return "/gateleen/resources/someResource";
-            }
-        }
-        context.assertTrue(validationHandler.isToValidate(new PUTToGateleenSomeResourceRequest()), "PUT Requests to some resource should be validated");
+        CustomHttpServerRequest pUTToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource");
+        context.assertTrue(validationHandler.isToValidate(pUTToGateleenSomeResourceRequest), "PUT Requests to some resource should be validated");
 
         sendValidationResourcesUpdate(RESOURCE_GET);
-        context.assertFalse(validationHandler.isToValidate(new PUTToGateleenSomeResourceRequest()), "Now, PUT Requests to some resource should not be validated anymore (only GET Requests)");
-        context.assertFalse(validationHandler.isToValidate(new PUTToUnmanagedResourceRequest()), "PUT Requests to not managed resources should not be validated");
+        context.assertFalse(validationHandler.isToValidate(pUTToGateleenSomeResourceRequest), "Now, PUT Requests to some resource should not be validated anymore (only GET Requests)");
+        context.assertFalse(validationHandler.isToValidate(pUTToUnmanagedResourceRequest), "PUT Requests to not managed resources should not be validated");
 
-        class GETToGateleenSomeResourceRequest extends PUTToGateleenSomeResourceRequest {
-            @Override public HttpMethod method() {
-                return HttpMethod.GET;
-            }
-        }
-        context.assertTrue(validationHandler.isToValidate(new GETToGateleenSomeResourceRequest()), "GET Requests to some resource should be validated");
+        CustomHttpServerRequest gETToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/gateleen/resources/someResource");
+        context.assertTrue(validationHandler.isToValidate(gETToGateleenSomeResourceRequest), "GET Requests to some resource should be validated");
 
         sendValidationResourcesUpdate(OTHER_RESOURCES_GET_PUT);
-        context.assertFalse(validationHandler.isToValidate(new GETToGateleenSomeResourceRequest()), "GET Requests to some resource should not be validated");
-        context.assertTrue(validationHandler.isToValidate(new PUTToGateleenSomeResourceRequest()), "PUT Requests to some resource should be validated");
+        context.assertFalse(validationHandler.isToValidate(gETToGateleenSomeResourceRequest), "GET Requests to some resource should not be validated");
+        context.assertTrue(validationHandler.isToValidate(pUTToGateleenSomeResourceRequest), "PUT Requests to some resource should be validated");
 
-        context.assertFalse(validationHandler.isToValidate(new PUTToUnmanagedResourceRequest()), "PUT Requests to not managed resources should not be validated");
+        context.assertFalse(validationHandler.isToValidate(pUTToUnmanagedResourceRequest), "PUT Requests to not managed resources should not be validated");
 
-        class PUTToGateleenOtherResourceRequest extends HttpServerRequestMock{
-            @Override public HttpMethod method() {
-                return HttpMethod.PUT;
-            }
+        CustomHttpServerRequest pUTToGateleenOtherResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/otherResource");
+        CustomHttpServerRequest gETToGateleenOtherResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/gateleen/resources/otherResource");
 
-            @Override public String uri() {
-                return "/gateleen/resources/otherResource";
-            }
-
-            @Override public String path() {
-                return "/gateleen/resources/otherResource";
-            }
-        }
-        class GETToGateleenOtherResourceRequest extends PUTToGateleenOtherResourceRequest {
-            @Override public HttpMethod method() {
-                return HttpMethod.GET;
-            }
-        }
-
-        context.assertTrue(validationHandler.isToValidate(new GETToGateleenOtherResourceRequest()), "GET Requests to other resource should be validated");
-        context.assertFalse(validationHandler.isToValidate(new PUTToGateleenOtherResourceRequest()), "PUT Requests to other resource should not be validated");
+        context.assertTrue(validationHandler.isToValidate(gETToGateleenOtherResourceRequest), "GET Requests to other resource should be validated");
+        context.assertFalse(validationHandler.isToValidate(pUTToGateleenOtherResourceRequest), "PUT Requests to other resource should not be validated");
     }
 
     private final String RESOURCE_GET_PUT_GENERIC = "{\n" +
@@ -177,57 +165,173 @@ public class ValidationHandlerTest {
             "}";
 
     @Test
-    public void testIsToValidateHooks(TestContext context){
+    public void testIsToValidateSchemaLocation(TestContext context) {
+        storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_SCHEMA_LOCATION);
+        ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
+
+        sendValidationResourcesUpdate(RESOURCE_GET_PUT_SCHEMA_LOCATION);
+
+        CustomHttpServerRequest pUTToUnmanagedResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/some/other/resource");
+        context.assertFalse(validationHandler.isToValidate(pUTToUnmanagedResourceRequest), "PUT Requests to not managed resources should not be validated");
+        CustomHttpServerRequest gETToUnmanagedResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/some/other/resource");
+        context.assertFalse(validationHandler.isToValidate(gETToUnmanagedResourceRequest), "GET Requests to not managed resources should not be validated");
+
+        CustomHttpServerRequest pUTToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource");
+        context.assertTrue(validationHandler.isToValidate(pUTToGateleenSomeResourceRequest), "PUT Requests to some resource should be validated");
+        CustomHttpServerRequest gETToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/gateleen/resources/someResource");
+        context.assertTrue(validationHandler.isToValidate(gETToGateleenSomeResourceRequest), "GET Requests to some resource should be validated");
+    }
+
+    @Test
+    public void testValidateSchemaLocationNoSchemaFound(TestContext context) {
+        when(validationSchemaProvider.schemaFromLocation(anyString())).thenReturn(Future.succeededFuture(Optional.empty()));
+        storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_SCHEMA_LOCATION);
+        ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
+
+        sendValidationResourcesUpdate(RESOURCE_GET_PUT_SCHEMA_LOCATION);
+
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        CustomHttpServerRequest request = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource", response);
+        request.setBodyContent("{}");
+
+        validationHandler.handle(request);
+
+        verify(response, times(1)).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+        verify(response, times(1)).end("No schema found in location /gateleen/path/to/the/schema");
+    }
+
+    @Test
+    public void testValidateSchemaLocationSchemaProviderError(TestContext context) {
+        when(validationSchemaProvider.schemaFromLocation(anyString())).thenReturn(Future.failedFuture("Boooom"));
+        storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_SCHEMA_LOCATION);
+        ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
+
+        sendValidationResourcesUpdate(RESOURCE_GET_PUT_SCHEMA_LOCATION);
+
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        CustomHttpServerRequest request = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource", response);
+        request.setBodyContent("{}");
+
+        validationHandler.handle(request);
+
+        verify(response, times(1)).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+        verify(response, times(1)).end("Error while getting schema. Cause: Boooom");
+    }
+
+    @Test
+    public void testValidateSchemaLocationWithInvalidPayload(TestContext context) {
+        when(validationSchemaProvider.schemaFromLocation(anyString())).thenReturn(Future.succeededFuture(Optional.of(createSchema(SCHEMA))));
+        storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_SCHEMA_LOCATION);
+        ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
+
+        sendValidationResourcesUpdate(RESOURCE_GET_PUT_SCHEMA_LOCATION);
+
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        when(response.headers()).thenReturn(new CaseInsensitiveHeaders());
+        CustomHttpServerRequest request = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource", response);
+        request.setBodyContent("{\"key\": \"12345xx\"}");
+
+        validationHandler.handle(request);
+
+        verify(response, times(1)).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+        verify(response, times(1)).end(contains("$.key: may only be 5 characters long"));
+    }
+
+    @Test
+    public void testValidateSchemaLocationWithValidPayload(TestContext context) {
+        when(validationSchemaProvider.schemaFromLocation(anyString())).thenReturn(Future.succeededFuture(Optional.of(createSchema(SCHEMA))));
+        storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_SCHEMA_LOCATION);
+        ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
+
+        sendValidationResourcesUpdate(RESOURCE_GET_PUT_SCHEMA_LOCATION);
+
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        when(response.headers()).thenReturn(new CaseInsensitiveHeaders());
+        CustomHttpServerRequest request = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource", response);
+        request.setBodyContent("{\"key\": \"12345\"}");
+
+        validationHandler.handle(request);
+
+        verifyZeroInteractions(response);
+    }
+
+    @Test
+    public void testIsToValidateHooks(TestContext context) {
         storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_GENERIC);
-        ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, storage, httpClient, SCHEMA_ROOT);
+        ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
 
         sendValidationResourcesUpdate(RESOURCE_GET_PUT_GENERIC);
 
-               class GetToHooksResourceRequest extends HttpServerRequestMock{
-            @Override public HttpMethod method() {
-                return HttpMethod.GET;
-            }
+        // GET to Hooks resource
+        context.assertFalse(validationHandler.isToValidate(new CustomHttpServerRequest(HttpMethod.GET,
+                "/gateleen/trip/v1/destinations/current/_hooks/listeners/http/linti-06614431506022811")), "GET Requests to hooks should not be validated");
 
-            @Override public String uri() {
-                return "/gateleen/trip/v1/destinations/current/_hooks/listeners/http/linti-06614431506022811";
-            }
+        // GET to Hooks route resource
+        context.assertFalse(validationHandler.isToValidate(new CustomHttpServerRequest(HttpMethod.GET,
+                "/gateleen/trip/v1/destinations/current/_hooks/route/http/linti-06614431506022811")), "GET Requests to hooks/routes should not be validated");
 
-            @Override public String path() {
-                return "/gateleen/trip/v1/destinations/current/_hooks/listeners/http/linti-06614431506022811";
-            }
+        // GET to gateleen resource
+        context.assertTrue(validationHandler.isToValidate(new CustomHttpServerRequest(HttpMethod.GET,
+                "/gateleen/trip/v1/destinations/current/11")), "GET Requests with wildcard should be validated");
+    }
+
+    private JsonSchema createSchema(String dataString) {
+        return JsonSchemaFactory.getInstance().getSchema(dataString);
+    }
+
+    static class CustomHttpServerRequest extends HttpServerRequestMock {
+
+        private final HttpMethod method;
+        private final String uri;
+        private final String path;
+        private final HttpServerResponse response;
+
+        public CustomHttpServerRequest(HttpMethod method, String uri) {
+            this(method, uri, uri);
         }
-        context.assertFalse(validationHandler.isToValidate(new GetToHooksResourceRequest()), "GET Requests to hooks should not be validated");
 
-        class GetToHooksRouteResourceRequest extends HttpServerRequestMock{
-            @Override public HttpMethod method() {
-                return HttpMethod.PUT;
-            }
-
-            @Override public String uri() {
-                return "/gateleen/trip/v1/destinations/current/_hooks/route/http/linti-06614431506022811";
-            }
-
-            @Override public String path() {
-                return "/gateleen/trip/v1/destinations/current/_hooks/route/http/linti-06614431506022811";
-            }
+        public CustomHttpServerRequest(HttpMethod method, String uri, HttpServerResponse response) {
+            this(method, uri, uri, response);
         }
-        context.assertFalse(validationHandler.isToValidate(new GetToHooksRouteResourceRequest()), "GET Requests to hooks/routes should not be validated");
 
-
-        class GetGateleenResourceRequest extends HttpServerRequestMock{
-            @Override public HttpMethod method() {
-                return HttpMethod.PUT;
-            }
-
-            @Override public String uri() {
-                return "/gateleen/trip/v1/destinations/current/11";
-            }
-
-            @Override public String path() {
-                return "/gateleen/trip/v1/destinations/current/11";
-            }
+        public CustomHttpServerRequest(HttpMethod method, String uri, String path) {
+            this(method, uri, path, Mockito.mock(HttpServerResponse.class));
         }
-        context.assertTrue(validationHandler.isToValidate(new GetGateleenResourceRequest()), "GET Requests with wildcard should be validated");
+
+        public CustomHttpServerRequest(HttpMethod method, String uri, String path, HttpServerResponse response) {
+            this.method = method;
+            this.uri = uri;
+            this.path = path;
+            this.response = response;
+        }
+
+        @Override
+        public HttpMethod method() {
+            return method;
+        }
+
+        @Override
+        public String uri() {
+            return uri;
+        }
+
+        @Override
+        public String path() {
+            return path;
+        }
+
+        @Override
+        public MultiMap headers() {
+            return super.headers();
+        }
+
+        @Override
+        public HttpServerResponse response() {
+            return response;
+        }
     }
 }
 

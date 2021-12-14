@@ -13,6 +13,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -42,10 +43,11 @@ public class ValidationHandler {
     private boolean failOnError = true;
 
 
-    public ValidationHandler(ValidationResourceManager validationResourceManager, ResourceStorage storage, HttpClient httpClient, String schemaRoot) {
+    public ValidationHandler(ValidationResourceManager validationResourceManager, ValidationSchemaProvider validationSchemaProvider,
+                             ResourceStorage storage, HttpClient httpClient, String schemaRoot) {
         this.validationResourceManager = validationResourceManager;
         this.httpClient = httpClient;
-        this.validator = new Validator(storage, schemaRoot);
+        this.validator = new Validator(storage, schemaRoot, validationSchemaProvider);
     }
 
     /**
@@ -66,22 +68,27 @@ public class ValidationHandler {
         }
 
         // Exclude Hooks from validation
-        if(request.uri().contains(HOOKS_ROUTE_URI_PART) || request.uri().contains(HOOKS_LISTENERS_URI_PART)){
+        if (request.uri().contains(HOOKS_ROUTE_URI_PART) || request.uri().contains(HOOKS_LISTENERS_URI_PART)) {
             return false; // do not validate
         }
 
+        return matchingValidationResource(request, log) != null;
+    }
+
+    private Map<String, String> matchingValidationResource(HttpServerRequest request, Logger log) {
         List<Map<String, String>> validationResources = validationResourceManager.getValidationResource().getResources();
         try {
             for (Map<String, String> validationResource : validationResources) {
                 if (doesRequestValueMatch(request.method().name(), validationResource.get(ValidationResource.METHOD_PROPERTY))
                         && doesRequestValueMatch(request.uri(), validationResource.get(ValidationResource.URL_PROPERTY))) {
-                    return true;
+                    return validationResource;
                 }
             }
         } catch (PatternSyntaxException patternException) {
             log.error(patternException.getMessage() + " " + patternException.getPattern());
         }
-        return false;
+
+        return null;
     }
 
     private boolean doesRequestValueMatch(String value, String valuePattern) {
@@ -104,7 +111,7 @@ public class ValidationHandler {
      * @param req
      */
     private void handleValidation(final HttpServerRequest req) {
-		final Logger log = RequestLoggerFactory.getLogger(ValidationHandler.class,req);
+        final Logger log = RequestLoggerFactory.getLogger(ValidationHandler.class, req);
         final HttpClientRequest cReq = httpClient.request(req.method(), req.uri(), cRes -> {
             ResponseStatusCodeLogUtil.info(req, StatusCode.fromCode(cRes.statusCode()), ValidationHandler.class);
             req.response().setStatusCode(cRes.statusCode());
@@ -114,16 +121,16 @@ public class ValidationHandler {
             cRes.bodyHandler(data -> {
 
                 if (req.response().getStatusCode() == StatusCode.OK.getStatusCode() && outMethods.contains(req.method().name()) && data.length() > 0) {
-                    validator.validate(req, req.method() + "/out", data, event -> {
-                        if(event.isSuccess()) {
+                    validator.validate(req, req.method() + "/out", data, schemaLocation(req, log).orElse(null), event -> {
+                        if (event.isSuccess()) {
                             req.response().end(data);
-                        }else {
-                            if(isFailOnError()) {
+                        } else {
+                            if (isFailOnError()) {
                                 req.response().headers().clear();
                                 req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                                 req.response().setStatusMessage(event.getMessage());
                                 req.response().end();
-                            }else{
+                            } else {
                                 log.warn(event.getMessage());
                                 req.response().end(data);
                             }
@@ -141,25 +148,26 @@ public class ValidationHandler {
 
         req.bodyHandler(data -> {
             if (inMethods.contains(req.method().name())) {
-                validator.validate(req, req.method() + "/in", data, event -> {
-                    if(event.isSuccess()) {
-                        cReq.end(data);
-                    } else {
-                        if (isFailOnError()) {
-                            req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                            req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                            if(event.getValidationDetails() != null){
-                                req.response().headers().add("content-type", "application/json");
-                                req.response().end(event.getValidationDetails().encode());
+                validator.validate(req, req.method() + "/in", data, schemaLocation(req, log).orElse(null),
+                        event -> {
+                            if (event.isSuccess()) {
+                                cReq.end(data);
                             } else {
-                                req.response().end(event.getMessage());
+                                if (isFailOnError()) {
+                                    req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                                    req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+                                    if (event.getValidationDetails() != null) {
+                                        req.response().headers().add("content-type", "application/json");
+                                        req.response().end(event.getValidationDetails().encode());
+                                    } else {
+                                        req.response().end(event.getMessage());
+                                    }
+                                } else {
+                                    log.warn(event.getMessage());
+                                    cReq.end(data);
+                                }
                             }
-                        } else {
-                            log.warn(event.getMessage());
-                            cReq.end(data);
-                        }
-                    }
-                });
+                        });
             } else {
                 cReq.end(data);
             }
@@ -178,6 +186,14 @@ public class ValidationHandler {
 
     public void setFailOnError(boolean failOnError) {
         this.failOnError = failOnError;
+    }
+
+    private Optional<String> schemaLocation(HttpServerRequest request, Logger log) {
+        Map<String, String> validationResource = matchingValidationResource(request, log);
+        if (validationResource != null) {
+            return Optional.ofNullable(validationResource.get(ValidationResource.SCHEMA_LOCATION_PROPERTY));
+        }
+        return Optional.empty();
     }
 
 }

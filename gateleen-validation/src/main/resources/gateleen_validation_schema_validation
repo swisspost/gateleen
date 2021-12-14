@@ -26,6 +26,11 @@
 					"description": "The HTTP method to validate. Regex can be used to define a pattern. If not provided, PUT will be used as default",
 					"format": "regexp",
 					"type": "string"
+				},
+				"schemaLocation": {
+					"description": "The path to the schema location",
+					"type": "string",
+					"minLength": 1
 				}
 			},
 			"required": ["url"]

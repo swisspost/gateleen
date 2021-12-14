@@ -69,8 +69,10 @@ import org.swisspush.gateleen.security.content.ContentTypeConstraintHandler;
 import org.swisspush.gateleen.security.content.ContentTypeConstraintRepository;
 import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
+import org.swisspush.gateleen.validation.DefaultValidationSchemaProvider;
 import org.swisspush.gateleen.validation.ValidationHandler;
 import org.swisspush.gateleen.validation.ValidationResourceManager;
+import org.swisspush.gateleen.validation.ValidationSchemaProvider;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -117,6 +119,7 @@ public class Server extends AbstractVerticle {
     private LoggingResourceManager loggingResourceManager;
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
+    private ValidationSchemaProvider validationSchemaProvider;
     private SchedulerResourceManager schedulerResourceManager;
     private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
     private ReducedPropagationManager reducedPropagationManager;
@@ -247,7 +250,9 @@ public class Server extends AbstractVerticle {
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
                 validationResourceManager.enableResourceLogging(true);
 
-                validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
+                validationSchemaProvider = new DefaultValidationSchemaProvider();
+
+                validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, selfClient, ROOT + "/schemas/apis/");
 
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler,
                         SERVER_ROOT + "/admin/v1/schedulers");

@@ -38,6 +38,13 @@ public class ValidationResourceManagerTest {
             "  ]\n" +
             "}";
 
+    private final String VALIDATION_RESOURCE_VALID_SCHEMA_LOCATION = "{\n" +
+            "  \"resources\": [{\n" +
+            "    \"url\": \"/gateleen/resources/someResource\",\n" +
+            "    \"schemaLocation\": \"/gateleen/path/to/the/schema\"\n" +
+            "  }]\n" +
+            "}";
+
     private final String VALIDATION_RESOURCE_INVALID = "{\n" +
             "  \"wrongProperty\": [\n" +
             "    {\n" +
@@ -100,6 +107,10 @@ public class ValidationResourceManagerTest {
     public void testInitWithValidResource(TestContext context){
         validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
         ValidationResource res = validationResourceManager.getValidationResource();
+        context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a valid Resource should not result in an empty resources list");
+
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID_SCHEMA_LOCATION)), VALIDATION_URI);
+        res = validationResourceManager.getValidationResource();
         context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a valid Resource should not result in an empty resources list");
     }
 

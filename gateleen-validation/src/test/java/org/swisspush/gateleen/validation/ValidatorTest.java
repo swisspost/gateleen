@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.validation;
 
 import io.vertx.ext.unit.Async;
+import org.mockito.Mockito;
 import org.swisspush.gateleen.core.validation.ValidationStatus;
 import org.swisspush.gateleen.validation.mocks.HttpServerRequestMock;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
@@ -17,6 +18,7 @@ import org.junit.runner.RunWith;
 public class ValidatorTest {
 
     private MockResourceStorage storage;
+    private ValidationSchemaProvider validationSchemaProvider;
     private final String SCHEMA_ROOT = "/foo/schemas/apis/";
     private Validator validator;
 
@@ -47,7 +49,8 @@ public class ValidatorTest {
     @Before
     public void setUp(){
         storage = new MockResourceStorage();
-        validator = new Validator(storage, SCHEMA_ROOT);
+        validationSchemaProvider = Mockito.mock(ValidationSchemaProvider.class);
+        validator = new Validator(storage, SCHEMA_ROOT, validationSchemaProvider);
 
         storage.putMockData("/foo/schemas/apis/","{\"apis\": [\"foo\"]}");
     }
