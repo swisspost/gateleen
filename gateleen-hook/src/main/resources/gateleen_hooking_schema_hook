@@ -34,6 +34,11 @@
 				"$ref": "#/definitions/HeaderFunction"
 			}
 		},
+        "headersFilter": {
+            "description": "Also filter requests based on header values (besides url and http methods). RegEx can be used to define a filter",
+            "type": "string",
+            "minLength": 1
+        },
 		"destination": {
 			"type": "string"
 		},

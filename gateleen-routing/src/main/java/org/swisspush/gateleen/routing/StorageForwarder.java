@@ -33,21 +33,16 @@ import java.util.regex.Pattern;
  *
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class StorageForwarder implements Handler<RoutingContext> {
+public class StorageForwarder extends AbstractForwarder {
 
     private EventBus eventBus;
     private Pattern urlPattern;
-    private Rule rule;
     private String address;
-    private LoggingResourceManager loggingResourceManager;
-    private MonitoringHandler monitoringHandler;
     private CORSHandler corsHandler;
 
     public StorageForwarder(EventBus eventBus, Rule rule, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler) {
+        super(rule, loggingResourceManager, monitoringHandler);
         this.eventBus = eventBus;
-        this.rule = rule;
-        this.loggingResourceManager = loggingResourceManager;
-        this.monitoringHandler = monitoringHandler;
         this.address = Address.storageAddress() + "-" + rule.getStorage();
         urlPattern = Pattern.compile(rule.getUrlPattern());
         corsHandler = new CORSHandler();
@@ -58,6 +53,11 @@ public class StorageForwarder implements Handler<RoutingContext> {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), this.eventBus);
         final String targetUri = urlPattern.matcher(ctx.request().uri()).replaceAll(rule.getPath()).replaceAll("\\/\\/", "/");
         final Logger log = RequestLoggerFactory.getLogger(StorageForwarder.class, ctx.request());
+
+        if (handleHeadersFilter(ctx.request())) {
+            return;
+        }
+
         monitoringHandler.updateRequestsMeter("localhost", ctx.request().uri());
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), ctx.request().uri());

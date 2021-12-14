@@ -600,4 +600,64 @@ public class RuleFactoryTest {
             context.assertEquals(200, value);
         }
     }
+
+    @Test
+    public void testMethodsOnly(TestContext context) throws ValidationException {
+        String rule = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"methods\": [\"GET\", \"PUT\"]\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+
+        context.assertTrue(rules.size() == 1);
+        context.assertTrue(rules.get(0).getMethods().length == 2);
+    }
+
+    @Test
+    public void testHeadersFilterEmptyNotValid(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Validation failed");
+
+        String rule = "{\n" +
+                "  \"/gateleen/rule/1\":  {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"headersFilter\": \"\"\n" +
+                "  }\n" +
+                "}";
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+    }
+
+    @Test
+    public void testHeadersFilterNotValid(TestContext context) throws ValidationException {
+        thrown.expect( ValidationException.class );
+        thrown.expectMessage("Failed to parse regex pattern 'x-(foobar: true'.");
+
+        String rule = "{\n" +
+                "  \"/gateleen/rule/1\":  {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"headersFilter\": \"x-(foobar: true\"\n" +
+                "  }\n" +
+                "}";
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+    }
+
+    @Test
+    public void testHeadersFilterValid(TestContext context) throws ValidationException {
+        String rule = "{\n" +
+                "  \"/gateleen/rule/1\":  {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"headersFilter\": \"x-foobar: true\"\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals(Pattern.compile("x-foobar: true").pattern(), rules.get(0).getHeadersFilterPattern().pattern());
+    }
 }

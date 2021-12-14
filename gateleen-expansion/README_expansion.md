@@ -97,7 +97,7 @@ Additional information:
 * If the number of allowed sub requests exceeds the given limit, 400 "Number of allowed sub requests exceeded. Limit is x requests" is returned. 
 
 #### Expand on Backend
-If you want that the backend expands the request and not stargate, you can set the attribute:
+If you want that the backend expands the request and not gateleen, you can set the attribute:
 > expandOnBackend=true
 
 in the corresponding routing rule.

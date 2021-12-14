@@ -10,6 +10,7 @@ import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.core.validation.ValidationResult;
+import org.swisspush.gateleen.validation.RegexpValidator;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.Validator;
 
@@ -56,6 +57,12 @@ public class RuleFactory {
             Rule ruleObj = new Rule();
             ruleObj.setUrlPattern(urlPattern);
             JsonObject rule = rules.getJsonObject(urlPattern);
+
+            String headersFilter = rule.getString("headersFilter");
+            if(headersFilter != null) {
+                Pattern headersFilterPattern = RegexpValidator.throwIfPatternInvalid(headersFilter);
+                ruleObj.setHeadersFilterPattern(headersFilterPattern);
+            }
 
             String targetUrl = rule.getString("url");
             String path = rule.getString("path");

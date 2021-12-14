@@ -32,7 +32,7 @@ public class PropertyHandlerTest extends AbstractTest {
      * no registration is available.
      */
     @Test
-    public void testChangeProperty_not_registred(TestContext context) {
+    public void testChangeProperty_not_registered(TestContext context) {
         String property = "myprop.id";
         String propertyValue = "ok";
 
@@ -55,7 +55,7 @@ public class PropertyHandlerTest extends AbstractTest {
     /**
      * Checks if no update is performed, if the
      * url may be found, but the valueid is not
-     * registred.
+     * registered.
      */
     @Test
     public void testChangeProperty_wrong_valueId(TestContext context) {
@@ -79,11 +79,11 @@ public class PropertyHandlerTest extends AbstractTest {
     }
 
     /**
-     * Checks if a registred propery is correctly updated,
+     * Checks if a registered property is correctly updated,
      * if a request is sent to the server.
      */
     @Test
-    public void testChangeProperty_registred(TestContext context) {
+    public void testChangeProperty_registered(TestContext context) {
         String property = "myprop.id";
         String propertyValue = "ok";
 
@@ -107,7 +107,7 @@ public class PropertyHandlerTest extends AbstractTest {
      * Checks if the refreshables are called or not.
      */
     @Test
-    public void testChangeProperty_registred_refresh(TestContext context) {
+    public void testChangeProperty_registered_refresh(TestContext context) {
         String property = "myprop.id";
         String propertyValue = "ok";
 
@@ -142,7 +142,7 @@ public class PropertyHandlerTest extends AbstractTest {
      * Checks if the refreshables are called or not.
      */
     @Test
-    public void testChangeProperty_not_registred_refresh(TestContext context) {
+    public void testChangeProperty_not_registered_refresh(TestContext context) {
         String property = "myprop.id";
         String propertyValue = "ok";
 

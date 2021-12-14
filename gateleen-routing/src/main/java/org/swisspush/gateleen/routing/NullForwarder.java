@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.routing;
 
-import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
@@ -18,28 +17,28 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 /**
  * Consumes requests without forwarding them anywhere.
- * 
+ *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class NullForwarder implements Handler<RoutingContext> {
+public class NullForwarder extends AbstractForwarder {
 
-    private LoggingResourceManager loggingResourceManager;
-    private MonitoringHandler monitoringHandler;
-    private Rule rule;
     private EventBus eventBus;
 
-    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, EventBus eventBus){
-        this.rule = rule;
-        this.loggingResourceManager = loggingResourceManager;
-        this.monitoringHandler = monitoringHandler;
+    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, EventBus eventBus) {
+        super(rule, loggingResourceManager, monitoringHandler);
         this.eventBus = eventBus;
     }
 
     @Override
     public void handle(final RoutingContext ctx) {
+        final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
+
+        if (handleHeadersFilter(ctx.request())) {
+            return;
+        }
+
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), eventBus);
-        final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
         log.debug("Not forwarding request: {} with rule {}", ctx.request().uri(), rule.getRuleIdentifier());
         final VertxHttpHeaders requestHeaders = new VertxHttpHeaders();
         requestHeaders.addAll(ctx.request().headers());

@@ -1,9 +1,12 @@
 package org.swisspush.gateleen.hook;
 
+import io.vertx.core.MultiMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Local in-memory implementation of a LocalListenerRepository.
@@ -106,15 +109,27 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
     }
 
     @Override
-    public List<Listener> findListeners(String url, String method) {
+    public List<Listener> findListeners(String url, String method, MultiMap headers) {
         List<Listener> result = new ArrayList<>();
 
         for (Listener listener : findListeners(url)) {
-            if (listener.getHook().getMethods().isEmpty() || listener.getHook().getMethods().contains(method)) {
+            if (doesMethodMatch(listener, method) && doHeadersMatch(listener, headers)) {
                 result.add(listener);
             }
         }
 
         return result;
+    }
+
+    private boolean doesMethodMatch(Listener listener, String method) {
+        return listener.getHook().getMethods().isEmpty() || listener.getHook().getMethods().contains(method);
+    }
+
+    private boolean doHeadersMatch(Listener listener, MultiMap headers) {
+        Pattern headersFilterPattern = listener.getHook().getHeadersFilterPattern();
+        if (headersFilterPattern != null) {
+            return HttpHeaderUtil.hasMatchingHeader(headers, headersFilterPattern);
+        }
+        return true;
     }
 }

@@ -4,6 +4,8 @@ import com.google.common.collect.ImmutableMap;
 import com.jayway.awaitility.Awaitility;
 import com.jayway.awaitility.Duration;
 import io.restassured.RestAssured;
+import io.restassured.http.Header;
+import io.restassured.http.Headers;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -115,6 +117,41 @@ public class RouteTest extends AbstractTest {
         );
         // unregister route
         TestUtils.unregisterRoute(requestUrl);
+
+        async.complete();
+    }
+
+    @Test
+    public void testRouteWithMatchingHeadersFilter(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        // Settings
+        String subresource = "routePathTest";
+        String routeName = "routePathTest";
+        // -------
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = SERVER_ROOT + "/tests/gateleen/routetarget/" + routeName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        // just for security reasons (unregister route)
+        delete(requestUrl);
+
+        // -------
+
+        final String routedResource = requestUrlBase + "/" + subresource + "/test";
+        final String checkTarget = targetUrlBase + "/" + routeName + "/test";
+
+        TestUtils.registerRoute(requestUrl, target, methods, null, true, false, null, "x-foo: (A|B)");
+
+        String body2 = "{ \"name\" : \"routePathTest\"}";
+        given().headers(Headers.headers(new Header("x-foo", "A"))).body(body2).put(routedResource).then().assertThat().statusCode(200);
+        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+            given().headers(Headers.headers(new Header("x-foo", "A"))).when().get(routedResource).then().assertThat().body(containsString(body2));
+            when().get(checkTarget).then().assertThat().body(containsString(body2));
+        });
 
         async.complete();
     }
