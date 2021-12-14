@@ -41,7 +41,7 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
 
     protected void respondError(HttpServerRequest req, StatusCode statusCode) {
         try {
-            ResponseStatusCodeLogUtil.info(req, statusCode, Forwarder.class);
+            ResponseStatusCodeLogUtil.info(req, statusCode, getClass());
 
             String msg = statusCode.getStatusMessage();
             req.response()
@@ -50,7 +50,7 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
                     .end(msg);
         } catch (IllegalStateException ex) {
             // (nearly) ignore because underlying connection maybe already closed
-            RequestLoggerFactory.getLogger(Forwarder.class, req).info("IllegalStateException while sending error response for {}", req.uri(), ex);
+            RequestLoggerFactory.getLogger(getClass(), req).info("IllegalStateException while sending error response for {}", req.uri(), ex);
         }
     }
 }
