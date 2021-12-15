@@ -24,6 +24,7 @@ import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
@@ -251,7 +252,7 @@ public class Server extends AbstractVerticle {
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
                 validationResourceManager.enableResourceLogging(true);
 
-                validationSchemaProvider = new DefaultValidationSchemaProvider(vertx, selfClient, Duration.ofSeconds(30));
+                validationSchemaProvider = new DefaultValidationSchemaProvider(vertx, new ClientRequestCreator(selfClient), Duration.ofSeconds(30));
 
                 validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, selfClient, ROOT + "/schemas/apis/");
 

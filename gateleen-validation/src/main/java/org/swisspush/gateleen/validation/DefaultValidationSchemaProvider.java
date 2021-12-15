@@ -6,11 +6,12 @@ import com.networknt.schema.SpecVersion;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.impl.headers.VertxHttpHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.time.Duration;
@@ -21,7 +22,7 @@ import java.util.Optional;
 
 public class DefaultValidationSchemaProvider implements ValidationSchemaProvider {
 
-    private final HttpClient httpClient;
+    private final ClientRequestCreator clientRequestCreator;
     private final Logger log = LoggerFactory.getLogger(DefaultValidationSchemaProvider.class);
 
     private final Map<String, SchemaEntry> cachedSchemas;
@@ -35,11 +36,11 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
      * Constructor for {@link DefaultValidationSchemaProvider}
      *
      * @param vertx the Vert.x instance
-     * @param httpClient the {@link HttpClient} to fetch the schema
+     * @param clientRequestCreator the {@link ClientRequestCreator} to fetch the schema
      * @param cacheCleanupInterval interval to define the cached schema cleanup
      */
-    public DefaultValidationSchemaProvider(Vertx vertx, HttpClient httpClient, Duration cacheCleanupInterval) {
-        this.httpClient = httpClient;
+    public DefaultValidationSchemaProvider(Vertx vertx, ClientRequestCreator clientRequestCreator, Duration cacheCleanupInterval) {
+        this.clientRequestCreator = clientRequestCreator;
         this.cachedSchemas = new HashMap<>();
 
         vertx.setPeriodic(cacheCleanupInterval.toMillis(), event -> cleanupCachedSchemas());
@@ -64,40 +65,42 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
             }
         }
 
-        final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, schemaLocation.schemaLocation(), cRes -> {
-            cRes.bodyHandler(data -> {
-                if (StatusCode.OK.getStatusCode() == cRes.statusCode()) {
-                    String contentType = cRes.getHeader(CONTENT_TYPE_HEADER);
-                    if (contentType != null && !contentType.contains(CONTENT_TYPE_JSON)) {
-                        log.warn("Content-Type {} is not supported", contentType);
-                        future.complete(Optional.empty());
-                        return;
-                    }
-                    future.complete(parseSchema(schemaLocation, data));
-                } else {
-                    StatusCode statusCode = StatusCode.fromCode(cRes.statusCode());
-                    if (statusCode != null) {
-                        log.warn("Got status code {} while fetching schema", cRes.statusCode());
+        VertxHttpHeaders headers = new VertxHttpHeaders();
+        headers.add("Accept", "application/json");
+        headers.add(SELF_REQUEST_HEADER, "true");
+
+        HttpClientRequest fetchSchemaRequest = clientRequestCreator.createClientRequest(
+                HttpMethod.GET,
+                schemaLocation.schemaLocation(),
+                headers,
+                TIMEOUT_MS,
+                cRes -> cRes.bodyHandler(data -> {
+                    if (StatusCode.OK.getStatusCode() == cRes.statusCode()) {
+                        String contentType = cRes.getHeader(CONTENT_TYPE_HEADER);
+                        if (contentType != null && !contentType.contains(CONTENT_TYPE_JSON)) {
+                            log.warn("Content-Type {} is not supported", contentType);
+                            future.complete(Optional.empty());
+                            return;
+                        }
+                        future.complete(parseSchema(schemaLocation, data));
                     } else {
-                        log.warn("Got unknown status code while fetching schema");
+                        StatusCode statusCode = StatusCode.fromCode(cRes.statusCode());
+                        if (statusCode != null) {
+                            log.warn("Got status code {} while fetching schema", cRes.statusCode());
+                        } else {
+                            log.warn("Got unknown status code while fetching schema");
+                        }
+                        future.complete(Optional.empty());
                     }
+                }),
+                event -> {
+                    log.warn("Got an error while fetching schema", event);
                     future.complete(Optional.empty());
                 }
-            });
+        );
 
-            cRes.exceptionHandler(event -> {
-                log.warn("Got an error while fetching schema", event);
-                future.complete(Optional.empty());
-            });
-
-        });
-
-        cReq.setTimeout(TIMEOUT_MS);
-        cReq.headers().set("Accept", "application/json");
-        cReq.headers().set(SELF_REQUEST_HEADER, "true");
-        cReq.setChunked(true);
-        cReq.end();
-
+        fetchSchemaRequest.setChunked(true);
+        fetchSchemaRequest.end();
         return future;
     }
 

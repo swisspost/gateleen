@@ -10,6 +10,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.json.transform.JoltTransformer;
 import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
@@ -36,7 +37,7 @@ public class Delegate {
     private static final int STATUS_CODE_2XX = 2;
 
     private final String name;
-    private final DelegateClientRequestCreator delegateClientRequestCreator;
+    private final ClientRequestCreator clientRequestCreator;
     private final Pattern pattern;
     private final Set<HttpMethod> methods;
     private final List<DelegateRequest> requests;
@@ -45,14 +46,14 @@ public class Delegate {
     /**
      * Creates a new instance of a Delegate.
      *
-     * @param delegateClientRequestCreator  selfClient
+     * @param clientRequestCreator          selfClient
      * @param name                          name of delegate
      * @param pattern                       pattern for the delegate
      * @param methods                       methods of the delegate
      * @param requests                      requests of the delegate
      */
-    public Delegate(final DelegateClientRequestCreator delegateClientRequestCreator, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
-        this.delegateClientRequestCreator = delegateClientRequestCreator;
+    public Delegate(final ClientRequestCreator clientRequestCreator, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
+        this.clientRequestCreator = clientRequestCreator;
         this.name = name;
         this.pattern = pattern;
         this.methods = methods;
@@ -142,7 +143,7 @@ public class Delegate {
             // headers of the delegate
             VertxHttpHeaders headers = createRequestHeaders(requestContainer, originalRequest.headers());
 
-            HttpClientRequest delegateRequest = delegateClientRequestCreator.createClientRequest(
+            HttpClientRequest delegateRequest = clientRequestCreator.createClientRequest(
                     HttpMethod.valueOf(requestObject.getString(METHOD)),
                     requestUri,
                     headers,
