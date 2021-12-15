@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.core.http;
 
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
@@ -20,7 +21,7 @@ public class ClientRequestCreator {
         this.selfClient = selfClient;
     }
 
-    public HttpClientRequest createClientRequest(HttpMethod method, String requestURI, VertxHttpHeaders headers, long timeoutMs,
+    public HttpClientRequest createClientRequest(HttpMethod method, String requestURI, MultiMap headers, long timeoutMs,
                                                  Handler<HttpClientResponse> responseHandler, Handler<Throwable> exceptionHandler){
         HttpClientRequest delegateRequest = selfClient.request(method, requestURI, responseHandler);
         delegateRequest.headers().setAll(headers);

@@ -198,7 +198,7 @@ public class Server extends AbstractVerticle {
                 Lock lock = new RedisBasedLock(redisClient);
 
                 cacheStorage = new RedisCacheStorage(vertx, lock, redisClient, 20 * 1000);
-                cacheDataFetcher = new DefaultCacheDataFetcher(selfClient);
+                cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));
                 cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
 
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
