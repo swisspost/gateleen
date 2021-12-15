@@ -98,7 +98,6 @@ public class ExpansionHandler implements RuleChangesObserver{
     private int maxExpansionLevelSoft = Integer.MAX_VALUE;
     private int maxExpansionLevelHard = Integer.MAX_VALUE;
 
-    private final Vertx vertx;
     private HttpClient httpClient;
     private Map<String, Object> properties;
     private String serverRoot;
@@ -129,7 +128,6 @@ public class ExpansionHandler implements RuleChangesObserver{
      * @param rulesPath rulesPath
      */
     public ExpansionHandler(Vertx vertx, final ResourceStorage storage, HttpClient httpClient, final Map<String, Object> properties, String serverRoot, final String rulesPath) {
-        this.vertx = vertx;
         this.httpClient = httpClient;
         this.properties = properties;
         this.serverRoot = serverRoot;
@@ -374,7 +372,7 @@ public class ExpansionHandler implements RuleChangesObserver{
                      */
                 makeResourceSubRequest(targetUri, req, finalExpandLevel, new AtomicInteger(),
                         recursiveHandlerType,
-                        RecursiveHandlerFactory.createRootHandler(recursiveHandlerType, req, serverRoot, data, finalOriginalParams), true);
+                        RecursiveHandlerFactory.createRootHandler(recursiveHandlerType, req, serverRoot, data, finalOriginalParams), new RecurseCollectionButNoopForOthers(), true);
             });
             cRes.exceptionHandler(ExpansionDeltaUtil.createResponseExceptionHandler(req, targetUri, ExpansionHandler.class));
         });
@@ -522,7 +520,7 @@ public class ExpansionHandler implements RuleChangesObserver{
      * @param handler - the parent handler
      * @param collection - indicates if the just passed targetUri belongs to a collection or a resource
      */
-    private void makeResourceSubRequest(final String targetUri, final HttpServerRequest req, final int recursionLevel, final AtomicInteger subRequestCounter, final RecursiveHandlerFactory.RecursiveHandlerTypes recursionHandlerType, final DeltaHandler<ResourceNode> handler, final boolean collection) {
+    private void makeResourceSubRequest(final String targetUri, final HttpServerRequest req, final int recursionLevel, final AtomicInteger subRequestCounter, final RecursiveHandlerFactory.RecursiveHandlerTypes recursionHandlerType, final DeltaHandler<ResourceNode> handler, CollectionResourceHandler onChild, final boolean collection) {
 
         Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
 
@@ -574,15 +572,17 @@ public class ExpansionHandler implements RuleChangesObserver{
                      */
                     if (collection) {
                         try {
-                            handleCollectionResource(removeParameters(targetUri), req, recursionLevel, subRequestCounter, recursionHandlerType, handler, data, eTag);
+                            onChild.handleCollectionResource(removeParameters(targetUri), req, recursionLevel, subRequestCounter, recursionHandlerType, handler, data, eTag);
                         } catch (ResourceCollectionException e) {
                             if (log.isTraceEnabled()) {
                                 log.trace("handling collection failed with: {}", e.getMessage());
                             }
                             handleSimpleResource(removeParameters(targetUri), handler, data, eTag);
+                            onChild.leaveResourceGotHandled();
                         }
                     } else {
                         handleSimpleResource(removeParameters(targetUri), handler, data, eTag);
+                        onChild.leaveResourceGotHandled();
                     }
                 }
             });
@@ -697,18 +697,28 @@ public class ExpansionHandler implements RuleChangesObserver{
                 if(isStorageExpand(targetUri)){
                     makeStorageExpandRequest(targetUri, subResourceNames, req, handler);
                 } else {
+                    // Copy-Paste-Adapt from provided example code.
                     Flowable.fromIterable(subResourceNames)
-                            .concatMapEager(s -> wrap((Consumer<String> callback) -> vertx.setTimer(16, e -> callback.accept(s))),
-                                    2, 2) // only 2 resolutions can be inflight anytime
-                            .doOnNext(childResourceName -> { // once resolved, items are ordered and processed
+                            // once resolved, items are ordered and processed
+                            .concatMapEager(childResourceName -> wrap((Consumer<ChildWithArgs> callback) -> {
                                 log.trace("processing child resource: {}", childResourceName);
                                 boolean collection = isCollection(childResourceName);
                                 String childUri = ExpansionDeltaUtil.constructRequestUri(targetUri, req.params(), parameter_to_remove_after_initial_request, childResourceName, SlashHandling.END_WITHOUT_SLASH);
                                 // if the child is not a collection, we remove the parameter
                                 childUri = collection ? childUri : removeParameters(childUri);
 
-                                makeResourceSubRequest(childUri, req, recursionLevel - DECREMENT_BY_ONE, subRequestCounter, recursionHandlerType, parentHandler, collection);
-                            })
+                                CollectionResourceHandler publishChildToNextStep = new RecurseCollectionButNoopForOthers() {
+                                    @Override public void onAnyKindOfResourceJustHappened() {
+                                        // There's nothing we would need to handle. But we need to publish
+                                        // a value to Flowable to decrease count of pending requests so
+                                        // Flowable knows that it can start processing another item.
+                                        callback.accept(ChildWithArgs.NOOP);
+                                    }
+                                };
+
+                                makeResourceSubRequest(childUri, req, recursionLevel - DECREMENT_BY_ONE, subRequestCounter, recursionHandlerType, parentHandler, publishChildToNextStep, collection);
+                            }), 2, 2) // only 2 resolutions can be inflight anytime
+                            .doOnNext(ChildWithArgs::handleCollectionResource)
                             .subscribe();
                 }
             }
@@ -764,4 +774,63 @@ public class ExpansionHandler implements RuleChangesObserver{
     private String geteTag(MultiMap headers) {
         return headers != null && headers.contains(ETAG_HEADER) ? headers.get(ETAG_HEADER) : "";
     }
+
+    /**
+     * Type of the callback we use above. Cannot use {@link java.util.function}
+     * due to too many parameters and custom exceptions.
+     */
+    private static interface CollectionResourceHandler {
+        void handleCollectionResource(final String targetUri, final HttpServerRequest req, final int recursionLevel, final AtomicInteger subRequestCounter, final RecursiveHandlerFactory.RecursiveHandlerTypes recursionHandlerType, final DeltaHandler<ResourceNode> handler, final Buffer data, final String eTag) throws ResourceCollectionException;
+        void leaveResourceGotHandled();
+        void onAnyKindOfResourceJustHappened();
+    }
+
+    private class RecurseCollectionButNoopForOthers implements CollectionResourceHandler {
+        @Override public void handleCollectionResource(String a, HttpServerRequest b, int c, AtomicInteger d, RecursiveHandlerFactory.RecursiveHandlerTypes e, DeltaHandler<ResourceNode> f, Buffer g, String h) throws ResourceCollectionException {
+            ExpansionHandler.this.handleCollectionResource(a, b, c, d, e, f, g, h);
+            onAnyKindOfResourceJustHappened();
+        }
+        @Override public void leaveResourceGotHandled() { onAnyKindOfResourceJustHappened(); }
+        @Override public void onAnyKindOfResourceJustHappened() {/*noop*/}
+    }
+
+    /**
+     * Workaround to bundle needed args into ONE object for passing through
+     * flowable API. As we cannot pass dozens of references via flowable directly.
+     */
+    private static class ChildWithArgs {
+        /** Special marker so we can call our callback without doing anything. */
+        static final ChildWithArgs NOOP = new ChildWithArgs(null, null, null, -1, null, null, null, null, null) {
+            @Override
+            void handleCollectionResource() throws ResourceCollectionException {/*noop*/}
+        };
+        final ExpansionHandler expansionHandler;
+        final String targetUri;
+        final HttpServerRequest req;
+        final int recursionLevel;
+        final AtomicInteger subRequestCounter;
+        final RecursiveHandlerFactory.RecursiveHandlerTypes recursionHandlerType;
+        final DeltaHandler<ResourceNode> handler;
+        final Buffer data;
+        final String eTag;
+
+        private ChildWithArgs(ExpansionHandler expansionHandler, String targetUri, HttpServerRequest req, int recursionLevel, AtomicInteger subRequestCounter, RecursiveHandlerFactory.RecursiveHandlerTypes recursionHandlerType, DeltaHandler<ResourceNode> handler, Buffer data, String eTag) {
+            this.expansionHandler = expansionHandler;
+            this.targetUri = targetUri;
+            this.req = req;
+            this.recursionLevel = recursionLevel;
+            this.subRequestCounter = subRequestCounter;
+            this.recursionHandlerType = recursionHandlerType;
+            this.handler = handler;
+            this.data = data;
+            this.eTag = eTag;
+        }
+
+        void handleCollectionResource() throws ResourceCollectionException {
+            expansionHandler.handleCollectionResource(
+                    targetUri, req, recursionLevel, subRequestCounter,
+                    recursionHandlerType, handler, data, eTag);
+        }
+    }
+
 }
