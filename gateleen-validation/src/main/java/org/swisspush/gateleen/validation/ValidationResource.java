@@ -11,7 +11,8 @@ public class ValidationResource {
 
     public static final String URL_PROPERTY = "url";
     public static final String METHOD_PROPERTY = "method";
-    public static final String SCHEMA_LOCATION_PROPERTY = "schemaLocation";
+    public static final String SCHEMA_LOCATION_PROPERTY = "location";
+    public static final String SCHEMA_KEEP_INMEMORY_PROPERTY = "keepInMemory";
 
     private List<Map<String, String>> resources = new ArrayList<>();
 

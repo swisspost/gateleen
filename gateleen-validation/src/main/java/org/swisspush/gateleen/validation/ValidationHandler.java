@@ -18,7 +18,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-
 /**
  * Validates incoming and outgoing JSON and issues warnings in logs.
  *
@@ -27,7 +26,6 @@ import java.util.regex.PatternSyntaxException;
 public class ValidationHandler {
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
     public static final String HOOKS_ROUTE_URI_PART = "/_hooks/route";
-
 
     public static final String ACCEPT = "accept";
     private HttpClient httpClient;
@@ -128,12 +126,12 @@ public class ValidationHandler {
                             if (isFailOnError()) {
                                 req.response().headers().clear();
                                 req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                                req.response().setStatusMessage(event.getMessage());
+                                req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
                                 req.response().end();
                             } else {
-                                log.warn(event.getMessage());
                                 req.response().end(data);
                             }
+                            log.warn(event.getMessage());
                         }
                     });
                 } else {
@@ -188,10 +186,26 @@ public class ValidationHandler {
         this.failOnError = failOnError;
     }
 
-    private Optional<String> schemaLocation(HttpServerRequest request, Logger log) {
+    private Optional<SchemaLocation> schemaLocation(HttpServerRequest request, Logger log) {
         Map<String, String> validationResource = matchingValidationResource(request, log);
         if (validationResource != null) {
-            return Optional.ofNullable(validationResource.get(ValidationResource.SCHEMA_LOCATION_PROPERTY));
+            String location = validationResource.get(ValidationResource.SCHEMA_LOCATION_PROPERTY);
+            if(location == null) {
+                return Optional.empty();
+            }
+
+            String keepInMemoryStr = validationResource.get(ValidationResource.SCHEMA_KEEP_INMEMORY_PROPERTY);
+
+            Integer keepInMemory = null;
+            if(keepInMemoryStr != null) {
+                try {
+                    keepInMemory = Integer.parseInt(keepInMemoryStr);
+                } catch (NumberFormatException ex) {
+                    log.warn("Property 'keepInMemory' is not a number but " + keepInMemoryStr, ex);
+                }
+            }
+
+            return Optional.of(new SchemaLocation(location, keepInMemory));
         }
         return Optional.empty();
     }

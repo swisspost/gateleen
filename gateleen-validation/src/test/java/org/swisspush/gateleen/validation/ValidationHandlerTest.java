@@ -1,23 +1,19 @@
 package org.swisspush.gateleen.validation;
 
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.http.*;
-import org.mockito.Matchers;
-import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.validation.mocks.HttpServerRequestMock;
-import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.http.*;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Matchers;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.storage.MockResourceStorage;
+import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.Optional;
 
@@ -31,7 +27,7 @@ import static org.mockito.Mockito.*;
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 @RunWith(VertxUnitRunner.class)
-public class ValidationHandlerTest {
+public class ValidationHandlerTest extends AbstractTest {
 
     private Vertx vertx;
     private HttpClient httpClient;
@@ -53,13 +49,13 @@ public class ValidationHandlerTest {
             "}";
 
     private final String RESOURCE_GET_PUT_SCHEMA_LOCATION = "{\n" +
-            "  \"resources\": [\n" +
-            "    {\n" +
-            "      \"url\": \"/gateleen/resources/someResource\",\n" +
-            "      \"schemaLocation\": \"/gateleen/path/to/the/schema\",\n" +
-            "      \"method\": \"GET|PUT\"\n" +
+            "  \"resources\": [{\n" +
+            "    \"url\": \"/gateleen/resources/someResource\",\n" +
+            "    \"method\": \"GET|PUT\",\n" +
+            "    \"schema\": {\n" +
+            "      \"location\": \"/gateleen/path/to/the/schema\"\n" +
             "    }\n" +
-            "  ]\n" +
+            "  }]\n" +
             "}";
 
     private final String RESOURCE_GET = "{\n" +
@@ -184,7 +180,7 @@ public class ValidationHandlerTest {
 
     @Test
     public void testValidateSchemaLocationNoSchemaFound(TestContext context) {
-        when(validationSchemaProvider.schemaFromLocation(anyString())).thenReturn(Future.succeededFuture(Optional.empty()));
+        when(validationSchemaProvider.schemaFromLocation(any(SchemaLocation.class))).thenReturn(Future.succeededFuture(Optional.empty()));
         storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_SCHEMA_LOCATION);
         ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
 
@@ -203,7 +199,7 @@ public class ValidationHandlerTest {
 
     @Test
     public void testValidateSchemaLocationSchemaProviderError(TestContext context) {
-        when(validationSchemaProvider.schemaFromLocation(anyString())).thenReturn(Future.failedFuture("Boooom"));
+        when(validationSchemaProvider.schemaFromLocation(any(SchemaLocation.class))).thenReturn(Future.failedFuture("Boooom"));
         storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_SCHEMA_LOCATION);
         ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
 
@@ -222,7 +218,7 @@ public class ValidationHandlerTest {
 
     @Test
     public void testValidateSchemaLocationWithInvalidPayload(TestContext context) {
-        when(validationSchemaProvider.schemaFromLocation(anyString())).thenReturn(Future.succeededFuture(Optional.of(createSchema(SCHEMA))));
+        when(validationSchemaProvider.schemaFromLocation(any(SchemaLocation.class))).thenReturn(Future.succeededFuture(Optional.of(createSchema(SCHEMA))));
         storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_SCHEMA_LOCATION);
         ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
 
@@ -242,7 +238,7 @@ public class ValidationHandlerTest {
 
     @Test
     public void testValidateSchemaLocationWithValidPayload(TestContext context) {
-        when(validationSchemaProvider.schemaFromLocation(anyString())).thenReturn(Future.succeededFuture(Optional.of(createSchema(SCHEMA))));
+        when(validationSchemaProvider.schemaFromLocation(any(SchemaLocation.class))).thenReturn(Future.succeededFuture(Optional.of(createSchema(SCHEMA))));
         storage.putMockData(VALIDATION_URI, RESOURCE_GET_PUT_SCHEMA_LOCATION);
         ValidationHandler validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, httpClient, SCHEMA_ROOT);
 
@@ -276,62 +272,6 @@ public class ValidationHandlerTest {
         // GET to gateleen resource
         context.assertTrue(validationHandler.isToValidate(new CustomHttpServerRequest(HttpMethod.GET,
                 "/gateleen/trip/v1/destinations/current/11")), "GET Requests with wildcard should be validated");
-    }
-
-    private JsonSchema createSchema(String dataString) {
-        return JsonSchemaFactory.getInstance().getSchema(dataString);
-    }
-
-    static class CustomHttpServerRequest extends HttpServerRequestMock {
-
-        private final HttpMethod method;
-        private final String uri;
-        private final String path;
-        private final HttpServerResponse response;
-
-        public CustomHttpServerRequest(HttpMethod method, String uri) {
-            this(method, uri, uri);
-        }
-
-        public CustomHttpServerRequest(HttpMethod method, String uri, HttpServerResponse response) {
-            this(method, uri, uri, response);
-        }
-
-        public CustomHttpServerRequest(HttpMethod method, String uri, String path) {
-            this(method, uri, path, Mockito.mock(HttpServerResponse.class));
-        }
-
-        public CustomHttpServerRequest(HttpMethod method, String uri, String path, HttpServerResponse response) {
-            this.method = method;
-            this.uri = uri;
-            this.path = path;
-            this.response = response;
-        }
-
-        @Override
-        public HttpMethod method() {
-            return method;
-        }
-
-        @Override
-        public String uri() {
-            return uri;
-        }
-
-        @Override
-        public String path() {
-            return path;
-        }
-
-        @Override
-        public MultiMap headers() {
-            return super.headers();
-        }
-
-        @Override
-        public HttpServerResponse response() {
-            return response;
-        }
     }
 }
 

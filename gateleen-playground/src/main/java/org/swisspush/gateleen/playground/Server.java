@@ -75,6 +75,7 @@ import org.swisspush.gateleen.validation.ValidationResourceManager;
 import org.swisspush.gateleen.validation.ValidationSchemaProvider;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -250,7 +251,7 @@ public class Server extends AbstractVerticle {
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
                 validationResourceManager.enableResourceLogging(true);
 
-                validationSchemaProvider = new DefaultValidationSchemaProvider();
+                validationSchemaProvider = new DefaultValidationSchemaProvider(vertx, selfClient, Duration.ofSeconds(30));
 
                 validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, selfClient, ROOT + "/schemas/apis/");
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 import io.vertx.core.json.Json;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -30,17 +31,17 @@ public class Validator {
 
     private static final String SCHEMA_DECLARATION = "http://json-schema.org/draft-04/schema#";
     private String schemaRoot;
-	private ResourceStorage storage;
-	private ValidationSchemaProvider schemaProvider;
+    private ResourceStorage storage;
+    private ValidationSchemaProvider schemaProvider;
 
-	public Validator(ResourceStorage storage, String schemaRoot, ValidationSchemaProvider schemaProvider) {
+    public Validator(ResourceStorage storage, String schemaRoot, ValidationSchemaProvider schemaProvider) {
         this.storage = storage;
         this.schemaRoot = schemaRoot;
         this.schemaProvider = schemaProvider;
-	}
+    }
 
-    public void validate(HttpServerRequest req, String type, Buffer jsonBuffer, String schemaLocation, Handler<ValidationResult> callback) {
-        if(schemaLocation == null) {
+    public void validate(HttpServerRequest req, String type, Buffer jsonBuffer, SchemaLocation schemaLocation, Handler<ValidationResult> callback) {
+        if (schemaLocation == null) {
             validate(req, type, jsonBuffer, callback);
         } else {
             final Logger log = RequestLoggerFactory.getLogger(Validator.class, req);
@@ -56,26 +57,27 @@ public class Validator {
                     Optional<JsonSchema> schemaOptional = event.result();
                     if (schemaOptional.isEmpty()) {
                         callback.handle(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
-                                "No schema found in location " + schemaLocation));
+                                "No schema found in location " + schemaLocation.schemaLocation()));
                         return;
                     }
 
                     JsonSchema jsonSchema = schemaOptional.get();
-                    performValidation(jsonSchema, log, schemaLocation, jsonBuffer, type, req.path(), callback);
+                    performValidation(jsonSchema, log, schemaLocation.schemaLocation(), jsonBuffer, type, req.path(), callback);
                 });
             }
         }
     }
 
-	public void validate(HttpServerRequest req, String type, Buffer jsonBuffer, Handler<ValidationResult> callback) {
-		final Logger log = RequestLoggerFactory.getLogger(Validator.class, req);
-		if(!req.path().startsWith(schemaRoot)) {
-			log.debug("Validating request");
-			doValidate(jsonBuffer, req.path(), schemaRoot, type, (req.path().replaceFirst("^/", "")+"/"+type).split("/"), log, callback);
-		}
-	}
+    public void validate(HttpServerRequest req, String type, Buffer jsonBuffer, Handler<ValidationResult> callback) {
+        final Logger log = RequestLoggerFactory.getLogger(Validator.class, req);
+        if (!req.path().startsWith(schemaRoot)) {
+            log.debug("Validating request");
+            doValidate(jsonBuffer, req.path(), schemaRoot, type, (req.path().replaceFirst("^/", "") + "/" + type).split("/"), log, callback);
+        }
+    }
 
-    private void doValidate(final Buffer jsonBuffer, final String path, final String base, final String type, final String[] segments, final Logger log, final Handler<ValidationResult> callback) {
+    private void doValidate(final Buffer jsonBuffer, final String path, final String base, final String type,
+                            final String[] segments, final Logger log, final Handler<ValidationResult> callback) {
         storage.get(base, buffer -> {
             if (buffer != null) {
                 String dataString = buffer.toString();
@@ -93,46 +95,48 @@ public class Validator {
                     String baseWithLowDash = base.replaceFirst("[^/]*/$", "") + "_/";
                     Validator.this.doValidate(jsonBuffer, path, baseWithLowDash, type, segments, log, callback);
                 } else {
-                    callback.handle(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE, "Could not get path " + base + " (_ was used to try for schemas with variable ids)"));
+                    callback.handle(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE, "Could not get path "
+                            + base + " (_ was used to try for schemas with variable ids)"));
                 }
             }
         });
     }
 
-    private void validateRecursively(JsonObject data, String[] newSegments, String base, Buffer jsonBuffer, String path, String type, Logger log, Handler<ValidationResult> callback) {
+    private void validateRecursively(JsonObject data, String[] newSegments, String base, Buffer jsonBuffer, String path,
+                                     String type, Logger log, Handler<ValidationResult> callback) {
         String newBase = base;
-        String baseWithoutTrailingSlash = base.replaceFirst("/$",  "");
-        String arrayName = baseWithoutTrailingSlash.substring(baseWithoutTrailingSlash.lastIndexOf('/')+1);
+        String baseWithoutTrailingSlash = base.replaceFirst("/$", "");
+        String arrayName = baseWithoutTrailingSlash.substring(baseWithoutTrailingSlash.lastIndexOf('/') + 1);
         JsonArray array = data.getJsonArray(arrayName);
-        if(array != null && array.size() > 0) {
-            if(array.contains(newSegments[0]+"/") || array.contains(newSegments[0])) {
-                newBase = newBase + newSegments[0]+ ( newSegments.length > 1 ? "/" : "");
+        if (array != null && array.size() > 0) {
+            if (array.contains(newSegments[0] + "/") || array.contains(newSegments[0])) {
+                newBase = newBase + newSegments[0] + (newSegments.length > 1 ? "/" : "");
                 doValidate(jsonBuffer, path, newBase, type, Arrays.copyOfRange(newSegments, 1, newSegments.length), log, callback);
-            } else if(array.contains("_/") || array.contains("_")) {
-                newBase = newBase + newSegments[0]+"/";
+            } else if (array.contains("_/") || array.contains("_")) {
+                newBase = newBase + newSegments[0] + "/";
                 doValidate(jsonBuffer, path, newBase, type, Arrays.copyOfRange(newSegments, 1, newSegments.length), log, callback);
             } else {
-                String message = "No schema for "+path+" ("+type+") [2]";
+                String message = "No schema for " + path + " (" + type + ") [2]";
                 log.warn(message);
                 callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
             }
         } else {
-            String message = "No schema for "+path+" ("+type+") [3]";
+            String message = "No schema for " + path + " (" + type + ") [3]";
             log.warn(message);
             callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
         }
     }
 
-    public static ValidationResult validateStatic(Buffer dataToBeValidated, String schemaAsString, Logger log){
-        if(!JsonUtil.isValidJson(dataToBeValidated)){
+    public static ValidationResult validateStatic(Buffer dataToBeValidated, String schemaAsString, Logger log) {
+        if (!JsonUtil.isValidJson(dataToBeValidated)) {
             return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Unable to parse json");
         }
 
         JsonObject schemaObject = new JsonObject(schemaAsString);
-        if(SCHEMA_DECLARATION.equals(schemaObject.getString("$schema"))) {
+        if (SCHEMA_DECLARATION.equals(schemaObject.getString("$schema"))) {
             JsonSchema schema;
             try {
-                schema = JsonSchemaFactory.getInstance().getSchema(schemaAsString);
+                schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4).getSchema(schemaAsString);
             } catch (Exception e) {
                 String message = "Cannot load schema";
                 log.warn(message, e);
@@ -141,7 +145,7 @@ public class Validator {
             try {
                 JsonNode jsonNode = new ObjectMapper().readTree(dataToBeValidated.getBytes());
                 final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
-                if(valMsgs.isEmpty()) {
+                if (valMsgs.isEmpty()) {
                     return new ValidationResult(ValidationStatus.VALIDATED_POSITIV);
                 } else {
                     JsonArray validationDetails = extractMessagesAsJson(valMsgs, log);
@@ -153,7 +157,7 @@ public class Validator {
                 return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message);
             }
         } else {
-            String message = "Invalid schema: Expected property '$schema' with content '"+SCHEMA_DECLARATION+"'";
+            String message = "Invalid schema: Expected property '$schema' with content '" + SCHEMA_DECLARATION + "'";
             log.warn(message);
             return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message);
         }
@@ -167,7 +171,7 @@ public class Validator {
                 throw new IOException("no vaild JSON object: " + jsonBuffer.toString());
             }
             final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
-            if(valMsgs.isEmpty()) {
+            if (valMsgs.isEmpty()) {
                 log.debug("Valid ({})", type);
                 log.debug("Used schema: {}", base);
                 callback.handle(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
@@ -181,7 +185,7 @@ public class Validator {
                         .append(messages)
                         .append(" | Report: ").append(getReportAsString(valMsgs));
 
-                if(log.isDebugEnabled()){
+                if (log.isDebugEnabled()) {
                     msgBuilder.append(" | Validated JSON: ").append(jsonBuffer.toString());
                 }
 
@@ -199,10 +203,10 @@ public class Validator {
 
     private static void performValidation(String dataString, JsonObject data, Logger log, String base, Buffer jsonBuffer,
                                           String type, String path, Handler<ValidationResult> callback) {
-        if(SCHEMA_DECLARATION.equals(data.getString("$schema"))) {
+        if (SCHEMA_DECLARATION.equals(data.getString("$schema"))) {
             JsonSchema schema;
             try {
-                schema = JsonSchemaFactory.getInstance().getSchema(dataString);
+                schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4).getSchema(dataString);
             } catch (Exception e) {
                 String message = "Cannot load schema " + base;
                 log.warn(message, e);
@@ -217,7 +221,7 @@ public class Validator {
         }
     }
 
-    private static JsonArray extractMessagesAsJson(Set<ValidationMessage> valMsgs, Logger log){
+    private static JsonArray extractMessagesAsJson(Set<ValidationMessage> valMsgs, Logger log) {
         JsonArray resultArray = new JsonArray();
         valMsgs.forEach(msg -> {
             if (log != null) {
@@ -228,28 +232,28 @@ public class Validator {
         return resultArray;
     }
 
-    private static String extractMessages(Set<ValidationMessage> valMsgs){
+    private static String extractMessages(Set<ValidationMessage> valMsgs) {
         List<String> messages = new ArrayList<>();
         valMsgs.forEach(msg -> {
             if (StringUtils.isNotEmpty(msg.getMessage())) {
                 messages.add(msg.getMessage());
             }
         });
-        if(messages.isEmpty()){
+        if (messages.isEmpty()) {
             return null;
         }
         Joiner joiner = Joiner.on("; ").skipNulls();
         return joiner.join(messages);
     }
 
-    private static String getReportAsString(Set<ValidationMessage> valMsgs){
+    private static String getReportAsString(Set<ValidationMessage> valMsgs) {
         List<String> messages = new ArrayList<>();
         valMsgs.forEach(msg -> {
             if (StringUtils.isNotEmpty(msg.getMessage())) {
                 messages.add(Json.encodePrettily(msg));
             }
         });
-        if(messages.isEmpty()){
+        if (messages.isEmpty()) {
             return "no report available";
         }
         Joiner joiner = Joiner.on("; ").skipNulls();

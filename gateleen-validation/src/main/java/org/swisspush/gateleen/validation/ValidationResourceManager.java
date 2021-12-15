@@ -151,9 +151,17 @@ public class ValidationResourceManager implements LoggableResource {
                     resProperties.put(ValidationResource.METHOD_PROPERTY, "PUT");
                 }
 
-                String schemaLocation = resJSO.getString(ValidationResource.SCHEMA_LOCATION_PROPERTY);
-                if(!StringUtils.isEmpty(schemaLocation)) {
-                    resProperties.put(ValidationResource.SCHEMA_LOCATION_PROPERTY, schemaLocation);
+                JsonObject schemaObj = resJSO.getJsonObject("schema");
+                if(schemaObj != null) {
+                    String schemaLocation = schemaObj.getString(ValidationResource.SCHEMA_LOCATION_PROPERTY);
+                    if (!StringUtils.isEmpty(schemaLocation)) {
+                        resProperties.put(ValidationResource.SCHEMA_LOCATION_PROPERTY, schemaLocation);
+                    }
+
+                    Integer keepInMemory = schemaObj.getInteger(ValidationResource.SCHEMA_KEEP_INMEMORY_PROPERTY);
+                    if(keepInMemory != null) {
+                        resProperties.put(ValidationResource.SCHEMA_KEEP_INMEMORY_PROPERTY, keepInMemory.toString());
+                    }
                 }
 
                 getValidationResource().addResource(resProperties);

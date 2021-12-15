@@ -27,13 +27,31 @@
 					"format": "regexp",
 					"type": "string"
 				},
-				"schemaLocation": {
-					"description": "The path to the schema location",
-					"type": "string",
-					"minLength": 1
+				"schema": {
+					"description": "The schema configuration to use to validate this resource",
+					"$ref": "#/definitions/Schema"
 				}
 			},
 			"required": ["url"]
+		},
+		"Schema": {
+			"properties": {
+				"location": {
+                    "description": "The path to the schema location",
+                    "type": "string",
+                    "minLength": 1
+				},
+				"keepInMemory": {
+				    "description": "The number of seconds to keep the parsed JsonSchema in memory to reduce the load of creating a new schema for every call. If not provided, the JsonSchema will not be cached",
+					"type": "integer",
+                    "minimum": 1,
+                    "maximum": 86400
+				}
+			},
+			"required": [
+				"location"
+			],
+			"additionalProperties": false
 		}
 	}
 }
