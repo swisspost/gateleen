@@ -16,6 +16,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
+import java.util.Map;
+
 /**
  * Test class for the ValidationResourceManager
  *
@@ -36,6 +38,35 @@ public class ValidationResourceManagerTest {
             "      \"method\": \"GET|PUT\"\n" +
             "    }\n" +
             "  ]\n" +
+            "}";
+
+    private final String VALIDATION_RESOURCE_VALID_SCHEMA_LOCATION = "{\n" +
+            "  \"resources\": [{\n" +
+            "    \"url\": \"/gateleen/resources/someResource\",\n" +
+            "    \"schema\": {\n" +
+            "      \"location\": \"/gateleen/path/to/the/schema\"\n" +
+            "    }\n" +
+            "  }]\n" +
+            "}";
+
+    private final String VALIDATION_RESOURCE_INVALID_SCHEMA_KEEPINMEMORY = "{\n" +
+            "  \"resources\": [{\n" +
+            "    \"url\": \"/gateleen/resources/someResource\",\n" +
+            "    \"schema\": {\n" +
+            "      \"location\": \"/gateleen/path/to/the/schema\",\n" +
+            "      \"keepInMemory\": 999999999\n" +
+            "    }\n" +
+            "  }]\n" +
+            "}";
+
+    private final String VALIDATION_RESOURCE_VALID_SCHEMA_FULL = "{\n" +
+            "  \"resources\": [{\n" +
+            "    \"url\": \"/gateleen/resources/someResource\",\n" +
+            "    \"schema\": {\n" +
+            "      \"location\": \"/gateleen/path/to/the/schema\",\n" +
+            "      \"keepInMemory\": 86400\n" +
+            "    }\n" +
+            "  }]\n" +
             "}";
 
     private final String VALIDATION_RESOURCE_INVALID = "{\n" +
@@ -101,6 +132,10 @@ public class ValidationResourceManagerTest {
         validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID)), VALIDATION_URI);
         ValidationResource res = validationResourceManager.getValidationResource();
         context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a valid Resource should not result in an empty resources list");
+
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID_SCHEMA_LOCATION)), VALIDATION_URI);
+        res = validationResourceManager.getValidationResource();
+        context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a valid Resource should not result in an empty resources list");
     }
 
     @Test
@@ -117,6 +152,23 @@ public class ValidationResourceManagerTest {
         validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID_3)), VALIDATION_URI);
         res = validationResourceManager.getValidationResource();
         context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a Resource missing the 'methods' property should not result in an empty resources list");
+
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_INVALID_SCHEMA_KEEPINMEMORY)), VALIDATION_URI);
+        res = validationResourceManager.getValidationResource();
+        context.assertTrue(res.getResources().isEmpty(), "Creating ValidationResourceManager with a Resource having a 'keepInMemory' property with a value greater than 86400 should result in an empty resources list");
+    }
+
+    @Test
+    public void testInitWithValidSchemaConfigurationResource(TestContext context){
+        validationResourceManager = new ValidationResourceManager(vertx, new MockResourceStorage(ImmutableMap.of(VALIDATION_URI, VALIDATION_RESOURCE_VALID_SCHEMA_FULL)), VALIDATION_URI);
+        ValidationResource res = validationResourceManager.getValidationResource();
+        context.assertFalse(res.getResources().isEmpty(), "Creating ValidationResourceManager with a valid Resource should not result in an empty resources list");
+
+        Map<String, String> validationResourceMap = res.getResources().get(0);
+        context.assertEquals(validationResourceMap.get(ValidationResource.URL_PROPERTY), "/gateleen/resources/someResource");
+        context.assertEquals(validationResourceMap.get(ValidationResource.METHOD_PROPERTY), "PUT");
+        context.assertEquals(validationResourceMap.get(ValidationResource.SCHEMA_LOCATION_PROPERTY), "/gateleen/path/to/the/schema");
+        context.assertEquals(validationResourceMap.get(ValidationResource.SCHEMA_KEEP_INMEMORY_PROPERTY), "86400");
     }
 
     @Test

@@ -8,6 +8,8 @@ Use the ValidationResourceManager class to configure the validation configuratio
 |:----------- | :--------------------------------------- | 
 | url         | A string containing the URL to validate. Regex can be used to define a pattern |
 | method      | A string containing the HTTP method to validate. Regex can be used to define a pattern. This property is optional. If not provided, "PUT" will be used as default |
+| schema.location | A string containing the URL to the schema resource |
+| schema.keepInMemory | An integer defining the amount of seconds to keep the schema cached. Used to prevent the schema from created for every request when used often. If not provided, the schema will not be cached. |
 
 All filter values inside a config property (url, method) have to match in order to validate the corresponding json resource.
 
@@ -15,20 +17,23 @@ Example of a validation configuration:
 
 ```json
 {
-    "resources": [
-        {
-            "url": "/gateleen/server/admin/v1/logging",
-            "method": "GET|PUT"
-        },
-        {
-            "url": "/gateleen/server/admin/v1/schedulers",
-            "method": "GET|PUT"
-        },
-        {
-            "url": "/gateleen/server/admin/v1/routing/.*",
-            "method": "PUT"
-        }
-    ]
+	"resources": [{
+			"url": "/gateleen/server/admin/v1/logging",
+			"method": "GET|PUT"
+		},
+		{
+			"url": "/gateleen/server/admin/v1/schedulers",
+			"method": "GET|PUT"
+		},
+		{
+			"url": "/gateleen/server/admin/v1/routing/.*",
+			"method": "PUT",
+			"schema": {
+				"location": "/gateleen/path/to/the/schema",
+				"keepInMemory": 3600
+			}
+		}
+	]
 }
 ```
 The current implementation allows only to use a wildcard at the end of an url.
