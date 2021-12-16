@@ -69,12 +69,12 @@ public class ValidatorTest extends AbstractTest {
                 "    \"type\": \"object\"\n" +
                 "}");
 
-        CustomHttpServerRequest gETValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
+        CustomHttpServerRequest getValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
 
         String type = "GET/out";
         Buffer jsonBuffer = Buffer.buffer();
         final SettableFuture<String> future = SettableFuture.create();
-        validator.validate(gETValidationResourceRequest, type, jsonBuffer, validationResult -> {
+        validator.validate(getValidationResourceRequest, type, jsonBuffer, validationResult -> {
             String message = validationResult.getMessage();
             context.assertFalse(message.contains("Could not get path"), message);
             context.assertFalse(message.contains("No schema for"), message);
@@ -89,11 +89,11 @@ public class ValidatorTest extends AbstractTest {
         Async async = context.async();
         prepareSchema(SAMPLE_SCHEMA);
 
-        CustomHttpServerRequest gETValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
+        CustomHttpServerRequest getValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
 
         String type = "GET/out";
         Buffer jsonBuffer = Buffer.buffer(CONTENT_NOT_MATCHING_SAMPLE_SCHEMA);
-        validator.validate(gETValidationResourceRequest, type, jsonBuffer, validationResult -> {
+        validator.validate(getValidationResourceRequest, type, jsonBuffer, validationResult -> {
             context.assertFalse(validationResult.isSuccess());
             context.assertEquals(ValidationStatus.VALIDATED_NEGATIV, validationResult.getValidationStatus());
             String message = validationResult.getMessage();
@@ -110,11 +110,11 @@ public class ValidatorTest extends AbstractTest {
         Async async = context.async();
         prepareSchema(SAMPLE_SCHEMA);
 
-        CustomHttpServerRequest gETValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
+        CustomHttpServerRequest getValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
 
         String type = "GET/out";
         Buffer jsonBuffer = Buffer.buffer(CONTENT_MATCHING_SAMPLE_SCHEMA);
-        validator.validate(gETValidationResourceRequest, type, jsonBuffer, validationResult -> {
+        validator.validate(getValidationResourceRequest, type, jsonBuffer, validationResult -> {
             context.assertTrue(validationResult.isSuccess(), "ValidationResult should be a success (VALIDATED_POSITIV)");
             context.assertEquals(ValidationStatus.VALIDATED_POSITIV, validationResult.getValidationStatus());
             context.assertNull(validationResult.getMessage(), "Message should be null when validation result was positive");
@@ -136,12 +136,12 @@ public class ValidatorTest extends AbstractTest {
                 "    \"type\": \"object\"\n" +
                 "}");
 
-        CustomHttpServerRequest gETValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediamessage/v1/output/front");
+        CustomHttpServerRequest getValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediamessage/v1/output/front");
 
         String type = "GET/out";
         Buffer jsonBuffer = Buffer.buffer();
         final SettableFuture<String> future = SettableFuture.create();
-        validator.validate(gETValidationResourceRequest, type, jsonBuffer, validationResult -> {
+        validator.validate(getValidationResourceRequest, type, jsonBuffer, validationResult -> {
             String message = validationResult.getMessage();
             context.assertFalse(message.contains("Could not get path"), message);
             context.assertFalse(message.contains("No schema for"), message);
@@ -160,12 +160,12 @@ public class ValidatorTest extends AbstractTest {
         storage.putMockData("/foo/schemas/apis/foo/mediamessage/v1/output/","{\"output\": [\"front\"]}");
         // schema line missing
 
-        CustomHttpServerRequest gETValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediamessage/v1/output/front");
+        CustomHttpServerRequest getValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediamessage/v1/output/front");
 
         String type = "GET/out";
         Buffer jsonBuffer = Buffer.buffer();
         final SettableFuture<String> future = SettableFuture.create();
-        validator.validate(gETValidationResourceRequest, type, jsonBuffer, validationResult -> {
+        validator.validate(getValidationResourceRequest, type, jsonBuffer, validationResult -> {
             String message = validationResult.getMessage();
             context.assertTrue(message.contains("Could not get path"), message);
             future.set(message);
@@ -179,11 +179,11 @@ public class ValidatorTest extends AbstractTest {
         when(validationSchemaProvider.schemaFromLocation(any(SchemaLocation.class)))
                 .thenReturn(Future.succeededFuture(Optional.of(createSchema(SAMPLE_SCHEMA))));
 
-        CustomHttpServerRequest gETValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
+        CustomHttpServerRequest getValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
 
         String type = "GET/out";
         Buffer jsonBuffer = Buffer.buffer(CONTENT_MATCHING_SAMPLE_SCHEMA);
-        validator.validate(gETValidationResourceRequest, type, jsonBuffer, new SchemaLocation("/path/to/the/schema", null), validationResult -> {
+        validator.validate(getValidationResourceRequest, type, jsonBuffer, new SchemaLocation("/path/to/the/schema", null), validationResult -> {
             context.assertTrue(validationResult.isSuccess(), "ValidationResult should be a success (VALIDATED_POSITIV)");
             context.assertEquals(ValidationStatus.VALIDATED_POSITIV, validationResult.getValidationStatus());
             context.assertNull(validationResult.getMessage(), "Message should be null when validation result was positive");
@@ -197,11 +197,11 @@ public class ValidatorTest extends AbstractTest {
         when(validationSchemaProvider.schemaFromLocation(any(SchemaLocation.class)))
                 .thenReturn(Future.succeededFuture(Optional.empty()));
 
-        CustomHttpServerRequest gETValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
+        CustomHttpServerRequest getValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
 
         String type = "GET/out";
         Buffer jsonBuffer = Buffer.buffer(CONTENT_MATCHING_SAMPLE_SCHEMA);
-        validator.validate(gETValidationResourceRequest, type, jsonBuffer, new SchemaLocation("/path/to/the/schema", null), validationResult -> {
+        validator.validate(getValidationResourceRequest, type, jsonBuffer, new SchemaLocation("/path/to/the/schema", null), validationResult -> {
             context.assertFalse(validationResult.isSuccess(), "ValidationResult should not be a success (COULD_NOT_VALIDATE)");
             context.assertEquals(ValidationStatus.COULD_NOT_VALIDATE, validationResult.getValidationStatus());
             context.assertEquals( "No schema found in location /path/to/the/schema", validationResult.getMessage());
@@ -215,11 +215,11 @@ public class ValidatorTest extends AbstractTest {
         when(validationSchemaProvider.schemaFromLocation(any(SchemaLocation.class)))
                 .thenReturn(Future.failedFuture("Boooom"));
 
-        CustomHttpServerRequest gETValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
+        CustomHttpServerRequest getValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
 
         String type = "GET/out";
         Buffer jsonBuffer = Buffer.buffer(CONTENT_MATCHING_SAMPLE_SCHEMA);
-        validator.validate(gETValidationResourceRequest, type, jsonBuffer, new SchemaLocation("/path/to/the/schema", null), validationResult -> {
+        validator.validate(getValidationResourceRequest, type, jsonBuffer, new SchemaLocation("/path/to/the/schema", null), validationResult -> {
             context.assertFalse(validationResult.isSuccess(), "ValidationResult should not be a success (COULD_NOT_VALIDATE)");
             context.assertEquals(ValidationStatus.COULD_NOT_VALIDATE, validationResult.getValidationStatus());
             context.assertEquals( "Error while getting schema. Cause: Boooom", validationResult.getMessage());
@@ -234,11 +234,11 @@ public class ValidatorTest extends AbstractTest {
         when(validationSchemaProvider.schemaFromLocation(any(SchemaLocation.class)))
                 .thenReturn(Future.succeededFuture(Optional.of(createSchema(SAMPLE_SCHEMA))));
 
-        CustomHttpServerRequest gETValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
+        CustomHttpServerRequest getValidationResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/foo/mediadata/v1/specials/03");
 
         String type = "GET/out";
         Buffer jsonBuffer = Buffer.buffer(CONTENT_NOT_MATCHING_SAMPLE_SCHEMA);
-        validator.validate(gETValidationResourceRequest, type, jsonBuffer, new SchemaLocation("/path/to/the/schema", null), validationResult -> {
+        validator.validate(getValidationResourceRequest, type, jsonBuffer, new SchemaLocation("/path/to/the/schema", null), validationResult -> {
             context.assertFalse(validationResult.isSuccess());
             context.assertEquals(ValidationStatus.VALIDATED_NEGATIV, validationResult.getValidationStatus());
             String message = validationResult.getMessage();

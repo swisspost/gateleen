@@ -124,31 +124,31 @@ public class ValidationHandlerTest extends AbstractTest {
 
         sendValidationResourcesUpdate(RESOURCE_GET_PUT);
 
-        CustomHttpServerRequest pUTToUnmanagedResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/some/other/resource");
-        context.assertFalse(validationHandler.isToValidate(pUTToUnmanagedResourceRequest),
+        CustomHttpServerRequest putToUnmanagedResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/some/other/resource");
+        context.assertFalse(validationHandler.isToValidate(putToUnmanagedResourceRequest),
                 "PUT Requests to not managed resources should not be validated");
 
-        CustomHttpServerRequest pUTToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource");
-        context.assertTrue(validationHandler.isToValidate(pUTToGateleenSomeResourceRequest), "PUT Requests to some resource should be validated");
+        CustomHttpServerRequest putToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource");
+        context.assertTrue(validationHandler.isToValidate(putToGateleenSomeResourceRequest), "PUT Requests to some resource should be validated");
 
         sendValidationResourcesUpdate(RESOURCE_GET);
-        context.assertFalse(validationHandler.isToValidate(pUTToGateleenSomeResourceRequest), "Now, PUT Requests to some resource should not be validated anymore (only GET Requests)");
-        context.assertFalse(validationHandler.isToValidate(pUTToUnmanagedResourceRequest), "PUT Requests to not managed resources should not be validated");
+        context.assertFalse(validationHandler.isToValidate(putToGateleenSomeResourceRequest), "Now, PUT Requests to some resource should not be validated anymore (only GET Requests)");
+        context.assertFalse(validationHandler.isToValidate(putToUnmanagedResourceRequest), "PUT Requests to not managed resources should not be validated");
 
-        CustomHttpServerRequest gETToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/gateleen/resources/someResource");
-        context.assertTrue(validationHandler.isToValidate(gETToGateleenSomeResourceRequest), "GET Requests to some resource should be validated");
+        CustomHttpServerRequest getToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/gateleen/resources/someResource");
+        context.assertTrue(validationHandler.isToValidate(getToGateleenSomeResourceRequest), "GET Requests to some resource should be validated");
 
         sendValidationResourcesUpdate(OTHER_RESOURCES_GET_PUT);
-        context.assertFalse(validationHandler.isToValidate(gETToGateleenSomeResourceRequest), "GET Requests to some resource should not be validated");
-        context.assertTrue(validationHandler.isToValidate(pUTToGateleenSomeResourceRequest), "PUT Requests to some resource should be validated");
+        context.assertFalse(validationHandler.isToValidate(getToGateleenSomeResourceRequest), "GET Requests to some resource should not be validated");
+        context.assertTrue(validationHandler.isToValidate(putToGateleenSomeResourceRequest), "PUT Requests to some resource should be validated");
 
-        context.assertFalse(validationHandler.isToValidate(pUTToUnmanagedResourceRequest), "PUT Requests to not managed resources should not be validated");
+        context.assertFalse(validationHandler.isToValidate(putToUnmanagedResourceRequest), "PUT Requests to not managed resources should not be validated");
 
-        CustomHttpServerRequest pUTToGateleenOtherResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/otherResource");
-        CustomHttpServerRequest gETToGateleenOtherResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/gateleen/resources/otherResource");
+        CustomHttpServerRequest putToGateleenOtherResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/otherResource");
+        CustomHttpServerRequest getToGateleenOtherResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/gateleen/resources/otherResource");
 
-        context.assertTrue(validationHandler.isToValidate(gETToGateleenOtherResourceRequest), "GET Requests to other resource should be validated");
-        context.assertFalse(validationHandler.isToValidate(pUTToGateleenOtherResourceRequest), "PUT Requests to other resource should not be validated");
+        context.assertTrue(validationHandler.isToValidate(getToGateleenOtherResourceRequest), "GET Requests to other resource should be validated");
+        context.assertFalse(validationHandler.isToValidate(putToGateleenOtherResourceRequest), "PUT Requests to other resource should not be validated");
     }
 
     private final String RESOURCE_GET_PUT_GENERIC = "{\n" +
@@ -167,15 +167,15 @@ public class ValidationHandlerTest extends AbstractTest {
 
         sendValidationResourcesUpdate(RESOURCE_GET_PUT_SCHEMA_LOCATION);
 
-        CustomHttpServerRequest pUTToUnmanagedResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/some/other/resource");
-        context.assertFalse(validationHandler.isToValidate(pUTToUnmanagedResourceRequest), "PUT Requests to not managed resources should not be validated");
-        CustomHttpServerRequest gETToUnmanagedResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/some/other/resource");
-        context.assertFalse(validationHandler.isToValidate(gETToUnmanagedResourceRequest), "GET Requests to not managed resources should not be validated");
+        CustomHttpServerRequest putToUnmanagedResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/some/other/resource");
+        context.assertFalse(validationHandler.isToValidate(putToUnmanagedResourceRequest), "PUT Requests to not managed resources should not be validated");
+        CustomHttpServerRequest getToUnmanagedResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/some/other/resource");
+        context.assertFalse(validationHandler.isToValidate(getToUnmanagedResourceRequest), "GET Requests to not managed resources should not be validated");
 
-        CustomHttpServerRequest pUTToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource");
-        context.assertTrue(validationHandler.isToValidate(pUTToGateleenSomeResourceRequest), "PUT Requests to some resource should be validated");
-        CustomHttpServerRequest gETToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/gateleen/resources/someResource");
-        context.assertTrue(validationHandler.isToValidate(gETToGateleenSomeResourceRequest), "GET Requests to some resource should be validated");
+        CustomHttpServerRequest putToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource");
+        context.assertTrue(validationHandler.isToValidate(putToGateleenSomeResourceRequest), "PUT Requests to some resource should be validated");
+        CustomHttpServerRequest getToGateleenSomeResourceRequest = new CustomHttpServerRequest(HttpMethod.GET, "/gateleen/resources/someResource");
+        context.assertTrue(validationHandler.isToValidate(getToGateleenSomeResourceRequest), "GET Requests to some resource should be validated");
     }
 
     @Test

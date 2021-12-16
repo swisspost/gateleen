@@ -111,7 +111,7 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
             if (schemaLocation.keepInMemory() != null) {
                 cachedSchemas.put(schemaLocation.schemaLocation(), new SchemaEntry(schema, Instant.now().plusSeconds(schemaLocation.keepInMemory())));
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Error while parsing schema", e);
         }
 

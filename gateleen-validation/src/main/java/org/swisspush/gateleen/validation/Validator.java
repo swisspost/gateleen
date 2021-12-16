@@ -137,7 +137,7 @@ public class Validator {
             JsonSchema schema;
             try {
                 schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4).getSchema(schemaAsString);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 String message = "Cannot load schema";
                 log.warn(message, e);
                 return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message);
@@ -207,7 +207,7 @@ public class Validator {
             JsonSchema schema;
             try {
                 schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4).getSchema(dataString);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 String message = "Cannot load schema " + base;
                 log.warn(message, e);
                 callback.handle(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
