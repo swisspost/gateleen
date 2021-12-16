@@ -3,6 +3,7 @@ package org.swisspush.gateleen.player;
 import org.json.JSONObject;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.swisspush.gateleen.player.exchange.Exchange;
@@ -28,7 +29,7 @@ public class PlayerTest {
         @Override
         public ResponseEntity<JSONObject> exchange(RequestEntity<JSONObject> request) {
             System.out.println(request);
-            return new ResponseEntity<>(null);
+            return new ResponseEntity<>(HttpStatus.OK);
         }
     };
 

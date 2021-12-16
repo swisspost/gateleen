@@ -23,6 +23,7 @@ public class HttpHook {
     public static final int CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE = Rule.MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE;
     private String destination;
     private List<String> methods;
+    private Pattern headersFilterPattern;
     private Map<Pattern, Integer> translateStatus;
     private DateTime expirationTime;
     private boolean fullUrl = false;
@@ -84,6 +85,14 @@ public class HttpHook {
      */
     public void setMethods(List<String> methods) {
         this.methods = methods;
+    }
+
+    public Pattern getHeadersFilterPattern() {
+        return headersFilterPattern;
+    }
+
+    public void setHeadersFilterPattern(Pattern headersFilterPattern) {
+        this.headersFilterPattern = headersFilterPattern;
     }
 
     public Map<Pattern, Integer> getTranslateStatus() {

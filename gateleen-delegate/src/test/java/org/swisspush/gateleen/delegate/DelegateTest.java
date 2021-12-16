@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.validation.ValidationException;
@@ -39,9 +40,8 @@ public class DelegateTest {
 
     private String delegatesSchema = loadResource("gateleen_delegate_schema_delegates", true);
 
-    private DelegateClientRequestCreator delegateClientRequestCreator;
+    private ClientRequestCreator clientRequestCreator;
     private DelegateFactory delegateFactory;
-
 
     @Before
     public void setUp() {
@@ -49,8 +49,8 @@ public class DelegateTest {
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
         final LocalHttpClient selfClient = new LocalHttpClient(vertx);
         selfClient.setRoutingContexttHandler(event -> {});
-        delegateClientRequestCreator = Mockito.spy(new DelegateClientRequestCreator(selfClient));
-        delegateFactory = new DelegateFactory(delegateClientRequestCreator, new HashMap<>(), delegatesSchema);
+        clientRequestCreator = Mockito.spy(new ClientRequestCreator(selfClient));
+        delegateFactory = new DelegateFactory(clientRequestCreator, new HashMap<>(), delegatesSchema);
     }
 
     @Test
@@ -68,7 +68,7 @@ public class DelegateTest {
 
         ArgumentCaptor<VertxHttpHeaders> headersArgumentCaptor = ArgumentCaptor.forClass(VertxHttpHeaders.class);
 
-        verify(delegateClientRequestCreator, times(1)).createClientRequest(
+        verify(clientRequestCreator, times(1)).createClientRequest(
                 eq(HttpMethod.POST),
                 eq("/gateleen/server/v1/copy"),
                 headersArgumentCaptor.capture(),
@@ -95,7 +95,7 @@ public class DelegateTest {
 
         ArgumentCaptor<VertxHttpHeaders> headersArgumentCaptor = ArgumentCaptor.forClass(VertxHttpHeaders.class);
 
-        verify(delegateClientRequestCreator, times(1)).createClientRequest(
+        verify(clientRequestCreator, times(1)).createClientRequest(
                 eq(HttpMethod.POST),
                 eq("/gateleen/server/v1/copy"),
                 headersArgumentCaptor.capture(),
@@ -128,7 +128,7 @@ public class DelegateTest {
 
         ArgumentCaptor<VertxHttpHeaders> headersArgumentCaptor = ArgumentCaptor.forClass(VertxHttpHeaders.class);
 
-        verify(delegateClientRequestCreator, times(1)).createClientRequest(
+        verify(clientRequestCreator, times(1)).createClientRequest(
                 eq(HttpMethod.POST),
                 eq("/gateleen/server/v1/copy"),
                 headersArgumentCaptor.capture(),

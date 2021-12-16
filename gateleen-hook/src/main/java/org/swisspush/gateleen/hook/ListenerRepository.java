@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.hook;
 
+import io.vertx.core.MultiMap;
+
 import java.util.List;
 
 /**
@@ -26,14 +28,15 @@ public interface ListenerRepository {
     List<Listener> findListeners(String url);
 
     /**
-     * Searches for listeners corresponding to the given url and the used http method.
+     * Searches for listeners corresponding to the given url, used http method and request headers.
      * This is a hierarchical search, starting from top (/url/foo/bar) to bottom (/url).
      * 
      * @param url url
      * @param method http method
+     * @param headers http headers
      * @return List with listeners for the url, can be empty if no listeners are found.
      */
-    List<Listener> findListeners(String url, String method);
+    List<Listener> findListeners(String url, String method, MultiMap headers);
 
     /**
      * Removes the listener for the given listenerId.
@@ -59,9 +62,9 @@ public interface ListenerRepository {
     boolean isEmpty();
 
     /**
-     * Returns a copy of all registred listeners.
+     * Returns a copy of all registered listeners.
      * 
-     * @return a copy of all registred listeners
+     * @return a copy of all registered listeners
      */
     List<Listener> getListeners();
 

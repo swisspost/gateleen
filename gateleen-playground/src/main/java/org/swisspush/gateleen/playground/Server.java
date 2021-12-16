@@ -24,6 +24,7 @@ import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
@@ -69,10 +70,13 @@ import org.swisspush.gateleen.security.content.ContentTypeConstraintHandler;
 import org.swisspush.gateleen.security.content.ContentTypeConstraintRepository;
 import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
+import org.swisspush.gateleen.validation.DefaultValidationSchemaProvider;
 import org.swisspush.gateleen.validation.ValidationHandler;
 import org.swisspush.gateleen.validation.ValidationResourceManager;
+import org.swisspush.gateleen.validation.ValidationSchemaProvider;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -117,6 +121,7 @@ public class Server extends AbstractVerticle {
     private LoggingResourceManager loggingResourceManager;
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
+    private ValidationSchemaProvider validationSchemaProvider;
     private SchedulerResourceManager schedulerResourceManager;
     private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
     private ReducedPropagationManager reducedPropagationManager;
@@ -193,7 +198,7 @@ public class Server extends AbstractVerticle {
                 Lock lock = new RedisBasedLock(redisClient);
 
                 cacheStorage = new RedisCacheStorage(vertx, lock, redisClient, 20 * 1000);
-                cacheDataFetcher = new DefaultCacheDataFetcher(selfClient);
+                cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));
                 cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
 
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
@@ -247,7 +252,9 @@ public class Server extends AbstractVerticle {
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
                 validationResourceManager.enableResourceLogging(true);
 
-                validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
+                validationSchemaProvider = new DefaultValidationSchemaProvider(vertx, new ClientRequestCreator(selfClient), Duration.ofSeconds(30));
+
+                validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, selfClient, ROOT + "/schemas/apis/");
 
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler,
                         SERVER_ROOT + "/admin/v1/schedulers");

@@ -31,6 +31,7 @@ public class HookSchemaTest {
                 "  'methods': ['OPTIONS','GET','HEAD','POST','PUT','DELETE','PATCH']," +
                 "  'filter':'.*'," +
                 "  'headers': [{'header':'x-y', 'value':'gugus', 'mode':'complete'}]," +
+                "  'headersFilter':'x-foo.*'," +
                 "  'destination':'/go/somewhere'," +
                 "  'expireAfter':30," +
                 "  'queueExpireAfter':30," +
@@ -89,6 +90,18 @@ public class HookSchemaTest {
                 "  'destination':'/go/somewhere'," +
                 "  'staticHeaders':{}," +
                 "  'headers':[]" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("One validation messages", 1, valMsgs.size());
+    }
+
+    @Test
+    public void invalidWhenHeadersFilterContainsEmptyPattern() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'headersFilter':''" +
                 "}");
 
         Set<ValidationMessage> valMsgs = schema.validate(json);

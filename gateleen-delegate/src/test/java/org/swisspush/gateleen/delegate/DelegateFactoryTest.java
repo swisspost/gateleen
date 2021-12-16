@@ -14,6 +14,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.validation.ValidationException;
 
@@ -64,7 +65,7 @@ public class DelegateFactoryTest {
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
         Map<String, Object> properties = new HashMap<>();
 
-        delegateFactory = new DelegateFactory(new DelegateClientRequestCreator(Mockito.mock(HttpClient.class)), properties, delegatesSchema);
+        delegateFactory = new DelegateFactory(new ClientRequestCreator(Mockito.mock(HttpClient.class)), properties, delegatesSchema);
     }
 
     @Test

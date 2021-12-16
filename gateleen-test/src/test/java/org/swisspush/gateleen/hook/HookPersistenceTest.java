@@ -38,7 +38,7 @@ public class HookPersistenceTest extends AbstractTest {
     }
 
     /**
-     * Init the routing roules for the hooking.
+     * Init the routing rules for the hooking.
      */
     private void initRoutingRules() {
         // add a routing

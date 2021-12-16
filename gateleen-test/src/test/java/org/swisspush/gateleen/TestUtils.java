@@ -218,7 +218,13 @@ public class TestUtils {
 
     public static void registerRoute(final String requestUrl, final String target, String[] methods,
                                      Map<String, String> staticHeaders, boolean collection, boolean listable) {
-        registerRoute(requestUrl, target, methods, staticHeaders, collection, listable, null);
+        registerRoute(requestUrl, target, methods, staticHeaders, collection, listable, null, null);
+    }
+
+    public static void registerRoute(final String requestUrl, final String target, String[] methods,
+                                     Map<String, String> staticHeaders, boolean collection, boolean listable,
+                                     Map<Pattern, Integer> translateStatus) {
+        registerRoute(requestUrl, target, methods, staticHeaders, collection, listable, translateStatus, null);
     }
 
         /**
@@ -229,10 +235,11 @@ public class TestUtils {
          * @param methods
          * @param staticHeaders
          * @param translateStatus
+         * @param headersFilter
          */
     public static void registerRoute(final String requestUrl, final String target, String[] methods,
                                      Map<String, String> staticHeaders, boolean collection, boolean listable,
-                                     Map<Pattern, Integer> translateStatus) {
+                                     Map<Pattern, Integer> translateStatus, String headersFilter) {
         JsonObject route = new JsonObject();
 
         route.put("destination", target);
@@ -246,6 +253,10 @@ public class TestUtils {
                 staticHeadersObj.put(entry.getKey(), entry.getValue());
             }
             route.put("staticHeaders", staticHeadersObj);
+        }
+
+        if(headersFilter != null) {
+            route.put("headersFilter", headersFilter);
         }
 
         if(translateStatus != null && !translateStatus.isEmpty()) {
@@ -304,7 +315,8 @@ public class TestUtils {
      * @param filter
      * @param queueExpireTime
      */
-    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter, Integer queueExpireTime) {
+    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter,
+                                        Integer queueExpireTime) {
         registerListener(requestUrl, target, methods, filter, queueExpireTime, null);
     }
 
@@ -318,8 +330,9 @@ public class TestUtils {
      * @param queueExpireTime
      * @param staticHeaders
      */
-    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter, Integer queueExpireTime, Map<String, String> staticHeaders) {
-        registerListener(requestUrl, target, methods, filter, queueExpireTime, staticHeaders, null);
+    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter,
+                                        Integer queueExpireTime, Map<String, String> staticHeaders) {
+        registerListener(requestUrl, target, methods, filter, queueExpireTime, staticHeaders, null, null);
     }
 
     /**
@@ -332,7 +345,9 @@ public class TestUtils {
      * @param queueExpireTime
      * @param staticHeaders
      */
-    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter, Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type) {
+    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter,
+                                        Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type,
+                                        String headersFilter) {
         JsonObject route = new JsonObject();
         route.put("destination", target);
 
@@ -347,6 +362,10 @@ public class TestUtils {
         }
         if(type != null) {
             route.put("type", type.text());
+        }
+
+        if(headersFilter != null) {
+            route.put("headersFilter", headersFilter);
         }
 
         if (staticHeaders != null && !staticHeaders.isEmpty()) {

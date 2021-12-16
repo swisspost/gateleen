@@ -665,7 +665,7 @@ public class QoSHandler implements LoggableResource {
 
             try {
                 ObjectName beanName = new ObjectName(name);
-                // is sentinel registred and if so,
+                // is sentinel registered and if so,
                 // is the sample count even or greater then the given one?
                 if (mbeanServer.isRegistered(beanName)) {
                     long currentSampleCount = (Long) mbeanServer.getAttribute(beanName, "Count");
@@ -725,7 +725,7 @@ public class QoSHandler implements LoggableResource {
             } catch (MalformedObjectNameException e) {
                 log.error("Could not load MBean for metric name '" + sentinel.getName() + "'.", e);
             } catch (AttributeNotFoundException e) {
-                // ups ... should not be possible, we check if the bean is registred
+                // ups ... should not be possible, we check if the bean is registered
             } catch (InstanceNotFoundException e) {
                 log.error("Could not find attribute " + sentinel.getPercentile() + PERCENTILE_SUFFIX + " for the MBean of the metric '" + sentinel.getName() + "'.", e);
             } catch (MBeanException | ReflectionException e) {
