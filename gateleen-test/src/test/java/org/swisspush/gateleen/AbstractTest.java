@@ -25,6 +25,7 @@ import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
@@ -169,7 +170,7 @@ public abstract class AbstractTest {
                 MergeHandler mergeHandler = new MergeHandler(selfClient);
 
                 cacheHandler = new CacheHandler(
-                        new DefaultCacheDataFetcher(selfClient),
+                        new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient)),
                         new RedisCacheStorage(vertx, lock, redisClient, 60000),
                         SERVER_ROOT + "/cache");
 
