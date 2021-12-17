@@ -21,7 +21,7 @@ before_install:
   - source "$HOME/.sdkman/bin/sdkman-init.sh"
   - sdk install groovy 3.0.8
 install:
-    - mvn install -Dmaven.javadoc.skip=true -PpublicRepos -B -V
+    - mvn install -DskipTests -Dmaven.javadoc.skip=true -PpublicRepos -B -V
 before_script:
   - git config --global user.email "swisspush@post.ch"
   - git config --global user.name "Travis-CI"
