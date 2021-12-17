@@ -30,9 +30,9 @@ script:
   # TODO: Instead of sleeping, should we rather make sure that the server Playground actually is running?
    - sleep 5s
    - mvn deploy -PuploadStaticFiles
-   - mvn install -PuiIntegrationTests
+   #- mvn install -PuiIntegrationTests
    - kill $(ps -ef | grep playground | awk '{ print $2 }')
-   - mvn install -PnonUiIntegrationTests
+   #- mvn install -PnonUiIntegrationTests
    # the exported credentials are needed in the maybe-release.sh
    - git config credential.helper "store --file=.git/credentials"
    - echo "https://${GH_TOKEN}:@github.com" > .git/credentials
