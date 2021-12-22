@@ -2,7 +2,6 @@ package org.swisspush.gateleen.validation;
 
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -127,7 +126,7 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
     private Optional<JsonSchema> parseSchema(SchemaLocation schemaLocation, Buffer data) {
         JsonSchema schema = null;
         try {
-            schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4).getSchema(data.toString());
+            schema = JsonSchemaFactory.getInstance().getSchema(data.toString());
             if (schemaLocation.keepInMemory() != null) {
                 cachedSchemas.put(schemaLocation.schemaLocation(), new SchemaEntry(schema, Instant.now().plusSeconds(schemaLocation.keepInMemory())));
             }
