@@ -1,18 +1,23 @@
 package org.swisspush.gateleen.validation;
 
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.times;
@@ -38,13 +43,39 @@ public class DefaultValidationSchemaProviderTest {
     public void testSchemaFromLocation(TestContext context){
         schemaProvider.schemaFromLocation(new SchemaLocation("/path/to/schema", null));
 
+        ArgumentCaptor<MultiMap> headersCaptor = ArgumentCaptor.forClass(MultiMap.class);
         verify(clientRequestCreator, times(1)).createClientRequest(
                 eq(HttpMethod.GET),
                 eq("/path/to/schema"),
-                any(),
+                headersCaptor.capture(),
                 anyLong(),
                 any(Handler.class),
                 any(Handler.class)
         );
+
+        MultiMap headers = headersCaptor.getValue();
+        context.assertTrue(headers.contains("Accept", "application/json", true));
+        context.assertTrue(headers.contains("x-self-request", "true", true));
+    }
+
+    @Test
+    public void testSchemaFromLocationWithDefaultRequestHeaders(TestContext context){
+        schemaProvider = new DefaultValidationSchemaProvider(vertx, clientRequestCreator, Duration.ofSeconds(5), Map.of("foo", "bar"));
+        schemaProvider.schemaFromLocation(new SchemaLocation("/path/to/schema", null));
+
+        ArgumentCaptor<MultiMap> headersCaptor = ArgumentCaptor.forClass(MultiMap.class);
+        verify(clientRequestCreator, times(1)).createClientRequest(
+                eq(HttpMethod.GET),
+                eq("/path/to/schema"),
+                headersCaptor.capture(),
+                anyLong(),
+                any(Handler.class),
+                any(Handler.class)
+        );
+
+        MultiMap headers = headersCaptor.getValue();
+        context.assertTrue(headers.contains("foo", "bar", true));
+        context.assertTrue(headers.contains("Accept", "application/json", true));
+        context.assertTrue(headers.contains("x-self-request", "true", true));
     }
 }
