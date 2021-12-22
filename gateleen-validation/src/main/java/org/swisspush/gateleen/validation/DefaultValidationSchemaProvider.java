@@ -2,8 +2,8 @@ package org.swisspush.gateleen.validation;
 
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
 import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
@@ -26,6 +26,7 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
     private final Logger log = LoggerFactory.getLogger(DefaultValidationSchemaProvider.class);
 
     private final Map<String, SchemaEntry> cachedSchemas;
+    private final MultiMap defaultRequestHeaders;
 
     private static final int TIMEOUT_MS = 30000;
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
@@ -40,8 +41,22 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
      * @param cacheCleanupInterval interval to define the cached schema cleanup
      */
     public DefaultValidationSchemaProvider(Vertx vertx, ClientRequestCreator clientRequestCreator, Duration cacheCleanupInterval) {
+        this(vertx, clientRequestCreator, cacheCleanupInterval, new HashMap<>());
+    }
+
+    /**
+     * Constructor for {@link DefaultValidationSchemaProvider}
+     *
+     * @param vertx the Vert.x instance
+     * @param clientRequestCreator the {@link ClientRequestCreator} to fetch the schema
+     * @param cacheCleanupInterval interval to define the cached schema cleanup
+     * @param defaultRequestHeaders default request headers to add to every schema fetch request
+     */
+    public DefaultValidationSchemaProvider(Vertx vertx, ClientRequestCreator clientRequestCreator, Duration cacheCleanupInterval,
+                                           Map<String, String> defaultRequestHeaders) {
         this.clientRequestCreator = clientRequestCreator;
         this.cachedSchemas = new HashMap<>();
+        this.defaultRequestHeaders = new VertxHttpHeaders().addAll(defaultRequestHeaders);
 
         vertx.setPeriodic(cacheCleanupInterval.toMillis(), event -> cleanupCachedSchemas());
     }
@@ -49,6 +64,10 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
     private void cleanupCachedSchemas() {
         log.debug("About to clear cached schemas");
         cachedSchemas.entrySet().removeIf(entry -> entry.getValue().expiration().isBefore(Instant.now()));
+    }
+
+    private MultiMap defaultRequestHeaders() {
+        return defaultRequestHeaders;
     }
 
     @Override
@@ -65,7 +84,7 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
             }
         }
 
-        VertxHttpHeaders headers = new VertxHttpHeaders();
+        MultiMap headers = defaultRequestHeaders();
         headers.add("Accept", "application/json");
         headers.add(SELF_REQUEST_HEADER, "true");
 
@@ -107,7 +126,7 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
     private Optional<JsonSchema> parseSchema(SchemaLocation schemaLocation, Buffer data) {
         JsonSchema schema = null;
         try {
-            schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4).getSchema(data.toString());
+            schema = JsonSchemaFactory.getInstance().getSchema(data.toString());
             if (schemaLocation.keepInMemory() != null) {
                 cachedSchemas.put(schemaLocation.schemaLocation(), new SchemaEntry(schema, Instant.now().plusSeconds(schemaLocation.keepInMemory())));
             }

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 import io.vertx.core.json.Json;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -136,7 +135,7 @@ public class Validator {
         if (SCHEMA_DECLARATION.equals(schemaObject.getString("$schema"))) {
             JsonSchema schema;
             try {
-                schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4).getSchema(schemaAsString);
+                schema = JsonSchemaFactory.getInstance().getSchema(schemaAsString);
             } catch (RuntimeException e) {
                 String message = "Cannot load schema";
                 log.warn(message, e);
@@ -206,7 +205,7 @@ public class Validator {
         if (SCHEMA_DECLARATION.equals(data.getString("$schema"))) {
             JsonSchema schema;
             try {
-                schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4).getSchema(dataString);
+                schema = JsonSchemaFactory.getInstance().getSchema(dataString);
             } catch (RuntimeException e) {
                 String message = "Cannot load schema " + base;
                 log.warn(message, e);
