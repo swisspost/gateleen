@@ -22,18 +22,16 @@ The following example shows a topic configuration resource with configurations f
 bottom. The first topic name matching the provided topic is used.
 ```json
 {
-  "topics": {
-    "my.topic.*": {
-      "bootstrap.servers": "localhost:9092",
-      "key.serializer": "org.apache.kafka.common.serialization.StringSerializer",
-      "value.serializer": "org.apache.kafka.common.serialization.StringSerializer"
-    },
-    ".+": {
-      "bootstrap.servers": "localhost:9093",
-      "key.serializer": "org.apache.kafka.common.serialization.StringSerializer",
-      "value.serializer": "org.apache.kafka.common.serialization.StringSerializer"
-    }
-  }
+	"my.topic.*": {
+		"bootstrap.servers": "localhost:9092",
+		"key.serializer": "org.apache.kafka.common.serialization.StringSerializer",
+		"value.serializer": "org.apache.kafka.common.serialization.StringSerializer"
+	},
+	".+": {
+		"bootstrap.servers": "localhost:9093",
+		"key.serializer": "org.apache.kafka.common.serialization.StringSerializer",
+		"value.serializer": "org.apache.kafka.common.serialization.StringSerializer"
+	}
 }
 ```
 In the example above, a topic called `my.topic.abc` would use the first configuration entry. A topic called `some.other.topic` would use the second configuration entry.
