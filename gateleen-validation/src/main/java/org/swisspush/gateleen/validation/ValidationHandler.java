@@ -12,11 +12,10 @@ import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
+
+import static org.swisspush.gateleen.validation.ValidationUtil.matchingSchemaLocation;
+import static org.swisspush.gateleen.validation.ValidationUtil.matchingValidationResourceEntry;
 
 /**
  * Validates incoming and outgoing JSON and issues warnings in logs.
@@ -48,6 +47,12 @@ public class ValidationHandler {
         this.validator = new Validator(storage, schemaRoot, validationSchemaProvider);
     }
 
+    public ValidationHandler(ValidationResourceManager validationResourceManager, HttpClient httpClient, Validator validator) {
+        this.validationResourceManager = validationResourceManager;
+        this.httpClient = httpClient;
+        this.validator = validator;
+    }
+
     /**
      * Returns true when the {@link ValidationHandler} must be applied to this request.
      *
@@ -70,29 +75,7 @@ public class ValidationHandler {
             return false; // do not validate
         }
 
-        return matchingValidationResource(request, log) != null;
-    }
-
-    private Map<String, String> matchingValidationResource(HttpServerRequest request, Logger log) {
-        List<Map<String, String>> validationResources = validationResourceManager.getValidationResource().getResources();
-        try {
-            for (Map<String, String> validationResource : validationResources) {
-                if (doesRequestValueMatch(request.method().name(), validationResource.get(ValidationResource.METHOD_PROPERTY))
-                        && doesRequestValueMatch(request.uri(), validationResource.get(ValidationResource.URL_PROPERTY))) {
-                    return validationResource;
-                }
-            }
-        } catch (PatternSyntaxException patternException) {
-            log.error(patternException.getMessage() + " " + patternException.getPattern());
-        }
-
-        return null;
-    }
-
-    private boolean doesRequestValueMatch(String value, String valuePattern) {
-        Pattern pattern = Pattern.compile(valuePattern);
-        Matcher matcher = pattern.matcher(value);
-        return matcher.matches();
+        return matchingValidationResourceEntry(validationResourceManager.getValidationResource(), request, log) != null;
     }
 
     private boolean isJsonRequest(HttpServerRequest request) {
@@ -119,21 +102,23 @@ public class ValidationHandler {
             cRes.bodyHandler(data -> {
 
                 if (req.response().getStatusCode() == StatusCode.OK.getStatusCode() && outMethods.contains(req.method().name()) && data.length() > 0) {
-                    validator.validate(req, req.method() + "/out", data, schemaLocation(req, log).orElse(null), event -> {
-                        if (event.isSuccess()) {
-                            req.response().end(data);
-                        } else {
-                            if (isFailOnError()) {
-                                req.response().headers().clear();
-                                req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                                req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                                req.response().end();
-                            } else {
-                                req.response().end(data);
-                            }
-                            log.warn(event.getMessage());
-                        }
-                    });
+                    validator.validate(req, req.method() + "/out", data,
+                            matchingSchemaLocation(validationResourceManager.getValidationResource(), req, log).orElse(null),
+                            event -> {
+                                if (event.isSuccess()) {
+                                    req.response().end(data);
+                                } else {
+                                    if (isFailOnError()) {
+                                        req.response().headers().clear();
+                                        req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                                        req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+                                        req.response().end();
+                                    } else {
+                                        req.response().end(data);
+                                    }
+                                    log.warn(event.getMessage());
+                                }
+                            });
                 } else {
                     req.response().end(data);
                 }
@@ -146,7 +131,8 @@ public class ValidationHandler {
 
         req.bodyHandler(data -> {
             if (inMethods.contains(req.method().name())) {
-                validator.validate(req, req.method() + "/in", data, schemaLocation(req, log).orElse(null),
+                validator.validate(req, req.method() + "/in", data,
+                        matchingSchemaLocation(validationResourceManager.getValidationResource(), req, log).orElse(null),
                         event -> {
                             if (event.isSuccess()) {
                                 cReq.end(data);
@@ -185,29 +171,4 @@ public class ValidationHandler {
     public void setFailOnError(boolean failOnError) {
         this.failOnError = failOnError;
     }
-
-    private Optional<SchemaLocation> schemaLocation(HttpServerRequest request, Logger log) {
-        Map<String, String> validationResource = matchingValidationResource(request, log);
-        if (validationResource != null) {
-            String location = validationResource.get(ValidationResource.SCHEMA_LOCATION_PROPERTY);
-            if(location == null) {
-                return Optional.empty();
-            }
-
-            String keepInMemoryStr = validationResource.get(ValidationResource.SCHEMA_KEEP_INMEMORY_PROPERTY);
-
-            Integer keepInMemory = null;
-            if(keepInMemoryStr != null) {
-                try {
-                    keepInMemory = Integer.parseInt(keepInMemoryStr);
-                } catch (NumberFormatException ex) {
-                    log.warn("Property 'keepInMemory' is not a number but " + keepInMemoryStr, ex);
-                }
-            }
-
-            return Optional.of(new SchemaLocation(location, keepInMemory));
-        }
-        return Optional.empty();
-    }
-
 }
