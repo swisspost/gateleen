@@ -58,21 +58,23 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator,
                         KafkaProducerRepository repository, KafkaMessageSender kafkaMessageSender, String configResourceUri,
                         String streamingPath) {
-        super(configurationResourceManager, configResourceUri, "gateleen_kafka_topic_configuration_schema");
-        this.kafkaMessageValidator = kafkaMessageValidator;
-        this.repository = repository;
-        this.kafkaMessageSender = kafkaMessageSender;
-        this.streamingPath = streamingPath;
-        this.properties = new HashMap<>();
-
-        this.topicExtractor = new KafkaTopicExtractor(streamingPath);
+        this(configurationResourceManager, kafkaMessageValidator, repository, kafkaMessageSender,
+                configResourceUri, streamingPath, new HashMap<>());
     }
 
     public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
     KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
 
+        this(configurationResourceManager, null, repository, kafkaMessageSender,
+                configResourceUri, streamingPath, properties);
+    }
+
+    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator, KafkaProducerRepository repository,
+                        KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
+
         super(configurationResourceManager, configResourceUri, "gateleen_kafka_topic_configuration_schema");
         this.repository = repository;
+        this.kafkaMessageValidator = kafkaMessageValidator;
         this.kafkaMessageSender = kafkaMessageSender;
         this.streamingPath = streamingPath;
         this.properties = properties;
