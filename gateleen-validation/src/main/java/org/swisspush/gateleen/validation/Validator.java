@@ -2,21 +2,22 @@ package org.swisspush.gateleen.validation;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Joiner;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.StringUtils;
-import com.google.common.base.Joiner;
-import org.slf4j.Logger;
-import io.vertx.core.Handler;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
 import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.core.validation.ValidationStatus;
 
@@ -37,6 +38,29 @@ public class Validator {
         this.storage = storage;
         this.schemaRoot = schemaRoot;
         this.schemaProvider = schemaProvider;
+    }
+
+    public Future<ValidationResult> validateWithSchemaLocation(SchemaLocation schemaLocation, Buffer jsonBuffer, Logger log) {
+        Future<ValidationResult> future = Future.future();
+        log.debug("Validating request");
+        schemaProvider.schemaFromLocation(schemaLocation).setHandler(event -> {
+            if (event.failed()) {
+                future.complete(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
+                        "Error while getting schema. Cause: " + event.cause().getMessage()));
+                return;
+            }
+
+            Optional<JsonSchema> schemaOptional = event.result();
+            if (schemaOptional.isEmpty()) {
+                future.complete(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
+                        "No schema found in location " + schemaLocation.schemaLocation()));
+                return;
+            }
+
+            JsonSchema jsonSchema = schemaOptional.get();
+            performValidation(jsonSchema, schemaLocation, jsonBuffer, log).setHandler(validationEvent -> future.complete(validationEvent.result()));
+        });
+        return future;
     }
 
     public void validate(HttpServerRequest req, String type, Buffer jsonBuffer, SchemaLocation schemaLocation, Handler<ValidationResult> callback) {
@@ -162,12 +186,54 @@ public class Validator {
         }
     }
 
+    private static Future<ValidationResult> performValidation(JsonSchema schema, SchemaLocation schemaLocation,
+                                                              Buffer jsonBuffer, Logger log) {
+        Future<ValidationResult> future = Future.future();
+
+        try {
+            JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
+            if (jsonNode == null) {
+                future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV,
+                        "no valid JSON object: " + jsonBuffer.toString()));
+                return future;
+            }
+            final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
+            if (valMsgs.isEmpty()) {
+                log.debug("Used schema: {}", schemaLocation.schemaLocation());
+                future.complete(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+            } else {
+                JsonArray validationDetails = extractMessagesAsJson(valMsgs, log);
+                String messages = StringUtils.getStringOrEmpty(extractMessages(valMsgs));
+                StringBuilder msgBuilder = new StringBuilder();
+                msgBuilder.append("Invalid JSON for ")
+                        .append(schemaLocation.schemaLocation()).append(". Messages: ")
+                        .append(messages)
+                        .append(" | Report: ").append(getReportAsString(valMsgs));
+
+                if (log.isDebugEnabled()) {
+                    msgBuilder.append(" | Validated JSON: ").append(jsonBuffer.toString());
+                }
+
+                log.warn(msgBuilder.toString());
+
+                future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString(), validationDetails));
+                log.warn("Used schema: {}", schemaLocation.schemaLocation());
+            }
+        } catch (IOException e) {
+            String message = "Cannot read JSON of schema " + " (" + schemaLocation.schemaLocation() + ")";
+            log.warn(message, e.getMessage());
+            future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
+        }
+
+        return future;
+    }
+
     private static void performValidation(JsonSchema schema, Logger log, String base, Buffer jsonBuffer, String type,
                                           String path, Handler<ValidationResult> callback) {
         try {
             JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
             if (jsonNode == null) {
-                throw new IOException("no vaild JSON object: " + jsonBuffer.toString());
+                throw new IOException("no valid JSON object: " + jsonBuffer.toString());
             }
             final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
             if (valMsgs.isEmpty()) {

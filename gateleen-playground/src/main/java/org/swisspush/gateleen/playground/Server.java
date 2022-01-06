@@ -41,6 +41,7 @@ import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage;
 import org.swisspush.gateleen.kafka.KafkaHandler;
 import org.swisspush.gateleen.kafka.KafkaMessageSender;
+import org.swisspush.gateleen.kafka.KafkaMessageValidator;
 import org.swisspush.gateleen.kafka.KafkaProducerRepository;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -70,10 +71,7 @@ import org.swisspush.gateleen.security.content.ContentTypeConstraintHandler;
 import org.swisspush.gateleen.security.content.ContentTypeConstraintRepository;
 import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
-import org.swisspush.gateleen.validation.DefaultValidationSchemaProvider;
-import org.swisspush.gateleen.validation.ValidationHandler;
-import org.swisspush.gateleen.validation.ValidationResourceManager;
-import org.swisspush.gateleen.validation.ValidationSchemaProvider;
+import org.swisspush.gateleen.validation.*;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -122,6 +120,7 @@ public class Server extends AbstractVerticle {
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
     private ValidationSchemaProvider validationSchemaProvider;
+    private Validator validator;
     private SchedulerResourceManager schedulerResourceManager;
     private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
     private ReducedPropagationManager reducedPropagationManager;
@@ -215,12 +214,6 @@ public class Server extends AbstractVerticle {
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
                 loggingResourceManager.enableResourceLogging(true);
 
-                KafkaProducerRepository kafkaProducerRepository = new KafkaProducerRepository(vertx);
-                KafkaMessageSender kafkaMessageSender = new KafkaMessageSender();
-                kafkaHandler = new KafkaHandler(configurationResourceManager, kafkaProducerRepository, kafkaMessageSender,
-                        SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
-                kafkaHandler.initialize();
-
                 ContentTypeConstraintRepository repository = new ContentTypeConstraintRepository();
                 contentTypeConstraintHandler = new ContentTypeConstraintHandler(configurationResourceManager, repository,
                         SERVER_ROOT + "/admin/v1/contentTypeConstraints",
@@ -251,10 +244,16 @@ public class Server extends AbstractVerticle {
 
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
                 validationResourceManager.enableResourceLogging(true);
-
                 validationSchemaProvider = new DefaultValidationSchemaProvider(vertx, new ClientRequestCreator(selfClient), Duration.ofSeconds(30));
+                validator = new Validator(storage, ROOT + "/schemas/apis/", validationSchemaProvider);
+                validationHandler = new ValidationHandler(validationResourceManager, selfClient, validator);
 
-                validationHandler = new ValidationHandler(validationResourceManager, validationSchemaProvider, storage, selfClient, ROOT + "/schemas/apis/");
+                KafkaProducerRepository kafkaProducerRepository = new KafkaProducerRepository(vertx);
+                KafkaMessageSender kafkaMessageSender = new KafkaMessageSender();
+                KafkaMessageValidator messageValidator = new KafkaMessageValidator(validationResourceManager, validator);
+                kafkaHandler = new KafkaHandler(configurationResourceManager, messageValidator, kafkaProducerRepository, kafkaMessageSender,
+                        SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
+                kafkaHandler.initialize();
 
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler,
                         SERVER_ROOT + "/admin/v1/schedulers");

@@ -24,6 +24,8 @@ import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.validation.ValidationResult;
+import org.swisspush.gateleen.core.validation.ValidationStatus;
 
 import java.util.HashMap;
 import java.util.List;
@@ -48,6 +50,7 @@ public class KafkaHandlerTest {
     private Vertx vertx;
     private KafkaProducerRepository repository;
     private KafkaMessageSender kafkaMessageSender;
+    private KafkaMessageValidator messageValidator;
     private ConfigurationResourceManager configurationResourceManager;
     private KafkaHandler handler;
     private MockResourceStorage storage;
@@ -63,6 +66,7 @@ public class KafkaHandlerTest {
         vertx = Vertx.vertx();
         repository = Mockito.spy(new KafkaProducerRepository(vertx));
         kafkaMessageSender = Mockito.mock(KafkaMessageSender.class);
+        messageValidator = Mockito.mock(KafkaMessageValidator.class);
         storage = new MockResourceStorage();
         configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
         handler = new KafkaHandler(configurationResourceManager, repository, kafkaMessageSender,
@@ -429,54 +433,101 @@ public class KafkaHandlerTest {
         });
     }
 
-    static class StreamingRequest extends DummyHttpServerRequest {
-        private final String uri;
-        private final HttpMethod method;
-        private final String body;
-        private final MultiMap headers;
-        private final HttpServerResponse response;
+    @Test
+    public void handlePayloadNotPassingValidation(TestContext context){
+        Async async = context.async();
 
-        StreamingRequest(HttpMethod method, String uri) {
-            this(method, uri, "", new CaseInsensitiveHeaders(), new StreamingResponse());
-        }
+        handler = new KafkaHandler(configurationResourceManager, messageValidator, repository, kafkaMessageSender,
+                configResourceUri, streamingPath);
 
-        StreamingRequest(HttpMethod method, String uri, String body, MultiMap headers, HttpServerResponse response) {
-            this.method = method;
-            this.uri = uri;
-            this.body = body;
-            this.headers = headers;
-            this.response = response;
-        }
+        when(messageValidator.validateMessages(any(HttpServerRequest.class), any()))
+                .thenReturn(Future.succeededFuture(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Boooom")));
 
-        @Override public HttpMethod method() {
-            return method;
-        }
-        @Override public String uri() {
-            return uri;
-        }
-        @Override public MultiMap headers() { return headers; }
+        storage.putMockData(configResourceUri, CONFIG_RESOURCE);
+        handler.initialize().setHandler(event -> {
+            context.assertTrue(handler.isInitialized());
 
-        @Override
-        public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
-            bodyHandler.handle(Buffer.buffer(body));
-            return this;
-        }
+            String singleMessagePayload = "{\n" +
+                    "\t\"records\": [{\n" +
+                    "\t\t\"key\": \"record_0000001\",\n" +
+                    "\t\t\"value\": {\n" +
+                    "\t\t\t\"metadata\": {\n" +
+                    "\t\t\t\t\"techId\": \"071X1500492vora1560860907613\",\n" +
+                    "\t\t\t\t\"user\": \"foo\"\n" +
+                    "\t\t\t},\n" +
+                    "\t\t\t\"event\": {\n" +
+                    "\t\t\t\t\"actionTime\": \"2019-06-18T14:28:27.617+02:00\",\n" +
+                    "\t\t\t\t\"type\": 1,\n" +
+                    "\t\t\t\t\"bool\": false\n" +
+                    "\t\t\t}\n" +
+                    "\t\t},\n" +
+                    "\t\t\"headers\": {\n" +
+                    "\t\t\t\"x-header-a\": \"value-a\",\n" +
+                    "\t\t\t\"x-header-b\": \"value-b\",\n" +
+                    "\t\t\t\"x-header-c\": \"value-c\"\n" +
+                    "\t\t}\n" +
+                    "\t}]\n" +
+                    "}";
 
-        @Override public HttpServerResponse response() { return response; }
+            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
+            StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "my.topic.x",
+                    singleMessagePayload, new CaseInsensitiveHeaders(), response);
+            final boolean handled = handler.handle(request);
+
+            context.assertTrue(handled);
+            verifyZeroInteractions(kafkaMessageSender);
+            verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
+
+            async.complete();
+        });
     }
 
-    static class StreamingResponse extends DummyHttpServerResponse {
+    @Test
+    public void handleErrorWhileValidation(TestContext context){
+        Async async = context.async();
 
-        private final MultiMap headers;
+        handler = new KafkaHandler(configurationResourceManager, messageValidator, repository, kafkaMessageSender,
+                configResourceUri, streamingPath);
 
-        StreamingResponse(){
-            this.headers = new CaseInsensitiveHeaders();
-        }
+        when(messageValidator.validateMessages(any(HttpServerRequest.class), any()))
+                .thenReturn(Future.failedFuture("Boooom"));
 
-        StreamingResponse(MultiMap headers){
-            this.headers = headers;
-        }
+        storage.putMockData(configResourceUri, CONFIG_RESOURCE);
+        handler.initialize().setHandler(event -> {
+            context.assertTrue(handler.isInitialized());
 
-        @Override public MultiMap headers() { return headers; }
+            String singleMessagePayload = "{\n" +
+                    "\t\"records\": [{\n" +
+                    "\t\t\"key\": \"record_0000001\",\n" +
+                    "\t\t\"value\": {\n" +
+                    "\t\t\t\"metadata\": {\n" +
+                    "\t\t\t\t\"techId\": \"071X1500492vora1560860907613\",\n" +
+                    "\t\t\t\t\"user\": \"foo\"\n" +
+                    "\t\t\t},\n" +
+                    "\t\t\t\"event\": {\n" +
+                    "\t\t\t\t\"actionTime\": \"2019-06-18T14:28:27.617+02:00\",\n" +
+                    "\t\t\t\t\"type\": 1,\n" +
+                    "\t\t\t\t\"bool\": false\n" +
+                    "\t\t\t}\n" +
+                    "\t\t},\n" +
+                    "\t\t\"headers\": {\n" +
+                    "\t\t\t\"x-header-a\": \"value-a\",\n" +
+                    "\t\t\t\"x-header-b\": \"value-b\",\n" +
+                    "\t\t\t\"x-header-c\": \"value-c\"\n" +
+                    "\t\t}\n" +
+                    "\t}]\n" +
+                    "}";
+
+            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
+            StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "my.topic.x",
+                    singleMessagePayload, new CaseInsensitiveHeaders(), response);
+            final boolean handled = handler.handle(request);
+
+            context.assertTrue(handled);
+            verifyZeroInteractions(kafkaMessageSender);
+            verify(response, times(1)).setStatusCode(eq(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode()));
+
+            async.complete();
+        });
     }
 }
