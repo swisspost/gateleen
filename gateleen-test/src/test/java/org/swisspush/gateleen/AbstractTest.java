@@ -210,7 +210,7 @@ public abstract class AbstractTest {
                         RunConfig.with()
                                 .cacheHandler(cacheHandler)
                                 .corsHandler(new CORSHandler())
-                                .deltaHandler(new DeltaHandler(redisClient, selfClient))
+                                .deltaHandler(new DeltaHandler(redisClient, selfClient, ruleProvider))
                                 .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))
                                 .hookHandler(hookHandler)
                                 .qosHandler(qosHandler)
