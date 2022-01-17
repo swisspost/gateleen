@@ -112,6 +112,10 @@
 					"description": "Should gateleen do the expansion or should it pass-through to the backend",
 					"type": "boolean"
 				},
+				"deltaOnBackend": {
+					"description": "Should gateleen do the delta handling or should it pass-through to the backend",
+					"type": "boolean"
+				},
 				"storageExpand": {
 					"description": "Should gateleen do the expansion or should it pass-through to the storage",
 					"type": "boolean"

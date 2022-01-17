@@ -9,8 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.swisspush.gateleen.routing.RuleFeatures.Feature.EXPAND_ON_BACKEND;
-import static org.swisspush.gateleen.routing.RuleFeatures.Feature.STORAGE_EXPAND;
+import static org.swisspush.gateleen.routing.RuleFeatures.Feature.*;
 
 
 /**
@@ -57,6 +56,25 @@ public class RuleFeaturesProviderTest {
         context.assertTrue(ruleFeatures.get(7).hasFeature(EXPAND_ON_BACKEND));
         context.assertTrue(ruleFeatures.get(8).hasFeature(EXPAND_ON_BACKEND));
         context.assertTrue(ruleFeatures.get(9).hasFeature(EXPAND_ON_BACKEND));
+    }
+
+    @Test
+    public void testDeltaOnBackendFeature(TestContext context){
+        List<Rule> rules = setUpRules();
+        RuleFeaturesProvider provider = new RuleFeaturesProvider(rules);
+        List<RuleFeatures> ruleFeatures = provider.getFeaturesList();
+        assertCommonResults(context, ruleFeatures, rules);
+
+        context.assertFalse(ruleFeatures.get(0).hasFeature(DELTA_ON_BACKEND));
+        context.assertFalse(ruleFeatures.get(1).hasFeature(DELTA_ON_BACKEND));
+        context.assertFalse(ruleFeatures.get(2).hasFeature(DELTA_ON_BACKEND));
+        context.assertFalse(ruleFeatures.get(3).hasFeature(DELTA_ON_BACKEND));
+        context.assertFalse(ruleFeatures.get(4).hasFeature(DELTA_ON_BACKEND));
+        context.assertFalse(ruleFeatures.get(5).hasFeature(DELTA_ON_BACKEND));
+        context.assertFalse(ruleFeatures.get(6).hasFeature(DELTA_ON_BACKEND));
+        context.assertTrue(ruleFeatures.get(7).hasFeature(DELTA_ON_BACKEND));
+        context.assertTrue(ruleFeatures.get(8).hasFeature(DELTA_ON_BACKEND));
+        context.assertTrue(ruleFeatures.get(9).hasFeature(DELTA_ON_BACKEND));
     }
 
     @Test
@@ -123,33 +141,49 @@ public class RuleFeaturesProviderTest {
         context.assertFalse(provider.isFeatureRequest(EXPAND_ON_BACKEND, "/root/element111/element222/asdf"));
     }
 
+    @Test
+    public void testDeltaOnBackendFeatureRequests(TestContext context){
+        Rule rule1 = createRule("/root/element1/element2/(test1/.*/test2/.*/test3/.*)", false, false, true);
+        Rule rule2 = createRule("/root/element11/element22/(.*)", false, false, true);
+        Rule rule3 = createRule("/root/element111/element222/", false, false, true);
+
+        RuleFeaturesProvider provider = new RuleFeaturesProvider(Arrays.asList(rule1, rule2, rule3));
+
+        context.assertTrue(provider.isFeatureRequest(DELTA_ON_BACKEND, "/root/element1/element2/test1/1234/test2/23423/test3/asdf/asdf"));
+        context.assertFalse(provider.isFeatureRequest(DELTA_ON_BACKEND, "/root/element1/element2/test999/1234/test2/23423/test3/asdf/asdf"));
+
+        context.assertTrue(provider.isFeatureRequest(DELTA_ON_BACKEND, "/root/element11/element22/test1/1234/"));
+        context.assertFalse(provider.isFeatureRequest(DELTA_ON_BACKEND, "/root/element11/element22"));
+
+        context.assertTrue(provider.isFeatureRequest(DELTA_ON_BACKEND, "/root/element111/element222/"));
+        context.assertFalse(provider.isFeatureRequest(DELTA_ON_BACKEND, "/root/element111/element222/asdf"));
+    }
+
     private List<Rule> setUpRules(){
         List<Rule> rules = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             Rule rule = new Rule();
             rule.setUrlPattern("/test/rules/rule" + i);
 
-            if(i%2 == 0) {
-                rule.setStorageExpand(true);
-            } else {
-                rule.setStorageExpand(false);
-            }
+            rule.setStorageExpand(i % 2 == 0);
+            rule.setExpandOnBackend(i > 4);
+            rule.setDeltaOnBackend(i > 6);
 
-            if(i > 4){
-                rule.setExpandOnBackend(true);
-            } else {
-                rule.setExpandOnBackend(false);
-            }
             rules.add(rule);
         }
         return rules;
     }
 
     private Rule createRule(String urlPattern, boolean storageExpand, boolean backendExpand){
+        return createRule(urlPattern, storageExpand, backendExpand, false);
+    }
+
+    private Rule createRule(String urlPattern, boolean storageExpand, boolean backendExpand, boolean deltaOnBackend){
         Rule rule = new Rule();
         rule.setUrlPattern(urlPattern);
         rule.setStorageExpand(storageExpand);
         rule.setExpandOnBackend(backendExpand);
+        rule.setDeltaOnBackend(deltaOnBackend);
         return rule;
     }
 

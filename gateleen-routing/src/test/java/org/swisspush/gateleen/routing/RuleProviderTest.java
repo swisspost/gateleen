@@ -154,10 +154,10 @@ public class RuleProviderTest {
         vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
     }
 
-    class DummyRuleChangesObserver implements RuleChangesObserver {
+    static class DummyRuleChangesObserver implements RuleChangesObserver {
 
-        private Async async;
-        private TestContext testContext;
+        private final Async async;
+        private final TestContext testContext;
         private int expectedRulesListSize;
 
         public DummyRuleChangesObserver(Async async, TestContext testContext) {

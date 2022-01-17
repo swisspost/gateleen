@@ -11,20 +11,28 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
 import org.swisspush.gateleen.routing.Router;
+import org.swisspush.gateleen.routing.Rule;
+import org.swisspush.gateleen.routing.RuleFeaturesProvider;
+import org.swisspush.gateleen.routing.RuleProvider;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import static org.swisspush.gateleen.routing.RuleFeatures.Feature.DELTA_ON_BACKEND;
+
 /**
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class DeltaHandler {
+public class DeltaHandler implements RuleProvider.RuleChangesObserver {
+
+    private Logger log = LoggerFactory.getLogger(DeltaHandler.class);
 
     private static final String DELTA_PARAM = "delta";
     private static final String LIMIT_PARAM = "limit";
@@ -46,14 +54,26 @@ public class DeltaHandler {
 
     private boolean rejectLimitOffsetRequests;
 
-    public DeltaHandler(RedisClient redisClient, HttpClient httpClient) {
-        this(redisClient, httpClient, false);
+    private RuleProvider ruleProvider;
+    private RuleFeaturesProvider ruleFeaturesProvider = new RuleFeaturesProvider(new ArrayList<>());
+
+    public DeltaHandler(RedisClient redisClient, HttpClient httpClient, RuleProvider ruleProvider) {
+        this(redisClient, httpClient, ruleProvider, false);
     }
 
-    public DeltaHandler(RedisClient redisClient, HttpClient httpClient, boolean rejectLimitOffsetRequests) {
+    public DeltaHandler(RedisClient redisClient, HttpClient httpClient, RuleProvider ruleProvider, boolean rejectLimitOffsetRequests) {
         this.redisClient = redisClient;
         this.httpClient = httpClient;
         this.rejectLimitOffsetRequests = rejectLimitOffsetRequests;
+
+        this.ruleProvider = ruleProvider;
+        this.ruleProvider.registerObserver(this);
+    }
+
+    @Override
+    public void rulesChanged(List<Rule> rules) {
+        log.info("Update deltaOnBackend information from changed routing rules");
+        ruleFeaturesProvider = new RuleFeaturesProvider(rules);
     }
 
     public boolean isDeltaRequest(HttpServerRequest request) {
@@ -68,16 +88,21 @@ public class DeltaHandler {
     }
 
     private boolean isDeltaGETRequest(HttpServerRequest request) {
-        if(HttpMethod.GET == request.method() &&
-           request.params().contains(DELTA_PARAM) && 
-           !request.headers().contains(DELTA_BACKEND_HEADER)) {
-        	return true;
+        if (HttpMethod.GET == request.method() &&
+                request.params().contains(DELTA_PARAM) &&
+                !request.headers().contains(DELTA_BACKEND_HEADER) &&
+                !isBackendDelta(request.uri())) {
+            return true;
         }
         // remove the delta backend header, its only a marker
-        if(request.headers().contains(DELTA_BACKEND_HEADER)) {
-        	request.headers().remove(DELTA_BACKEND_HEADER);
+        if (request.headers().contains(DELTA_BACKEND_HEADER)) {
+            request.headers().remove(DELTA_BACKEND_HEADER);
         }
         return false;
+    }
+
+    private boolean isBackendDelta(String uri) {
+        return ruleFeaturesProvider.isFeatureRequest(DELTA_ON_BACKEND, uri);
     }
 
     public void handle(final HttpServerRequest request, Router router) {
@@ -88,7 +113,7 @@ public class DeltaHandler {
         if (isDeltaGETRequest(request)) {
             String updateId = extractStringDeltaParameter(request, log);
             if (updateId != null) {
-                if(rejectLimitOffsetRequests(request)){
+                if (rejectLimitOffsetRequests(request)) {
                     respondLimitOffsetParameterForbidden(request, log);
                 } else {
                     handleCollectionGET(request, updateId, log);
@@ -100,10 +125,10 @@ public class DeltaHandler {
     private void handleResourcePUT(final HttpServerRequest request, final Router router, final Logger log) {
         request.pause(); // pause the request to avoid problems with starting another async request (storage)
         handleDeltaEtag(request, log, updateDelta -> {
-            if(updateDelta){
+            if (updateDelta) {
                 // increment and get update-id
                 redisClient.incr(SEQUENCE_KEY, reply -> {
-                    if(reply.failed()){
+                    if (reply.failed()) {
                         log.error("incr command for redisKey {} failed with cause: {}", SEQUENCE_KEY, logCause(reply));
                         handleError(request, "error incrementing/accessing sequence for update-id");
                         return;
@@ -115,7 +140,7 @@ public class DeltaHandler {
 
                     // save to storage
                     saveDelta(resourceKey, updateId, expireAfter, event -> {
-                        if(event.failed()){
+                        if (event.failed()) {
                             log.error("setex command for redisKey {} failed with cause: {}", resourceKey, logCause(event));
                             handleError(request, "error saving delta information");
                             request.resume();
@@ -134,11 +159,11 @@ public class DeltaHandler {
         });
     }
 
-    private void handleDeltaEtag(final HttpServerRequest request, final Logger log, final Handler<Boolean> callback){
+    private void handleDeltaEtag(final HttpServerRequest request, final Logger log, final Handler<Boolean> callback) {
         /*
          * When no Etag is provided we just do the delta update
          */
-        if(!request.headers().contains(IF_NONE_MATCH_HEADER)){
+        if (!request.headers().contains(IF_NONE_MATCH_HEADER)) {
             callback.handle(Boolean.TRUE);
             return;
         }
@@ -149,24 +174,24 @@ public class DeltaHandler {
         final String requestEtag = request.headers().get(IF_NONE_MATCH_HEADER);
         final String etagResourceKey = getResourceKey(request.path(), true);
         redisClient.get(etagResourceKey, event -> {
-            if(event.failed()){
+            if (event.failed()) {
                 log.error("get command for redisKey {} failed with cause: {}", etagResourceKey, logCause(event));
                 callback.handle(Boolean.TRUE);
                 return;
             }
 
             String etagFromStorage = event.result();
-            if(StringUtils.isEmpty(etagFromStorage)){
-                    /*
-                     * No Etag entry found. Store it and then do the delta update
-                     */
+            if (StringUtils.isEmpty(etagFromStorage)) {
+                /*
+                 * No Etag entry found. Store it and then do the delta update
+                 */
                 saveOrUpdateDeltaEtag(etagResourceKey, request, log, aBoolean -> callback.handle(Boolean.TRUE));
             } else {
-                    /*
-                     * If etags match, no delta update has to be made.
-                     * If not, store/update the etag and then update the delta
-                     */
-                if(etagFromStorage.equals(requestEtag)){
+                /*
+                 * If etags match, no delta update has to be made.
+                 * If not, store/update the etag and then update the delta
+                 */
+                if (etagFromStorage.equals(requestEtag)) {
                     callback.handle(Boolean.FALSE);
                 } else {
                     saveOrUpdateDeltaEtag(etagResourceKey, request, log, aBoolean -> callback.handle(Boolean.TRUE));
@@ -175,11 +200,11 @@ public class DeltaHandler {
         });
     }
 
-    private void saveOrUpdateDeltaEtag(final String etagResourceKey, final HttpServerRequest request, final Logger log, final Handler<Boolean> updateCallback){
+    private void saveOrUpdateDeltaEtag(final String etagResourceKey, final HttpServerRequest request, final Logger log, final Handler<Boolean> updateCallback) {
         final String requestEtag = request.headers().get(IF_NONE_MATCH_HEADER);
         Long expireAfter = getExpireAfterValue(request, log);
-        saveDelta(etagResourceKey, requestEtag, expireAfter, event ->{
-            if(event.failed()){
+        saveDelta(etagResourceKey, requestEtag, expireAfter, event -> {
+            if (event.failed()) {
                 log.error("setex command for redisKey {} failed with cause: {}", etagResourceKey, logCause(event));
             }
             updateCallback.handle(Boolean.TRUE);
@@ -195,15 +220,15 @@ public class DeltaHandler {
     }
 
     private String extractStringDeltaParameter(HttpServerRequest request, Logger log) {
-	    String updateIdValue = request.params().get(DELTA_PARAM);
-	    if(updateIdValue == null) {
+        String updateIdValue = request.params().get(DELTA_PARAM);
+        if (updateIdValue == null) {
             respondInvalidDeltaParameter(updateIdValue, request, log);
-	        return null;
-	    } else {
-	    	return updateIdValue;
-	    }
+            return null;
+        } else {
+            return updateIdValue;
+        }
     }
-    
+
     private Long extractNumberDeltaParameter(String deltaStringId, HttpServerRequest request, Logger log) {
         try {
             return Long.parseLong(deltaStringId);
@@ -213,7 +238,7 @@ public class DeltaHandler {
         }
     }
 
-    private void respondLimitOffsetParameterForbidden(HttpServerRequest request, Logger log){
+    private void respondLimitOffsetParameterForbidden(HttpServerRequest request, Logger log) {
         String errorMsg = "limit/offset parameter not allowed for delta requests";
         request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
         request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
@@ -221,7 +246,7 @@ public class DeltaHandler {
         log.warn(errorMsg);
     }
 
-    private void respondInvalidDeltaParameter(String deltaStringId, HttpServerRequest request, Logger log){
+    private void respondInvalidDeltaParameter(String deltaStringId, HttpServerRequest request, Logger log) {
         request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
         request.response().setStatusMessage("Invalid delta parameter");
         request.response().end(request.response().getStatusMessage());
@@ -260,14 +285,14 @@ public class DeltaHandler {
         final HttpClientRequest cReq = httpClient.request(method, targetUri, cRes -> {
             HttpServerRequestUtil.prepareResponse(request, cRes);
 
-            if(cRes.headers().contains(DELTA_HEADER)) {
+            if (cRes.headers().contains(DELTA_HEADER)) {
                 cRes.handler(data -> request.response().write(data));
                 cRes.endHandler(v -> request.response().end());
             } else {
                 cRes.bodyHandler(data -> {
                     try {
                         Set<String> originalParams = null;
-                        if(request.params() != null){
+                        if (request.params() != null) {
                             originalParams = request.params().names();
                         }
                         final CollectionResourceContainer dataContainer = ExpansionDeltaUtil.verifyCollectionResponse(request, data, originalParams);
@@ -276,18 +301,18 @@ public class DeltaHandler {
 
                         final long updateIdNumber = extractNumberDeltaParameter(updateId, request, log);
 
-                        if(log.isTraceEnabled())  {
+                        if (log.isTraceEnabled()) {
                             log.trace("DeltaHandler: deltaResourceKeys for targetUri ({}): {}", targetUri, deltaResourceKeys.toString());
                         }
 
-                        if(deltaResourceKeys.size() > 0) {
-                            if(log.isTraceEnabled())  {
+                        if (deltaResourceKeys.size() > 0) {
+                            if (log.isTraceEnabled()) {
                                 log.trace("DeltaHandler: targetUri ({}) using mget command.", targetUri);
                             }
 
                             // read update-ids
                             redisClient.mgetMany(deltaResourceKeys, event -> {
-                                if(event.failed()){
+                                if (event.failed()) {
                                     log.error("mget command failed with cuase: {}", logCause(event));
                                     handleError(request, "error reading delta information");
                                     return;
@@ -301,7 +326,7 @@ public class DeltaHandler {
                             });
 
                         } else {
-                            if(log.isTraceEnabled())  {
+                            if (log.isTraceEnabled()) {
                                 log.trace("DeltaHandler: targetUri ({}) NOT using database", targetUri);
                             }
                             request.response().putHeader(DELTA_HEADER, "" + updateIdNumber);
@@ -358,7 +383,7 @@ public class DeltaHandler {
         return result;
     }
 
-    private boolean rejectLimitOffsetRequests(HttpServerRequest request){
+    private boolean rejectLimitOffsetRequests(HttpServerRequest request) {
         if (!rejectLimitOffsetRequests) {
             return false;
         }
@@ -373,7 +398,7 @@ public class DeltaHandler {
 
     private String getResourceKey(String path, boolean useEtagPrefix) {
         List<String> pathSegments = Lists.newArrayList(Splitter.on(SLASH).omitEmptyStrings().split(path));
-        if(useEtagPrefix){
+        if (useEtagPrefix) {
             pathSegments.add(0, ETAG_KEY_PREFIX);
         } else {
             pathSegments.add(0, RESOURCE_KEY_PREFIX);
@@ -424,8 +449,8 @@ public class DeltaHandler {
         }
     }
 
-    private String logCause(AsyncResult result){
-        if(result.cause() != null){
+    private String logCause(AsyncResult result) {
+        if (result.cause() != null) {
             return result.cause().getMessage();
         }
         return null;

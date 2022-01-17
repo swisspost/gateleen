@@ -17,6 +17,11 @@ import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.routing.Router;
+import org.swisspush.gateleen.routing.Rule;
+import org.swisspush.gateleen.routing.RuleProvider;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -26,6 +31,7 @@ import static org.mockito.Mockito.*;
 public class DeltaHandlerTest {
 
     private RedisClient redisClient;
+    private RuleProvider ruleProvider;
     private Router router = mock(Router.class);
     private HttpServerRequest request;
     private CaseInsensitiveHeaders requestHeaders = new CaseInsensitiveHeaders();
@@ -42,6 +48,8 @@ public class DeltaHandlerTest {
         requestHeaders = new CaseInsensitiveHeaders();
         requestHeaders.add("x-delta", "auto");
 
+        ruleProvider = mock(RuleProvider.class);
+
         request = mock(HttpServerRequest.class);
         when(request.method()).thenReturn(HttpMethod.PUT);
         when(request.path()).thenReturn("/a/b/c");
@@ -49,8 +57,91 @@ public class DeltaHandlerTest {
     }
 
     @Test
+    public void testIsDeltaRequest(TestContext context) {
+        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null, ruleProvider);
+        deltaHandler.rulesChanged(List.of(
+                rule("/gateleen/server/res_1", false),
+                rule("/gateleen/server/res_2", true))
+        );
+
+        HttpServerRequest request = mock(HttpServerRequest.class);
+
+        /*
+         * No Rule config, No delta param, No request header => no delta request
+         */
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.uri()).thenReturn("/gateleen/server/res_1");
+        when(request.params()).thenReturn(new CaseInsensitiveHeaders());
+        when(request.headers()).thenReturn(new CaseInsensitiveHeaders());
+        context.assertFalse(deltaHandler.isDeltaRequest(request));
+
+        /*
+         * No Rule config, delta param, no request header => delta request
+         */
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.uri()).thenReturn("/gateleen/server/res_1");
+        when(request.params()).thenReturn(new CaseInsensitiveHeaders().add("delta", "0"));
+        when(request.headers()).thenReturn(new CaseInsensitiveHeaders());
+        context.assertTrue(deltaHandler.isDeltaRequest(request));
+
+        /*
+         * No Rule config, no delta param, request header => no delta request
+         */
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.uri()).thenReturn("/gateleen/server/res_1");
+        when(request.params()).thenReturn(new CaseInsensitiveHeaders());
+        when(request.headers()).thenReturn(new CaseInsensitiveHeaders().add("x-delta-backend", "true"));
+        context.assertFalse(deltaHandler.isDeltaRequest(request));
+
+        /*
+         * No Rule config, delta param, request header => no delta request
+         */
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.uri()).thenReturn("/gateleen/server/res_1");
+        when(request.params()).thenReturn(new CaseInsensitiveHeaders().add("delta", "0"));
+        when(request.headers()).thenReturn(new CaseInsensitiveHeaders().add("x-delta-backend", "true"));
+        context.assertFalse(deltaHandler.isDeltaRequest(request));
+
+        /*
+         * Rule config, No delta param, no request header => no delta request
+         */
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.uri()).thenReturn("/gateleen/server/res_2");
+        when(request.params()).thenReturn(new CaseInsensitiveHeaders());
+        when(request.headers()).thenReturn(new CaseInsensitiveHeaders());
+        context.assertFalse(deltaHandler.isDeltaRequest(request));
+
+        /*
+         * Rule config, No delta param, request header => no delta request
+         */
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.uri()).thenReturn("/gateleen/server/res_2");
+        when(request.params()).thenReturn(new CaseInsensitiveHeaders());
+        when(request.headers()).thenReturn(new CaseInsensitiveHeaders().add("x-delta-backend", "true"));
+        context.assertFalse(deltaHandler.isDeltaRequest(request));
+
+        /*
+         * Rule config, delta param, no request header => no delta request
+         */
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.uri()).thenReturn("/gateleen/server/res_2");
+        when(request.params()).thenReturn(new CaseInsensitiveHeaders().add("delta", "0"));
+        when(request.headers()).thenReturn(new CaseInsensitiveHeaders());
+        context.assertFalse(deltaHandler.isDeltaRequest(request));
+
+        /*
+         * Rule config, delta param, request header => no delta request
+         */
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.uri()).thenReturn("/gateleen/server/res_2");
+        when(request.params()).thenReturn(new CaseInsensitiveHeaders().add("delta", "0"));
+        when(request.headers()).thenReturn(new CaseInsensitiveHeaders().add("x-delta-backend", "true"));
+        context.assertFalse(deltaHandler.isDeltaRequest(request));
+    }
+
+    @Test
     public void testDeltaNoExpiry() {
-        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null);
+        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null, ruleProvider);
         deltaHandler.handle(request, router);
 
         verify(redisClient, times(1)).set(eq("delta:resources:a:b:c"), eq("555"), any());
@@ -61,7 +152,7 @@ public class DeltaHandlerTest {
     public void testDeltaWithExpiry() {
         requestHeaders.add("x-expire-after", "123");
 
-        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null);
+        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null, ruleProvider);
         deltaHandler.handle(request, router);
 
         verify(redisClient, times(1)).setex(eq("delta:resources:a:b:c"), eq(123L), eq("555"), any());
@@ -70,7 +161,7 @@ public class DeltaHandlerTest {
 
     @Test
     public void testRejectLimitOffsetParameters(TestContext context) {
-        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null, true);
+        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null, ruleProvider, true);
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         DeltaRequest request = new DeltaRequest(new CaseInsensitiveHeaders()
                 .add("delta", "0")
@@ -95,7 +186,14 @@ public class DeltaHandlerTest {
         context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
     }
 
-    class DeltaRequest extends DummyHttpServerRequest {
+    private Rule rule(String url, boolean deltaOnBackend) {
+        Rule rule = new Rule();
+        rule.setUrlPattern(url);
+        rule.setDeltaOnBackend(deltaOnBackend);
+        return rule;
+    }
+
+    static class DeltaRequest extends DummyHttpServerRequest {
 
         private final MultiMap params;
         private final DummyHttpServerResponse response;

@@ -15,7 +15,7 @@ public final class RuleFeatures {
     private Map<Feature, Boolean> features;
 
     public enum Feature {
-        STORAGE_EXPAND, EXPAND_ON_BACKEND
+        STORAGE_EXPAND, EXPAND_ON_BACKEND, DELTA_ON_BACKEND
     }
 
     /**
