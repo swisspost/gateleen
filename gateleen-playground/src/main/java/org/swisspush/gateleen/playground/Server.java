@@ -189,8 +189,11 @@ public class Server extends AbstractVerticle {
                 new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
                 storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
                 corsHandler = new CORSHandler();
-                deltaHandler = new DeltaHandler(redisClient, selfClient, true);
-                expansionHandler = new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT);
+
+                RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
+
+                deltaHandler = new DeltaHandler(redisClient, selfClient, ruleProvider, true);
+                expansionHandler = new ExpansionHandler(ruleProvider, selfClient, props, ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
 
@@ -286,7 +289,6 @@ public class Server extends AbstractVerticle {
                         })
                         .build();
 
-                RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
                 queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx,

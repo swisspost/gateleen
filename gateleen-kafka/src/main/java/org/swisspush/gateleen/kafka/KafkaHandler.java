@@ -137,7 +137,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
 
             request.bodyHandler(payload -> {
                 try {
-                    log.debug("incoming kafka message payload: {}", payload.toString());
+                    log.debug("incoming kafka message payload: {}", payload);
                     final List<KafkaProducerRecord<String, String>> kafkaProducerRecords = KafkaProducerRecordBuilder.buildRecords(topic, payload);
                     maybeValidate(request, kafkaProducerRecords).setHandler(validationEvent -> {
                         if(validationEvent.succeeded()) {
@@ -170,7 +170,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     @Override
     public void resourceChanged(String resourceUri, Buffer resource) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
-            log.info("Kafka configuration resource " + resourceUri + " was updated. Going to initialize with new configuration");
+            log.info("Kafka configuration resource {} was updated. Going to initialize with new configuration", resourceUri);
             initializeKafkaConfiguration(resource);
         }
     }
@@ -178,7 +178,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     @Override
     public void resourceRemoved(String resourceUri) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
-            log.info("Kafka configuration resource " + resourceUri + " was removed. Going to close all kafka producers");
+            log.info("Kafka configuration resource {} was removed. Going to close all kafka producers", resourceUri);
             repository.closeAll().setHandler(event -> initialized = false);
         }
     }
