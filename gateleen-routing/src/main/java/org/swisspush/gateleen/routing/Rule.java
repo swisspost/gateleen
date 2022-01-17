@@ -25,6 +25,7 @@ public class Rule {
     private int maxWaitQueueSize;
     private boolean keepAlive;
     private boolean expandOnBackend;
+    private boolean deltaOnBackend;
     private boolean storageExpand;
     private String urlPattern;
     private Pattern headersFilterPattern;
@@ -127,6 +128,12 @@ public class Rule {
 
     public void setExpandOnBackend(boolean expandOnBackend) {
         this.expandOnBackend = expandOnBackend;
+    }
+
+    public boolean isDeltaOnBackend() { return deltaOnBackend; }
+
+    public void setDeltaOnBackend(boolean deltaOnBackend) {
+        this.deltaOnBackend = deltaOnBackend;
     }
 
     public boolean isStorageExpand() { return storageExpand; }

@@ -91,6 +91,7 @@ public class RuleFactory {
             ruleObj.setMaxWaitQueueSize(rule.getInteger(Rule.MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME, Rule.MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE));
             ruleObj.setKeepAlive(rule.getBoolean("keepAlive", true));
             ruleObj.setExpandOnBackend(rule.getBoolean("expandOnBackend", false));
+            ruleObj.setDeltaOnBackend(rule.getBoolean("deltaOnBackend", false));
             ruleObj.setStorageExpand(rule.getBoolean("storageExpand", false));
             ruleObj.setLogExpiry(rule.getInteger("logExpiry", 4 * 3600));
 

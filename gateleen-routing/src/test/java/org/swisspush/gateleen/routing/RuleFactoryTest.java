@@ -232,6 +232,24 @@ public class RuleFactoryTest {
     }
 
     @Test
+    public void testDeltaOnBackendRule(TestContext context) throws ValidationException {
+        String deltaOnBackendRule = "{"
+                + "  \"/gateleen/rule/1\": {"
+                + "    \"description\": \"Test Rule 1\","
+                + "    \"deltaOnBackend\": true,"
+                + "    \"url\": \"${gateleen.test.prop.1}/gateleen/rule/1\""
+                + "  }"
+                + "}";
+
+        properties.put("gateleen.test.prop.1", "http://someserver1/");
+
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(deltaOnBackendRule));
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals(true, rules.get(0).isDeltaOnBackend());
+    }
+
+    @Test
     public void testStorageExpandRule(TestContext context) throws ValidationException {
         String storageExpandRule = "{" +
                 " \"/gateleen/rule/1\": {" +

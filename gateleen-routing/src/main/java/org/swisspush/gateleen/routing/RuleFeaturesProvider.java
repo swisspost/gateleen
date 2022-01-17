@@ -54,12 +54,14 @@ public final class RuleFeaturesProvider {
         for (Rule rule : rules) {
             boolean isStorageExpand = rule.isStorageExpand();
             boolean isExpandOnBackend = rule.isExpandOnBackend();
+            boolean isDeltaOnBackend = rule.isDeltaOnBackend();
             try {
                 Pattern pattern = Pattern.compile(rule.getUrlPattern());
                 featuresList.add(new RuleFeatures(pattern, ImmutableMap.of(
                         RuleFeatures.Feature.STORAGE_EXPAND, isStorageExpand,
-                        RuleFeatures.Feature.EXPAND_ON_BACKEND, isExpandOnBackend)));
-                log.info(String.format("Collected features for rule url pattern %s storageExpand:%s expandOnBackend:%s", rule.getUrlPattern(), isStorageExpand, isExpandOnBackend));
+                        RuleFeatures.Feature.EXPAND_ON_BACKEND, isExpandOnBackend,
+                        RuleFeatures.Feature.DELTA_ON_BACKEND, isDeltaOnBackend)));
+                log.info(String.format("Collected features for rule url pattern %s storageExpand:%s expandOnBackend:%s deltaOnBackend:%s", rule.getUrlPattern(), isStorageExpand, isExpandOnBackend, isDeltaOnBackend));
             } catch (Exception e) {
                 log.error("Could not compile the regex:" + rule.getUrlPattern() + " to a pattern. Cannot collect feature information of this rule");
             }

@@ -116,14 +116,12 @@ public class ExpansionHandler implements RuleChangesObserver{
     /**
      * Creates a new instance of the ExpansionHandler.
      *
-     * @param vertx vertx
-     * @param storage storage
+     * @param ruleProvider {@link RuleProvider}
      * @param httpClient httpClient
      * @param properties properties
      * @param serverRoot serverRoot
-     * @param rulesPath rulesPath
      */
-    public ExpansionHandler(Vertx vertx, final ResourceStorage storage, HttpClient httpClient, final Map<String, Object> properties, String serverRoot, final String rulesPath) {
+    public ExpansionHandler(RuleProvider ruleProvider, HttpClient httpClient, final Map<String, Object> properties, String serverRoot) {
         this.httpClient = httpClient;
         this.properties = properties;
         this.serverRoot = serverRoot;
@@ -131,8 +129,23 @@ public class ExpansionHandler implements RuleChangesObserver{
         initParameterRemovalLists();
         initConfigurationValues();
 
-        this.ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
+        this.ruleProvider = ruleProvider;
         this.ruleProvider.registerObserver(this);
+    }
+
+    /**
+     * Creates a new instance of the ExpansionHandler.
+     *
+     * @param vertx vertx
+     * @param storage storage
+     * @param httpClient httpClient
+     * @param properties properties
+     * @param serverRoot serverRoot
+     * @param rulesPath rulesPath
+     */
+    public ExpansionHandler(Vertx vertx, final ResourceStorage storage, HttpClient httpClient,
+                            final Map<String, Object> properties, String serverRoot, final String rulesPath) {
+        this(new RuleProvider(vertx, rulesPath, storage, properties), httpClient, properties, serverRoot);
     }
 
     @Override
