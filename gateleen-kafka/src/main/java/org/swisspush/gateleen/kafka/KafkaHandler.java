@@ -137,7 +137,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
 
             request.bodyHandler(payload -> {
                 try {
-                    log.debug("incoming kafka message payload: {}", payload.toString());
+                    log.debug("incoming kafka message payload: {}", payload);
                     final List<KafkaProducerRecord<String, String>> kafkaProducerRecords = KafkaProducerRecordBuilder.buildRecords(topic, payload);
                     maybeValidate(request, kafkaProducerRecords).setHandler(validationEvent -> {
                         if(validationEvent.succeeded()) {
