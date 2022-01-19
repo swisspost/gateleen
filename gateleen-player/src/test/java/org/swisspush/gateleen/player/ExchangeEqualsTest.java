@@ -58,6 +58,6 @@ public class ExchangeEqualsTest {
 
     @Test
     public void actualNull() throws Exception {
-        assertFalse(new Exchange(new RequestEntity<JSONObject>(HttpMethod.PUT, new URI("/")), null).equals(null));
+        assertFalse(new Exchange(new RequestEntity<>(HttpMethod.PUT, new URI("/")), null).equals(null));
     }
 }

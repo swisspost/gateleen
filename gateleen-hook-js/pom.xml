@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.swisspush.gateleen</groupId>
         <artifactId>gateleen</artifactId>
-        <version>1.2.3-SNAPSHOT</version>
+        <version>1.2.11-SNAPSHOT</version>
     </parent>
     <artifactId>gateleen-hook-js</artifactId>
     <packaging>jar</packaging>
@@ -56,7 +56,7 @@
             <plugin>
                 <groupId>com.github.eirslett</groupId>
                 <artifactId>frontend-maven-plugin</artifactId>
-                <version>0.0.22</version>
+                <version>1.6</version>
                 <executions>
                     <execution>
                         <id>install node and npm profile trigged</id>
@@ -66,8 +66,8 @@
                         <!-- we need node in phase generate-resources, so do this before-->
                         <phase>initialize</phase>
                         <configuration>
-                            <nodeVersion>v0.12.2</nodeVersion>
-                            <npmVersion>2.7.5</npmVersion>
+                            <nodeVersion>v8.9.4</nodeVersion>
+                            <npmVersion>6.14.8</npmVersion>
                             <nodeDownloadRoot>${nodeDownloadRoot}</nodeDownloadRoot>
                             <npmDownloadRoot>${npmDownloadRoot}</npmDownloadRoot>
                         </configuration>

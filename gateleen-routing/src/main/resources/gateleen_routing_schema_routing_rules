@@ -98,17 +98,26 @@
 						"$ref": "#/definitions/HeaderFunction"
 					}
 				},
+				"headersFilter": {
+					"description": "Also filter requests based on header values (besides url and http methods). RegEx can be used to define a filter",
+					"type": "string",
+					"minLength": 1
+				},
 				"metricName": {
 					"description": "Activates metric collection (JMX and crush-metrics.log) under this name. The metricName has to be unique over all rules",
 					"type": "string",
 					"minLength": 1
 				},
 				"expandOnBackend": {
-					"description": "Should stargate do the expansion or should it passthrough to the backend",
+					"description": "Should gateleen do the expansion or should it pass-through to the backend",
+					"type": "boolean"
+				},
+				"deltaOnBackend": {
+					"description": "Should gateleen do the delta handling or should it pass-through to the backend",
 					"type": "boolean"
 				},
 				"storageExpand": {
-					"description": "Should stargate do the expansion or should it passthrough to the storage",
+					"description": "Should gateleen do the expansion or should it pass-through to the storage",
 					"type": "boolean"
 				}
 			},
@@ -175,7 +184,7 @@
 		"HeaderFunction": {
 			"properties": {
 				"header": {
-					"description": "the request-header name to manupulate (set, remove or conditional set)",
+					"description": "the request-header name to manipulate (set, remove or conditional set)",
 					"type": "string",
 					"minLength": 1
 				},
@@ -187,7 +196,7 @@
 					]
 				},
 				"mode": {
-					"description": "define a condition-mode. 'conplete' sets the header value only if this header is not yet presen. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
+					"description": "define a condition-mode. 'complete' sets the header value only if this header is not yet presen. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
 					"type": "string",
 					"enum": [
 						"complete",

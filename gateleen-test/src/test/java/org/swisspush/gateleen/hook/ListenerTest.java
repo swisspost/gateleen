@@ -5,6 +5,8 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.jayway.awaitility.Awaitility;
 import com.jayway.awaitility.Duration;
 import io.restassured.RestAssured;
+import io.restassured.http.Header;
+import io.restassured.http.Headers;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -486,7 +488,7 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, both listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null, null, HookTriggerType.AFTER);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null, null, HookTriggerType.AFTER, null);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -536,8 +538,8 @@ public class ListenerTest extends AbstractTest {
         /*
          * Sending request, both listener hooked
          */
-        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null, null, HookTriggerType.AFTER);
-        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, null, null, null, HookTriggerType.BEFORE);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null, null, HookTriggerType.AFTER, null);
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, null, null, null, HookTriggerType.BEFORE, null);
 
         checkPUTStatusCode(requestUrl, body, 200);
         checkGETStatusCodeWithAwait(requestUrl, 200);
@@ -728,6 +730,75 @@ public class ListenerTest extends AbstractTest {
         context.async().complete();
     }
 
+    /**
+     * Test for two listener monitoring the same resource including a headersFilter. <br />
+     * eg. register / unregister: http://localhost:7012/gateleen/server/listenertest/fwTwoListener/_hooks/listeners/firstListener/1 <br />
+     * register / unregister: http://localhost:7012/gateleen/server/listenertest/fwTwoListener/_hooks/listeners/secondListener/2 <br />
+     * requestUrl: http://localhost:7012/gateleen/server/listenertest/fwTwoListener/test.
+     */
+    @Test
+    public void testRequestForwardingForTwoListenerAtSameResourceButDifferentHeadersFilter(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        // Settings
+        String subresource = "fwTwoListener";
+        String listenerNo = "1";
+        String listenerName = "firstListener";
+
+        String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
+        String targetListener1 = targetUrlBase + "/" + listenerName;
+        String[] methodsListener1 = new String[]{"PUT", "DELETE", "POST"};
+        final String targetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + "test";
+
+        listenerNo = "2";
+        listenerName = "secondListener";
+
+        String registerUrlListener2 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
+        String targetListener2 = targetUrlBase + "/" + listenerName;
+        String[] methodsListener2 = new String[]{"PUT", "DELETE", "POST"};
+        final String targetUrlListener2 = targetUrlBase + "/" + listenerName + "/" + "test";
+        // -------
+
+        final String requestUrl = requestUrlBase + "/" + subresource + "/" + "test";
+        final String body = "{ \"name\" : \"" + subresource + "\"}";
+
+        delete(requestUrl);
+        delete(targetUrlListener1);
+        delete(targetUrlListener2);
+
+        /*
+         * Sending request, listener not yet hooked
+         */
+        checkPUTStatusCode(requestUrl, body, 200);
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+        checkGETStatusCodeWithAwait(targetUrlListener1, 404);
+        checkGETStatusCodeWithAwait(targetUrlListener2, 404);
+        checkDELETEStatusCode(requestUrl, 200);
+        checkGETStatusCodeWithAwait(requestUrl, 404);
+
+        /*
+         * Sending request, one listener hooked
+         */
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null,
+                null, null, "x-foo: (A|B)");
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener2, null, null,
+                null, null, "x-foo: (C|D)");
+
+        checkPUTStatusCode(requestUrl, body, 200, Headers.headers(new Header("x-foo", "A")));
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+        checkGETBodyWithAwait(targetUrlListener1, body);
+        checkGETStatusCodeWithAwait(targetUrlListener2, 404);
+        checkDELETEStatusCode(requestUrl, 200, Headers.headers(new Header("x-foo", "A")));
+        checkGETStatusCodeWithAwait(requestUrl, 404);
+        checkGETStatusCodeWithAwait(targetUrlListener1, 404);
+
+        TestUtils.unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener2);
+
+        async.complete();
+    }
 
     /**
      * Checks if the DELETE request gets a response
@@ -741,6 +812,18 @@ public class ListenerTest extends AbstractTest {
     }
 
     /**
+     * Checks if the DELETE request gets a response
+     * with the given status code.
+     *
+     * @param requestUrl
+     * @param statusCode
+     * @param headers
+     */
+    private void checkDELETEStatusCode(String requestUrl, int statusCode, Headers headers) {
+        with().headers(headers).delete(requestUrl).then().assertThat().statusCode(statusCode);
+    }
+
+    /**
      * Checks if the PUT request gets a response
      * with the given status code.
      *
@@ -750,6 +833,19 @@ public class ListenerTest extends AbstractTest {
      */
     private void checkPUTStatusCode(String requestUrl, String body, int statusCode) {
         with().body(body).put(requestUrl).then().assertThat().statusCode(statusCode);
+    }
+
+    /**
+     * Checks if the PUT request gets a response
+     * with the given status code.
+     *
+     * @param requestUrl
+     * @param body
+     * @param statusCode
+     * @param headers
+     */
+    private void checkPUTStatusCode(String requestUrl, String body, int statusCode, Headers headers) {
+        with().headers(headers).body(body).put(requestUrl).then().assertThat().statusCode(statusCode);
     }
 
     /**

@@ -11,6 +11,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.refresh.Refreshable;
@@ -97,7 +98,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
         this.doneHandler = doneHandler;
 
         String delegatesSchema = ResourcesUtils.loadResource("gateleen_delegate_schema_delegates", true);
-        this.delegateFactory = new DelegateFactory(new DelegateClientRequestCreator(selfClient), properties, delegatesSchema);
+        this.delegateFactory = new DelegateFactory(new ClientRequestCreator(selfClient), properties, delegatesSchema);
 
         delegateNamePattern = Pattern.compile(delegatesUri + "([^/]+)(/" + DEFINITION_RESOURCE + "|/"+ EXECUTION_RESOURCE + ".*" + "|/?)");
 
@@ -117,7 +118,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
             initMethods.add(this::loadStoredDelegates);
 
             // ready handler, calls the doneHandler when everything is done and the DelegateHandler is ready to use
-            Handler<Void> readyHandler = new Handler<Void>() {
+            Handler<Void> readyHandler = new Handler<>() {
                 // count of methods with may return an OK (ready)
                 private AtomicInteger readyCounter = new AtomicInteger(initMethods.size());
 

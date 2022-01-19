@@ -5,6 +5,7 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.testhelper.AbstractLuaScriptTest;
+import redis.clients.jedis.params.SetParams;
 
 import java.util.Collections;
 import java.util.List;
@@ -13,7 +14,7 @@ import static com.jayway.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.swisspush.gateleen.core.lock.impl.RedisBasedLock.STORAGE_PREFIX;
 
 /**
@@ -189,7 +190,7 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     private String acquireLock(String lock, String token, long expireMs){
-        return jedis.set(lock, token, "NX", "PX", expireMs);
+        return jedis.set(lock, token, SetParams.setParams().nx().px(expireMs));
     }
 
     private Object evalScriptReleaseLock(String lock, String token){

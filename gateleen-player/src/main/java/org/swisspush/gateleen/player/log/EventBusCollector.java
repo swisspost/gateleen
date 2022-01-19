@@ -61,17 +61,14 @@ public class EventBusCollector extends AbstractWebSocketHandler implements Colle
             } catch (InterruptedException e) {
                 // ignore
             }
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while(client != null) {
-                        try {
-                            Thread.sleep(4000);
-                            ping();
-                        } catch (Exception e) {
-                            log.error("Exception while pinging", e);
-                            throw new RuntimeException(e);
-                        }
+            new Thread(() -> {
+                while(client != null) {
+                    try {
+                        Thread.sleep(4000);
+                        ping();
+                    } catch (Exception e) {
+                        log.error("Exception while pinging", e);
+                        throw new RuntimeException(e);
                     }
                 }
             }).start();

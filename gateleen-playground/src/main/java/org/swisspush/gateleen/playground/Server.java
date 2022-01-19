@@ -16,9 +16,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import org.swisspush.gateleen.cache.CacheHandler;
+import org.swisspush.gateleen.cache.fetch.CacheDataFetcher;
+import org.swisspush.gateleen.cache.fetch.DefaultCacheDataFetcher;
+import org.swisspush.gateleen.cache.storage.CacheStorage;
+import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
@@ -35,6 +41,7 @@ import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage;
 import org.swisspush.gateleen.kafka.KafkaHandler;
 import org.swisspush.gateleen.kafka.KafkaMessageSender;
+import org.swisspush.gateleen.kafka.KafkaMessageValidator;
 import org.swisspush.gateleen.kafka.KafkaProducerRepository;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -64,10 +71,10 @@ import org.swisspush.gateleen.security.content.ContentTypeConstraintHandler;
 import org.swisspush.gateleen.security.content.ContentTypeConstraintRepository;
 import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
-import org.swisspush.gateleen.validation.ValidationHandler;
-import org.swisspush.gateleen.validation.ValidationResourceManager;
+import org.swisspush.gateleen.validation.*;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -101,6 +108,8 @@ public class Server extends AbstractVerticle {
     private HttpServer mainServer;
     private RedisClient redisClient;
     private ResourceStorage storage;
+    private CacheStorage cacheStorage;
+    private CacheDataFetcher cacheDataFetcher;
     private Authorizer authorizer;
     private Router router;
 
@@ -110,6 +119,8 @@ public class Server extends AbstractVerticle {
     private LoggingResourceManager loggingResourceManager;
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
+    private ValidationSchemaProvider validationSchemaProvider;
+    private Validator validator;
     private SchedulerResourceManager schedulerResourceManager;
     private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
     private ReducedPropagationManager reducedPropagationManager;
@@ -133,6 +144,7 @@ public class Server extends AbstractVerticle {
     private KafkaHandler kafkaHandler;
     private CustomHttpResponseHandler customHttpResponseHandler;
     private ContentTypeConstraintHandler contentTypeConstraintHandler;
+    private CacheHandler cacheHandler;
 
     public static void main(String[] args) {
         Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event ->
@@ -177,10 +189,19 @@ public class Server extends AbstractVerticle {
                 new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
                 storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
                 corsHandler = new CORSHandler();
-                deltaHandler = new DeltaHandler(redisClient, selfClient, true);
-                expansionHandler = new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT);
+
+                RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
+
+                deltaHandler = new DeltaHandler(redisClient, selfClient, ruleProvider, true);
+                expansionHandler = new ExpansionHandler(ruleProvider, selfClient, props, ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
+
+                Lock lock = new RedisBasedLock(redisClient);
+
+                cacheStorage = new RedisCacheStorage(vertx, lock, redisClient, 20 * 1000);
+                cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));
+                cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
 
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 qosHandler.enableResourceLogging(true);
@@ -195,12 +216,6 @@ public class Server extends AbstractVerticle {
 
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
                 loggingResourceManager.enableResourceLogging(true);
-
-                KafkaProducerRepository kafkaProducerRepository = new KafkaProducerRepository(vertx);
-                KafkaMessageSender kafkaMessageSender = new KafkaMessageSender();
-                kafkaHandler = new KafkaHandler(configurationResourceManager, kafkaProducerRepository, kafkaMessageSender,
-                        SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
-                kafkaHandler.initialize();
 
                 ContentTypeConstraintRepository repository = new ContentTypeConstraintRepository();
                 contentTypeConstraintHandler = new ContentTypeConstraintHandler(configurationResourceManager, repository,
@@ -217,8 +232,6 @@ public class Server extends AbstractVerticle {
                 roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 roleProfileHandler.enableResourceLogging(true);
 
-                Lock lock = new RedisBasedLock(redisClient);
-
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
                 reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient),
                         queueClient, lock);
@@ -234,8 +247,16 @@ public class Server extends AbstractVerticle {
 
                 validationResourceManager = new ValidationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/validation");
                 validationResourceManager.enableResourceLogging(true);
+                validationSchemaProvider = new DefaultValidationSchemaProvider(vertx, new ClientRequestCreator(selfClient), Duration.ofSeconds(30));
+                validator = new Validator(storage, ROOT + "/schemas/apis/", validationSchemaProvider);
+                validationHandler = new ValidationHandler(validationResourceManager, selfClient, validator);
 
-                validationHandler = new ValidationHandler(validationResourceManager, storage, selfClient, ROOT + "/schemas/apis/");
+                KafkaProducerRepository kafkaProducerRepository = new KafkaProducerRepository(vertx);
+                KafkaMessageSender kafkaMessageSender = new KafkaMessageSender();
+                KafkaMessageValidator messageValidator = new KafkaMessageValidator(validationResourceManager, validator);
+                kafkaHandler = new KafkaHandler(configurationResourceManager, messageValidator, kafkaProducerRepository, kafkaMessageSender,
+                        SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
+                kafkaHandler.initialize();
 
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler,
                         SERVER_ROOT + "/admin/v1/schedulers");
@@ -268,7 +289,6 @@ public class Server extends AbstractVerticle {
                         })
                         .build();
 
-                RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
                 queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx,
@@ -296,6 +316,7 @@ public class Server extends AbstractVerticle {
                         .authorizer(authorizer)
                         .validationResourceManager(validationResourceManager)
                         .validationHandler(validationHandler)
+                        .cacheHandler(cacheHandler)
                         .corsHandler(corsHandler)
                         .deltaHandler(deltaHandler)
                         .expansionHandler(expansionHandler)

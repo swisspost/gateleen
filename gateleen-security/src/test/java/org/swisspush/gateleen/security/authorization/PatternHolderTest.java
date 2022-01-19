@@ -21,7 +21,7 @@ public class PatternHolderTest {
         PatternHolder pH = new PatternHolder("(mouse|cat|dog|wolf|bear|human)");
         PatternHolder pH2 = new PatternHolder("(mouse|cat|dog|wolf|bear|human)");
         PatternHolder pH3 = new PatternHolder("(wolf|bear|human)");
-        context.assertFalse(pH.equals(new Integer(1)));
+        context.assertFalse(pH.equals(Integer.valueOf(1)));
         context.assertTrue(pH.equals(pH2));
         context.assertFalse(pH.equals(pH3));
 

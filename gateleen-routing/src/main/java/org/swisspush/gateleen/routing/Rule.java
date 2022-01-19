@@ -25,8 +25,10 @@ public class Rule {
     private int maxWaitQueueSize;
     private boolean keepAlive;
     private boolean expandOnBackend;
+    private boolean deltaOnBackend;
     private boolean storageExpand;
     private String urlPattern;
+    private Pattern headersFilterPattern;
     private int timeout;
     private String username;
     private String password;
@@ -128,6 +130,12 @@ public class Rule {
         this.expandOnBackend = expandOnBackend;
     }
 
+    public boolean isDeltaOnBackend() { return deltaOnBackend; }
+
+    public void setDeltaOnBackend(boolean deltaOnBackend) {
+        this.deltaOnBackend = deltaOnBackend;
+    }
+
     public boolean isStorageExpand() { return storageExpand; }
 
     public void setStorageExpand(boolean storageExpand) { this.storageExpand = storageExpand; }
@@ -138,6 +146,14 @@ public class Rule {
 
     public void setUrlPattern(String urlPattern) {
         this.urlPattern = urlPattern;
+    }
+
+    public Pattern getHeadersFilterPattern() {
+        return headersFilterPattern;
+    }
+
+    public void setHeadersFilterPattern(Pattern headersFilterPattern) {
+        this.headersFilterPattern = headersFilterPattern;
     }
 
     public int getTimeout() {

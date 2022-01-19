@@ -6,6 +6,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.json.transform.JoltSpec;
@@ -34,7 +35,7 @@ public class DelegateFactory {
     private static final String TRANSFORM = "transform";
     private static final String TRANSFORM_WITH_METADATA = "transformWithMetadata";
 
-    private final DelegateClientRequestCreator clientRequestCreator;
+    private final ClientRequestCreator clientRequestCreator;
 
     private final Map<String, Object> properties;
     private final String delegatesSchema;
@@ -46,7 +47,7 @@ public class DelegateFactory {
      * @param properties
      * @param delegatesSchema
      */
-    public DelegateFactory(final DelegateClientRequestCreator clientRequestCreator, final Map<String, Object> properties, final String delegatesSchema) {
+    public DelegateFactory(final ClientRequestCreator clientRequestCreator, final Map<String, Object> properties, final String delegatesSchema) {
         this.clientRequestCreator = clientRequestCreator;
         this.properties = properties;
         this.delegatesSchema = delegatesSchema;

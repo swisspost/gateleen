@@ -148,7 +148,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
     }
 
     /**
-     * Returns a list of all registred
+     * Returns a list of all registered
      * schedulers.
      * @return List
      */

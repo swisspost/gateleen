@@ -128,86 +128,80 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                 final String address = addressPrefix + matcher.group(1);
                 final JsonObject message = new JsonObject().put(URI, request.uri()).put(METHOD, request.method()).put(HEADERS, JsonMultiMap.toJson(request.headers()));
                 requestLog.debug("Preparing message for address {}", address);
-                request.bodyHandler(new Handler<Buffer>() {
-                    @Override
-                    public void handle(Buffer buffer) {
-                        String contentType = request.headers().get(CONTENT_TYPE);
-                        if (contentType == null) {
-                            contentType = APPLICATION_JSON;
-                        }
-                        if (buffer != null && buffer.length() > 0) {
-                            if (contentType.contains(APPLICATION_JSON)) {
-                                try {
-                                    message.put(PAYLOAD, new JsonObject(buffer.toString()));
-                                } catch (DecodeException e) {
-                                    request.response().setStatusCode(BAD_REQUEST);
-                                    request.response().end(e.getMessage());
-                                    return;
-                                }
-                            } else if (contentType.contains(TEXT)) {
-                                message.put(PAYLOAD, buffer.toString());
-                            } else {
-                                message.put(PAYLOAD, buffer.getBytes());
+                request.bodyHandler(buffer -> {
+                    String contentType = request.headers().get(CONTENT_TYPE);
+                    if (contentType == null) {
+                        contentType = APPLICATION_JSON;
+                    }
+                    if (buffer != null && buffer.length() > 0) {
+                        if (contentType.contains(APPLICATION_JSON)) {
+                            try {
+                                message.put(PAYLOAD, new JsonObject(buffer.toString()));
+                            } catch (DecodeException e) {
+                                request.response().setStatusCode(BAD_REQUEST);
+                                request.response().end(e.getMessage());
+                                return;
                             }
-                        }
-                        requestLog.debug("Request content type is {}", contentType);
-                        if (HttpMethod.GET == request.method() || Boolean.TRUE.toString().equals(request.headers().get(SYNC))) {
-                            requestLog.debug("This is a synchronous request");
-                            vertx.eventBus().send(address, message, new DeliveryOptions().setSendTimeout(TIMEOUT), new Handler<AsyncResult<Message<JsonObject>>>() {
-                                @Override
-                                public void handle(AsyncResult<Message<JsonObject>> reply) {
-                                    if (reply.succeeded()) {
-                                        requestLog.debug("Got response");
-                                        JsonObject response = reply.result().body();
-                                        MultiMap headers = null;
-                                        try {
-                                            if (response.fieldNames().contains(HEADERS)) {
-                                                headers = JsonMultiMap.fromJson(response.getJsonArray(HEADERS));
-                                                request.response().headers().setAll(headers);
-                                            }
-                                        } catch (DecodeException e) {
-                                            requestLog.warn("Wrong headers in reply", e);
-                                        }
-                                        if (response.fieldNames().contains(PAYLOAD)) {
-                                            String responseContentType;
-                                            if (headers != null) {
-                                                responseContentType = headers.get(CONTENT_TYPE);
-                                            } else {
-                                                responseContentType = APPLICATION_JSON;
-                                            }
-                                            requestLog.debug("Response content type is {}", responseContentType);
-                                            try {
-                                                request.response().setChunked(true);
-                                                if (responseContentType != null && responseContentType.contains(APPLICATION_JSON)) {
-                                                    request.response().end(response.getJsonObject(PAYLOAD).encode());
-                                                } else if (responseContentType != null && responseContentType.contains(TEXT)) {
-                                                    request.response().end(response.getString(PAYLOAD));
-                                                } else {
-                                                    request.response().end(Buffer.buffer(response.getBinary(PAYLOAD)));
-                                                }
-                                            } catch (DecodeException e) {
-                                                requestLog.warn("Wrong payload in reply for content-type " + responseContentType, e);
-                                                request.response().setStatusCode(500);
-                                                request.response().end("Wrong payload in reply for content-type " + responseContentType + ": ", e.getMessage());
-                                            }
-                                        } else {
-                                            requestLog.debug("No payload in response");
-                                            request.response().end();
-                                        }
-                                    } else {
-                                        requestLog.debug("Timeout");
-                                        request.response().setStatusCode(GATEWAY_TIMEOUT);
-                                        request.response().setChunked(true);
-                                        request.response().end("Gateway Timeout");
-                                    }
-                                }
-                            });
+                        } else if (contentType.contains(TEXT)) {
+                            message.put(PAYLOAD, buffer.toString());
                         } else {
-                            requestLog.debug("This is an asynchronous request");
-                            vertx.eventBus().publish(address, message);
-                            request.response().setStatusCode(ACCEPTED);
-                            request.response().end();
+                            message.put(PAYLOAD, buffer.getBytes());
                         }
+                    }
+                    requestLog.debug("Request content type is {}", contentType);
+                    if (HttpMethod.GET == request.method() || Boolean.TRUE.toString().equals(request.headers().get(SYNC))) {
+                        requestLog.debug("This is a synchronous request");
+                        vertx.eventBus().send(address, message, new DeliveryOptions().setSendTimeout(TIMEOUT), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                            if (reply.succeeded()) {
+                                requestLog.debug("Got response");
+                                JsonObject response = reply.result().body();
+                                MultiMap headers = null;
+                                try {
+                                    if (response.fieldNames().contains(HEADERS)) {
+                                        headers = JsonMultiMap.fromJson(response.getJsonArray(HEADERS));
+                                        request.response().headers().setAll(headers);
+                                    }
+                                } catch (DecodeException e) {
+                                    requestLog.warn("Wrong headers in reply", e);
+                                }
+                                if (response.fieldNames().contains(PAYLOAD)) {
+                                    String responseContentType;
+                                    if (headers != null) {
+                                        responseContentType = headers.get(CONTENT_TYPE);
+                                    } else {
+                                        responseContentType = APPLICATION_JSON;
+                                    }
+                                    requestLog.debug("Response content type is {}", responseContentType);
+                                    try {
+                                        request.response().setChunked(true);
+                                        if (responseContentType != null && responseContentType.contains(APPLICATION_JSON)) {
+                                            request.response().end(response.getJsonObject(PAYLOAD).encode());
+                                        } else if (responseContentType != null && responseContentType.contains(TEXT)) {
+                                            request.response().end(response.getString(PAYLOAD));
+                                        } else {
+                                            request.response().end(Buffer.buffer(response.getBinary(PAYLOAD)));
+                                        }
+                                    } catch (DecodeException e) {
+                                        requestLog.warn("Wrong payload in reply for content-type " + responseContentType, e);
+                                        request.response().setStatusCode(500);
+                                        request.response().end("Wrong payload in reply for content-type " + responseContentType + ": ", e.getMessage());
+                                    }
+                                } else {
+                                    requestLog.debug("No payload in response");
+                                    request.response().end();
+                                }
+                            } else {
+                                requestLog.debug("Timeout");
+                                request.response().setStatusCode(GATEWAY_TIMEOUT);
+                                request.response().setChunked(true);
+                                request.response().end("Gateway Timeout");
+                            }
+                        });
+                    } else {
+                        requestLog.debug("This is an asynchronous request");
+                        vertx.eventBus().publish(address, message);
+                        request.response().setStatusCode(ACCEPTED);
+                        request.response().end();
                     }
                 });
                 return true;

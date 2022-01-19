@@ -67,8 +67,8 @@ class Staging {
             case "promote":
                 println "trying to promote nexus repository ..."
                 //see: https://issues.sonatype.org/browse/OSSRH-27145
-                println("Waiting 30 secs before continue")
-                sleep(30000);
+                println("Waiting 60 secs before continue")
+                sleep(60000);
                 doWithRetry(this.&promote, repositoryId)
                 println " > done"
                 break

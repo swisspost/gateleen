@@ -102,6 +102,24 @@ public class RouterTest {
             "  }\n" +
             "}";
 
+    private final String RULES_WITH_HEADERSFILTER = "{\n" +
+            "  \"/gateleen/server/forward/to/backend\": {\n" +
+            "    \"metricName\": \"forward_backend\",\n" +
+            "    \"headersFilter\": \"x-foo: (A|B|C)\",\n" +
+            "    \"url\": \"http://localhost/some/backend/path\"\n" +
+            "  },\n" +
+            "  \"/gateleen/server/forward/to/storage\": {\n" +
+            "    \"metricName\": \"forward_storage\",\n" +
+            "    \"headersFilter\": \"x-foo: (.*)\",\n" +
+            "    \"path\": \"/gateleen/storage/resource_x\",\n" +
+            "    \"storage\": \"main\"\n" +
+            "  },\n" +
+            "  \"/gateleen/server/forward/to/nowhere\": {\n" +
+            "    \"metricName\": \"forward_null\",\n" +
+            "    \"headersFilter\": \"x-foo: [0-9]{3}\"\n" +
+            "  }\n" +
+            "}";
+
     private final String RANDOM_RESOURCE = "{\n"
             + "  \"randomkey1\": 123,\n"
             + "  \"randomkey2\": 456\n"
@@ -773,5 +791,198 @@ public class RouterTest {
         router.route(request);
 
         context.assertEquals(StatusCode.NOT_FOUND.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 404");
+    }
+
+    @Test
+    public void testStorageRequestWithHeadersFilterPresent(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/storage", RANDOM_RESOURCE));
+        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
+                serverUrl, rulesPath, userProfilePath, info, storagePort);
+
+        ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
+        router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        MultiMap headers = new CaseInsensitiveHeaders();
+        headers.set("x-foo", "bar");
+        DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/storage", headers, Buffer.buffer(RANDOM_RESOURCE), response);
+        router.route(request);
+
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        context.assertEquals(StatusCode.OK.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be OK");
+    }
+
+    @Test
+    public void testStorageRequestWithHeadersFilterAbsent(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/storage", RANDOM_RESOURCE));
+        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
+                serverUrl, rulesPath, userProfilePath, info, storagePort);
+
+        ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
+        router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        MultiMap headers = new CaseInsensitiveHeaders();
+        DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/storage", headers, Buffer.buffer(RANDOM_RESOURCE), response);
+        router.route(request);
+
+        context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
+        context.assertEquals(StatusCode.BAD_REQUEST.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be Bad Request");
+    }
+
+    @Test
+    public void testNullForwarderRequestWithHeadersFilterNotMatching(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/nowhere", RANDOM_RESOURCE));
+        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
+                serverUrl, rulesPath, userProfilePath, info, storagePort);
+
+        ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
+        router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        MultiMap headers = new CaseInsensitiveHeaders();
+        headers.set("x-foo", "99");
+        DummyHttpServerRequest request = buildRequest(HttpMethod.PUT, "/gateleen/server/forward/to/nowhere", headers, Buffer.buffer(RANDOM_RESOURCE), response);
+        router.route(request);
+
+        context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
+        context.assertEquals(StatusCode.BAD_REQUEST.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be Bad Request");
+    }
+
+    @Test
+    public void testNullForwarderRequestWithHeadersFilterPresent(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/nowhere", RANDOM_RESOURCE));
+        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
+                serverUrl, rulesPath, userProfilePath, info, storagePort);
+
+        ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
+        router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        MultiMap headers = new CaseInsensitiveHeaders();
+        headers.set("x-foo", "999");
+        DummyHttpServerRequest request = buildRequest(HttpMethod.PUT, "/gateleen/server/forward/to/nowhere", headers, Buffer.buffer(RANDOM_RESOURCE), response);
+        router.route(request);
+
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        context.assertEquals(StatusCode.OK.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be OK");
+    }
+
+    @Test
+    public void testForwarderRequestWithHeadersFilterPresent(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/backend", RANDOM_RESOURCE));
+        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
+                serverUrl, rulesPath, userProfilePath, info, storagePort);
+
+        ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
+        router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        MultiMap headers = new CaseInsensitiveHeaders();
+        headers.set("x-foo", "A");
+        DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/backend", headers, Buffer.buffer(RANDOM_RESOURCE), response);
+        router.route(request);
+
+        // we expect a status code 500 because of a NullPointerException in the test setup
+        // however, this means that the headersFilter evaluation did not return a 400 Bad Request
+        context.assertEquals(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 500");
+    }
+
+    @Test
+    public void testForwarderRequestWithHeadersFilterNotMatching(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/backend", RANDOM_RESOURCE));
+        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
+                serverUrl, rulesPath, userProfilePath, info, storagePort);
+
+        ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
+        router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
+
+        context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
+        context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
+
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        MultiMap headers = new CaseInsensitiveHeaders();
+        headers.set("x-foo", "X");
+        DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/backend", headers, Buffer.buffer(RANDOM_RESOURCE), response);
+        router.route(request);
+
+        context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
+        context.assertEquals(StatusCode.BAD_REQUEST.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be Bad Request");
+    }
+
+    private DummyHttpServerRequest buildRequest(HttpMethod method, String uri, MultiMap headers, Buffer body, DummyHttpServerResponse response){
+        return new DummyHttpServerRequest() {
+            @Override
+            public HttpMethod method() {
+                return method;
+            }
+
+            @Override
+            public String uri() {
+                return uri;
+            }
+
+            @Override public String path() { return uri; }
+
+            @Override public MultiMap headers() { return headers; }
+
+            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+
+            @Override
+            public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+                bodyHandler.handle(body);
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest handler(Handler<Buffer> handler) {
+                handler.handle(body);
+                return this;
+            }
+
+            @Override
+            public HttpServerRequest endHandler(Handler<Void> endHandler) {
+                endHandler.handle(null);
+                return this;
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        };
     }
 }

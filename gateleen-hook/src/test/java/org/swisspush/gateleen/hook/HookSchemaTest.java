@@ -8,6 +8,7 @@ import com.networknt.schema.ValidationMessage;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
 
 import java.io.IOException;
 import java.net.URL;
@@ -20,8 +21,8 @@ public class HookSchemaTest {
 
     @Before
     public void before() {
-        URL url = HookSchemaTest.class.getResource("/gateleen_hooking_schema_hook");
-        schema = JsonSchemaFactory.getInstance().getSchema(url);
+        String hookSchema = ResourcesUtils.loadResource("gateleen_hooking_schema_hook", true);
+        schema = JsonSchemaFactory.getInstance().getSchema(hookSchema);
     }
 
     @Test
@@ -30,6 +31,7 @@ public class HookSchemaTest {
                 "  'methods': ['OPTIONS','GET','HEAD','POST','PUT','DELETE','PATCH']," +
                 "  'filter':'.*'," +
                 "  'headers': [{'header':'x-y', 'value':'gugus', 'mode':'complete'}]," +
+                "  'headersFilter':'x-foo.*'," +
                 "  'destination':'/go/somewhere'," +
                 "  'expireAfter':30," +
                 "  'queueExpireAfter':30," +
@@ -88,6 +90,18 @@ public class HookSchemaTest {
                 "  'destination':'/go/somewhere'," +
                 "  'staticHeaders':{}," +
                 "  'headers':[]" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("One validation messages", 1, valMsgs.size());
+    }
+
+    @Test
+    public void invalidWhenHeadersFilterContainsEmptyPattern() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'headersFilter':''" +
                 "}");
 
         Set<ValidationMessage> valMsgs = schema.validate(json);

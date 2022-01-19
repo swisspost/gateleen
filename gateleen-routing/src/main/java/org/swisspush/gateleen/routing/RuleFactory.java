@@ -10,6 +10,7 @@ import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.core.validation.ValidationResult;
+import org.swisspush.gateleen.validation.RegexpValidator;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.Validator;
 
@@ -57,6 +58,12 @@ public class RuleFactory {
             ruleObj.setUrlPattern(urlPattern);
             JsonObject rule = rules.getJsonObject(urlPattern);
 
+            String headersFilter = rule.getString("headersFilter");
+            if(headersFilter != null) {
+                Pattern headersFilterPattern = RegexpValidator.throwIfPatternInvalid(headersFilter);
+                ruleObj.setHeadersFilterPattern(headersFilterPattern);
+            }
+
             String targetUrl = rule.getString("url");
             String path = rule.getString("path");
 
@@ -84,6 +91,7 @@ public class RuleFactory {
             ruleObj.setMaxWaitQueueSize(rule.getInteger(Rule.MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME, Rule.MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE));
             ruleObj.setKeepAlive(rule.getBoolean("keepAlive", true));
             ruleObj.setExpandOnBackend(rule.getBoolean("expandOnBackend", false));
+            ruleObj.setDeltaOnBackend(rule.getBoolean("deltaOnBackend", false));
             ruleObj.setStorageExpand(rule.getBoolean("storageExpand", false));
             ruleObj.setLogExpiry(rule.getInteger("logExpiry", 4 * 3600));
 
