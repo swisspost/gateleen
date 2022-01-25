@@ -29,7 +29,7 @@ public class CacheHandler {
 
     public static final String CONTENT_TYPE_HEADER = "Content-Type";
     public static final String CONTENT_TYPE_JSON = "application/json";
-    public static final String CACHE_CONTROL_HEADER = "Cache-Control";
+    public static final String DEFAULT_CACHE_CONTROL_HEADER = "Cache-Control";
     private static final String NO_CACHE = "no-cache";
     private static final String MAX_AGE = "max-age=";
     private static final String MAX_AGE_ZERO = MAX_AGE + "0";
@@ -40,10 +40,32 @@ public class CacheHandler {
     private final CacheStorage cacheStorage;
     private final String cacheAdminUri;
 
+    private final String cacheControlHeader;
+
+    /**
+     * Constructor for the {@link CacheHandler} using the default `Cache-Control` request header
+     *
+     * @param dataFetcher the {@link CacheDataFetcher}
+     * @param cacheStorage the {@link CacheStorage}
+     * @param cacheAdminUri the uri for the admin API
+     */
     public CacheHandler(CacheDataFetcher dataFetcher, CacheStorage cacheStorage, String cacheAdminUri) {
+        this(dataFetcher, cacheStorage, cacheAdminUri, DEFAULT_CACHE_CONTROL_HEADER);
+    }
+
+    /**
+     * Constructor for the {@link CacheHandler} using a custom request header
+     *
+     * @param dataFetcher the {@link CacheDataFetcher}
+     * @param cacheStorage the {@link CacheStorage}
+     * @param cacheAdminUri the uri for the admin API
+     * @param customCacheControlHeader custom request header for cached requests instead of `Cache-Control`
+     */
+    public CacheHandler(CacheDataFetcher dataFetcher, CacheStorage cacheStorage, String cacheAdminUri, String customCacheControlHeader) {
         this.dataFetcher = dataFetcher;
         this.cacheStorage = cacheStorage;
         this.cacheAdminUri = cacheAdminUri;
+        this.cacheControlHeader = customCacheControlHeader;
     }
 
     public boolean handle(final HttpServerRequest request) {
@@ -119,7 +141,7 @@ public class CacheHandler {
     }
 
     private boolean containsCacheHeaders(final HttpServerRequest request) {
-        List<String> cacheControlHeaderValues = request.headers().getAll(CACHE_CONTROL_HEADER);
+        List<String> cacheControlHeaderValues = request.headers().getAll(cacheControlHeader);
         for (String cacheControlHeaderValue : cacheControlHeaderValues) {
             if (NO_CACHE.equalsIgnoreCase(cacheControlHeaderValue) ||
                     cacheControlHeaderValue.toLowerCase().contains(MAX_AGE_ZERO)) {
@@ -133,13 +155,13 @@ public class CacheHandler {
     }
 
     private Optional<Long> extractExpireMs(final HttpServerRequest request) {
-        String cacheControlHeader = request.headers().get(CACHE_CONTROL_HEADER);
-        if (cacheControlHeader == null || !cacheControlHeader.toLowerCase().contains(MAX_AGE)) {
+        String cacheControlHeaderValue = request.headers().get(cacheControlHeader);
+        if (cacheControlHeaderValue == null || !cacheControlHeaderValue.toLowerCase().contains(MAX_AGE)) {
             return Optional.empty();
         }
 
-        cacheControlHeader = StringUtils.trim(cacheControlHeader).toLowerCase();
-        List<String> headerValues = Splitter.on(MAX_AGE).omitEmptyStrings().splitToList(cacheControlHeader);
+        cacheControlHeaderValue = StringUtils.trim(cacheControlHeaderValue).toLowerCase();
+        List<String> headerValues = Splitter.on(MAX_AGE).omitEmptyStrings().splitToList(cacheControlHeaderValue);
         if (headerValues.size() != 1) {
             return Optional.empty();
         }
@@ -149,7 +171,7 @@ public class CacheHandler {
             long expireSeconds = Long.parseLong(headerValue);
             return Optional.of(expireSeconds * 1000);
         } catch (NumberFormatException ex) {
-            log.warn("Value of Cache-Control max-age header is not a number: {}", headerValue);
+            log.warn("Value of {} max-age header is not a number: {}", cacheControlHeader, headerValue);
             return Optional.empty();
         }
     }
