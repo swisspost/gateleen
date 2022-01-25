@@ -63,9 +63,16 @@ public class CacheHandlerTest {
         context.assertFalse(cacheHandler.handle(getRequestOtherHeaders));
 
         headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
+
+        // custom cache control header
+        cacheHandler = new CacheHandler(dataFetcher, cacheStorage, "/playground/server/cache", "x-cache-control");
+        headers = new CaseInsensitiveHeaders();
+        headers.add("x-cache-control", "max-age=120");
+        Request getRequestWithCustomCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
+        context.assertTrue(cacheHandler.handle(getRequestWithCustomCacheControlHeaders));
     }
 
     @Test
@@ -73,22 +80,22 @@ public class CacheHandlerTest {
         HttpServerResponse response = spy(new Response());
 
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "private");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "private");
         Request cacheControlPrivate = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(cacheControlPrivate));
 
         headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "public");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "public");
         Request cacheControlPublic = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(cacheControlPublic));
 
         headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "no-cache");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "no-cache");
         Request cacheControlNoCache = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(cacheControlNoCache));
 
         headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=0");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=0");
         Request cacheControlMaxAgeZero = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(cacheControlMaxAgeZero));
 
@@ -100,7 +107,7 @@ public class CacheHandlerTest {
         HttpServerResponse response = spy(new Response());
 
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=foobar");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=foobar");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -115,7 +122,7 @@ public class CacheHandlerTest {
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.of(dataObj)));
 
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -130,7 +137,7 @@ public class CacheHandlerTest {
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.failedFuture("Boooom"));
 
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -146,7 +153,7 @@ public class CacheHandlerTest {
         when(dataFetcher.fetchData(anyString(), any(), anyLong())).thenReturn(Future.failedFuture("Booom"));
 
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -164,7 +171,7 @@ public class CacheHandlerTest {
         when(dataFetcher.fetchData(anyString(), any(), anyLong())).thenReturn(Future.succeededFuture(Result.err(StatusCode.NOT_FOUND)));
 
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -184,7 +191,7 @@ public class CacheHandlerTest {
         when(cacheStorage.cacheRequest(anyString(), any(), any())).thenReturn(Future.failedFuture("Booom"));
 
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -204,7 +211,7 @@ public class CacheHandlerTest {
         when(cacheStorage.cacheRequest(anyString(), any(), any())).thenReturn(Future.succeededFuture());
 
         CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
