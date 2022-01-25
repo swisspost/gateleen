@@ -17,19 +17,37 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
     private final ClientRequestCreator clientRequestCreator;
 
     private static final String SELF_REQUEST_HEADER = "x-self-request";
-    private static final String CACHE_CONTROL_HEADER = "Cache-Control";
+    private static final String DEFAULT_CACHE_CONTROL_HEADER = "Cache-Control";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
     private static final String CONTENT_TYPE_JSON = "application/json";
 
+    private final String cacheControlHeader;
+
+    /**
+     * Constructor for the {@link DefaultCacheDataFetcher} using the default `Cache-Control` request header
+     *
+     * @param clientRequestCreator the {@link ClientRequestCreator}
+     */
     public DefaultCacheDataFetcher(ClientRequestCreator clientRequestCreator) {
+        this(clientRequestCreator, DEFAULT_CACHE_CONTROL_HEADER);
+    }
+
+    /**
+     * Constructor for the {@link DefaultCacheDataFetcher} using a custom request header
+     *
+     * @param clientRequestCreator the {@link ClientRequestCreator}
+     * @param customCacheControlHeader custom request header for cached requests instead of `Cache-Control`
+     */
+    public DefaultCacheDataFetcher(ClientRequestCreator clientRequestCreator, String customCacheControlHeader) {
         this.clientRequestCreator = clientRequestCreator;
+        this.cacheControlHeader = customCacheControlHeader;
     }
 
     @Override
     public Future<Result<Buffer, StatusCode>> fetchData(final String requestUri, MultiMap requestHeaders, long requestTimeoutMs) {
         Future<Result<Buffer, StatusCode>> future = Future.future();
 
-        requestHeaders.remove(CACHE_CONTROL_HEADER);
+        requestHeaders.remove(cacheControlHeader);
 
         HttpClientRequest fetchRequest = clientRequestCreator.createClientRequest(
                 HttpMethod.GET,
