@@ -52,7 +52,7 @@
         <targetPort>8989</targetPort>
         <sel_chrome_driver>${session.executionRootDirectory}/gateleen-test/src/test/resources/chromedriver
         </sel_chrome_driver>
-        <vertx.version>3.6.3</vertx.version>
+        <vertx.version>3.9.4</vertx.version>
         <jackson.version>2.13.0</jackson.version>
         <springframework.version>4.3.30.RELEASE</springframework.version>
     </properties>
