@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 import static com.jayway.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.lessThan;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
@@ -128,15 +129,15 @@ public class KafkaHandlerTest {
         context.assertFalse(handler.isInitialized());
 
         handler.initialize().setHandler(event -> {
-            verify(repository, times(2)).closeAll();
-
+            // depending whether resourceChanged fires or not we get one or two invocations
+            verify(repository, atLeastOnce()).closeAll();
             Map<String, String> configs_1 = new HashMap<String, String>() {{
                 put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
                 put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
                 put("bootstrap.servers", "localhost:9094");
                 put("acks", "all");
             }};
-            verify(repository, times(2)).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("my.properties.topic.*"), configs_1)));
+            verify(repository, atLeastOnce()).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("my.properties.topic.*"), configs_1)));
             verifyZeroInteractions(kafkaMessageSender);
             context.assertTrue(handler.isInitialized());
             async.complete();

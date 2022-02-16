@@ -24,6 +24,7 @@ public class Rule {
     private int poolSize;
     private int maxWaitQueueSize;
     private boolean keepAlive;
+    private int keepAliveTimeout;
     private boolean expandOnBackend;
     private boolean deltaOnBackend;
     private boolean storageExpand;
@@ -122,6 +123,20 @@ public class Rule {
 
     public void setKeepAlive(boolean keepAlive) {
         this.keepAlive = keepAlive;
+    }
+
+    /**
+     * Gets the keep-alive timeout in seconds, see {@link HttpClientOptions#DEFAULT_KEEP_ALIVE_TIMEOUT}
+     */
+    public int getKeepAliveTimeout() {
+        return keepAliveTimeout;
+    }
+
+    /**
+     * Sets the keep-alive timeout in seconds, see {@link HttpClientOptions#DEFAULT_KEEP_ALIVE_TIMEOUT}
+     */
+    public void setKeepAliveTimeout(int keepAliveTimeoutSeconds) {
+        this.keepAliveTimeout = keepAliveTimeoutSeconds;
     }
 
     public boolean isExpandOnBackend() { return expandOnBackend; }
@@ -238,14 +253,14 @@ public class Rule {
 
     public HttpClientOptions buildHttpClientOptions() {
         final HttpClientOptions options = new HttpClientOptions()
-                .setDefaultHost   (getHost    ())
-                .setDefaultPort   (getPort    ())
-                .setMaxPoolSize   (getPoolSize())
-                .setConnectTimeout(getTimeout ())
-                .setKeepAlive     (isKeepAlive())
-                .setPipelining    (false        )
-                .setMaxWaitQueueSize(getMaxWaitQueueSize())
-        ;
+                .setDefaultHost(getHost())
+                .setDefaultPort(getPort())
+                .setMaxPoolSize(getPoolSize())
+                .setConnectTimeout(getTimeout())
+                .setKeepAlive(isKeepAlive())
+                .setKeepAliveTimeout(getKeepAliveTimeout())
+                .setPipelining(false)
+                .setMaxWaitQueueSize(getMaxWaitQueueSize());
         if ("https".equals(getScheme())) {
             options.setSsl(true).setVerifyHost(false).setTrustAll(true);
         }

@@ -57,7 +57,24 @@ public class RuleFactoryTest {
 
         context.assertTrue(rules.size() == 2);
         context.assertEquals("someserver1", rules.get(0).getHost());
+        context.assertEquals(60, rules.get(0).getKeepAliveTimeout());
         context.assertEquals("someserver2", rules.get(1).getHost());
+        context.assertEquals(60, rules.get(1).getKeepAliveTimeout());
+    }
+
+    @Test
+    public void testRuleWiteKeepAliveTimeoutParsing(TestContext context) throws ValidationException {
+        String rule = "{"
+                + "  \"/gateleen/rule/keep-alive\": {"
+                + "    \"description\": \"Keep Alive Rule 1\","
+                + "    \"url\": \"https://sawasdee.hello.com/gateleen/rule/keep-alive/1\","
+                + "    \"keepAliveTimeout\": 28"
+                + "  }"
+                + "}";
+
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals(28, rules.get(0).getKeepAliveTimeout());
     }
 
     @Test

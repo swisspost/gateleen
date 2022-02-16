@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.routing;
 
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.ProxyOptions;
@@ -87,6 +88,7 @@ public class RuleFactory {
 
             int defaultTimeoutSec = 30;
             ruleObj.setTimeout(1000 * rule.getInteger("timeout", defaultTimeoutSec));
+            ruleObj.setKeepAliveTimeout(rule.getInteger("keepAliveTimeout", HttpClientOptions.DEFAULT_KEEP_ALIVE_TIMEOUT));
             ruleObj.setPoolSize(rule.getInteger(Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME, Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE));
             ruleObj.setMaxWaitQueueSize(rule.getInteger(Rule.MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME, Rule.MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE));
             ruleObj.setKeepAlive(rule.getBoolean("keepAlive", true));
