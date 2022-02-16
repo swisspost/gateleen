@@ -57,6 +57,11 @@
 					"type": "integer",
 					"default": 30
 				},
+				"keepAliveTimeout": {
+                    "description": "The keep alive timeout for HTTP/1.1 connections.",
+                    "type": "integer",
+                    "default": 60
+                },
 				"connectionPoolSize": {
 					"description": "The maximum number of concurrent connections to the backend. Has no effect for local/storage forwarding.",
 					"type": "integer",
