@@ -61,6 +61,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBrea
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
 import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
+import org.swisspush.gateleen.routing.DeferCloseHttpClient;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
@@ -357,7 +358,11 @@ public class Server extends AbstractVerticle {
     }
 
     private HttpClient createHttpClientForRouter(HttpClientOptions opts) {
-        return vertx.createHttpClient(opts);
+        // Setup an original vertx http client.
+        HttpClient client = vertx.createHttpClient(opts);
+        // But decorate it for advanced close handling
+        client = new DeferCloseHttpClient(vertx, client);
+        return client;
     }
 
 }
