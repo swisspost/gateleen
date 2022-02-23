@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.core.util;
 
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
+import io.vertx.core.MultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
@@ -18,7 +19,7 @@ public class HttpHeaderUtilTest {
     public void removeNonForwardHeadersTest(TestContext testContext) {
 
         // Mock an example header
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add(CONNECTION, "one" );
         headers.add(CONNECTION, "two" );
         headers.add(CONNECTION, "three" );
@@ -47,7 +48,7 @@ public class HttpHeaderUtilTest {
     public void getHeaderValueTest(TestContext testContext) {
 
         // Mock an example header
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("dummy-header", "123");
         headers.add("even-more-dummy-header", "anyvalue");
         headers.add("host", "host:1234");
@@ -65,7 +66,7 @@ public class HttpHeaderUtilTest {
     @Test
     public void hasMatchingHeaderTest(TestContext testContext) {
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("dummy-header", "123");
         headers.add("even-more-dummy-header", "anyvalue");
         headers.add("host", "host:1234");

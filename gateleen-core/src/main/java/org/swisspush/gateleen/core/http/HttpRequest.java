@@ -8,9 +8,10 @@ import org.swisspush.gateleen.core.json.JsonMultiMap;
 
 import java.util.Arrays;
 
+
 /**
  * Represents a "disconnected" request, i.e. containing the full payload.
- * 
+ *
  * @author https://github.com/lbovet [Laurent Bovet]
  */
 public class HttpRequest {
@@ -50,11 +51,9 @@ public class HttpRequest {
 
     /**
      * @param object object
-     * @throws IllegalArgumentException
-     *      When passed in JSON is not in expected format.
-     * @throws ClassCastException
-     *      IMO, this should be a {@link IllegalArgumentException}. Because this
-     *      happens when impl tries to cast something we got from passed in JSON.
+     * @throws IllegalArgumentException When passed in JSON is not in expected format.
+     * @throws ClassCastException       IMO, this should be a {@link IllegalArgumentException}. Because this
+     *                                  happens when impl tries to cast something we got from passed in JSON.
      */
     public HttpRequest(JsonObject object) {
         this.method = HttpMethod.valueOf(object.getString("method"));
@@ -62,23 +61,23 @@ public class HttpRequest {
         if (method == null || uri == null) {
             throw new IllegalArgumentException("Request fields 'uri' and 'method' must be set");
         }
-        switch (method) {
+        switch (method.name()) {
             // We accept those methods:
-        case GET:
-            case HEAD:
-        case PUT:
-        case POST:
-        case DELETE:
-            case OPTIONS:
-            case PATCH:
-            break;
-        default:
-            // This (default branch) gets reached when:
-            // 1. Someone is using a (for us) unknown http method (eg someone added a new
-            //    one in the enum since this here was written).
-            // 2. We explicitly forbid CONNECT, TRACE and OTHER.
-            //    See "https://github.com/swisspush/gateleen/issues/249".
-            throw new IllegalArgumentException("Request method must be one of GET, HEAD, PUT, POST, DELETE, OPTIONS or PATCH");
+            case "GET":
+            case "HEAD":
+            case "PUT":
+            case "POST":
+            case "DELETE":
+            case "OPTIONS":
+            case "PATCH":
+                break;
+            default:
+                // This (default branch) gets reached when:
+                // 1. Someone is using a (for us) unknown http method (eg someone added a new
+                //    one in the enum since this here was written).
+                // 2. We explicitly forbid CONNECT, TRACE and OTHER.
+                //    See "https://github.com/swisspush/gateleen/issues/249".
+                throw new IllegalArgumentException("Request method must be one of GET, HEAD, PUT, POST, DELETE, OPTIONS or PATCH");
         }
         JsonArray headersArray = object.getJsonArray("headers");
         if (headersArray != null) {
@@ -89,7 +88,7 @@ public class HttpRequest {
 
     public JsonObject toJsonObject() {
         JsonObject object = new JsonObject();
-        object.put("method", method);
+        object.put("method", method.name());
         object.put("uri", uri);
         if (headers != null) {
             object.put("headers", JsonMultiMap.toJson(headers));

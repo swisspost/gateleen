@@ -4,12 +4,12 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.RedisAPI;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -20,7 +20,7 @@ import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleProvider;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.mockito.Matchers.any;
@@ -30,22 +30,22 @@ import static org.mockito.Mockito.*;
 @RunWith(VertxUnitRunner.class)
 public class DeltaHandlerTest {
 
-    private RedisClient redisClient;
+    private RedisAPI redisAPI;
     private RuleProvider ruleProvider;
     private Router router = mock(Router.class);
     private HttpServerRequest request;
-    private CaseInsensitiveHeaders requestHeaders = new CaseInsensitiveHeaders();
+    private MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
 
     @Before
     public void before() {
-        redisClient = mock(RedisClient.class);
+        redisAPI = mock(RedisAPI.class);
         doAnswer(invocation -> {
             Handler<AsyncResult<Long>> handler = (Handler<AsyncResult<Long>>) invocation.getArguments()[1];
             handler.handle(Future.succeededFuture(555L));
             return null;
-        }).when(redisClient).incr(eq("delta:sequence"), any());
+        }).when(redisAPI).incr(eq("delta:sequence"), any());
 
-        requestHeaders = new CaseInsensitiveHeaders();
+        requestHeaders = MultiMap.caseInsensitiveMultiMap();
         requestHeaders.add("x-delta", "auto");
 
         ruleProvider = mock(RuleProvider.class);
@@ -58,7 +58,7 @@ public class DeltaHandlerTest {
 
     @Test
     public void testIsDeltaRequest(TestContext context) {
-        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider);
         deltaHandler.rulesChanged(List.of(
                 rule("/gateleen/server/res_1", false),
                 rule("/gateleen/server/res_2", true))
@@ -71,8 +71,8 @@ public class DeltaHandlerTest {
          */
         when(request.method()).thenReturn(HttpMethod.GET);
         when(request.uri()).thenReturn("/gateleen/server/res_1");
-        when(request.params()).thenReturn(new CaseInsensitiveHeaders());
-        when(request.headers()).thenReturn(new CaseInsensitiveHeaders());
+        when(request.params()).thenReturn(new HeadersMultiMap());
+        when(request.headers()).thenReturn(new HeadersMultiMap());
         context.assertFalse(deltaHandler.isDeltaRequest(request));
 
         /*
@@ -80,8 +80,8 @@ public class DeltaHandlerTest {
          */
         when(request.method()).thenReturn(HttpMethod.GET);
         when(request.uri()).thenReturn("/gateleen/server/res_1");
-        when(request.params()).thenReturn(new CaseInsensitiveHeaders().add("delta", "0"));
-        when(request.headers()).thenReturn(new CaseInsensitiveHeaders());
+        when(request.params()).thenReturn(new HeadersMultiMap().add("delta", "0"));
+        when(request.headers()).thenReturn(new HeadersMultiMap());
         context.assertTrue(deltaHandler.isDeltaRequest(request));
 
         /*
@@ -89,8 +89,8 @@ public class DeltaHandlerTest {
          */
         when(request.method()).thenReturn(HttpMethod.GET);
         when(request.uri()).thenReturn("/gateleen/server/res_1");
-        when(request.params()).thenReturn(new CaseInsensitiveHeaders());
-        when(request.headers()).thenReturn(new CaseInsensitiveHeaders().add("x-delta-backend", "true"));
+        when(request.params()).thenReturn(new HeadersMultiMap());
+        when(request.headers()).thenReturn(new HeadersMultiMap().add("x-delta-backend", "true"));
         context.assertFalse(deltaHandler.isDeltaRequest(request));
 
         /*
@@ -98,8 +98,8 @@ public class DeltaHandlerTest {
          */
         when(request.method()).thenReturn(HttpMethod.GET);
         when(request.uri()).thenReturn("/gateleen/server/res_1");
-        when(request.params()).thenReturn(new CaseInsensitiveHeaders().add("delta", "0"));
-        when(request.headers()).thenReturn(new CaseInsensitiveHeaders().add("x-delta-backend", "true"));
+        when(request.params()).thenReturn(new HeadersMultiMap().add("delta", "0"));
+        when(request.headers()).thenReturn(new HeadersMultiMap().add("x-delta-backend", "true"));
         context.assertFalse(deltaHandler.isDeltaRequest(request));
 
         /*
@@ -107,8 +107,8 @@ public class DeltaHandlerTest {
          */
         when(request.method()).thenReturn(HttpMethod.GET);
         when(request.uri()).thenReturn("/gateleen/server/res_2");
-        when(request.params()).thenReturn(new CaseInsensitiveHeaders());
-        when(request.headers()).thenReturn(new CaseInsensitiveHeaders());
+        when(request.params()).thenReturn(new HeadersMultiMap());
+        when(request.headers()).thenReturn(new HeadersMultiMap());
         context.assertFalse(deltaHandler.isDeltaRequest(request));
 
         /*
@@ -116,8 +116,8 @@ public class DeltaHandlerTest {
          */
         when(request.method()).thenReturn(HttpMethod.GET);
         when(request.uri()).thenReturn("/gateleen/server/res_2");
-        when(request.params()).thenReturn(new CaseInsensitiveHeaders());
-        when(request.headers()).thenReturn(new CaseInsensitiveHeaders().add("x-delta-backend", "true"));
+        when(request.params()).thenReturn(new HeadersMultiMap());
+        when(request.headers()).thenReturn(new HeadersMultiMap().add("x-delta-backend", "true"));
         context.assertFalse(deltaHandler.isDeltaRequest(request));
 
         /*
@@ -125,8 +125,8 @@ public class DeltaHandlerTest {
          */
         when(request.method()).thenReturn(HttpMethod.GET);
         when(request.uri()).thenReturn("/gateleen/server/res_2");
-        when(request.params()).thenReturn(new CaseInsensitiveHeaders().add("delta", "0"));
-        when(request.headers()).thenReturn(new CaseInsensitiveHeaders());
+        when(request.params()).thenReturn(new HeadersMultiMap().add("delta", "0"));
+        when(request.headers()).thenReturn(new HeadersMultiMap());
         context.assertFalse(deltaHandler.isDeltaRequest(request));
 
         /*
@@ -134,50 +134,50 @@ public class DeltaHandlerTest {
          */
         when(request.method()).thenReturn(HttpMethod.GET);
         when(request.uri()).thenReturn("/gateleen/server/res_2");
-        when(request.params()).thenReturn(new CaseInsensitiveHeaders().add("delta", "0"));
-        when(request.headers()).thenReturn(new CaseInsensitiveHeaders().add("x-delta-backend", "true"));
+        when(request.params()).thenReturn(new HeadersMultiMap().add("delta", "0"));
+        when(request.headers()).thenReturn(new HeadersMultiMap().add("x-delta-backend", "true"));
         context.assertFalse(deltaHandler.isDeltaRequest(request));
     }
 
     @Test
     public void testDeltaNoExpiry() {
-        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider);
         deltaHandler.handle(request, router);
 
-        verify(redisClient, times(1)).set(eq("delta:resources:a:b:c"), eq("555"), any());
-        verify(redisClient, never()).setex(any(), anyLong(), any(), any());
+        verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555")), any());
+        verify(redisAPI, never()).setex(any(), any(), any(), any());
     }
 
     @Test
     public void testDeltaWithExpiry() {
         requestHeaders.add("x-expire-after", "123");
 
-        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider);
         deltaHandler.handle(request, router);
 
-        verify(redisClient, times(1)).setex(eq("delta:resources:a:b:c"), eq(123L), eq("555"), any());
-        verify(redisClient, never()).set(any(), any(), any());
+        verify(redisAPI, times(1)).setex(eq("delta:resources:a:b:c"), eq("123"), eq("555"), any());
+        verify(redisAPI, never()).set(any(), any());
     }
 
     @Test
     public void testRejectLimitOffsetParameters(TestContext context) {
-        DeltaHandler deltaHandler = new DeltaHandler(redisClient, null, ruleProvider, true);
+        DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider, true);
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
-        DeltaRequest request = new DeltaRequest(new CaseInsensitiveHeaders()
+        DeltaRequest request = new DeltaRequest(MultiMap.caseInsensitiveMultiMap()
                 .add("delta", "0")
                 .add("limit", "2"), response);
 
         deltaHandler.handle(request, router);
         context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
 
-        request = new DeltaRequest(new CaseInsensitiveHeaders()
+        request = new DeltaRequest(MultiMap.caseInsensitiveMultiMap()
                 .add("delta", "0")
                 .add("offset", "55"), response);
 
         deltaHandler.handle(request, router);
         context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
 
-        request = new DeltaRequest(new CaseInsensitiveHeaders()
+        request = new DeltaRequest(MultiMap.caseInsensitiveMultiMap()
                 .add("delta", "0")
                 .add("limit", "10")
                 .add("offset", "55"), response);
@@ -225,7 +225,7 @@ public class DeltaHandlerTest {
 
         @Override
         public MultiMap headers() {
-            return new CaseInsensitiveHeaders();
+            return MultiMap.caseInsensitiveMultiMap();
         }
     }
 }

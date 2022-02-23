@@ -1,16 +1,21 @@
 package org.swisspush.gateleen.core.http;
 
+import io.netty.handler.codec.DecoderResult;
 import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.Context;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
+import io.vertx.core.http.impl.HttpServerRequestInternal;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
+import java.util.Set;
 
 
 /**
@@ -22,7 +27,7 @@ import javax.security.cert.X509Certificate;
  * methods you need to mock.
  *
  */
-public interface FastFailHttpServerRequest extends HttpServerRequest {
+public interface FastFailHttpServerRequest extends HttpServerRequestInternal {
 
     String msg = "Mock: Override this method to mock your expected behaviour.";
 
@@ -176,6 +181,62 @@ public interface FastFailHttpServerRequest extends HttpServerRequest {
     }
 
     default HttpServerRequest streamPriorityHandler(Handler<StreamPriority> handler) {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    default Future<Buffer> body() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    default Future<Void> end() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    default Future<NetSocket> toNetSocket() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    default Future<ServerWebSocket> toWebSocket() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    default DecoderResult decoderResult() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    default @Nullable Cookie getCookie(String name) {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    default @Nullable Cookie getCookie(String name, String domain, String path) {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    default Set<Cookie> cookies(String name) {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    default Set<Cookie> cookies() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+
+    @Override
+    default Context context() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+    @Override
+    default Object metric() {
         throw new UnsupportedOperationException( msg );
     }
 }

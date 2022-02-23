@@ -44,13 +44,13 @@ public class RequestLogger {
         log.info("Notify logging to eventually log the payload and headers of request to uri " + request.uri());
         JsonObject logEntry = new JsonObject();
         logEntry.put(REQUEST_URI, request.uri());
-        logEntry.put(REQUEST_METHOD, request.method().toString());
+        logEntry.put(REQUEST_METHOD, request.method().name());
         logEntry.put(REQUEST_HEADERS, JsonObjectUtils.multiMapToJsonObject(request.headers()));
         logEntry.put(RESPONSE_HEADERS, JsonObjectUtils.multiMapToJsonObject(responseHeaders));
         logEntry.put(REQUEST_STATUS, status);
         logEntry.put(BODY, data.toString());
 
-        eventBus.send(Address.requestLoggingConsumerAddress(), logEntry, (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+        eventBus.request(Address.requestLoggingConsumerAddress(), logEntry, (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (reply.failed()) {
                 log.warn("Failed to log the payload and headers. Cause: " + reply.cause().getMessage());
             } else if (ERROR.equals(reply.result().body().getString("status"))) {

@@ -2,13 +2,12 @@ package org.swisspush.gateleen.validation;
 
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
-import io.vertx.core.Future;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.ClientRequestCreator;
@@ -26,7 +25,7 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
     private final Logger log = LoggerFactory.getLogger(DefaultValidationSchemaProvider.class);
 
     private final Map<String, SchemaEntry> cachedSchemas;
-    private final MultiMap defaultRequestHeaders;
+    private final HeadersMultiMap defaultRequestHeaders;
 
     private static final int TIMEOUT_MS = 30000;
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
@@ -36,7 +35,7 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
     /**
      * Constructor for {@link DefaultValidationSchemaProvider}
      *
-     * @param vertx the Vert.x instance
+     * @param vertx                the Vert.x instance
      * @param clientRequestCreator the {@link ClientRequestCreator} to fetch the schema
      * @param cacheCleanupInterval interval to define the cached schema cleanup
      */
@@ -47,16 +46,17 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
     /**
      * Constructor for {@link DefaultValidationSchemaProvider}
      *
-     * @param vertx the Vert.x instance
-     * @param clientRequestCreator the {@link ClientRequestCreator} to fetch the schema
-     * @param cacheCleanupInterval interval to define the cached schema cleanup
+     * @param vertx                 the Vert.x instance
+     * @param clientRequestCreator  the {@link ClientRequestCreator} to fetch the schema
+     * @param cacheCleanupInterval  interval to define the cached schema cleanup
      * @param defaultRequestHeaders default request headers to add to every schema fetch request
      */
     public DefaultValidationSchemaProvider(Vertx vertx, ClientRequestCreator clientRequestCreator, Duration cacheCleanupInterval,
                                            Map<String, String> defaultRequestHeaders) {
         this.clientRequestCreator = clientRequestCreator;
         this.cachedSchemas = new HashMap<>();
-        this.defaultRequestHeaders = new VertxHttpHeaders().addAll(defaultRequestHeaders);
+        this.defaultRequestHeaders = new HeadersMultiMap();
+        this.defaultRequestHeaders.addAll(defaultRequestHeaders);
 
         vertx.setPeriodic(cacheCleanupInterval.toMillis(), event -> cleanupCachedSchemas());
     }
@@ -66,42 +66,50 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
         cachedSchemas.entrySet().removeIf(entry -> entry.getValue().expiration().isBefore(Instant.now()));
     }
 
-    private MultiMap defaultRequestHeaders() {
+    private HeadersMultiMap defaultRequestHeaders() {
         return defaultRequestHeaders;
     }
 
     @Override
     public Future<Optional<JsonSchema>> schemaFromLocation(SchemaLocation schemaLocation) {
-        Future<Optional<JsonSchema>> future = Future.future();
+        Promise<Optional<JsonSchema>> promise = Promise.promise();
 
         SchemaEntry schemaEntry = cachedSchemas.get(schemaLocation.schemaLocation());
         if (schemaEntry != null) {
             if (schemaEntry.expiration.isAfter(Instant.now())) {
-                future.complete(Optional.of(schemaEntry.jsonSchema()));
-                return future;
+                promise.complete(Optional.of(schemaEntry.jsonSchema()));
+                return promise.future();
             } else {
                 cachedSchemas.remove(schemaLocation.schemaLocation());
             }
         }
 
-        MultiMap headers = defaultRequestHeaders();
+        HeadersMultiMap headers = defaultRequestHeaders();
         headers.add("Accept", "application/json");
         headers.add(SELF_REQUEST_HEADER, "true");
 
-        HttpClientRequest fetchSchemaRequest = clientRequestCreator.createClientRequest(
+        clientRequestCreator.createClientRequest(
                 HttpMethod.GET,
                 schemaLocation.schemaLocation(),
                 headers,
                 TIMEOUT_MS,
-                cRes -> cRes.bodyHandler(data -> {
+                event -> {
+                    log.warn("Got an error while fetching schema", event);
+                    promise.complete(Optional.empty());
+                }).onComplete(asyncResult -> {
+            HttpClientRequest fetchSchemaRequest = asyncResult.result();
+            fetchSchemaRequest.setChunked(true);
+            fetchSchemaRequest.send(responseAsyncResult -> {
+                HttpClientResponse cRes = responseAsyncResult.result();
+                cRes.bodyHandler(data -> {
                     if (StatusCode.OK.getStatusCode() == cRes.statusCode()) {
                         String contentType = cRes.getHeader(CONTENT_TYPE_HEADER);
                         if (contentType != null && !contentType.contains(CONTENT_TYPE_JSON)) {
                             log.warn("Content-Type {} is not supported", contentType);
-                            future.complete(Optional.empty());
+                            promise.complete(Optional.empty());
                             return;
                         }
-                        future.complete(parseSchema(schemaLocation, data));
+                        promise.complete(parseSchema(schemaLocation, data));
                     } else {
                         StatusCode statusCode = StatusCode.fromCode(cRes.statusCode());
                         if (statusCode != null) {
@@ -109,18 +117,12 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
                         } else {
                             log.warn("Got unknown status code while fetching schema");
                         }
-                        future.complete(Optional.empty());
+                        promise.complete(Optional.empty());
                     }
-                }),
-                event -> {
-                    log.warn("Got an error while fetching schema", event);
-                    future.complete(Optional.empty());
-                }
-        );
-
-        fetchSchemaRequest.setChunked(true);
-        fetchSchemaRequest.end();
-        return future;
+                });
+            });
+        });
+        return promise.future();
     }
 
     private Optional<JsonSchema> parseSchema(SchemaLocation schemaLocation, Buffer data) {

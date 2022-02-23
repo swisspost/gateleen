@@ -1,7 +1,10 @@
 package org.swisspush.gateleen.validation;
 
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpServerRequest;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -93,71 +96,80 @@ public class ValidationHandler {
      */
     private void handleValidation(final HttpServerRequest req) {
         final Logger log = RequestLoggerFactory.getLogger(ValidationHandler.class, req);
-        final HttpClientRequest cReq = httpClient.request(req.method(), req.uri(), cRes -> {
-            ResponseStatusCodeLogUtil.info(req, StatusCode.fromCode(cRes.statusCode()), ValidationHandler.class);
-            req.response().setStatusCode(cRes.statusCode());
-            req.response().setStatusMessage(cRes.statusMessage());
-            req.response().headers().setAll(cRes.headers());
+        httpClient.request(req.method(), req.uri()).onComplete(asyncReqResult -> {
+            if (asyncReqResult.failed()) {
+                log.warn("Failed request to {}: {}", req.uri(), asyncReqResult.cause());
+                return;
+            }
+            HttpClientRequest cReq = asyncReqResult.result();
 
-            cRes.bodyHandler(data -> {
 
-                if (req.response().getStatusCode() == StatusCode.OK.getStatusCode() && outMethods.contains(req.method().name()) && data.length() > 0) {
-                    validator.validate(req, req.method() + "/out", data,
+            cReq.setTimeout(TIMEOUT);
+            cReq.headers().setAll(req.headers());
+            cReq.headers().set(VALID_HEADER, "0");
+            Handler<AsyncResult<HttpClientResponse>> resultHandler = asyncResult -> {
+                HttpClientResponse cRes = asyncResult.result();
+                ResponseStatusCodeLogUtil.info(req, StatusCode.fromCode(cRes.statusCode()), ValidationHandler.class);
+                req.response().setStatusCode(cRes.statusCode());
+                req.response().setStatusMessage(cRes.statusMessage());
+                req.response().headers().setAll(cRes.headers());
+
+                cRes.bodyHandler(data -> {
+
+                    if (req.response().getStatusCode() == StatusCode.OK.getStatusCode() && outMethods.contains(req.method().name()) && data.length() > 0) {
+                        validator.validate(req, req.method() + "/out", data,
+                                matchingSchemaLocation(validationResourceManager.getValidationResource(), req, log).orElse(null),
+                                event -> {
+                                    if (event.isSuccess()) {
+                                        req.response().end(data);
+                                    } else {
+                                        if (isFailOnError()) {
+                                            req.response().headers().clear();
+                                            req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                                            req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+                                            req.response().end();
+                                        } else {
+                                            req.response().end(data);
+                                        }
+                                        log.warn(event.getMessage());
+                                    }
+                                });
+                    } else {
+                        req.response().end(data);
+                    }
+                });
+                cRes.exceptionHandler(ExpansionDeltaUtil.createResponseExceptionHandler(req, req.uri(), ValidationHandler.class));
+            };
+            req.bodyHandler(data -> {
+                if (inMethods.contains(req.method().name())) {
+                    validator.validate(req, req.method() + "/in", data,
                             matchingSchemaLocation(validationResourceManager.getValidationResource(), req, log).orElse(null),
                             event -> {
                                 if (event.isSuccess()) {
-                                    req.response().end(data);
+                                    cReq.end(data);
                                 } else {
                                     if (isFailOnError()) {
-                                        req.response().headers().clear();
                                         req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                                         req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                                        req.response().end();
+                                        if (event.getValidationDetails() != null) {
+                                            req.response().headers().add("content-type", "application/json");
+                                            req.response().end(event.getValidationDetails().encode());
+                                        } else {
+                                            req.response().end(event.getMessage());
+                                        }
                                     } else {
-                                        req.response().end(data);
+                                        log.warn(event.getMessage());
+                                        cReq.end(data);
                                     }
-                                    log.warn(event.getMessage());
                                 }
                             });
                 } else {
-                    req.response().end(data);
+                    cReq.end(data);
                 }
             });
-            cRes.exceptionHandler(ExpansionDeltaUtil.createResponseExceptionHandler(req, req.uri(), ValidationHandler.class));
-        });
-        cReq.setTimeout(TIMEOUT);
-        cReq.headers().setAll(req.headers());
-        cReq.headers().set(VALID_HEADER, "0");
 
-        req.bodyHandler(data -> {
-            if (inMethods.contains(req.method().name())) {
-                validator.validate(req, req.method() + "/in", data,
-                        matchingSchemaLocation(validationResourceManager.getValidationResource(), req, log).orElse(null),
-                        event -> {
-                            if (event.isSuccess()) {
-                                cReq.end(data);
-                            } else {
-                                if (isFailOnError()) {
-                                    req.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                                    req.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                                    if (event.getValidationDetails() != null) {
-                                        req.response().headers().add("content-type", "application/json");
-                                        req.response().end(event.getValidationDetails().encode());
-                                    } else {
-                                        req.response().end(event.getMessage());
-                                    }
-                                } else {
-                                    log.warn(event.getMessage());
-                                    cReq.end(data);
-                                }
-                            }
-                        });
-            } else {
-                cReq.end(data);
-            }
+            cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(req, req.uri(), ValidationHandler.class));
         });
-
-        cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(req, req.uri(), ValidationHandler.class));
     }
 
     public void handle(final HttpServerRequest request) {

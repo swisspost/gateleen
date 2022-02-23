@@ -4,7 +4,8 @@ import com.google.common.collect.ImmutableMap;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -87,7 +88,7 @@ public class ForwarderTest {
         Rule rule = extractRule("/ruleWithHostHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
                 monitoringHandler, USER_PROFILE_PATH);
-        MultiMap reqHeaders = new VertxHttpHeaders();
+        MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_OLD);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
         Assert.assertNull(errorMessage);
@@ -99,7 +100,7 @@ public class ForwarderTest {
         Rule rule = extractRule("/ruleWithHostHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
                 monitoringHandler, USER_PROFILE_PATH);
-        MultiMap reqHeaders = new VertxHttpHeaders();
+        MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_DEFAULT);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
         Assert.assertNull(errorMessage);
@@ -120,7 +121,7 @@ public class ForwarderTest {
         Rule rule = extractRule("/ruleWithHostHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
                 monitoringHandler, USER_PROFILE_PATH);
-        MultiMap reqHeaders = new VertxHttpHeaders();
+        MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_NEW);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
         Assert.assertNull(errorMessage);
@@ -132,7 +133,7 @@ public class ForwarderTest {
         Rule rule = extractRule("/ruleWithoutHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
                 monitoringHandler, USER_PROFILE_PATH);
-        MultiMap reqHeaders = new VertxHttpHeaders();
+        MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_OLD);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
         Assert.assertNull(errorMessage);
@@ -144,7 +145,7 @@ public class ForwarderTest {
         Rule rule = extractRule("/ruleWithoutHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
                 monitoringHandler, USER_PROFILE_PATH);
-        MultiMap reqHeaders = new VertxHttpHeaders();
+        MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_DEFAULT);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
         Assert.assertNull(errorMessage);

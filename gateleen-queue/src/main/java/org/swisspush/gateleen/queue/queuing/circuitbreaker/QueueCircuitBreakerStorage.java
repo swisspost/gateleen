@@ -2,6 +2,7 @@ package org.swisspush.gateleen.queue.queuing.circuitbreaker;
 
 import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
+import io.vertx.redis.client.Response;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
@@ -78,14 +79,14 @@ public interface QueueCircuitBreakerStorage {
      *
      * @param queueName the name of the queue
      * @param patternAndCircuitHash the information of the circuit
-     * @return returns a void future when the queue could be successfully marked as locked
+     * @return returns a void Future when the queue could be successfully marked as locked
      */
     Future<Void> lockQueue(String queueName, PatternAndCircuitHash patternAndCircuitHash);
 
     /**
      * Get the next queue to unlock. When successful, the queue is removed from the storage.
      *
-     * @return returns a future holding the name of the next queue or <code>null</code> when no queue was found
+     * @return returns a Future holding the name of the next queue or <code>null</code> when no queue was found
      */
     Future<String> popQueueToUnlock();
 
@@ -101,7 +102,7 @@ public interface QueueCircuitBreakerStorage {
      *
      *
      * @param patternAndCircuitHash the information of the circuit
-     * @return returns a void future when circuit could be closed successfully.
+     * @return returns a void Future when circuit could be closed successfully.
      */
     Future<Void> closeCircuit(PatternAndCircuitHash patternAndCircuitHash);
 
@@ -109,7 +110,7 @@ public interface QueueCircuitBreakerStorage {
      * Closes the circuit and removes all circuit information from storage.
      *
      * @param patternAndCircuitHash the information of the circuit
-     * @return returns a void future when circuit could be closed and removed successfully.
+     * @return returns a void Future when circuit could be closed and removed successfully.
      */
     Future<Void> closeAndRemoveCircuit(PatternAndCircuitHash patternAndCircuitHash);
 
@@ -124,7 +125,7 @@ public interface QueueCircuitBreakerStorage {
      * </ul>
      *
      *
-     * @return returns a void future when all non-closed circuits could be closed successfully.
+     * @return returns a void Future when all non-closed circuits could be closed successfully.
      */
     Future<Void> closeAllCircuits();
 
@@ -133,7 +134,7 @@ public interface QueueCircuitBreakerStorage {
      * after a sample queue request was not successful.
      *
      * @param patternAndCircuitHash the information of the circuit
-     * @return returns a void future when the circuit could be re-opened successfully
+     * @return returns a void Future when the circuit could be re-opened successfully
      */
     Future<Void> reOpenCircuit(PatternAndCircuitHash patternAndCircuitHash);
 
@@ -141,7 +142,7 @@ public interface QueueCircuitBreakerStorage {
      * Changes the status of all circuits having a status equals {@link QueueCircuitState#OPEN}
      * to {@link QueueCircuitState#HALF_OPEN}.
      *
-     * @return returns a future holding the amount of circuits updated
+     * @return returns a Future holding the amount of circuits updated
      */
     Future<Long> setOpenCircuitsToHalfOpen();
 
@@ -150,7 +151,7 @@ public interface QueueCircuitBreakerStorage {
      * queues are always the queues which have not been unlocked the longest. Each sample queue of each circuit is then
      * updated to be the 'most recently' unlocked queue.
      *
-     * @return returns a future holding a list of sample queues to unlock
+     * @return returns a Future holding a list of sample queues to unlock
      */
-    Future<List<String>> unlockSampleQueues();
+    Future<Response> unlockSampleQueues();
 }

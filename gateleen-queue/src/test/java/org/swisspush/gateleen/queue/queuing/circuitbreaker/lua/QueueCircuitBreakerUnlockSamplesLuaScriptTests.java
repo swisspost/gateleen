@@ -26,7 +26,7 @@ public class QueueCircuitBreakerUnlockSamplesLuaScriptTests extends AbstractLuaS
     private final String circuitQueuesKeyPrefix = "q:";
     private final String circuitQueuesKeySuffix = ":queues";
 
-//    @Ignore
+    @Ignore
     @Test
     public void testUnlockSamples(){
 

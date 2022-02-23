@@ -1,10 +1,11 @@
 package org.swisspush.gateleen.cache.fetch;
 
-import io.vertx.core.Future;
-import io.vertx.core.MultiMap;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.ClientRequestCreator;
@@ -35,7 +36,7 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
     /**
      * Constructor for the {@link DefaultCacheDataFetcher} using a custom request header
      *
-     * @param clientRequestCreator the {@link ClientRequestCreator}
+     * @param clientRequestCreator     the {@link ClientRequestCreator}
      * @param customCacheControlHeader custom request header for cached requests instead of `Cache-Control`
      */
     public DefaultCacheDataFetcher(ClientRequestCreator clientRequestCreator, String customCacheControlHeader) {
@@ -44,48 +45,59 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
     }
 
     @Override
-    public Future<Result<Buffer, StatusCode>> fetchData(final String requestUri, MultiMap requestHeaders, long requestTimeoutMs) {
-        Future<Result<Buffer, StatusCode>> future = Future.future();
+    public Future<Result<Buffer, StatusCode>> fetchData(final String requestUri, HeadersMultiMap requestHeaders, long requestTimeoutMs) {
+        Promise<Result<Buffer, StatusCode>> promise = Promise.promise();
 
         requestHeaders.remove(cacheControlHeader);
-
-        HttpClientRequest fetchRequest = clientRequestCreator.createClientRequest(
+        clientRequestCreator.createClientRequest(
                 HttpMethod.GET,
                 requestUri,
                 requestHeaders,
-                requestTimeoutMs,
-                cRes -> cRes.bodyHandler(data -> {
+                requestTimeoutMs, event -> {
+                    log.warn("Got an error while fetching cache data", event);
+                    promise.complete(Result.err(StatusCode.INTERNAL_SERVER_ERROR));
+                }).onComplete(event -> {
+            if (event.failed()) {
+                log.warn("Failed request to {}: {}", requestUri, event.cause());
+                return;
+            }
+            HttpClientRequest cReq = event.result();
+            cReq.setTimeout(requestTimeoutMs);
+            cReq.headers().setAll(requestHeaders);
+            cReq.headers().set("Accept", "application/json");
+            cReq.headers().set(SELF_REQUEST_HEADER, "true");
+            cReq.setChunked(true);
+            cReq.send(asyncResult -> {
+                HttpClientResponse cRes = asyncResult.result();
+                cRes.bodyHandler(data -> {
                     if (StatusCode.OK.getStatusCode() == cRes.statusCode()) {
 
                         String contentType = cRes.getHeader(CONTENT_TYPE_HEADER);
-                        if(contentType != null && !contentType.contains(CONTENT_TYPE_JSON)){
+                        if (contentType != null && !contentType.contains(CONTENT_TYPE_JSON)) {
                             log.warn("Content-Type {} is not supported", contentType);
-                            future.complete(Result.err(StatusCode.UNSUPPORTED_MEDIA_TYPE));
+                            promise.complete(Result.err(StatusCode.UNSUPPORTED_MEDIA_TYPE));
                             return;
                         }
 
-                        future.complete(Result.ok(data));
+                        promise.complete(Result.ok(data));
                     } else {
                         StatusCode statusCode = StatusCode.fromCode(cRes.statusCode());
-                        if(statusCode == null) {
-                            log.error("Got unknown status code {} while fetching cache data. Using 500 Internal Server Error " +
+                        if (statusCode == null) {
+                            log.error("Got unkown status code {} while fetching cache data. Using 500 Internal Server Error " +
                                     "instead", cRes.statusCode());
                             statusCode = StatusCode.INTERNAL_SERVER_ERROR;
                         }
-                        future.complete(Result.err(statusCode));
+                        promise.complete(Result.err(statusCode));
                     }
-                }),
-                event -> {
-                    log.warn("Got an error while fetching cache data", event);
-                    future.complete(Result.err(StatusCode.INTERNAL_SERVER_ERROR));
-                }
-        );
+                });
 
-        fetchRequest.putHeader("Accept", "application/json");
-        fetchRequest.putHeader(SELF_REQUEST_HEADER, "true");
-        fetchRequest.setChunked(true);
-        fetchRequest.end();
+                cRes.exceptionHandler(event1 -> {
+                    log.warn("Got an error while fetching cache data", event1);
+                    promise.complete(Result.err(StatusCode.INTERNAL_SERVER_ERROR));
+                });
+            });
+        });
 
-        return future;
+        return promise.future();
     }
 }

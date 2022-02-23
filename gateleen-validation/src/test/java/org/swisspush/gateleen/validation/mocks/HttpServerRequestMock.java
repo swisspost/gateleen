@@ -27,17 +27,17 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     @Override
     public HttpVersion version() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public HttpMethod method() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public String rawMethod() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -47,12 +47,12 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     @Override
     public @Nullable String scheme() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public String uri() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -62,12 +62,12 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     @Override
     public String query() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public @Nullable String host() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -77,37 +77,37 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     @Override
     public MultiMap headers() {
-        return new CaseInsensitiveHeaders();
+        return MultiMap.caseInsensitiveMultiMap();
     }
 
     @Override
     public String getHeader(String headerName) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public String getHeader(CharSequence headerName) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public MultiMap params() {
-        return new CaseInsensitiveHeaders();
+        return MultiMap.caseInsensitiveMultiMap();
     }
 
     @Override
     public String getParam(String paramName) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public SocketAddress remoteAddress() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public SocketAddress localAddress() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -117,7 +117,7 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     @Override
     public String absoluteURI() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -128,12 +128,12 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     @Override
     public NetSocket netSocket() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public HttpServerRequest setExpectMultipart(boolean expect) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -143,22 +143,22 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     @Override
     public HttpServerRequest uploadHandler(Handler<HttpServerFileUpload> uploadHandler) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public MultiMap formAttributes() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public String getFormAttribute(String attributeName) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public ServerWebSocket upgrade() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -168,37 +168,37 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     @Override
     public HttpServerRequest customFrameHandler(Handler<HttpFrame> handler) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public HttpConnection connection() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public HttpServerRequest endHandler(Handler<Void> endHandler) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public HttpServerRequest handler(Handler<Buffer> handler) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public HttpServerRequest pause() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public HttpServerRequest resume() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public HttpServerRequest exceptionHandler(Handler<Throwable> handler) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
 }

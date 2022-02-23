@@ -3,13 +3,15 @@ package org.swisspush.gateleen.hook.reducedpropagation;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.redis.client.Response;
+import io.vertx.redis.client.impl.types.MultiType;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -62,7 +64,7 @@ public class ReducedPropagationManagerTest {
     @Test
     public void testStartExpiredQueueProcessingInitiallyDisabled(TestContext context) {
         Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
-                .thenReturn(Future.succeededFuture(new ArrayList<>()));
+                .thenReturn(Future.succeededFuture(MultiType.EMPTY_MULTI));
         verify(reducedPropagationStorage, timeout(1000).never()).removeExpiredQueues(anyLong());
     }
 
@@ -71,7 +73,7 @@ public class ReducedPropagationManagerTest {
         Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.succeededFuture(Boolean.TRUE));
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.TRUE));
         Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
-                .thenReturn(Future.succeededFuture(new ArrayList<>()));
+                .thenReturn(Future.succeededFuture(MultiType.EMPTY_MULTI));
         manager.startExpiredQueueProcessing(10);
         verify(reducedPropagationStorage, timeout(110).atLeast(10)).removeExpiredQueues(anyLong());
     }
@@ -81,7 +83,7 @@ public class ReducedPropagationManagerTest {
         Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.succeededFuture(Boolean.FALSE));
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.TRUE));
         Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
-                .thenReturn(Future.succeededFuture(new ArrayList<>()));
+                .thenReturn(Future.succeededFuture(MultiType.EMPTY_MULTI));
         manager.startExpiredQueueProcessing(10);
         verify(reducedPropagationStorage, timeout(110).never()).removeExpiredQueues(anyLong());
     }
@@ -98,11 +100,11 @@ public class ReducedPropagationManagerTest {
         long expectedExpireTS = System.currentTimeMillis() + propagationInterval;
 
         String originalPayload = "{\"key\":123}";
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add(CONTENT_LENGTH.getName(), "99");
 
         manager.processIncomingRequest(HttpMethod.PUT, "targetUri", headers,
-                Buffer.buffer(originalPayload), queue, propagationInterval, null).setHandler(event -> {
+                Buffer.buffer(originalPayload), queue, propagationInterval, null).future().onComplete(event -> {
             context.assertTrue(event.failed());
             context.assertNotNull(event.cause());
             context.assertTrue(event.cause().getMessage().contains("some storage error"));
@@ -145,11 +147,11 @@ public class ReducedPropagationManagerTest {
 
         String targetUri = "/the/target/uri";
         String originalPayload = "{\"key\":123}";
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add(CONTENT_LENGTH.getName(), "99");
 
         manager.processIncomingRequest(HttpMethod.PUT, targetUri, headers,
-                Buffer.buffer(originalPayload), queue, propagationInterval, null).setHandler(event -> {
+                Buffer.buffer(originalPayload), queue, propagationInterval, null).future().onComplete(event -> {
             context.assertTrue(event.succeeded());
 
             // verify that the storage has been called with the original queue name and the correct expiration timestamp
@@ -177,7 +179,7 @@ public class ReducedPropagationManagerTest {
             context.assertEquals(queue, queues.get(0));
 
             //verify queue request (without payload) has been stored to storage
-            MultiMap headersCopy = new CaseInsensitiveHeaders().addAll(headers);
+            MultiMap headersCopy = MultiMap.caseInsensitiveMultiMap().addAll(headers);
             headersCopy.set(CONTENT_LENGTH.getName(), "0");
             HttpRequest expectedRequest = new HttpRequest(HttpMethod.PUT, targetUri, headersCopy, null);
             verify(reducedPropagationStorage, timeout(1000).times(1)).storeQueueRequest(eq(queue), eq(expectedRequest.toJsonObject()));
@@ -197,11 +199,11 @@ public class ReducedPropagationManagerTest {
 
         String targetUri = "/the/target/uri";
         String originalPayload = "{\"key\":123}";
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add(CONTENT_LENGTH.getName(), "99");
 
         manager.processIncomingRequest(HttpMethod.PUT, targetUri, headers,
-                Buffer.buffer(originalPayload), queue, propagationInterval, null).setHandler(event -> {
+                Buffer.buffer(originalPayload), queue, propagationInterval, null).future().onComplete(event -> {
             context.assertTrue(event.failed());
             context.assertEquals("Boom", event.cause().getMessage());
 
@@ -230,7 +232,7 @@ public class ReducedPropagationManagerTest {
             context.assertEquals(queue, queues.get(0));
 
             //verify queue request (without payload) has been stored to storage
-            MultiMap headersCopy = new CaseInsensitiveHeaders().addAll(headers);
+            MultiMap headersCopy = MultiMap.caseInsensitiveMultiMap().addAll(headers);
             headersCopy.set(CONTENT_LENGTH.getName(), "0");
             HttpRequest expectedRequest = new HttpRequest(HttpMethod.PUT, targetUri, headersCopy, null);
             verify(reducedPropagationStorage, timeout(1000).times(1)).storeQueueRequest(eq(queue), eq(expectedRequest.toJsonObject()));
@@ -248,11 +250,11 @@ public class ReducedPropagationManagerTest {
 
         String targetUri = "/the/target/uri";
         String originalPayload = "{\"key\":123}";
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add(CONTENT_LENGTH.getName(), "99");
 
         manager.processIncomingRequest(HttpMethod.PUT, targetUri, headers,
-                Buffer.buffer(originalPayload), queue, propagationInterval, null).setHandler(event -> {
+                Buffer.buffer(originalPayload), queue, propagationInterval, null).future().onComplete(event -> {
             context.assertTrue(event.succeeded());
 
             // verify that the storage has been called with the original queue name and the correct expiration timestamp
@@ -287,12 +289,12 @@ public class ReducedPropagationManagerTest {
         String expectedErrorMessage = "Tried to process an expired queue without a valid queue name. Going to stop here";
 
         // send event bus message with 'null' as queue name
-        vertx.eventBus().send(PROCESSOR_ADDRESS, null, (Handler<AsyncResult<Message<JsonObject>>>) nullQueueEvent -> {
+        vertx.eventBus().request(PROCESSOR_ADDRESS, null, (Handler<AsyncResult<Message<JsonObject>>>) nullQueueEvent -> {
             context.assertEquals(ERROR, nullQueueEvent.result().body().getString(STATUS));
             context.assertEquals(expectedErrorMessage, nullQueueEvent.result().body().getString(MESSAGE));
 
             // send event bus message with an empty string as queue name
-            vertx.eventBus().send(PROCESSOR_ADDRESS, "", (Handler<AsyncResult<Message<JsonObject>>>) emptyQueueEvent -> {
+            vertx.eventBus().request(PROCESSOR_ADDRESS, "", (Handler<AsyncResult<Message<JsonObject>>>) emptyQueueEvent -> {
                 context.assertEquals(ERROR, emptyQueueEvent.result().body().getString(STATUS));
                 context.assertEquals(expectedErrorMessage, emptyQueueEvent.result().body().getString(MESSAGE));
                 async.complete();
@@ -306,7 +308,7 @@ public class ReducedPropagationManagerTest {
         Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.failedFuture("boom: getQueueRequest failed"));
 
         String expiredQueue = "myExpiredQueue";
-        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+        vertx.eventBus().request(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(ERROR, event.result().body().getString(STATUS));
             context.assertEquals("boom: getQueueRequest failed", event.result().body().getString(MESSAGE));
@@ -325,7 +327,7 @@ public class ReducedPropagationManagerTest {
         Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.succeededFuture(null));
 
         String expiredQueue = "myExpiredQueue";
-        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+        vertx.eventBus().request(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(ERROR, event.result().body().getString(STATUS));
             context.assertEquals("stored queue request for queue 'myExpiredQueue' is null", event.result().body().getString(MESSAGE));
@@ -347,7 +349,7 @@ public class ReducedPropagationManagerTest {
         String expiredQueue = "myExpiredQueue";
         String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
 
-        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+        vertx.eventBus().request(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(ERROR, event.result().body().getString(STATUS));
             context.assertEquals("boom: deleteAllQueueItems failed", event.result().body().getString(MESSAGE));
@@ -372,7 +374,7 @@ public class ReducedPropagationManagerTest {
         String expiredQueue = "myExpiredQueue";
         String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
 
-        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+        vertx.eventBus().request(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(ERROR, event.result().body().getString(STATUS));
             context.assertEquals("Request fields 'uri' and 'method' must be set", event.result().body().getString(MESSAGE));
@@ -392,7 +394,7 @@ public class ReducedPropagationManagerTest {
     public void testExpiredQueueProcessingEnqueueIntoManagerQueueFailure(TestContext context){
         Async async = context.async();
 
-        JsonObject requestJsonObject = new HttpRequest(HttpMethod.PUT, "/my/uri", new CaseInsensitiveHeaders(), null).toJsonObject();
+        JsonObject requestJsonObject = new HttpRequest(HttpMethod.PUT, "/my/uri", MultiMap.caseInsensitiveMultiMap(), null).toJsonObject();
 
         Mockito.when(reducedPropagationStorage.getQueueRequest(anyString())).thenReturn(Future.succeededFuture(requestJsonObject));
         Mockito.when(requestQueue.deleteAllQueueItems(anyString(), anyBoolean())).thenReturn(Future.succeededFuture());
@@ -401,7 +403,7 @@ public class ReducedPropagationManagerTest {
         String expiredQueue = "myExpiredQueue";
         String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
 
-        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+        vertx.eventBus().request(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(ERROR, event.result().body().getString(STATUS));
             context.assertEquals("boom: enqueueFuture failed", event.result().body().getString(MESSAGE));
@@ -421,7 +423,7 @@ public class ReducedPropagationManagerTest {
     public void testExpiredQueueProcessingDeleteAllQueueItemsAndDeleteLockOfQueueFailure(TestContext context){
         Async async = context.async();
 
-        JsonObject requestJsonObject = new HttpRequest(HttpMethod.PUT, "/my/uri", new CaseInsensitiveHeaders(), null).toJsonObject();
+        JsonObject requestJsonObject = new HttpRequest(HttpMethod.PUT, "/my/uri", MultiMap.caseInsensitiveMultiMap(), null).toJsonObject();
 
         String expiredQueue = "myExpiredQueue";
         String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
@@ -432,7 +434,7 @@ public class ReducedPropagationManagerTest {
         Mockito.when(reducedPropagationStorage.removeQueueRequest(eq(expiredQueue))).thenReturn(Future.succeededFuture());
         Mockito.when(requestQueue.deleteAllQueueItems(eq(expiredQueue), anyBoolean())).thenReturn(Future.failedFuture("boom: deleteAllQueueItems failed"));
 
-        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+        vertx.eventBus().request(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(ERROR, event.result().body().getString(STATUS));
             context.assertEquals("boom: deleteAllQueueItems failed", event.result().body().getString(MESSAGE));
@@ -451,7 +453,7 @@ public class ReducedPropagationManagerTest {
     public void testExpiredQueueProcessingDeleteAllQueueItemsAndDeleteLockOfQueueSuccess(TestContext context){
         Async async = context.async();
 
-        JsonObject requestJsonObject = new HttpRequest(HttpMethod.PUT, "/my/uri", new CaseInsensitiveHeaders(), null).toJsonObject();
+        JsonObject requestJsonObject = new HttpRequest(HttpMethod.PUT, "/my/uri", MultiMap.caseInsensitiveMultiMap(), null).toJsonObject();
 
         String expiredQueue = "myExpiredQueue";
         String managerQueue = MANAGER_QUEUE_PREFIX + expiredQueue;
@@ -462,7 +464,7 @@ public class ReducedPropagationManagerTest {
         Mockito.when(reducedPropagationStorage.removeQueueRequest(eq(expiredQueue))).thenReturn(Future.succeededFuture());
         Mockito.when(requestQueue.deleteAllQueueItems(eq(expiredQueue), anyBoolean())).thenReturn(Future.succeededFuture());
 
-        vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+        vertx.eventBus().request(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(OK, event.result().body().getString(STATUS));
             context.assertEquals("Successfully deleted lock and all queue items of queue myExpiredQueue", event.result().body().getString(MESSAGE));

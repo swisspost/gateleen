@@ -1,10 +1,10 @@
 package org.swisspush.gateleen.queue.duplicate;
 
+import io.vertx.redis.client.RedisAPI;
 import org.swisspush.gateleen.core.util.HashCodeGenerator;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.redis.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,16 +30,16 @@ public final class DuplicateCheckHandler {
      * in the database, a new entry will be saved to the database using a key which is created from the given parameters (uri and buffer).
      * The new entry expires after ttl has expired.
      * 
-     * @param redisClient redisClient
+     * @param redisAPI redisAPI
      * @param uri the request uri
      * @param buffer the request payload
      * @param ttl the timeToLive (in seconds) for the storage entry
      * @param callback the result callback. Returns true if the request is a duplicate else returns false
      */
-    public static void checkDuplicateRequest(RedisClient redisClient, String uri, Buffer buffer, String ttl, Handler<Boolean> callback) {
+    public static void checkDuplicateRequest(RedisAPI redisAPI, String uri, Buffer buffer, String ttl, Handler<Boolean> callback) {
         Integer timeToLive = parseTimeToLive(ttl);
         String redisKey = getRedisKey(uri, HashCodeGenerator.createHashCode(uri, buffer.toString()));
-        handleStorage(redisClient, redisKey, timeToLive, callback);
+        handleStorage(redisAPI, redisKey, timeToLive, callback);
     }
 
     private static Integer parseTimeToLive(String ttl) {
@@ -57,10 +57,10 @@ public final class DuplicateCheckHandler {
         return String.format(REDIS_KEY_TEMPLATE, uri, hash);
     }
 
-    private static void handleStorage(RedisClient redisClient, final String redisKey, int ttl, final Handler<Boolean> callback) {
+    private static void handleStorage(RedisAPI redisAPI, final String redisKey, int ttl, final Handler<Boolean> callback) {
 
         // read from storage
-        redisClient.get(redisKey, reply -> {
+        redisAPI.get(redisKey, reply -> {
             if(reply.failed()){
                 log.error("get command for redisKey '{}' resulted in cause {}", redisKey, logCause(reply));
                 return;
@@ -68,14 +68,14 @@ public final class DuplicateCheckHandler {
 
             if (!DEFAULT_REDIS_ENTRY_VALUE.equals(reply.result())) {
                 // save to storage
-                redisClient.setnx(redisKey, DEFAULT_REDIS_ENTRY_VALUE, setnxReply -> {
+                redisAPI.setnx(redisKey, DEFAULT_REDIS_ENTRY_VALUE, setnxReply -> {
                     if(setnxReply.failed()){
                         log.error("set command for redisKey '{}' resulted in cause {}", redisKey, logCause(setnxReply));
                         return;
                     }
 
                     // set expire
-                    redisClient.expire(redisKey, ttl, expireReply -> {
+                    redisAPI.expire(redisKey, String.valueOf(ttl), expireReply -> {
                         if(expireReply.failed()){
                             log.error("expire command for redisKey '{}' resulted in cause {}", redisKey, logCause(expireReply));
                         }

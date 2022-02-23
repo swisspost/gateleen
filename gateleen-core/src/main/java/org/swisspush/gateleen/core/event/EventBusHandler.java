@@ -12,9 +12,9 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.bridge.BridgeEventType;
+import io.vertx.ext.bridge.PermittedOptions;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.handler.sockjs.BridgeOptions;
-import io.vertx.ext.web.handler.sockjs.PermittedOptions;
+import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import org.slf4j.Logger;
@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
  * </p>
  * <p>
  * Requests are forwarded in the form:
- * 
+ *
  * <pre>
  * {
  *     "uri": "http://...",
@@ -98,7 +98,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
 
     /**
      * Constructs and configures the handler.
-     * 
+     *
      * @param vertx vertx
      * @param apiPath The full URI path where to access the event api. E.g. <code>/context/server/event/v1/</code>.
      * @param sockPath The full URI path of the SockJS endpoint to configure.
@@ -126,7 +126,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
             Matcher matcher = adressPathPattern.matcher(request.uri());
             if (matcher.matches()) {
                 final String address = addressPrefix + matcher.group(1);
-                final JsonObject message = new JsonObject().put(URI, request.uri()).put(METHOD, request.method()).put(HEADERS, JsonMultiMap.toJson(request.headers()));
+                final JsonObject message = new JsonObject().put(URI, request.uri()).put(METHOD, request.method().name()).put(HEADERS, JsonMultiMap.toJson(request.headers()));
                 requestLog.debug("Preparing message for address {}", address);
                 request.bodyHandler(buffer -> {
                     String contentType = request.headers().get(CONTENT_TYPE);
@@ -151,7 +151,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                     requestLog.debug("Request content type is {}", contentType);
                     if (HttpMethod.GET == request.method() || Boolean.TRUE.toString().equals(request.headers().get(SYNC))) {
                         requestLog.debug("This is a synchronous request");
-                        vertx.eventBus().send(address, message, new DeliveryOptions().setSendTimeout(TIMEOUT), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                        vertx.eventBus().request(address, message, new DeliveryOptions().setSendTimeout(TIMEOUT), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                             if (reply.succeeded()) {
                                 requestLog.debug("Got response");
                                 JsonObject response = reply.result().body();
@@ -212,12 +212,12 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
 
     /**
      * Configures and binds the SockJS bridge to an HttpServer.
-     * 
+     *
      * @param router router
      */
     public void install(Router router) {
-        BridgeOptions bridgeOptions = buildBridgeOptions();
-        router.route(sockPath).handler(SockJSHandler.create(vertx, getSockJSHandlerOptions()).bridge(bridgeOptions, be -> {
+        SockJSBridgeOptions bridgeOptions = buildBridgeOptions();
+        router.mountSubRouter(sockPath, SockJSHandler.create(vertx, getSockJSHandlerOptions()).bridge(bridgeOptions, be -> {
             log.debug("SockJS bridge event: {}", be.type().toString());
             if(!websocketConnectionsEnabled && BridgeEventType.SOCKET_CREATED == be.type()){
                 log.info("WebSocket connections are disabled. Not allowing another connection");
@@ -262,7 +262,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
     /**
      * Sets the ping_interval passed to the eventbus bridge. Defines the interval before a websocket connection is closed if no interaction with client happens in the meantime.
      * Set the interval before calling {@link #install(io.vertx.ext.web.Router)}
-     * 
+     *
      * @param eventbusBridgePingInterval Interval in milliseconds or null to use the default interval of the eventbus bridge (10 seconds)
      */
     public void setEventbusBridgePingInterval(Long eventbusBridgePingInterval) {
@@ -319,8 +319,8 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
         return this.sockJSHandlerOptions;
     }
 
-    private BridgeOptions buildBridgeOptions(){
-        BridgeOptions bridgeOptions = new BridgeOptions()
+    private SockJSBridgeOptions buildBridgeOptions(){
+        SockJSBridgeOptions bridgeOptions = new SockJSBridgeOptions()
                 .addOutboundPermitted(new PermittedOptions().setAddressRegex(addressPrefix + "(.*)"));
 
         if (eventbusBridgePingInterval != null) {
@@ -348,7 +348,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                 " libraryURL=" + options.getLibraryURL();
     }
 
-    private String bridgeOptionsToString(BridgeOptions options){
+    private String bridgeOptionsToString(SockJSBridgeOptions options){
         return "maxAddressLength=" + options.getMaxAddressLength() +
                 " maxHandlersPerSocket=" + options.getMaxHandlersPerSocket() +
                 " pingTimeout=" + options.getPingTimeout() +

@@ -1,8 +1,7 @@
 package org.swisspush.gateleen.hook;
 
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.http.*;
@@ -26,10 +25,7 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
 import static io.vertx.core.http.HttpMethod.PUT;
@@ -46,7 +42,7 @@ import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
 public class HookHandlerTest {
 
     private static final String HOOK_ROOT_URI = "hookRootURI/";
-    private static final Logger logger = LoggerFactory.getLogger( HookHandlerTest.class );
+    private static final Logger logger = LoggerFactory.getLogger(HookHandlerTest.class);
     private Vertx vertx;
     private HttpClient httpClient;
     private MockResourceStorage storage;
@@ -59,10 +55,10 @@ public class HookHandlerTest {
 
 
     @Before
-    public void setUp(){
+    public void setUp() {
         vertx = Vertx.vertx();
         httpClient = Mockito.mock(HttpClient.class);
-        Mockito.when(httpClient.request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any())).thenReturn(Mockito.mock(HttpClientRequest.class));
+        Mockito.when(httpClient.request(any(HttpMethod.class), anyString())).thenReturn(Mockito.mock(Future.class));
         storage = new MockResourceStorage();
         loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
@@ -75,12 +71,12 @@ public class HookHandlerTest {
         hookHandler.init();
     }
 
-    private void setListenerStorageEntryAndTriggerUpdate(JsonObject listenerConfig){
+    private void setListenerStorageEntryAndTriggerUpdate(JsonObject listenerConfig) {
         storage.putMockData("pathToListenerResource", listenerConfig.encode());
-        vertx.eventBus().send("gateleen.hook-listener-insert", "pathToListenerResource");
+        vertx.eventBus().request("gateleen.hook-listener-insert", "pathToListenerResource");
     }
 
-    private JsonObject buildListenerConfig(JsonObject queueingStrategy, String deviceId){
+    private JsonObject buildListenerConfig(JsonObject queueingStrategy, String deviceId) {
         JsonObject config = new JsonObject();
         config.put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/" + deviceId);
         config.put("expirationTime", "2017-01-03T14:15:53.277");
@@ -94,7 +90,7 @@ public class HookHandlerTest {
         staticHeaders.put("x-sync", true);
         hook.put("staticHeaders", staticHeaders);
 
-        if(queueingStrategy != null){
+        if (queueingStrategy != null) {
             hook.put("queueingStrategy", queueingStrategy);
         }
 
@@ -236,7 +232,7 @@ public class HookHandlerTest {
     public void testListenerEnqueueWithReducedPropagationQueueingStrategy(TestContext context) throws InterruptedException {
         String deviceId = "x99";
         long interval = 22;
-        String queue = "listener-hook-http+push+"+deviceId+"+playground+server+tests+hooktest";
+        String queue = "listener-hook-http+push+" + deviceId + "+playground+server+tests+hooktest";
 
         // trigger listener update via event bus
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "reducedPropagation").put("intervalMs", interval), deviceId));
@@ -251,7 +247,7 @@ public class HookHandlerTest {
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
         hookHandler.handle(putRequest);
 
-        String targetUri = "/playground/server/push/v1/devices/"+deviceId+"/playground/server/tests/hooktest/abc123";
+        String targetUri = "/playground/server/push/v1/devices/" + deviceId + "/playground/server/tests/hooktest/abc123";
         Mockito.verify(reducedPropagationManager, Mockito.timeout(2000).times(1))
                 .processIncomingRequest(eq(HttpMethod.PUT), eq(targetUri), any(MultiMap.class), eq(Buffer.buffer(originalPayload)), eq(queue), eq(interval), any(Handler.class));
     }
@@ -355,11 +351,11 @@ public class HookHandlerTest {
     @Test
     public void hookRegistration_usesDefaultExpiryIfExpireAfterHeaderIsNegativeNumber(TestContext testContext) {
         // Initialize mock
-        final int[] statusCodePtr = new int[]{ 0 };
-        final String[] statusMessagePtr = new String[]{ null };
+        final int[] statusCodePtr = new int[]{0};
+        final String[] statusMessagePtr = new String[]{null};
         final HttpServerRequest request;
         {  // Mock request
-            final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+            final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
             // Do NOT set to -1. Because that would be a valid value representing 'infinite'.
             requestHeaders.set(ExpiryCheckHandler.EXPIRE_AFTER_HEADER, "-42");
             final Buffer requestBody = createMinimalHookBodyAsBuffer();
@@ -389,12 +385,12 @@ public class HookHandlerTest {
 
         // Initialize mock
         /* Reference to retrieve statusCode */
-        final int[] statusCodePtr = new int[]{ 0 };
+        final int[] statusCodePtr = new int[]{0};
         /* Reference to retrieve statusMessage */
-        final String[] statusMessagePtr = new String[]{ null };
+        final String[] statusMessagePtr = new String[]{null};
         final HttpServerRequest request;
         {  // Mock request
-            final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+            final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
             requestHeaders.set(ExpiryCheckHandler.EXPIRE_AFTER_HEADER, "This is definitively not a number :)");
             final Buffer requestBody = createMinimalHookBodyAsBuffer();
             request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/listeners/http/my-service/my-fancy-hook",
@@ -420,11 +416,11 @@ public class HookHandlerTest {
     @Test
     public void hookRegistration_usesDefaultExpiryIfHeaderIsMissing(TestContext testContext) {
         // Initialize mock
-        final int[] statusCodePtr = new int[]{ 0 };
-        final String[] statusMessagePtr = new String[]{ null };
+        final int[] statusCodePtr = new int[]{0};
+        final String[] statusMessagePtr = new String[]{null};
         final HttpServerRequest request;
         {  // Mock request
-            final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+            final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
             // Do NOT set any header here.
             final Buffer requestBody = createMinimalHookBodyAsBuffer();
             request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/listeners/http/my-service/yet-another-hook",
@@ -450,11 +446,11 @@ public class HookHandlerTest {
     @Test
     public void hookRegistration_usesMinusOneIfExpireAfterIsSetToMinusOne(TestContext testContext) {
         // Initialize mock
-        final int[] statusCodePtr = new int[]{ 0 };
-        final String[] statusMessagePtr = new String[]{ null };
+        final int[] statusCodePtr = new int[]{0};
+        final String[] statusMessagePtr = new String[]{null};
         final HttpServerRequest request;
         {  // Mock request
-            final MultiMap requestHeaders = new CaseInsensitiveHeaders();
+            final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
             requestHeaders.set(ExpiryCheckHandler.EXPIRE_AFTER_HEADER, "-1");
             final Buffer requestBody = createMinimalHookBodyAsBuffer();
             request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/listeners/http/my-service/and-one-more-again-hook",
@@ -561,9 +557,10 @@ public class HookHandlerTest {
         CountDownLatch latch = new CountDownLatch(1);
         DummyHttpServerResponse response = new DummyHttpServerResponse() {
             @Override
-            public void end(String chunk) {
+            public Future<Void> end(String chunk) {
                 super.end(chunk);
                 latch.countDown();
+                return Future.succeededFuture();
             }
         };
         PUTRequest putRequest = new PUTRequest(uri, payload) {
@@ -579,13 +576,13 @@ public class HookHandlerTest {
     }
 
     private HttpServerRequest createSimpleRequest(final HttpMethod method, final String uri, final Buffer requestBody, final int[] statusCodePtr, final String[] statusMessagePtr) {
-        return createSimpleRequest(method, uri, new CaseInsensitiveHeaders(), requestBody, statusCodePtr, statusMessagePtr);
+        return createSimpleRequest(method, uri, MultiMap.caseInsensitiveMultiMap(), requestBody, statusCodePtr, statusMessagePtr);
     }
 
     /**
      * Creates a simple {@link HttpServerRequest} mock.
      */
-    private HttpServerRequest createSimpleRequest(final HttpMethod method , final String uri , final MultiMap requestHeaders , final Buffer requestBody , final int[] statusCodePtr , final String[] statusMessagePtr ) {
+    private HttpServerRequest createSimpleRequest(final HttpMethod method, final String uri, final MultiMap requestHeaders, final Buffer requestBody, final int[] statusCodePtr, final String[] statusMessagePtr) {
         if (statusCodePtr == null) throw new IllegalArgumentException("Arg 'statusCodePtr' useless when null");
         if (statusMessagePtr == null) throw new IllegalArgumentException("Arg 'statusMessagePtr' useless when null");
 
@@ -594,37 +591,142 @@ public class HookHandlerTest {
         statusMessagePtr[0] = "OK";
 
         final HttpServerResponse response = new FastFailHttpServerResponse() {
-            @Override public HttpServerResponse setStatusCode(int statusCode) {
+            @Override
+            public HttpServerResponse setStatusCode(int statusCode) {
                 statusCodePtr[0] = statusCode;
                 return this;
             }
-            @Override public HttpServerResponse setStatusMessage(String statusMessage) {
+
+            @Override
+            public HttpServerResponse setStatusMessage(String statusMessage) {
                 statusMessagePtr[0] = statusMessage;
                 return this;
             }
-            @Override public void end(String chunk) {/* ignore */}
-            @Override public void end() {/* ignore */}
+
+            @Override
+            public Future<Void> write(String chunk, String enc) {
+                return null;
+            }
+
+            @Override
+            public void write(String chunk, String enc, Handler<AsyncResult<Void>> handler) {
+
+            }
+
+            @Override
+            public Future<Void> write(String chunk) {
+                return null;
+            }
+
+            @Override
+            public void write(String chunk, Handler<AsyncResult<Void>> handler) {
+
+            }
+
+            @Override
+            public Future<Void> end(String chunk) {/* ignore */
+                return Future.succeededFuture();
+            }
+
+            @Override
+            public Future<Void> end(String chunk, String enc) {
+                return null;
+            }
+
+            @Override
+            public Future<Void> end(Buffer chunk) {
+                return null;
+            }
+
+            @Override
+            public Future<Void> write(Buffer data) {
+                return null;
+            }
+
+            @Override
+            public void write(Buffer data, Handler<AsyncResult<Void>> handler) {
+
+            }
+
+            @Override
+            public Future<Void> end() {/* ignore */
+                return Future.succeededFuture();
+            }
+
+            @Override
+            public Future<Void> sendFile(String filename, long offset, long length) {
+                return null;
+            }
+
+            @Override
+            public Future<HttpServerResponse> push(HttpMethod method, String host, String path, MultiMap headers) {
+                return null;
+            }
+
+            @Override
+            public HttpServerResponse addCookie(Cookie cookie) {
+                return null;
+            }
+
+            @Override
+            public @Nullable Cookie removeCookie(String name, boolean invalidate) {
+                return null;
+            }
+
+            @Override
+            public Set<Cookie> removeCookies(String name, boolean invalidate) {
+                return null;
+            }
+
+            @Override
+            public @Nullable Cookie removeCookie(String name, String domain, String path, boolean invalidate) {
+                return null;
+            }
         };
-        final HttpServerRequest request = new FastFailHttpServerRequest(){
-            @Override public HttpMethod method() { return method; }
-            @Override public String uri() { return uri; }
-            @Override public MultiMap headers() { return requestHeaders; }
-            @Override public HttpServerRequest handler(Handler<Buffer> handler) {
-                handler.handle( requestBody );
+        final HttpServerRequest request = new FastFailHttpServerRequest() {
+            @Override
+            public HttpMethod method() {
+                return method;
+            }
+
+            @Override
+            public String uri() {
+                return uri;
+            }
+
+            @Override
+            public MultiMap headers() {
+                return requestHeaders;
+            }
+
+            @Override
+            public HttpServerRequest handler(Handler<Buffer> handler) {
+                handler.handle(requestBody);
                 return null;
             }
-            @Override public HttpServerRequest endHandler(Handler<Void> endHandler) {
-                endHandler.handle( null );
+
+            @Override
+            public HttpServerRequest endHandler(Handler<Void> endHandler) {
+                endHandler.handle(null);
                 return null;
             }
-            @Override public HttpServerResponse response() { return response; }
+
+            @Override
+            public HttpServerResponse response() {
+                return response;
+            }
+
+            @Override
+            public Future<Buffer> body() {
+                return Future.succeededFuture(requestBody);
+            }
+
         };
         return request;
     }
 
     /**
-     * @return
-     *      A simple hook body as a JSON wrapped in a {@link Buffer}.
+     * @return A simple hook body as a JSON wrapped in a {@link Buffer}.
      */
     private Buffer createMinimalHookBodyAsBuffer() {
         final Buffer requestBody = new BufferImpl();
@@ -642,7 +744,7 @@ public class HookHandlerTest {
     }
 
     class PUTRequest extends DummyHttpServerRequest {
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
         private String uri;
         private String body;
@@ -652,13 +754,20 @@ public class HookHandlerTest {
             this.body = body;
         }
 
-        @Override public HttpMethod method() {
+        @Override
+        public HttpMethod method() {
             return HttpMethod.PUT;
         }
-        @Override public String uri() {
+
+        @Override
+        public String uri() {
             return uri;
         }
-        @Override public MultiMap headers() { return headers; }
+
+        @Override
+        public MultiMap headers() {
+            return headers;
+        }
 
         @Override
         public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
@@ -666,6 +775,8 @@ public class HookHandlerTest {
             return this;
         }
 
-        public void addHeader(String headerName, String headerValue){ headers.add(headerName, headerValue); }
+        public void addHeader(String headerName, String headerValue) {
+            headers.add(headerName, headerValue);
+        }
     }
 }

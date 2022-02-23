@@ -6,7 +6,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
@@ -93,8 +93,8 @@ public class UserProfileHandler implements LoggableResource {
 
     public void handle(final HttpServerRequest request) {
         RequestLoggerFactory.getLogger(UserProfileHandler.class, request).info("handling " + request.method() + " " + request.path());
-        switch (request.method()) {
-        case GET:
+        switch (request.method().name()) {
+        case "GET":
             storage.get(request.path(), buffer -> {
                 request.response().headers().set("Content-Type", "application/json");
                 String userId = userProfileConfiguration.extractUserIdFromProfileUri(request.path());
@@ -132,7 +132,7 @@ public class UserProfileHandler implements LoggableResource {
                 }
             });
             break;
-        case PUT:
+        case "PUT":
             request.pause();
             storage.get(request.path(), existingBuffer -> {
                 if (existingBuffer != null) {
@@ -160,14 +160,14 @@ public class UserProfileHandler implements LoggableResource {
                     return;
                 }
                 cleanupUserProfile(profile, updatedProfile -> storage.put(request.uri() + "?merge=true", Buffer.buffer(updatedProfile.encode()), status -> {
-                    logPayload(request, status, Buffer.buffer(updatedProfile.encode()), new CaseInsensitiveHeaders());
+                    logPayload(request, status, Buffer.buffer(updatedProfile.encode()), MultiMap.caseInsensitiveMultiMap());
                     ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), UserProfileHandler.class);
                     request.response().setStatusCode(status);
                     request.response().end();
                 }));
             });
             break;
-        case DELETE:
+        case "DELETE":
             storage.delete(request.path(), status -> {
                 ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), UserProfileHandler.class);
                 request.response().setStatusCode(status);

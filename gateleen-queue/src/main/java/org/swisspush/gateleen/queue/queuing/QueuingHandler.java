@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.queue.queuing;
 
+import io.vertx.redis.client.RedisAPI;
 import org.swisspush.gateleen.core.util.Address;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -10,7 +11,7 @@ import io.vertx.core.http.HttpServerRequest;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.queue.duplicate.DuplicateCheckHandler;
-import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.impl.RedisClient;
 
 import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
 
@@ -33,16 +34,16 @@ public class QueuingHandler implements Handler<Buffer> {
 
     private HttpServerRequest request;
     private Vertx vertx;
-    private RedisClient redisClient;
+    private RedisAPI redisAPI;
 
-    public QueuingHandler(Vertx vertx, RedisClient redisClient, HttpServerRequest request, MonitoringHandler monitoringHandler) {
-        this(vertx, redisClient, request, new QueueClient(vertx, monitoringHandler));
+    public QueuingHandler(Vertx vertx, RedisAPI redisAPI, HttpServerRequest request, MonitoringHandler monitoringHandler) {
+        this(vertx, redisAPI, request, new QueueClient(vertx, monitoringHandler));
     }
 
-    public QueuingHandler(Vertx vertx, RedisClient redisClient, HttpServerRequest request, RequestQueue requestQueue) {
+    public QueuingHandler(Vertx vertx, RedisAPI redisAPI, HttpServerRequest request, RequestQueue requestQueue) {
         this.request = request;
         this.vertx = vertx;
-        this.redisClient = redisClient;
+        this.redisAPI = redisAPI;
         this.requestQueue = requestQueue;
     }
 
@@ -54,7 +55,7 @@ public class QueuingHandler implements Handler<Buffer> {
         headers.remove(QUEUE_HEADER);
 
         if (headers.names().contains(DUPLICATE_CHECK_HEADER)) {
-            DuplicateCheckHandler.checkDuplicateRequest(redisClient, request.uri(), buffer, headers.get(DUPLICATE_CHECK_HEADER), requestIsDuplicate -> {
+            DuplicateCheckHandler.checkDuplicateRequest(redisAPI, request.uri(), buffer, headers.get(DUPLICATE_CHECK_HEADER), requestIsDuplicate -> {
                 if (requestIsDuplicate) {
                     // don't handle this request since it's a duplicate
                     request.response().setStatusCode(StatusCode.ACCEPTED.getStatusCode());
@@ -71,11 +72,11 @@ public class QueuingHandler implements Handler<Buffer> {
     }
 
     /**
-     * @deprecated Use vertx-redisques version 2.2.1 or higher, since redisques makes the cleanup automatically
      * @param vertx the vertx instance
+     * @deprecated Use vertx-redisques version 2.2.1 or higher, since redisques makes the cleanup automatically
      */
     @Deprecated
     public static void cleanup(Vertx vertx) {
-        vertx.eventBus().send(Address.redisquesAddress(), buildCheckOperation());
+        vertx.eventBus().request(Address.redisquesAddress(), buildCheckOperation());
     }
 }

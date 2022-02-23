@@ -1,11 +1,16 @@
 package org.swisspush.gateleen.hook.reducedpropagation.lua;
 
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.json.JsonArray;
+import io.vertx.redis.client.RedisAPI;
+import io.vertx.redis.client.Response;
+import io.vertx.redis.client.impl.types.MultiType;
 import org.slf4j.Logger;
-import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.impl.RedisClient;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
+import org.swisspush.gateleen.core.util.RedisUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,42 +23,43 @@ public class RemoveExpiredQueuesRedisCommand implements RedisCommand {
     private LuaScriptState luaScriptState;
     private List<String> keys;
     private List<String> arguments;
-    private Future<List<String>> future;
-    private RedisClient redisClient;
+    private Promise<Response> promise;
+    private RedisAPI redisAPI;
     private Logger log;
 
     public RemoveExpiredQueuesRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
-                                           RedisClient redisClient, Logger log, final Future<List<String>> future) {
+                                           RedisAPI redisAPI, Logger log, final Promise<Response> promise) {
         this.luaScriptState = luaScriptState;
         this.keys = keys;
         this.arguments = arguments;
-        this.redisClient = redisClient;
+        this.redisAPI = redisAPI;
         this.log = log;
-        this.future = future;
+        this.promise = promise;
     }
 
     @Override
     public void exec(int executionCounter) {
-        redisClient.evalsha(luaScriptState.getSha(), keys, arguments, event -> {
-            if(event.succeeded()){
-                JsonArray jsonArray = event.result();
-                if(jsonArray != null){
-                    future.complete(jsonArray.getList());
+        List<String> args = RedisUtils.toPayload(luaScriptState.getSha(), keys.size(), keys, arguments);
+        redisAPI.evalsha(args, event -> {
+            if (event.succeeded()) {
+                Response response = event.result();
+                if (response != null && response.size() != 0) {
+                    promise.complete(response);
                 } else {
-                    future.complete(new ArrayList<>());
+                    promise.complete(MultiType.EMPTY_MULTI);
                 }
             } else {
                 String message = event.cause().getMessage();
-                if(message != null && message.startsWith("NOSCRIPT")) {
+                if (message != null && message.startsWith("NOSCRIPT")) {
                     log.warn("RemoveExpiredQueuesRedisCommand script couldn't be found, reload it");
                     log.warn("amount the script got loaded: " + String.valueOf(executionCounter));
-                    if(executionCounter > 10) {
-                        future.fail("amount the script got loaded is higher than 10, we abort");
+                    if (executionCounter > 10) {
+                        promise.fail("amount the script got loaded is higher than 10, we abort");
                     } else {
-                        luaScriptState.loadLuaScript(new RemoveExpiredQueuesRedisCommand(luaScriptState, keys, arguments, redisClient, log, future), executionCounter);
+                        luaScriptState.loadLuaScript(new RemoveExpiredQueuesRedisCommand(luaScriptState, keys, arguments, redisAPI, log, promise), executionCounter);
                     }
                 } else {
-                    future.fail("RemoveExpiredQueuesRedisCommand request failed with message: " + message);
+                    promise.fail("RemoveExpiredQueuesRedisCommand request failed with message: " + message);
                 }
             }
         });

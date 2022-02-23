@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 
 /**
  * Helps to translate status codes.
@@ -52,7 +52,7 @@ public class StatusCodeTranslator {
      * @return a copy of the original headers without any translate headers
      */
     public static MultiMap getTranslateFreeHeaders(MultiMap headers) {
-        MultiMap result = new CaseInsensitiveHeaders();
+        MultiMap result = MultiMap.caseInsensitiveMultiMap();
 
         headers.forEach( entry -> {
             if ( ! entry.getKey().startsWith(TRANSLATE_PATTERN) ) {

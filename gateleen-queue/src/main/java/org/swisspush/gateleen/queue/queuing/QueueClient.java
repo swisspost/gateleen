@@ -106,7 +106,7 @@ public class QueueClient implements RequestQueue {
      */
     @Override
     public void lockedEnqueue(HttpRequest queuedRequest, String queue, String lockRequestedBy, Handler<Void> doneHandler) {
-        vertx.eventBus().send(getRedisquesAddress(), buildLockedEnqueueOperation(queue,
+        vertx.eventBus().request(getRedisquesAddress(), buildLockedEnqueueOperation(queue,
                 queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode(), lockRequestedBy),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                     if (OK.equals(event.result().body().getString(STATUS))) {
@@ -129,19 +129,19 @@ public class QueueClient implements RequestQueue {
      */
     @Override
     public Future<Void> deleteLock(String queue) {
-        Future<Void> future = Future.future();
-        vertx.eventBus().send(getRedisquesAddress(), buildDeleteLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+        Promise<Void> promise = Promise.promise();
+        vertx.eventBus().request(getRedisquesAddress(), buildDeleteLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             if (event.failed()) {
-                future.fail(event.cause());
+                promise.fail(event.cause());
                 return;
             }
             if (OK.equals(event.result().body().getString(STATUS))) {
-                future.complete();
+                promise.complete();
                 return;
             }
-            future.fail("Failed to delete lock for queue " + queue);
+            promise.fail("Failed to delete lock for queue " + queue);
         });
-        return future;
+        return promise.future();
     }
 
 
@@ -154,32 +154,32 @@ public class QueueClient implements RequestQueue {
      */
     @Override
     public Future<Void> deleteAllQueueItems(String queue, boolean unlock) {
-        Future<Void> future = Future.future();
-        vertx.eventBus().send(getRedisquesAddress(), buildDeleteAllQueueItemsOperation(queue, unlock), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+        Promise<Void> promise = Promise.promise();
+        vertx.eventBus().request(getRedisquesAddress(), buildDeleteAllQueueItemsOperation(queue, unlock), (Handler<AsyncResult<Message<JsonObject>>>) event -> {
             if (event.succeeded()) {
-                future.complete();
+                promise.complete();
             } else {
-                future.fail("Failed to delete all queue items for queue " + queue + " with unlock " + unlock + ". Cause: " + event.cause());
+                promise.fail("Failed to delete all queue items for queue " + queue + " with unlock " + unlock + ". Cause: " + event.cause());
             }
         });
-        return future;
+        return promise.future();
     }
 
     @Override
     public Future<Void> enqueueFuture(HttpRequest queuedRequest, String queue) {
-        Future<Void> future = Future.future();
-        vertx.eventBus().send(getRedisquesAddress(), buildEnqueueOperation(queue,
+        Promise<Void> promise = Promise.promise();
+        vertx.eventBus().request(getRedisquesAddress(), buildEnqueueOperation(queue,
                 queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                     if (OK.equals(event.result().body().getString(STATUS))) {
                         monitoringHandler.updateLastUsedQueueSizeInformation(queue);
                         monitoringHandler.updateEnqueue();
-                        future.complete();
+                        promise.complete();
                     } else {
-                        future.fail(event.result().body().getString(MESSAGE));
+                        promise.fail(event.result().body().getString(MESSAGE));
                     }
                 });
-        return future;
+        return promise.future();
     }
 
     /**
@@ -213,7 +213,7 @@ public class QueueClient implements RequestQueue {
             if (doneHandler != null) doneHandler.handle(null);
             return;
         }
-        vertx.eventBus().send(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
+        vertx.eventBus().request(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                     if (OK.equals(event.result().body().getString(STATUS))) {
                         monitoringHandler.updateLastUsedQueueSizeInformation(queue);

@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.logging;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -104,7 +104,7 @@ public class RequestPropertyFilterTest {
     }
 
     class PUTRequest extends DummyHttpServerRequest {
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
         @Override public HttpMethod method() {
             return HttpMethod.PUT;

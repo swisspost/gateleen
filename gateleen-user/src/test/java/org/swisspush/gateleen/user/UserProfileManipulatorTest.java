@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.user;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.json.JsonObject;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -25,7 +25,7 @@ public class UserProfileManipulatorTest {
         Logger log = mock(Logger.class);
         UserProfileManipulater userProfileManipulater = new UserProfileManipulater(log);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         if(acceptLanguage != null) {
             headers.add("Accept-Language", acceptLanguage);
         }
@@ -60,7 +60,7 @@ public class UserProfileManipulatorTest {
         Logger log = mock(Logger.class);
         UserProfileManipulater userProfileManipulater = new UserProfileManipulater(log);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Accept-Language", "en-US");
         headers.add("x-rp-lang", "D");
         headers.add("x-rp-usr", "04146251");
@@ -92,7 +92,7 @@ public class UserProfileManipulatorTest {
         Logger log = mock(Logger.class);
         UserProfileManipulater userProfileManipulater = new UserProfileManipulater(log);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
         List<ProfileProperty> profileProperties =
                 Arrays.asList(ProfileProperty.with("x-rp-department", "department").setValueToUseIfNoOtherValidValue("unknown").build(),
@@ -117,7 +117,7 @@ public class UserProfileManipulatorTest {
         Logger log = mock(Logger.class);
         UserProfileManipulater userProfileManipulater = new UserProfileManipulater(log);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Accept-Language", "en-US");
         headers.add("x-rp-lang", "D");
         headers.add("x-rp-usr", "04146251");
@@ -152,7 +152,7 @@ public class UserProfileManipulatorTest {
         Logger log = mock(Logger.class);
         UserProfileManipulater userProfileManipulater = new UserProfileManipulater(log);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Accept-Language", "en-US");
         headers.add("x-rp-lang", "D");
         headers.add("x-rp-usr", "04146251");
@@ -191,7 +191,7 @@ public class UserProfileManipulatorTest {
         Logger log = mock(Logger.class);
         UserProfileManipulater userProfileManipulater = new UserProfileManipulater(log);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.set("x-rp-usr", "44444444");
 
         JsonObject profile = new JsonObject();
@@ -236,7 +236,7 @@ public class UserProfileManipulatorTest {
         Logger log = mock(Logger.class);
         UserProfileManipulater userProfileManipulater = new UserProfileManipulater(log);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.set("x-rp-usr", "44444444");
 
         JsonObject profile = new JsonObject();
@@ -276,7 +276,7 @@ public class UserProfileManipulatorTest {
         Logger log = mock(Logger.class);
         UserProfileManipulater userProfileManipulater = new UserProfileManipulater(log);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.set("x-rp-usr", "44444444");
 
         JsonObject profile = new JsonObject();
@@ -316,7 +316,7 @@ public class UserProfileManipulatorTest {
         Logger log = mock(Logger.class);
         UserProfileManipulater userProfileManipulater = new UserProfileManipulater(log);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.set("x-rp-usr", "44444444");
 
         JsonObject profile = new JsonObject();

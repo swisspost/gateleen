@@ -7,11 +7,11 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.impl.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -295,7 +295,7 @@ public class MonitoringHandler {
         if(StringUtils.isNotEmptyTrimmed(requestPerRuleMonitoringPath)) {
             String path = requestPerRuleMonitoringPath + "/" + uuid + "/" + name;
             JsonObject obj = new JsonObject().put("timestamp", System.currentTimeMillis());
-            MultiMap headers = new CaseInsensitiveHeaders().add(EXPIRE_AFTER_HEADER, String.valueOf(requestPerRuleExpiry));
+            MultiMap headers = MultiMap.caseInsensitiveMultiMap().add(EXPIRE_AFTER_HEADER, String.valueOf(requestPerRuleExpiry));
             storage.put(path, headers, Buffer.buffer(obj.encode()), status -> {
                 if (status != StatusCode.OK.getStatusCode()) {
                     log.error("Error putting resource {} to storage", path);
@@ -369,7 +369,7 @@ public class MonitoringHandler {
      * Update the count of active queues. Reads the count from redis and stores it to JMX.
      */
     public void updateQueueCountInformation() {
-        vertx.eventBus().send(getRedisquesAddress(), buildGetQueuesCountOperation(), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+        vertx.eventBus().request(getRedisquesAddress(), buildGetQueuesCountOperation(), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
                 final long count = reply.result().body().getLong(VALUE);
                 vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ACTIVE_QUEUE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n", count));
@@ -386,7 +386,7 @@ public class MonitoringHandler {
      */
     public void updateLastUsedQueueSizeInformation(final String queue) {
         log.trace("About to update last used Queue size counter");
-        vertx.eventBus().send(getRedisquesAddress(), buildGetQueueItemsCountOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+        vertx.eventBus().request(getRedisquesAddress(), buildGetQueueItemsCountOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
                 final long count = reply.result().body().getLong(VALUE);
                 vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "update").put("n", count));
@@ -406,7 +406,7 @@ public class MonitoringHandler {
     public void updateQueuesSizesInformation(final int numQueues, final boolean showEmptyQueues, final MonitoringCallback callback) {
         final JsonObject resultObject = new JsonObject();
         final JsonArray queuesArray = new JsonArray();
-        vertx.eventBus().send(getRedisquesAddress(), buildGetQueuesOperation(), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+        vertx.eventBus().request(getRedisquesAddress(), buildGetQueuesOperation(), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
                 final List<String> queueNames = reply.result().body().getJsonObject(VALUE).getJsonArray("queues").getList();
                 collectQueueLengths(queueNames, numQueues, showEmptyQueues, mapEntries -> {
@@ -433,7 +433,7 @@ public class MonitoringHandler {
         final AtomicInteger subCommandCount = new AtomicInteger(queueNames.size());
         if (!queueNames.isEmpty()) {
             for (final String name : queueNames) {
-                vertx.eventBus().send(getRedisquesAddress(), buildGetQueueItemsCountOperation(name), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                vertx.eventBus().request(getRedisquesAddress(), buildGetQueueItemsCountOperation(name), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     subCommandCount.decrementAndGet();
                     if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
                         final long count = reply.result().body().getLong(VALUE);

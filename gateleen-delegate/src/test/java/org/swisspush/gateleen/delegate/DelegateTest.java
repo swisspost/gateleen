@@ -5,9 +5,10 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -59,25 +60,24 @@ public class DelegateTest {
                 Buffer.buffer(VALID_DELEGATE));
 
         CustomHttpServerRequest request = new CustomHttpServerRequest("/gateleen/playground/foobar", HttpMethod.PUT,
-                new CaseInsensitiveHeaders()
+                MultiMap.caseInsensitiveMultiMap()
                         .set("x-cow", "mooooh")
                         .set("x-foo", "bar")
         );
 
         delegate.handle(request);
 
-        ArgumentCaptor<VertxHttpHeaders> headersArgumentCaptor = ArgumentCaptor.forClass(VertxHttpHeaders.class);
+        ArgumentCaptor<HeadersMultiMap> headersArgumentCaptor = ArgumentCaptor.forClass(HeadersMultiMap.class);
 
         verify(clientRequestCreator, times(1)).createClientRequest(
                 eq(HttpMethod.POST),
                 eq("/gateleen/server/v1/copy"),
                 headersArgumentCaptor.capture(),
                 anyLong(),
-                any(Handler.class),
                 any(Handler.class)
         );
 
-        VertxHttpHeaders delegateRequestHeaders = headersArgumentCaptor.getValue();
+        HeadersMultiMap delegateRequestHeaders = headersArgumentCaptor.getValue();
 
         context.assertNotNull(delegateRequestHeaders);
         context.assertTrue(delegateRequestHeaders.isEmpty());
@@ -89,22 +89,21 @@ public class DelegateTest {
                 Buffer.buffer(VALID_HEADER_DEFINITON_DELEGATE));
 
         CustomHttpServerRequest request = new CustomHttpServerRequest("/gateleen/playground/foobar", HttpMethod.PUT,
-                new CaseInsensitiveHeaders());
+                MultiMap.caseInsensitiveMultiMap());
 
         delegate.handle(request);
 
-        ArgumentCaptor<VertxHttpHeaders> headersArgumentCaptor = ArgumentCaptor.forClass(VertxHttpHeaders.class);
+        ArgumentCaptor<HeadersMultiMap> headersArgumentCaptor = ArgumentCaptor.forClass(HeadersMultiMap.class);
 
         verify(clientRequestCreator, times(1)).createClientRequest(
                 eq(HttpMethod.POST),
                 eq("/gateleen/server/v1/copy"),
                 headersArgumentCaptor.capture(),
                 anyLong(),
-                any(Handler.class),
                 any(Handler.class)
         );
 
-        VertxHttpHeaders delegateRequestHeaders = headersArgumentCaptor.getValue();
+        HeadersMultiMap delegateRequestHeaders = headersArgumentCaptor.getValue();
 
         context.assertNotNull(delegateRequestHeaders);
         context.assertEquals(2, delegateRequestHeaders.size());
@@ -118,7 +117,7 @@ public class DelegateTest {
                 Buffer.buffer(VALID_DYNAMIC_HEADERS_DELEGATE));
 
         CustomHttpServerRequest request = new CustomHttpServerRequest("/gateleen/playground/foobar", HttpMethod.PUT,
-                new CaseInsensitiveHeaders()
+                MultiMap.caseInsensitiveMultiMap()
                         .set("x-cow", "mooooh")
                         .set("x-bar", "hello")
                         .set("x-remove_me", "world")
@@ -126,18 +125,17 @@ public class DelegateTest {
 
         delegate.handle(request);
 
-        ArgumentCaptor<VertxHttpHeaders> headersArgumentCaptor = ArgumentCaptor.forClass(VertxHttpHeaders.class);
+        ArgumentCaptor<HeadersMultiMap> headersArgumentCaptor = ArgumentCaptor.forClass(HeadersMultiMap.class);
 
         verify(clientRequestCreator, times(1)).createClientRequest(
                 eq(HttpMethod.POST),
                 eq("/gateleen/server/v1/copy"),
                 headersArgumentCaptor.capture(),
                 anyLong(),
-                any(Handler.class),
                 any(Handler.class)
         );
 
-        VertxHttpHeaders delegateRequestHeaders = headersArgumentCaptor.getValue();
+        HeadersMultiMap delegateRequestHeaders = headersArgumentCaptor.getValue();
 
         context.assertNotNull(delegateRequestHeaders);
         context.assertEquals(3, delegateRequestHeaders.size());

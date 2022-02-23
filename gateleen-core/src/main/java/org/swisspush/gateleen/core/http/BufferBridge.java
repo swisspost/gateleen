@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.core.http;
 
+import io.vertx.core.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.vertx.core.Handler;
@@ -64,7 +65,7 @@ public class BufferBridge {
         }
     }
 
-    protected void doEnd() {
+    protected Future<Void> doEnd() {
         ended = true;
         if(endHandler != null && queue.isEmpty()) {
             log.trace("Ending handler directly");
@@ -78,6 +79,7 @@ public class BufferBridge {
             endHandler = null;
             dataHandler = null;
         }
+        return Future.succeededFuture();
     }
 
     public void setDataHandler(Handler<Buffer> dataHandler) {

@@ -3,7 +3,7 @@ package org.swisspush.gateleen.logging;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -201,7 +201,7 @@ public class LoggingHandler {
             EventBusAppender.setEventBus(eventBus);
             appender.setName(filterDestination);
             appender.setAddress(destinationOptions.get(ADDRESS));
-            appender.setDeliveryOptionsHeaders(new CaseInsensitiveHeaders().add(META_DATA, destinationOptions.get(META_DATA)));
+            appender.setDeliveryOptionsHeaders(MultiMap.caseInsensitiveMultiMap().add(META_DATA, destinationOptions.get(META_DATA)));
             appender.setTransmissionMode(EventBusWriter.TransmissionMode.fromString(destinationOptions.get(TRANSMISSION)));
             EnhancedPatternLayout layout = new EnhancedPatternLayout();
             layout.setConversionPattern("%m%n");

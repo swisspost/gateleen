@@ -4,7 +4,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -44,7 +44,7 @@ public class AuthorizerTest {
     private Authorizer authorizer;
     private Vertx vertx;
     private MockResourceStorage storage;
-    private CaseInsensitiveHeaders headers;
+    private MultiMap headers;
 
     private Map<String, Object> properties = new HashMap<>();
 
@@ -65,7 +65,7 @@ public class AuthorizerTest {
         setupAcls();
         properties.put("STAGE", "int");
         authorizer = new Authorizer(vertx, storage, "/gateleen/server/security/v1/", ROLE_PATTERN, ROLE_PREFIX, properties);
-        headers = new CaseInsensitiveHeaders();
+        headers = MultiMap.caseInsensitiveMultiMap();
     }
 
     @Test
@@ -78,7 +78,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result()); // false means that the request must not be handled anymore
         });
@@ -97,7 +97,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result()); // false means that the request must not be handled anymore
         });
@@ -116,7 +116,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.DELETE, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result()); // false means that the request must not be handled anymore
         });
@@ -136,7 +136,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result()); // false means that the request must not be handled anymore
         });
@@ -153,7 +153,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
         });
@@ -168,7 +168,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.DELETE, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result());
         });
@@ -184,7 +184,7 @@ public class AuthorizerTest {
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers,
                 "{}", response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result());
         });
@@ -200,7 +200,7 @@ public class AuthorizerTest {
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers,
                 "{invalidJson}", response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result());
         });
@@ -219,7 +219,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
         });
@@ -234,7 +234,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
         });
@@ -251,7 +251,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result()); // false means that the request must not be handled anymore
         });
@@ -270,7 +270,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result()); // false means that the request must not be handled anymore
         });
@@ -291,7 +291,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
         });
@@ -310,7 +310,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.PUT, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
             Set<String> roles = new RoleExtractor().extractRoles(req);
@@ -333,7 +333,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
         });
@@ -351,7 +351,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
         });
@@ -369,7 +369,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
         });
@@ -391,18 +391,18 @@ public class AuthorizerTest {
          */
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result()); // user batman should be authorized
 
             /*
              * test again with another user and check whether the pattern is updated for every request
              */
-            CaseInsensitiveHeaders headers2 = new CaseInsensitiveHeaders();
+            MultiMap headers2 = MultiMap.caseInsensitiveMultiMap();
             headers2.add("x-user", "robin");
             headers2.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");  // no admin role!
             AuthorizerRequest req2 = new AuthorizerRequest(HttpMethod.GET, requestUri, headers2, response);
-            authorizer.authorize(req2).setHandler(event2 -> {
+            authorizer.authorize(req2).onComplete(event2 -> {
                 context.assertTrue(event2.succeeded());
                 context.assertFalse(event2.result()); // user robin should not be authorized
             });
@@ -421,7 +421,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
         });
@@ -439,7 +439,7 @@ public class AuthorizerTest {
         DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
         AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET, requestUri, headers, response);
 
-        authorizer.authorize(req).setHandler(event -> {
+        authorizer.authorize(req).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result()); // false => not authorized
         });
@@ -472,15 +472,15 @@ public class AuthorizerTest {
         private final String uri;
         private final HttpMethod method;
         private final String body;
-        private final CaseInsensitiveHeaders headers;
+        private final MultiMap headers;
         private final HttpServerResponse response;
 
-        AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
+        AuthorizerRequest(HttpMethod method, String uri, MultiMap headers,
                           HttpServerResponse response) {
             this(method, uri, headers, "", response);
         }
 
-        AuthorizerRequest(HttpMethod method, String uri, CaseInsensitiveHeaders headers,
+        AuthorizerRequest(HttpMethod method, String uri, MultiMap headers,
                           String body, HttpServerResponse response) {
             this.method = method;
             this.uri = uri;

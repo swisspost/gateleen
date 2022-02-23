@@ -6,8 +6,9 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.redis.RedisClient;
-import io.vertx.redis.RedisOptions;
+import io.vertx.redis.client.RedisAPI;
+import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.impl.RedisClient;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -17,7 +18,6 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Tuple;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -45,7 +45,7 @@ public class RedisReducedPropagationStorageTest {
     @BeforeClass
     public static void setupStorage() {
         vertx = Vertx.vertx();
-        storage = new RedisReducedPropagationStorage(RedisClient.create(vertx, new RedisOptions()));
+        storage = new RedisReducedPropagationStorage(RedisAPI.api(new RedisClient(vertx, new RedisOptions())));
     }
 
     @Before
@@ -62,7 +62,7 @@ public class RedisReducedPropagationStorageTest {
     public void testGetQueueRequestInvalidParam(TestContext context){
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
-        storage.getQueueRequest(null).setHandler(event -> {
+        storage.getQueueRequest(null).onComplete(event -> {
             context.assertFalse(event.succeeded());
             context.assertEquals("Queue is not allowed to be empty", event.cause().getMessage());
             async.complete();
@@ -73,7 +73,7 @@ public class RedisReducedPropagationStorageTest {
     public void testGetQueueRequestNotExisting(TestContext context){
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
-        storage.getQueueRequest("queue_1").setHandler(event -> {
+        storage.getQueueRequest("queue_1").onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertNull(event.result());
             async.complete();
@@ -87,7 +87,7 @@ public class RedisReducedPropagationStorageTest {
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
         JsonObject expected = new JsonObject().put("myKey", 12345);
         jedis.hset(QUEUE_REQUESTS, "queue_1", expected.encode());
-        storage.getQueueRequest("queue_1").setHandler(event -> {
+        storage.getQueueRequest("queue_1").onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(expected, event.result());
             async.complete();
@@ -99,7 +99,7 @@ public class RedisReducedPropagationStorageTest {
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
         jedis.hset(QUEUE_REQUESTS, "queue_1", "not_a_json_value");
-        storage.getQueueRequest("queue_1").setHandler(event -> {
+        storage.getQueueRequest("queue_1").onComplete(event -> {
             context.assertFalse(event.succeeded());
             context.assertEquals("Failed to decode queue request for queue 'queue_1'. Got this from storage: not_a_json_value", event.cause().getMessage());
             async.complete();
@@ -110,7 +110,7 @@ public class RedisReducedPropagationStorageTest {
     public void testStoreQueueRequestInvalidQueueParam(TestContext context){
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
-        storage.storeQueueRequest(null, new JsonObject()).setHandler(event -> {
+        storage.storeQueueRequest(null, new JsonObject()).onComplete(event -> {
             context.assertFalse(event.succeeded());
             context.assertEquals("Queue is not allowed to be empty", event.cause().getMessage());
             context.assertFalse(jedis.exists(QUEUE_REQUESTS));
@@ -122,7 +122,7 @@ public class RedisReducedPropagationStorageTest {
     public void testStoreQueueRequestInvalidRequestParam(TestContext context){
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
-        storage.storeQueueRequest("queue_1", null).setHandler(event -> {
+        storage.storeQueueRequest("queue_1", null).onComplete(event -> {
             context.assertFalse(event.succeeded());
             context.assertEquals("Request is not allowed to be empty", event.cause().getMessage());
             context.assertFalse(jedis.exists(QUEUE_REQUESTS));
@@ -135,7 +135,7 @@ public class RedisReducedPropagationStorageTest {
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
         JsonObject request = new JsonObject().put("key1", 1234).put("key2", "abcd");
-        storage.storeQueueRequest("queue_1", request).setHandler(event -> {
+        storage.storeQueueRequest("queue_1", request).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(jedis.exists(QUEUE_REQUESTS));
             context.assertTrue(jedis.hexists(QUEUE_REQUESTS, "queue_1"));
@@ -148,7 +148,7 @@ public class RedisReducedPropagationStorageTest {
     public void testRemoveQueueRequestInvalidQueueParam(TestContext context){
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
-        storage.removeQueueRequest(null).setHandler(event -> {
+        storage.removeQueueRequest(null).onComplete(event -> {
             context.assertFalse(event.succeeded());
             context.assertEquals("Queue is not allowed to be empty", event.cause().getMessage());
             context.assertFalse(jedis.exists(QUEUE_REQUESTS));
@@ -160,7 +160,7 @@ public class RedisReducedPropagationStorageTest {
     public void testRemoveQueueRequestHashNotExisting(TestContext context){
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
-        storage.removeQueueRequest("not_existing_queue").setHandler(event -> {
+        storage.removeQueueRequest("not_existing_queue").onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(jedis.exists(QUEUE_REQUESTS));
             async.complete();
@@ -172,7 +172,7 @@ public class RedisReducedPropagationStorageTest {
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_REQUESTS));
         jedis.hset(QUEUE_REQUESTS, "some_other_queue", new JsonObject().encode());
-        storage.removeQueueRequest("not_existing_queue").setHandler(event -> {
+        storage.removeQueueRequest("not_existing_queue").onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(jedis.exists(QUEUE_REQUESTS));
             context.assertTrue(jedis.hexists(QUEUE_REQUESTS, "some_other_queue"));
@@ -188,7 +188,7 @@ public class RedisReducedPropagationStorageTest {
         jedis.hset(QUEUE_REQUESTS, "queue_1", new JsonObject().encode());
 
         context.assertTrue(jedis.hexists(QUEUE_REQUESTS, "queue_1"));
-        storage.removeQueueRequest("queue_1").setHandler(event -> {
+        storage.removeQueueRequest("queue_1").onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(jedis.exists(QUEUE_REQUESTS));
             context.assertTrue(jedis.hexists(QUEUE_REQUESTS, "some_other_queue"));
@@ -201,7 +201,7 @@ public class RedisReducedPropagationStorageTest {
     public void testAddQueue(TestContext context) {
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_TIMERS));
-        storage.addQueue("queue_1", 10).setHandler(event -> {
+        storage.addQueue("queue_1", 10).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
             context.assertTrue(jedis.exists(QUEUE_TIMERS));
@@ -217,7 +217,7 @@ public class RedisReducedPropagationStorageTest {
     public void testAddQueueNoDuplicates(TestContext context) {
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_TIMERS));
-        storage.addQueue("queue_1", 10).setHandler(event -> {
+        storage.addQueue("queue_1", 10).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
             context.assertTrue(jedis.exists(QUEUE_TIMERS));
@@ -226,7 +226,7 @@ public class RedisReducedPropagationStorageTest {
             expectedTuples.add(new Tuple("queue_1", 10.0));
             assertQueuesTimersSetContent(1, expectedTuples);
 
-            storage.addQueue("queue_1", 20).setHandler(event1 -> {
+            storage.addQueue("queue_1", 20).onComplete(event1 -> {
                 context.assertTrue(event1.succeeded());
                 context.assertFalse(event1.result());
                 context.assertTrue(jedis.exists(QUEUE_TIMERS));
@@ -245,10 +245,10 @@ public class RedisReducedPropagationStorageTest {
         jedis.zadd(QUEUE_TIMERS, 20, "queue_2");
         jedis.zadd(QUEUE_TIMERS, 25, "queue_3");
 
-        storage.removeExpiredQueues(10).setHandler(event -> {
+        storage.removeExpiredQueues(10).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertNotNull(event.result());
-            context.assertEquals(Collections.emptyList(), event.result());
+            context.assertEquals(0, event.result().size());
 
             Set<Tuple> expected = new HashSet<>();
             expected.add(new Tuple("queue_1", 15.0));
@@ -271,11 +271,12 @@ public class RedisReducedPropagationStorageTest {
         jedis.zadd(QUEUE_TIMERS, 50, "queue_4");
         jedis.zadd(QUEUE_TIMERS, 75, "queue_5");
 
-        storage.removeExpiredQueues(20).setHandler(event -> {
+        storage.removeExpiredQueues(20).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertNotNull(event.result());
-            context.assertEquals(Arrays.asList("queue_1", "queue_2"), event.result());
-
+            context.assertEquals(2, event.result().size());
+            context.assertEquals("queue_1", event.result().get(0).toString());
+            context.assertEquals("queue_2", event.result().get(1).toString());
             Set<Tuple> expected = new HashSet<>();
             expected.add(new Tuple("queue_3", 25.0));
             expected.add(new Tuple("queue_4", 50.0));
@@ -295,10 +296,13 @@ public class RedisReducedPropagationStorageTest {
         jedis.zadd(QUEUE_TIMERS, 20, "queue_2");
         jedis.zadd(QUEUE_TIMERS, 25, "queue_3");
 
-        storage.removeExpiredQueues(50).setHandler(event -> {
+        storage.removeExpiredQueues(50).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertNotNull(event.result());
-            context.assertEquals(Arrays.asList("queue_1", "queue_2", "queue_3"), event.result());
+            context.assertEquals(3, event.result().size());
+            context.assertEquals("queue_1", event.result().get(0).toString());
+            context.assertEquals("queue_2", event.result().get(1).toString());
+            context.assertEquals("queue_3", event.result().get(2).toString());
 
             assertQueuesTimersSetContent(0, Collections.emptySet());
 

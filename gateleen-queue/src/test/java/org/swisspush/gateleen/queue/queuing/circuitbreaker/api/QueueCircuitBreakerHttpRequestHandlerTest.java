@@ -53,7 +53,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(anyString()))
                 .thenReturn(Future.succeededFuture(QueueCircuitState.HALF_OPEN));
 
-        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitStatusOperation("someCircuit"),
+        vertx.eventBus().request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitStatusOperation("someCircuit"),
                 (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     JsonObject replyBody = reply.result().body();
                     context.assertEquals(OK, replyBody.getString(STATUS));
@@ -69,7 +69,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(anyString()))
                 .thenReturn(Future.failedFuture("unable to get state"));
 
-        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitStatusOperation("someCircuit"),
+        vertx.eventBus().request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitStatusOperation("someCircuit"),
                 (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     JsonObject replyBody = reply.result().body();
                     context.assertEquals(ERROR, replyBody.getString(STATUS));
@@ -91,7 +91,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitInformation(anyString()))
                 .thenReturn(Future.succeededFuture(result));
 
-        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitInformationOperation("someCircuit"),
+        vertx.eventBus().request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitInformationOperation("someCircuit"),
                 (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     JsonObject replyBody = reply.result().body();
                     context.assertEquals(OK, replyBody.getString(STATUS));
@@ -110,7 +110,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitInformation(anyString()))
                 .thenReturn(Future.failedFuture("failed to get information"));
 
-        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitInformationOperation("someCircuit"),
+        vertx.eventBus().request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitInformationOperation("someCircuit"),
                 (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     JsonObject replyBody = reply.result().body();
                     context.assertEquals(ERROR, replyBody.getString(STATUS));
@@ -125,7 +125,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         Mockito.when(queueCircuitBreakerStorage.closeCircuit(any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.succeededFuture());
 
-        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseCircuitOperation("someCircuit"),
+        vertx.eventBus().request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseCircuitOperation("someCircuit"),
                 (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     JsonObject replyBody = reply.result().body();
                     context.assertEquals(OK, replyBody.getString(STATUS));
@@ -140,7 +140,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         Mockito.when(queueCircuitBreakerStorage.closeCircuit(any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.failedFuture("unable to close circuit"));
 
-        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseCircuitOperation("someCircuit"),
+        vertx.eventBus().request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseCircuitOperation("someCircuit"),
                 (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     JsonObject replyBody = reply.result().body();
                     context.assertEquals(ERROR, replyBody.getString(STATUS));
@@ -156,7 +156,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         Mockito.when(queueCircuitBreakerStorage.closeAllCircuits())
                 .thenReturn(Future.succeededFuture());
 
-        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseAllCircuitsOperation(),
+        vertx.eventBus().request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseAllCircuitsOperation(),
                 (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     JsonObject replyBody = reply.result().body();
                     context.assertEquals(OK, replyBody.getString(STATUS));
@@ -171,7 +171,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         Mockito.when(queueCircuitBreakerStorage.closeAllCircuits())
                 .thenReturn(Future.failedFuture("unable to close all circuits"));
 
-        vertx.eventBus().send(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseAllCircuitsOperation(),
+        vertx.eventBus().request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseAllCircuitsOperation(),
                 (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     JsonObject replyBody = reply.result().body();
                     context.assertEquals(ERROR, replyBody.getString(STATUS));

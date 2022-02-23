@@ -1,11 +1,12 @@
 package org.swisspush.gateleen.core.http;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.*;
-import io.vertx.core.streams.ReadStream;
 
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -15,507 +16,22 @@ import java.util.function.Function;
  */
 public abstract class AbstractHttpClient implements HttpClient {
 
-    protected abstract HttpClientRequest doRequest(HttpMethod method, String uri, Handler<HttpClientResponse> responseHandler);
+    protected abstract HttpClientRequest doRequest(HttpMethod method, String uri);
 
-    @Override
-    public HttpClient getNow(String uri, Handler<HttpClientResponse> responseHandler) {
-        getNow(uri, null, responseHandler);
-        return this;
+    public HttpClientRequest options(String uri) {
+        return doRequest(HttpMethod.OPTIONS, uri);
     }
 
-    @Override
-    public HttpClientRequest post(int port, String host, String requestURI) {
-        throw new UnsupportedOperationException();
+    public HttpClientRequest get(String uri) {
+        return doRequest(HttpMethod.GET, uri);
     }
 
-    @Override
-    public HttpClientRequest post(String host, String requestURI) {
-        throw new UnsupportedOperationException();
+    public HttpClientRequest head(String uri) {
+        return doRequest(HttpMethod.HEAD, uri);
     }
 
-    @Override
-    public HttpClientRequest post(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest post(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest post(String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest options(String uri, Handler<HttpClientResponse> responseHandler) {
-        return doRequest(HttpMethod.OPTIONS, uri, responseHandler);
-    }
-
-    @Override
-    public HttpClientRequest optionsAbs(String absoluteURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest optionsAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient optionsNow(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient optionsNow(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient optionsNow(String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest put(int port, String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest put(String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest put(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest put(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest put(String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest request(HttpMethod method, int port, String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest request(HttpMethod method, String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest request(HttpMethod method, int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        return doRequest(method, requestURI, responseHandler);
-    }
-
-    @Override
-    public HttpClientRequest request(HttpMethod method, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest request(HttpMethod method, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest request(HttpMethod method, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        return doRequest(method, requestURI, responseHandler);
-    }
-
-    @Override
-    public HttpClientRequest requestAbs(HttpMethod method, String absoluteURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest requestAbs(HttpMethod method, String absoluteURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest get(int port, String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest get(String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest get(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest get(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest get(String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest get(String uri, Handler<HttpClientResponse> responseHandler) {
-        return doRequest(HttpMethod.GET, uri, responseHandler);
-    }
-
-    @Override
-    public HttpClientRequest getAbs(String absoluteURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest getAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient getNow(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient getNow(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest head(String uri, Handler<HttpClientResponse> responseHandler) {
-        return doRequest(HttpMethod.HEAD, uri, responseHandler);
-    }
-
-    @Override
-    public HttpClientRequest headAbs(String absoluteURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest headAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient headNow(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient headNow(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient headNow(String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest options(int port, String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest options(String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest options(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest options(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest options(String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest post(String uri, Handler<HttpClientResponse> responseHandler) {
-        return doRequest(HttpMethod.POST, uri, responseHandler);
-    }
-
-    @Override
-    public HttpClientRequest postAbs(String absoluteURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest postAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest head(int port, String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest head(String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest head(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest head(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest head(String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest put(String uri, Handler<HttpClientResponse> responseHandler) {
-        return doRequest(HttpMethod.PUT, uri, responseHandler);
-    }
-
-    @Override
-    public HttpClientRequest putAbs(String absoluteURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest putAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest delete(int port, String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest delete(String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest delete(int port, String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest delete(String host, String requestURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest delete(String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest delete(String uri, Handler<HttpClientResponse> responseHandler) {
-        return doRequest(HttpMethod.DELETE, uri, responseHandler);
-    }
-
-    @Override
-    public HttpClientRequest deleteAbs(String absoluteURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClientRequest deleteAbs(String absoluteURI, Handler<HttpClientResponse> responseHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(int port, String host, String requestURI, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(int port, String host, String requestURI, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String host, String requestURI, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String host, String requestURI, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String host, String requestURI, MultiMap headers, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String host, String requestURI, MultiMap headers, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String host, String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String host, String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String host, String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String host, String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String requestURI, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String requestURI, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String requestURI, MultiMap headers, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String requestURI, MultiMap headers, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String requestURI, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(int port, String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(String host, String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(int port, String host, String requestURI, MultiMap headers) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(String host, String requestURI, MultiMap headers) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(String host, String requestURI, MultiMap headers, WebsocketVersion version) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(int port, String host, String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(String host, String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(String requestURI) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(String requestURI, MultiMap headers) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(String requestURI, MultiMap headers, WebsocketVersion version) {
-        throw new UnsupportedOperationException();
+    public HttpClientRequest post(String uri) {
+        return doRequest(HttpMethod.POST, uri);
     }
 
     @Override
@@ -524,177 +40,113 @@ public abstract class AbstractHttpClient implements HttpClient {
     }
 
     @Override
-    public HttpClientRequest request(HttpMethod method, RequestOptions options) {
+    public HttpClient redirectHandler(Function<HttpClientResponse, Future<RequestOptions>> function) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest request(HttpMethod method, RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public Function<HttpClientResponse, Future<RequestOptions>> redirectHandler() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest get(RequestOptions options) {
+    public void close(Handler<AsyncResult<Void>> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest get(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public Future<Void> close() {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClient getNow(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public void request(RequestOptions requestOptions, Handler<AsyncResult<HttpClientRequest>> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest post(RequestOptions options) {
+    public Future<HttpClientRequest> request(RequestOptions requestOptions) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest post(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public void request(HttpMethod httpMethod, int i, String s, String s1, Handler<AsyncResult<HttpClientRequest>> handler) {
+        Future.succeededFuture(doRequest(httpMethod, s1)).onComplete(handler);
+    }
+
+    @Override
+    public Future<HttpClientRequest> request(HttpMethod httpMethod, int i, String s, String s1) {
+        return Future.succeededFuture(doRequest(HttpMethod.GET, s1));
+    }
+
+    @Override
+    public void request(HttpMethod httpMethod, String s, String s1, Handler<AsyncResult<HttpClientRequest>> handler) {
+    }
+
+    @Override
+    public Future<HttpClientRequest> request(HttpMethod httpMethod, String s, String s1) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest head(RequestOptions options) {
+    public void request(HttpMethod method, String requestURI, Handler<AsyncResult<HttpClientRequest>> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest head(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public Future<HttpClientRequest> request(HttpMethod httpMethod, String requestURI) {
+        return Future.succeededFuture(doRequest(httpMethod, requestURI));
+    }
+
+    @Override
+    public void webSocket(int i, String s, String s1, Handler<AsyncResult<WebSocket>> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClient headNow(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public Future<WebSocket> webSocket(int i, String s, String s1) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest options(RequestOptions options) {
+    public void webSocket(String s, String s1, Handler<AsyncResult<WebSocket>> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest options(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public Future<WebSocket> webSocket(String s, String s1) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClient optionsNow(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public void webSocket(String s, Handler<AsyncResult<WebSocket>> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest put(RequestOptions options) {
+    public Future<WebSocket> webSocket(String s) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest put(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public void webSocket(WebSocketConnectOptions webSocketConnectOptions, Handler<AsyncResult<WebSocket>> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest delete(RequestOptions options) {
+    public Future<WebSocket> webSocket(WebSocketConnectOptions webSocketConnectOptions) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClientRequest delete(RequestOptions options, Handler<HttpClientResponse> responseHandler) {
+    public void webSocketAbs(String s, MultiMap multiMap, WebsocketVersion websocketVersion, List<String> list, Handler<AsyncResult<WebSocket>> handler) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpClient websocket(RequestOptions options, Handler<WebSocket> wsConnect) {
+    public Future<WebSocket> webSocketAbs(String s, MultiMap multiMap, WebsocketVersion websocketVersion, List<String> list) {
         throw new UnsupportedOperationException();
     }
-
-    @Override
-    public HttpClient websocket(RequestOptions options, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(RequestOptions options, MultiMap headers, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(RequestOptions options, MultiMap headers, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(RequestOptions options, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(RequestOptions options, MultiMap headers, WebsocketVersion version, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(RequestOptions options, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocketAbs(String url, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient websocket(RequestOptions options, MultiMap headers, WebsocketVersion version, String subProtocols, Handler<WebSocket> wsConnect, Handler<Throwable> failureHandler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(RequestOptions options) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(RequestOptions options, MultiMap headers) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(RequestOptions options, MultiMap headers, WebsocketVersion version) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStreamAbs(String url, MultiMap headers, WebsocketVersion version, String subProtocols) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(RequestOptions options, MultiMap headers, WebsocketVersion version, String subProtocols) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpClient redirectHandler(Function<HttpClientResponse, Future<HttpClientRequest>> handler) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Function<HttpClientResponse, Future<HttpClientRequest>> redirectHandler() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ReadStream<WebSocket> websocketStream(String requestURI, MultiMap headers, WebsocketVersion version, String subProtocols) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void close() {}
 
     @Override
     public boolean isMetricsEnabled() {

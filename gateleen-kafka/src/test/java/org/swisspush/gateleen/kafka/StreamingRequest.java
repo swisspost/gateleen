@@ -3,10 +3,10 @@ package org.swisspush.gateleen.kafka;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 
 public class StreamingRequest extends DummyHttpServerRequest {
@@ -18,7 +18,7 @@ public class StreamingRequest extends DummyHttpServerRequest {
     private final HttpServerResponse response;
 
     StreamingRequest(HttpMethod method, String uri) {
-        this(method, uri, "", new CaseInsensitiveHeaders(), new StreamingResponse());
+        this(method, uri, "", new HeadersMultiMap(), new StreamingResponse());
     }
 
     StreamingRequest(HttpMethod method, String uri, String body, MultiMap headers, HttpServerResponse response) {

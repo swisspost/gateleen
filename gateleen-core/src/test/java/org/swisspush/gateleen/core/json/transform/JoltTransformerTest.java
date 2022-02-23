@@ -74,7 +74,7 @@ public class JoltTransformerTest {
 
     @Test
     public void testTransformInputNull(TestContext context) {
-        JoltTransformer.transform(null, identitySpec).setHandler(transform -> {
+        JoltTransformer.transform(null, identitySpec).onComplete(transform -> {
             context.assertFalse(transform.succeeded());
             context.assertNull(transform.result());
             context.assertEquals(NullPointerException.class, transform.cause().getClass());
@@ -83,7 +83,7 @@ public class JoltTransformerTest {
 
     @Test
     public void testTransformInputEmptyString(TestContext context) {
-        JoltTransformer.transform("", identitySpec).setHandler(transform -> {
+        JoltTransformer.transform("", identitySpec).onComplete(transform -> {
             context.assertFalse(transform.succeeded());
             context.assertNull(transform.result());
             context.assertEquals(JsonUnmarshalException.class, transform.cause().getClass());
@@ -92,7 +92,7 @@ public class JoltTransformerTest {
 
     @Test
     public void testTransformInputNotJsonString(TestContext context) {
-        JoltTransformer.transform("abcd", identitySpec).setHandler(transform -> {
+        JoltTransformer.transform("abcd", identitySpec).onComplete(transform -> {
             context.assertFalse(transform.succeeded());
             context.assertNull(transform.result());
             context.assertEquals(JsonUnmarshalException.class, transform.cause().getClass());
@@ -109,7 +109,7 @@ public class JoltTransformerTest {
 
     @Test
     public void testTransformInputSpecNull(TestContext context) {
-        JoltTransformer.transform("{}", null).setHandler(transform -> {
+        JoltTransformer.transform("{}", null).onComplete(transform -> {
             context.assertFalse(transform.succeeded());
             context.assertNull(transform.result());
             context.assertEquals(NullPointerException.class, transform.cause().getClass());
@@ -118,7 +118,7 @@ public class JoltTransformerTest {
 
     @Test
     public void testTransformInputSpecInvalid(TestContext context) {
-        JoltTransformer.transform("{}", new JoltSpec(null)).setHandler(transform -> {
+        JoltTransformer.transform("{}", new JoltSpec(null)).onComplete(transform -> {
             context.assertFalse(transform.succeeded());
             context.assertNull(transform.result());
             context.assertEquals(NullPointerException.class, transform.cause().getClass());
@@ -164,7 +164,7 @@ public class JoltTransformerTest {
 
     @Test
     public void testTransformWithMetadata(TestContext context) {
-        JoltTransformer.transform(TRANSFORM_WITH_METADATA_INPUT_JSON, transformWithMetadataSpec).setHandler(transform -> {
+        JoltTransformer.transform(TRANSFORM_WITH_METADATA_INPUT_JSON, transformWithMetadataSpec).onComplete(transform -> {
             context.assertTrue(transform.succeeded());
             context.assertNotNull(transform.result());
             context.assertEquals(new JsonObject(TRANSFORM_WITH_METADATA_EXPECTED_OUTPUT_JSON), transform.result());

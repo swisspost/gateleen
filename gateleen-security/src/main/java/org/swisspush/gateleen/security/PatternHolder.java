@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.security;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +19,7 @@ public class PatternHolder {
     private String patternStr;
 
     private static final Pattern WILDCARD_PATTERN = Pattern.compile("[<](.+?)[>]");
-    private static final MultiMap EMPTY_HEADERS = new CaseInsensitiveHeaders();
+    private static final MultiMap EMPTY_HEADERS = MultiMap.caseInsensitiveMultiMap();
 
     public PatternHolder(String patternStr) {
         super();

@@ -17,7 +17,7 @@ import static org.hamcrest.Matchers.containsString;
 
 /**
  * Test class for dynamic ports in routing rules.
- * 
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 @RunWith(VertxUnitRunner.class)
@@ -73,10 +73,11 @@ public class DynamicPortForwardTest extends AbstractTest {
         TestUtils.putRoutingRules(rules);
 
         // result should be 404 because forwarding is correct but no data on this path
-        when().get("/tests/gateleen/"+AbstractTest.MAIN_PORT+"/res/abc").then().assertThat().statusCode(404);
+        when().get("/tests/gateleen/" + AbstractTest.MAIN_PORT + "/res/abc").then().assertThat().statusCode(404);
 
         async.complete();
     }
+
 
     @Test
     public void testValidPortWildcardServiceUnavailable(TestContext context) {

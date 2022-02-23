@@ -4,7 +4,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -114,7 +114,7 @@ public abstract class ConfigurationResourceTestBase {
             return path;
         }
 
-        @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+        @Override public MultiMap headers() { return MultiMap.caseInsensitiveMultiMap(); }
 
         @Override public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
             bodyHandler.handle(Buffer.buffer(body));

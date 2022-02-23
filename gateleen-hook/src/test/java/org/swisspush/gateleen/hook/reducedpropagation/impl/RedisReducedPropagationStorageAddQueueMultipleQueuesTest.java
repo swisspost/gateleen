@@ -5,8 +5,9 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.redis.RedisClient;
-import io.vertx.redis.RedisOptions;
+import io.vertx.redis.client.RedisAPI;
+import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.impl.RedisClient;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -44,7 +45,7 @@ public class RedisReducedPropagationStorageAddQueueMultipleQueuesTest {
     @BeforeClass
     public static void setupStorage() {
         vertx = Vertx.vertx();
-        storage = new RedisReducedPropagationStorage(RedisClient.create(vertx, new RedisOptions()));
+        storage = new RedisReducedPropagationStorage(RedisAPI.api(new RedisClient(vertx, new RedisOptions())));
     }
 
     @Before
@@ -61,7 +62,7 @@ public class RedisReducedPropagationStorageAddQueueMultipleQueuesTest {
     public void testAddQueueMultipleQueues(TestContext context) {
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_TIMERS));
-        storage.addQueue("queue_1", 10).setHandler(event -> {
+        storage.addQueue("queue_1", 10).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
             context.assertTrue(jedis.exists(QUEUE_TIMERS));
@@ -71,7 +72,7 @@ public class RedisReducedPropagationStorageAddQueueMultipleQueuesTest {
             assertQueuesTimersSetContent(1, expected_1);
 
             // add a new (other) queue. This should be added
-            storage.addQueue("queue_2", 20).setHandler(event2 -> {
+            storage.addQueue("queue_2", 20).onComplete(event2 -> {
                 context.assertTrue(event2.succeeded());
                 context.assertTrue(event2.result());
                 context.assertTrue(jedis.exists(QUEUE_TIMERS));
@@ -82,7 +83,7 @@ public class RedisReducedPropagationStorageAddQueueMultipleQueuesTest {
                 assertQueuesTimersSetContent(2, expected_2);
 
                 // add a new (other) queue. This should be added
-                storage.addQueue("queue_3", 5).setHandler(event3 -> {
+                storage.addQueue("queue_3", 5).onComplete(event3 -> {
                     context.assertTrue(event3.succeeded());
                     context.assertTrue(event3.result());
                     context.assertTrue(jedis.exists(QUEUE_TIMERS));
@@ -94,7 +95,7 @@ public class RedisReducedPropagationStorageAddQueueMultipleQueuesTest {
                     assertQueuesTimersSetContent(3, expected_3);
 
                     // add an already existing queue. This should NOT be added
-                    storage.addQueue("queue_1", 50).setHandler(event4 -> {
+                    storage.addQueue("queue_1", 50).onComplete(event4 -> {
                         context.assertTrue(event4.succeeded());
                         context.assertFalse(event4.result());
                         context.assertTrue(jedis.exists(QUEUE_TIMERS));

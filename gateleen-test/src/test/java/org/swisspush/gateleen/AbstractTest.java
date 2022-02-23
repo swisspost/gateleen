@@ -12,8 +12,9 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.RedisClient;
-import io.vertx.redis.RedisOptions;
+import io.vertx.redis.client.RedisAPI;
+import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.impl.RedisClient;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -137,13 +138,14 @@ public abstract class AbstractTest {
 
         RunConfig.deployModules(vertx, AbstractTest.class, props, success -> {
             if (success) {
-                RedisClient redisClient = RedisClient.create(vertx, new RedisOptions().setHost(redisHost).setPort(redisPort));
+                RedisClient redisClient = new RedisClient(vertx, new RedisOptions().setConnectionString("redis://" + redisHost + ":" + redisPort));
+                RedisAPI redisAPI = RedisAPI.api(redisClient);
                 ResourceStorage storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
                 MonitoringHandler monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX);
                 ConfigurationResourceManager configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
 
                 String eventBusConfigurationResource = SERVER_ROOT + "/admin/v1/hookconfig";
-                EventBusHandler eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/*", "event-", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
+                EventBusHandler eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/", "event-", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
 
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
 
@@ -155,12 +157,12 @@ public abstract class AbstractTest {
                 Lock lock = new RedisBasedLock(redisClient);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
-                ReducedPropagationManager reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient), queueClient, lock);
+                ReducedPropagationManager reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisAPI), queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(1000);
                 hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
                         SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/", queueClient, false, reducedPropagationManager);
                 propertyHandler = new PropertyHandler(ROOT, props);
-                schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
+                schedulerResourceManager = new SchedulerResourceManager(vertx, redisAPI, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
                 ResetMetricsController resetMetricsController = new ResetMetricsController(vertx);
                 resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
                 LogController logController = new LogController();
@@ -171,7 +173,7 @@ public abstract class AbstractTest {
 
                 cacheHandler = new CacheHandler(
                         new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient)),
-                        new RedisCacheStorage(vertx, lock, redisClient, 60000),
+                        new RedisCacheStorage(vertx, lock, redisAPI, 60000),
                         SERVER_ROOT + "/cache");
 
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
@@ -181,7 +183,7 @@ public abstract class AbstractTest {
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
                 QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
-                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
+                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisAPI);
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
@@ -192,7 +194,7 @@ public abstract class AbstractTest {
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
 
-                new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
+                new CustomRedisMonitor(vertx, redisAPI, "main", "rest-storage", 10).start();
                 Router router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient,
                         SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules",
                         SERVER_ROOT + "/users/v1/%s/profile", info, STORAGE_PORT,
@@ -210,7 +212,7 @@ public abstract class AbstractTest {
                         RunConfig.with()
                                 .cacheHandler(cacheHandler)
                                 .corsHandler(new CORSHandler())
-                                .deltaHandler(new DeltaHandler(redisClient, selfClient, ruleProvider))
+                                .deltaHandler(new DeltaHandler(redisAPI, selfClient, ruleProvider))
                                 .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))
                                 .hookHandler(hookHandler)
                                 .qosHandler(qosHandler)
@@ -227,14 +229,14 @@ public abstract class AbstractTest {
                                 .delegateHandler(delegateHandler)
                                 .mergeHandler(mergeHandler)
                                 .customHttpResponseHandler(customHttpResponseHandler)
-                                .build(vertx, redisClient, AbstractTest.class, router, monitoringHandler, queueBrowser);
+                                .build(vertx, redisAPI, AbstractTest.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
                 mainServer = vertx.createHttpServer();
                 io.vertx.ext.web.Router vertxRouter = io.vertx.ext.web.Router.router(vertx);
                 eventBusHandler.install(vertxRouter);
                 vertxRouter.route().handler(routingContextHandlerrNew);
-                mainServer.requestHandler(vertxRouter::accept);
+                mainServer.requestHandler(vertxRouter);
                 mainServer.listen(MAIN_PORT, event -> {
                     if (event.succeeded()) {
                         async.complete();

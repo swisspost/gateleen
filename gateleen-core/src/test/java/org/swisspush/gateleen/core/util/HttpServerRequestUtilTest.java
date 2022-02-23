@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -28,7 +28,7 @@ public class HttpServerRequestUtilTest {
 
     @Test
     public void testIncreaseRequestHops(TestContext context){
-        IncreaseHopsRequest request = new IncreaseHopsRequest(new CaseInsensitiveHeaders());
+        IncreaseHopsRequest request = new IncreaseHopsRequest(MultiMap.caseInsensitiveMultiMap());
 
         context.assertFalse(HttpRequestHeader.containsHeader(request.headers(), HttpRequestHeader.X_HOPS),
                 "x-hops header should not be present yet");
@@ -51,12 +51,12 @@ public class HttpServerRequestUtilTest {
 
     @Test
     public void testIsRequestHopsLimitExceeded(TestContext context){
-        IncreaseHopsRequest request = new IncreaseHopsRequest(new CaseInsensitiveHeaders());
+        IncreaseHopsRequest request = new IncreaseHopsRequest(MultiMap.caseInsensitiveMultiMap());
         context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 0));
         context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 1));
         context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 20));
 
-        request = new IncreaseHopsRequest(new CaseInsensitiveHeaders().set(HttpRequestHeader.X_HOPS.getName(), "25"));
+        request = new IncreaseHopsRequest(MultiMap.caseInsensitiveMultiMap().set(HttpRequestHeader.X_HOPS.getName(), "25"));
         context.assertTrue(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 0));
         context.assertTrue(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 1));
         context.assertTrue(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 15));
@@ -67,7 +67,7 @@ public class HttpServerRequestUtilTest {
 
         context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, null));
 
-        request = new IncreaseHopsRequest(new CaseInsensitiveHeaders().set(HttpRequestHeader.X_HOPS.getName(), "booom"));
+        request = new IncreaseHopsRequest(MultiMap.caseInsensitiveMultiMap().set(HttpRequestHeader.X_HOPS.getName(), "booom"));
         context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 0));
         context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 1));
         context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 10));
@@ -99,11 +99,31 @@ public class HttpServerRequestUtilTest {
                 public String host() { return host; }
 
                 @Override
+                public String hostName() {
+                    return host;
+                }
+
+                @Override
+                public String hostAddress() {
+                    return null;
+                }
+
+                @Override
                 public int port() { return 0; }
 
                 @Override
                 public String path() {
                     return null;
+                }
+
+                @Override
+                public boolean isInetSocket() {
+                    return false;
+                }
+
+                @Override
+                public boolean isDomainSocket() {
+                    return false;
                 }
             };
         }

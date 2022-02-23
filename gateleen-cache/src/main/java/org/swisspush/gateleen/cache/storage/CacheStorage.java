@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.cache.storage;
 
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 
 import java.time.Duration;

@@ -1,11 +1,14 @@
 package org.swisspush.gateleen.cache.storage;
 
-import io.vertx.core.Future;
-import io.vertx.redis.RedisClient;
+import io.vertx.core.Promise;
+import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
+import org.swisspush.gateleen.core.util.RedisUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -16,42 +19,43 @@ public class CacheRequestRedisCommand implements RedisCommand {
     private final LuaScriptState luaScriptState;
     private final List<String> keys;
     private final List<String> arguments;
-    private final Future<Void> future;
-    private final RedisClient redisClient;
+    private final Promise<Void> promise;
+    private final RedisAPI redisAPI;
     private final Logger log;
 
     public CacheRequestRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
-                                    RedisClient redisClient, Logger log, final Future<Void> future) {
+                                    RedisAPI redisAPI, Logger log, final Promise<Void> promise) {
         this.luaScriptState = luaScriptState;
         this.keys = keys;
         this.arguments = arguments;
-        this.redisClient = redisClient;
+        this.redisAPI = redisAPI;
         this.log = log;
-        this.future = future;
+        this.promise = promise;
     }
 
     @Override
     public void exec(int executionCounter) {
-        redisClient.evalsha(luaScriptState.getSha(), keys, arguments, event -> {
-            if(event.succeeded()){
-                String resultStr = event.result().getString(0);
-                if("OK".equals(resultStr)){
-                    future.complete();
+        List<String> args= RedisUtils.toPayload(luaScriptState.getSha(), keys.size(), keys, arguments);
+        redisAPI.evalsha(args, event -> {
+            if (event.succeeded()) {
+                String resultStr = event.result().toString();
+                if ("OK".equals(resultStr)) {
+                    promise.complete();
                 } else {
-                    future.fail("Cache request did not return 'OK'");
+                    promise.fail("Cache request did not return 'OK'");
                 }
             } else {
                 String message = event.cause().getMessage();
-                if(message != null && message.startsWith("NOSCRIPT")) {
+                if (message != null && message.startsWith("NOSCRIPT")) {
                     log.warn("CacheRequestRedisCommand script couldn't be found, reload it");
                     log.warn("amount the script got loaded: " + executionCounter);
-                    if(executionCounter > 10) {
-                        future.fail("amount the script got loaded is higher than 10, we abort");
+                    if (executionCounter > 10) {
+                        promise.fail("amount the script got loaded is higher than 10, we abort");
                     } else {
-                        luaScriptState.loadLuaScript(new CacheRequestRedisCommand(luaScriptState, keys, arguments, redisClient, log, future), executionCounter);
+                        luaScriptState.loadLuaScript(new CacheRequestRedisCommand(luaScriptState, keys, arguments, redisAPI, log, promise), executionCounter);
                     }
                 } else {
-                    future.fail("CacheRequestRedisCommand request failed with message: " + message);
+                    promise.fail("CacheRequestRedisCommand request failed with message: " + message);
                 }
             }
         });

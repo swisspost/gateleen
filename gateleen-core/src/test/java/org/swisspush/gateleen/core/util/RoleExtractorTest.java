@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -33,7 +33,7 @@ public class RoleExtractorTest {
     @Test
     public void testExtractRolesNotMatchingPattern(TestContext context) throws Exception {
         context.assertNull(roleExtractor.extractRoles(new TestHttpServerRequest(
-                new CaseInsensitiveHeaders())), "No roles should have been found and returned as null");
+                MultiMap.caseInsensitiveMultiMap())), "No roles should have been found and returned as null");
 
         context.assertTrue(roleExtractor.extractRoles(new TestHttpServerRequest(
                 buildGroupHeaders("grp_1,grp_2,grp_3"))).isEmpty(), "An empty set of roles should have been returned");
@@ -99,13 +99,13 @@ public class RoleExtractorTest {
     }
 
     private MultiMap buildGroupHeaders(String headerValues){
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add(groupHeader, headerValues);
         return headers;
     }
 
     private MultiMap buildRoleHeaders(String headerValues){
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add(roleHeader, headerValues);
         return headers;
     }

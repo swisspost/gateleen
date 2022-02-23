@@ -7,6 +7,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.TestUtils;
 
 import java.util.concurrent.TimeUnit;
 
@@ -97,6 +98,9 @@ public class ExpirationTest extends AbstractTest {
 
     @Test
     public void testPutMultipleBranchesAfterImmediateExpiration(TestContext context) {
+        // wait some seconds
+        TestUtils.waitSomeTime(2);
+
         Async async = context.async();
         delete();
 
@@ -126,6 +130,8 @@ public class ExpirationTest extends AbstractTest {
 
     @Test
     public void testPutWithNoExpiryAfterImmediateExpiration(TestContext context) {
+        // wait some seconds
+        TestUtils.waitSomeTime(2);
         Async async = context.async();
         delete();
 

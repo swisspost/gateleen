@@ -5,7 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -231,7 +231,7 @@ public class QueueCircuitBreakerConfigurationResourceManagerTest {
         @Override public String uri() {
             return CONFIGURATION_URI;
         }
-        @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+        @Override public MultiMap headers() { return MultiMap.caseInsensitiveMultiMap(); }
     }
 
     class MyRefreshable implements Refreshable {
