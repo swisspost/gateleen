@@ -22,7 +22,7 @@ import java.util.Random;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
-@Ignore
+
 public class RuleUpdateTest {
 
     private static final Logger logger = LoggerFactory.getLogger(RuleUpdateTest.class);
