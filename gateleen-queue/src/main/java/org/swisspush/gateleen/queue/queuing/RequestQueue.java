@@ -3,7 +3,6 @@ package org.swisspush.gateleen.queue.queuing;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import org.swisspush.gateleen.core.http.HttpRequest;

@@ -1,11 +1,8 @@
 package org.swisspush.gateleen.hook.reducedpropagation;
 
 import io.vertx.core.Future;
-import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.Response;
-
-import java.util.List;
 
 /**
  * Provides storage access to the reduced propagation feature related data.

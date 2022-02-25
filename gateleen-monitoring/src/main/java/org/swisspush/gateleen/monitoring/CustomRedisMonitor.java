@@ -2,7 +2,6 @@ package org.swisspush.gateleen.monitoring;
 
 import io.vertx.core.Vertx;
 import io.vertx.redis.client.RedisAPI;
-import io.vertx.redis.client.impl.RedisClient;
 
 /**
  * @deprecated Extend the {@link RedisMonitor} in your client source code

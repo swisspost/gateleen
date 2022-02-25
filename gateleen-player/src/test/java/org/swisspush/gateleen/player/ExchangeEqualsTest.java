@@ -1,7 +1,6 @@
 package org.swisspush.gateleen.player;
 
 import com.google.common.collect.Sets;
-import org.json.JSONObject;
 import org.junit.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;

@@ -8,8 +8,6 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitStat
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.UpdateStatisticsResult;
 
-import java.util.List;
-
 /**
  * Provides storage access for the {@link QueueCircuitBreaker}.
  *

@@ -1,7 +1,6 @@
 package org.swisspush.gateleen.core.lock;
 
 import io.vertx.core.Future;
-import io.vertx.core.Promise;
 
 /**
  * Cluster wide locks allow you to obtain exclusive locks across the cluster.

@@ -1,18 +1,14 @@
 package org.swisspush.gateleen.hook.reducedpropagation.lua;
 
-import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.json.JsonArray;
 import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.Response;
 import io.vertx.redis.client.impl.types.MultiType;
 import org.slf4j.Logger;
-import io.vertx.redis.client.impl.RedisClient;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
 import org.swisspush.gateleen.core.util.RedisUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**

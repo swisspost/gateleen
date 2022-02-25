@@ -9,7 +9,6 @@ import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.vertx.redis.client.impl.RedisClient;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationStorage;

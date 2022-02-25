@@ -13,6 +13,7 @@ import io.vertx.redis.client.RedisAPI;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Matchers;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.util.StatusCode;
@@ -23,7 +24,6 @@ import org.swisspush.gateleen.routing.RuleProvider;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -43,7 +43,7 @@ public class DeltaHandlerTest {
             Handler<AsyncResult<Long>> handler = (Handler<AsyncResult<Long>>) invocation.getArguments()[1];
             handler.handle(Future.succeededFuture(555L));
             return null;
-        }).when(redisAPI).incr(eq("delta:sequence"), any());
+        }).when(redisAPI).incr(eq("delta:sequence"), Matchers.any());
 
         requestHeaders = MultiMap.caseInsensitiveMultiMap();
         requestHeaders.add("x-delta", "auto");
@@ -144,8 +144,8 @@ public class DeltaHandlerTest {
         DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider);
         deltaHandler.handle(request, router);
 
-        verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555")), any());
-        verify(redisAPI, never()).setex(any(), any(), any(), any());
+        verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555")), Matchers.any());
+        verify(redisAPI, never()).setex(Matchers.any(), Matchers.any(), Matchers.any(), Matchers.any());
     }
 
     @Test
@@ -155,8 +155,8 @@ public class DeltaHandlerTest {
         DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider);
         deltaHandler.handle(request, router);
 
-        verify(redisAPI, times(1)).setex(eq("delta:resources:a:b:c"), eq("123"), eq("555"), any());
-        verify(redisAPI, never()).set(any(), any());
+        verify(redisAPI, times(1)).setex(eq("delta:resources:a:b:c"), eq("123"), eq("555"), Matchers.any());
+        verify(redisAPI, never()).set(Matchers.any(), Matchers.any());
     }
 
     @Test

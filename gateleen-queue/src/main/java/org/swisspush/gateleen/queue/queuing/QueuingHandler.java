@@ -1,17 +1,16 @@
 package org.swisspush.gateleen.queue.queuing;
 
-import io.vertx.redis.client.RedisAPI;
-import org.swisspush.gateleen.core.util.Address;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import io.vertx.redis.client.RedisAPI;
+import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.duplicate.DuplicateCheckHandler;
-import io.vertx.redis.client.impl.RedisClient;
 
 import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
 

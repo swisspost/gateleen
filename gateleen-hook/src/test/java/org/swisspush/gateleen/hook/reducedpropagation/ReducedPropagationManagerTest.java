@@ -3,14 +3,12 @@ package org.swisspush.gateleen.hook.reducedpropagation;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
-
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.redis.client.Response;
 import io.vertx.redis.client.impl.types.MultiType;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,7 +21,6 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 

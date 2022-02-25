@@ -83,7 +83,7 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
                     } else {
                         StatusCode statusCode = StatusCode.fromCode(cRes.statusCode());
                         if (statusCode == null) {
-                            log.error("Got unkown status code {} while fetching cache data. Using 500 Internal Server Error " +
+                            log.error("Got unknown status code {} while fetching cache data. Using 500 Internal Server Error " +
                                     "instead", cRes.statusCode());
                             statusCode = StatusCode.INTERNAL_SERVER_ERROR;
                         }

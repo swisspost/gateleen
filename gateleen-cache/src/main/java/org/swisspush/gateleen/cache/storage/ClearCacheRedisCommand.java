@@ -7,7 +7,6 @@ import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
 import org.swisspush.gateleen.core.util.RedisUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
