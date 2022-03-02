@@ -23,5 +23,4 @@ public class DummyHttpServerRequest implements FastFailHttpServerRequest {
     @Override public X509Certificate[] peerCertificateChain() throws SSLPeerUnverifiedException {
         return new X509Certificate[0];
     }
-
 }

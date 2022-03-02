@@ -2,16 +2,17 @@ package org.swisspush.gateleen.scheduler;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.vertx.redis.RedisClient;
 import org.swisspush.gateleen.core.http.HttpRequest;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.StringUtils;
-import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.core.validation.ValidationResult;
+import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.Validator;
 
 import java.nio.charset.Charset;
@@ -39,19 +40,19 @@ public class SchedulerFactory {
     private final Map<String, Object> properties;
     private final JsonArray defaultRequestHeaders;
     private Vertx vertx;
-    private RedisClient redisClient;
+    private RedisAPI redisAPI;
     private MonitoringHandler monitoringHandler;
     private String schedulersSchema;
     private String redisquesAddress;
 
     private Logger log = LoggerFactory.getLogger(SchedulerFactory.class);
 
-    public SchedulerFactory(Map<String, Object> properties, Map<String, String> defaultRequestHeaders, Vertx vertx, RedisClient redisClient,
+    public SchedulerFactory(Map<String, Object> properties, Map<String, String> defaultRequestHeaders, Vertx vertx, RedisAPI redisAPI,
                             MonitoringHandler monitoringHandler, String schedulersSchema, String redisquesAddress) {
         this.properties = properties;
         this.defaultRequestHeaders = defaultRequestHeadersAsJsonArray(defaultRequestHeaders);
         this.vertx = vertx;
-        this.redisClient = redisClient;
+        this.redisAPI = redisAPI;
         this.monitoringHandler = monitoringHandler;
         this.schedulersSchema = schedulersSchema;
         this.redisquesAddress = redisquesAddress;
@@ -59,7 +60,7 @@ public class SchedulerFactory {
 
     private JsonArray defaultRequestHeadersAsJsonArray(Map<String, String> defaultRequestHeaders) {
         JsonArray headers = new JsonArray();
-        if(defaultRequestHeaders == null){
+        if (defaultRequestHeaders == null) {
             return headers;
         }
         for (Map.Entry<String, String> entry : defaultRequestHeaders.entrySet()) {
@@ -73,22 +74,22 @@ public class SchedulerFactory {
         String configString;
         try {
             configString = StringUtils.replaceWildcardConfigs(buffer.toString("UTF-8"), properties);
-        } catch(Exception e){
+        } catch (Exception e) {
             throw new ValidationException(e);
         }
 
         ValidationResult validationResult = Validator.validateStatic(Buffer.buffer(configString), schedulersSchema, log);
-        if(!validationResult.isSuccess()){
-            throw new  ValidationException(validationResult);
+        if (!validationResult.isSuccess()) {
+            throw new ValidationException(validationResult);
         }
 
         JsonObject mainObject = new JsonObject(configString);
-        for(Map.Entry<String,Object> entry: mainObject.getJsonObject(SCHEDULERS).getMap().entrySet()) {
-            Map<String,Object> schedulerJson = (Map<String,Object>)entry.getValue();
+        for (Map.Entry<String, Object> entry : mainObject.getJsonObject(SCHEDULERS).getMap().entrySet()) {
+            Map<String, Object> schedulerJson = (Map<String, Object>) entry.getValue();
 
             boolean executeOnStartup = false;
             boolean executeOnReload = false;
-            if ( schedulerJson.containsKey(EXECUTE_ON_STARTUP) ) {
+            if (schedulerJson.containsKey(EXECUTE_ON_STARTUP)) {
                 executeOnStartup = (boolean) schedulerJson.get(EXECUTE_ON_STARTUP);
 
                 // reload is always as a default performed, if startup execution is enforced
@@ -96,57 +97,60 @@ public class SchedulerFactory {
             }
 
             // do we need to fire a scheduler on a reload?
-            if ( schedulerJson.containsKey(EXECUTE_ON_RELOAD) ) {
+            if (schedulerJson.containsKey(EXECUTE_ON_RELOAD)) {
                 executeOnReload = (boolean) schedulerJson.get(EXECUTE_ON_RELOAD);
             }
 
 
-                int maxRandomOffset = 0;
-            if ( schedulerJson.containsKey(RANDOM_OFFSET) ) {
+            int maxRandomOffset = 0;
+            if (schedulerJson.containsKey(RANDOM_OFFSET)) {
                 try {
                     maxRandomOffset = (Integer) schedulerJson.get(RANDOM_OFFSET);
-                }
-                catch(NumberFormatException e) {
-                    throw new ValidationException("Could not parse " + RANDOM_OFFSET + " of scheduler '"+entry.getKey()+"'", e);
+                } catch (NumberFormatException e) {
+                    throw new ValidationException("Could not parse " + RANDOM_OFFSET + " of scheduler '" + entry.getKey() + "'", e);
                 }
             }
 
             List<HttpRequest> requests = new ArrayList<>();
-            for(int i = 0; i< ((ArrayList<Object>)schedulerJson.get(REQUESTS)).size(); i++) {
+            for (int i = 0; i < ((ArrayList<Object>) schedulerJson.get(REQUESTS)).size(); i++) {
                 try {
                     requests.add(new HttpRequest(prepare((JsonObject) mainObject.getJsonObject(SCHEDULERS).getJsonObject(entry.getKey()).getJsonArray(REQUESTS).getValue(i))));
-                } catch(Exception e) {
-                    throw new ValidationException("Could not parse request ["+i+"] of scheduler "+entry.getKey(), e);
+                } catch (Exception e) {
+                    throw new ValidationException("Could not parse request [" + i + "] of scheduler " + entry.getKey(), e);
                 }
             }
             try {
-                result.add(new Scheduler(vertx, redisquesAddress, redisClient, entry.getKey(), (String)schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset, executeOnStartup, executeOnReload));
+                result.add(new Scheduler(vertx, redisquesAddress, redisAPI, entry.getKey(), (String) schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset, executeOnStartup, executeOnReload));
             } catch (ParseException e) {
-                throw new ValidationException("Could not parse cron expression of scheduler '"+entry.getKey()+"'", e);
+                throw new ValidationException("Could not parse cron expression of scheduler '" + entry.getKey() + "'", e);
             }
         }
         return result;
     }
 
-    private JsonObject prepare(JsonObject httpRequestJsonObject){
+    private JsonObject prepare(JsonObject httpRequestJsonObject) {
         String payloadStr;
         try {
+            if (httpRequestJsonObject.getJsonObject(PAYLOAD) != null) {
+                payloadStr = httpRequestJsonObject.getJsonObject(PAYLOAD).encode();
+            } else {
+                payloadStr = null;
+            }
+        } catch (DecodeException e) {
             payloadStr = httpRequestJsonObject.getString(PAYLOAD);
-        } catch(ClassCastException e) {
-            payloadStr = httpRequestJsonObject.getJsonObject(PAYLOAD).encode();
         }
 
         JsonArray headers = httpRequestJsonObject.getJsonArray(HEADERS);
-        if(headers != null) {
+        if (headers != null) {
             httpRequestJsonObject.put(HEADERS, headers.addAll(defaultRequestHeaders.copy()));
         } else {
             httpRequestJsonObject.put(HEADERS, defaultRequestHeaders.copy());
         }
 
 
-        if(payloadStr != null){
+        if (payloadStr != null) {
             byte[] payload = payloadStr.getBytes(Charset.forName("UTF-8"));
-            httpRequestJsonObject.getJsonArray(HEADERS).add(new JsonArray(Arrays.asList(new Object[]{ "content-length", ""+payload.length})));
+            httpRequestJsonObject.getJsonArray(HEADERS).add(new JsonArray(Arrays.asList(new Object[]{"content-length", "" + payload.length})));
             httpRequestJsonObject.put(PAYLOAD, payload);
         }
         return httpRequestJsonObject;

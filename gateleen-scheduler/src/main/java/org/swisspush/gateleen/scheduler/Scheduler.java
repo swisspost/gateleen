@@ -5,7 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
-import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.RedisAPI;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +16,7 @@ import org.swisspush.gateleen.queue.queuing.QueueClient;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
@@ -30,7 +31,7 @@ import static org.swisspush.redisques.util.RedisquesAPI.*;
 public class Scheduler {
 
     private Vertx vertx;
-    private RedisClient redisClient;
+    private RedisAPI redisAPI;
     private String redisquesAddress;
     private String name;
     private CronExpression cronExpression;
@@ -44,10 +45,10 @@ public class Scheduler {
 
     private Logger log;
 
-    public Scheduler(Vertx vertx, String redisquesAddress, RedisClient redisClient, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset, boolean executeOnStartup, boolean executeOnReload) throws ParseException {
+    public Scheduler(Vertx vertx, String redisquesAddress, RedisAPI redisAPI, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset, boolean executeOnStartup, boolean executeOnReload) throws ParseException {
         this.vertx = vertx;
         this.redisquesAddress = redisquesAddress;
-        this.redisClient = redisClient;
+        this.redisAPI = redisAPI;
         this.name = name;
         this.cronExpression = new CronExpression(cronExpression);
         this.requests = requests;
@@ -76,8 +77,8 @@ public class Scheduler {
 
     public void start() {
         log.info("Starting scheduler [ " + cronExpression.getCronExpression() + " ]");
-        timer = vertx.setPeriodic(5000, timer -> redisClient.get("schedulers:" + name, reply -> {
-            final String stringValue = reply.result();
+        timer = vertx.setPeriodic(5000, timer -> redisAPI.get("schedulers:" + name, reply -> {
+            final String stringValue = reply.result() == null ? null : reply.result().toString();
 
             /*
                 To guarantee that a scheduler is always triggered after the same interval,
@@ -91,8 +92,8 @@ public class Scheduler {
                 if (log.isTraceEnabled()) {
                     log.trace("Setting next run time to " + SimpleDateFormat.getDateTimeInstance().format(new Date(nextRunTime)));
                 }
-                redisClient.getset("schedulers:" + name, "" + nextRunTime, event -> {
-                    String previousValue = event.result();
+                redisAPI.getset("schedulers:" + name, "" + nextRunTime, event -> {
+                    String previousValue = event.result() == null ? null : event.result().toString();
                     if (stringValue != null && stringValue.equals(previousValue)) {
                         // a run time was set and we were the first instance to update it
                         trigger();
@@ -110,7 +111,7 @@ public class Scheduler {
         log.info("Stopping scheduler [ " + cronExpression.getCronExpression() + " ] ");
         vertx.cancelTimer(timer);
         String key = "schedulers:" + name;
-        redisClient.del(key, reply -> {
+        redisAPI.del(Collections.singletonList(key), reply -> {
             if (reply.failed()) {
                 log.error("Could not reset scheduler '" + key + "'");
             }
@@ -131,7 +132,7 @@ public class Scheduler {
 
             ExpiryCheckHandler.updateServerTimestampHeader(request);
 
-            vertx.eventBus().send(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
+            vertx.eventBus().request(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
                     (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                         if (!OK.equals(event.result().body().getString(STATUS))) {
                             log.error("Could not enqueue request " + request.toJsonObject().encodePrettily());
@@ -173,7 +174,7 @@ public class Scheduler {
      *
      * @return requests
      */
-    protected List<HttpRequest> requests(){
+    protected List<HttpRequest> requests() {
         return requests;
     }
 }

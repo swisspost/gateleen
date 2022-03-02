@@ -1,15 +1,16 @@
 package org.swisspush.gateleen.expansion;
 
-import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.*;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
@@ -45,7 +46,7 @@ public class ExpansionHandlerTest {
     public void setUp() {
         vertx = Vertx.vertx();
         httpClient = Mockito.mock(HttpClient.class);
-        Mockito.when(httpClient.request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any())).thenReturn(Mockito.mock(HttpClientRequest.class));
+    //    Mockito.when(httpClient.request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any())).thenReturn(Mockito.mock(HttpClientRequest.class));
         storage = new MockResourceStorage();
     }
 
@@ -93,14 +94,14 @@ public class ExpansionHandlerTest {
     public void testIsExpansionRequest(TestContext context) {
         expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
 
-        CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
+        MultiMap params = MultiMap.caseInsensitiveMultiMap();
         params.set(EXPAND_PARAM, "4");
 
         context.assertFalse(expansionHandler.isExpansionRequest(new Request(HttpMethod.PUT, "/some/uri", params)),
                 "PUT requests should not be expansion requests");
         context.assertTrue(expansionHandler.isExpansionRequest(new Request(HttpMethod.GET, "/some/uri", params)),
                 "GET request with correct params and not configured as expandOnBackend should be expansion requests");
-        context.assertFalse(expansionHandler.isExpansionRequest(new Request(HttpMethod.GET, "/some/uri", new CaseInsensitiveHeaders())),
+        context.assertFalse(expansionHandler.isExpansionRequest(new Request(HttpMethod.GET, "/some/uri", MultiMap.caseInsensitiveMultiMap())),
                 "GET requests without correct params should not be expansion requests");
 
         List<Rule> rules = new ArrayList<>();
@@ -118,7 +119,7 @@ public class ExpansionHandlerTest {
     public void testIsZipRequest(TestContext context) {
         expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
 
-        CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
+        MultiMap params = MultiMap.caseInsensitiveMultiMap();
         params.set(ZIP_PARAM, "true");
 
         context.assertFalse(expansionHandler.isZipRequest(new Request(HttpMethod.PUT, "/some/uri", params)),
@@ -134,7 +135,7 @@ public class ExpansionHandlerTest {
         context.assertTrue(expansionHandler.isZipRequest(new Request(HttpMethod.GET, "/some/uri", params)),
                 "GET request with correct params (value != false) and not configured as expandOnBackend should be zip requests");
 
-        context.assertFalse(expansionHandler.isZipRequest(new Request(HttpMethod.GET, "/some/uri", new CaseInsensitiveHeaders())),
+        context.assertFalse(expansionHandler.isZipRequest(new Request(HttpMethod.GET, "/some/uri", MultiMap.caseInsensitiveMultiMap())),
                 "GET requests without correct params should not be zip requests");
 
         List<Rule> rules = new ArrayList<>();
@@ -223,7 +224,7 @@ public class ExpansionHandlerTest {
         rules.add(rule1);
         expansionHandler.rulesChanged(rules);
 
-        CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
+        MultiMap params = MultiMap.caseInsensitiveMultiMap();
         params.set(EXPAND_PARAM, "2");
         HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
         Request request = new Request(HttpMethod.GET, "/test/rules/rule/storageExpand", params, response);
@@ -239,7 +240,7 @@ public class ExpansionHandlerTest {
     public void testBadRequestResponseForInvalidExpandParameterRequests(TestContext context) {
         expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
 
-        CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
+        MultiMap params = MultiMap.caseInsensitiveMultiMap();
         params.set(EXPAND_PARAM, "foo");
         HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
         Request request = new Request(HttpMethod.GET, "/some/expandRequest/uri", params, response);
@@ -259,7 +260,7 @@ public class ExpansionHandlerTest {
         properties.put("max.expansion.level.hard", "10");
         expansionHandler = new ExpansionHandler(vertx, storage, httpClient, properties, ROOT, RULES_ROOT);
 
-        CaseInsensitiveHeaders params = new CaseInsensitiveHeaders();
+        MultiMap params = MultiMap.caseInsensitiveMultiMap();
         params.set(EXPAND_PARAM, "15");
         HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
         Request request = new Request(HttpMethod.GET, "/some/expandRequest/uri", params, response);
@@ -274,16 +275,16 @@ public class ExpansionHandlerTest {
     }
 
     private class Request extends DummyHttpServerRequest {
-        private CaseInsensitiveHeaders params;
+        private MultiMap params;
         private HttpMethod httpMethod;
         private String uri;
         private HttpServerResponse response;
 
-        public Request(HttpMethod httpMethod, String uri, CaseInsensitiveHeaders params) {
+        public Request(HttpMethod httpMethod, String uri, MultiMap params) {
             this(httpMethod, uri, params, null);
         }
 
-        public Request(HttpMethod httpMethod, String uri, CaseInsensitiveHeaders params, HttpServerResponse response) {
+        public Request(HttpMethod httpMethod, String uri, MultiMap params, HttpServerResponse response) {
             this.httpMethod = httpMethod;
             this.uri = uri;
             this.params = params;
@@ -301,7 +302,7 @@ public class ExpansionHandlerTest {
         @Override public HttpServerResponse response() {return response; }
 
         @Override
-        public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+        public MultiMap headers() { return MultiMap.caseInsensitiveMultiMap(); }
 
         @Override
         public HttpServerRequest pause() { return this; }

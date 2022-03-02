@@ -49,7 +49,7 @@ public class ResetMetrics implements ResetMetricsMBean {
 
     private void removeMetric(final String metric){
         log.debug("About to reset '{}' (triggered by an operation from MBean) by sending message to monitoring address '{}'", metric, monitoringAddress);
-        vertx.eventBus().send(monitoringAddress, new JsonObject().put("name", metric).put("action", "remove"), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+        vertx.eventBus().request(monitoringAddress, new JsonObject().put("name", metric).put("action", "remove"), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if(reply.failed()){
              log.error("Failed to remove value for metric '"+metric+"'. Cause: " + reply.cause().getMessage(), reply.cause());
             } else {

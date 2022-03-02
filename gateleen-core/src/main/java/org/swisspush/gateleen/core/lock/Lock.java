@@ -30,7 +30,7 @@ public interface Lock {
      *
      * @param lock The name of the lock to release
      * @param token A unique token to verify if the owner of the lock tries to release the lock
-     * @return Returns a Future holding a Boolean value whether the lock could be sucsessfully released or not
+     * @return Returns a Promise holding a Boolean value whether the lock could be sucsessfully released or not
      */
     Future<Boolean> releaseLock(String lock, String token);
 }

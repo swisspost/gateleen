@@ -1,10 +1,11 @@
 package org.swisspush.gateleen.queue.queuing;
 
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
@@ -58,8 +59,8 @@ public class QueueClientTest {
             message.reply(new JsonObject().put(STATUS, OK));
         });
 
-        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", new CaseInsensitiveHeaders(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
-        queueClient.enqueueFuture(request, "myQueue").setHandler(event -> {
+        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        queueClient.enqueueFuture(request, "myQueue").onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
@@ -81,8 +82,8 @@ public class QueueClientTest {
             message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, "enqueue:boom"));
         });
 
-        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", new CaseInsensitiveHeaders(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
-        queueClient.enqueueFuture(request, "myQueue").setHandler(event -> {
+        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        queueClient.enqueueFuture(request, "myQueue").onComplete(event -> {
             context.assertFalse(event.succeeded());
             context.assertEquals("enqueue:boom", event.cause().getMessage());
             async.complete();
@@ -105,7 +106,7 @@ public class QueueClientTest {
             message.reply(new JsonObject().put(STATUS, OK));
         });
 
-        queueClient.deleteLock("myQueueToUnlock").setHandler(event -> {
+        queueClient.deleteLock("myQueueToUnlock").onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
@@ -124,7 +125,7 @@ public class QueueClientTest {
             message.reply(new JsonObject().put(STATUS, ERROR));
         });
 
-        queueClient.deleteLock("myQueueToUnlock").setHandler(event -> {
+        queueClient.deleteLock("myQueueToUnlock").onComplete(event -> {
             context.assertTrue(event.failed());
             context.assertTrue(event.cause().getMessage().contains("Failed to delete lock for queue myQueueToUnlock"));
             async.complete();
@@ -144,7 +145,7 @@ public class QueueClientTest {
             message.reply(new JsonObject().put(STATUS, OK));
         });
 
-        queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).setHandler(event -> {
+        queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
@@ -163,7 +164,7 @@ public class QueueClientTest {
             message.reply(new JsonObject().put(STATUS, OK));
         });
 
-        queueClient.deleteAllQueueItems("myQueueToDelete", false).setHandler(event -> {
+        queueClient.deleteAllQueueItems("myQueueToDelete", false).onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
@@ -188,7 +189,7 @@ public class QueueClientTest {
             message.reply(new JsonObject().put(STATUS, ERROR));
         });
 
-        queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).setHandler(event -> {
+        queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
@@ -207,7 +208,7 @@ public class QueueClientTest {
             message.fail(0, "boom");
         });
 
-        queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).setHandler(event -> {
+        queueClient.deleteAllQueueItems("myQueueToDeleteAndUnlock", true).onComplete(event -> {
             context.assertTrue(event.failed());
             context.assertTrue(event.cause().getMessage().contains("Failed to delete all queue items for queue myQueueToDeleteAndUnlock with unlock true"));
             async.complete();
@@ -227,7 +228,7 @@ public class QueueClientTest {
             message.reply(new JsonObject().put(STATUS, OK));
         });
 
-        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", new CaseInsensitiveHeaders(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
         queueClient.lockedEnqueue(request, "myQueue", "LockRequester", event -> async.complete());
 
         Mockito.verify(monitoringHandler, Mockito.timeout(1000).times(1)).updateEnqueue();
@@ -247,7 +248,7 @@ public class QueueClientTest {
                     message.reply(new JsonObject().put(STATUS, ERROR));
                 });
 
-        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", new CaseInsensitiveHeaders(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
         queueClient.lockedEnqueue(request, "myQueue", "LockRequester", event -> async.complete());
 
         // since redisques answered with a 'failure', the monitoringHandler should not be called

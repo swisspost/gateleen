@@ -26,15 +26,15 @@ public class KafkaProducerRepository {
         this.kafkaProducers = new LinkedHashMap<>(); // a linked hash map is used to keep the insertion order
     }
 
-    void addKafkaProducer(KafkaConfiguration config){
+    void addKafkaProducer(KafkaConfiguration config) {
         log.info("About to add kafka producer from {}", config);
         this.kafkaProducers.put(config.getTopic(), KafkaProducer.create(vertx, config.getConfigurations()));
     }
 
-    Optional<Pair<KafkaProducer<String, String>, Pattern>> findMatchingKafkaProducer(String topic){
+    Optional<Pair<KafkaProducer<String, String>, Pattern>> findMatchingKafkaProducer(String topic) {
         for (Map.Entry<Pattern, KafkaProducer<String, String>> entry : kafkaProducers.entrySet()) {
             Matcher matcher = entry.getKey().matcher(topic);
-            if(matcher.matches()){
+            if (matcher.matches()) {
                 log.debug("Found matching KafkaProducer with pattern '{}' for topic '{}' found", entry.getKey().pattern(), topic);
                 return Optional.of(Pair.of(entry.getValue(), entry.getKey()));
             }
@@ -43,16 +43,16 @@ public class KafkaProducerRepository {
         return Optional.empty();
     }
 
-    Future<Void> closeAll(){
+    Promise<Void> closeAll() {
         log.info("About to close all kafka producers");
-        Future<Void> future = Future.future();
+        Promise<Void> promise = Promise.promise();
         List<Future> futures = new ArrayList<>();
 
         for (Map.Entry<Pattern, KafkaProducer<String, String>> entry : kafkaProducers.entrySet()) {
-            Future entryFuture = Future.future();
-            futures.add(entryFuture);
+            Promise entryFuture = Promise.promise();
+            futures.add(entryFuture.future());
             entry.getValue().close(event -> {
-                if(event.succeeded()){
+                if (event.succeeded()) {
                     log.info("Successfully closed producer for topic '{}'", entry.getKey().pattern());
                 } else {
                     log.warn("Failed to close producer for topic '{}'", entry.getKey().pattern());
@@ -62,10 +62,10 @@ public class KafkaProducerRepository {
         }
 
         // wait for all producers to be closed
-        CompositeFuture.all(futures).setHandler(event -> {
+        CompositeFuture.all(futures).onComplete(event -> {
             kafkaProducers.clear();
-            future.complete();
+            promise.complete();
         });
-        return future;
+        return promise;
     }
 }

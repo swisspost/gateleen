@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.json.JsonObject;
 
 import java.util.Map;
@@ -45,7 +45,7 @@ public class JsonObjectUtils {
      * @return a MultiMap containing the entries from the JsonObject
      */
     public static MultiMap jsonObjectToMultiMap(JsonObject jsonObject) {
-        CaseInsensitiveHeaders map = new CaseInsensitiveHeaders();
+        MultiMap map = MultiMap.caseInsensitiveMultiMap();
         if(jsonObject == null){
             return map;
         }

@@ -15,7 +15,7 @@ import java.util.zip.ZipInputStream;
 /**
  * Enables you to directly browse into a zip file and get the underlying resource. <br>
  * <code>
- *     GET /gateleen/zips/111111.zip/this/is/my/resource
+ * GET /gateleen/zips/111111.zip/this/is/my/resource
  * </code>
  *
  * @author https://github.com/ljucam [Mario Ljuca]
@@ -48,7 +48,7 @@ public class ZipExtractHandler {
      * @return true if request is handled, otherwise false
      */
     public boolean handle(final HttpServerRequest req) {
-        if ( req.method().equals(HttpMethod.GET) && req.uri().contains(ZIP_RESOURCE_FLAG) ) {
+        if (req.method().equals(HttpMethod.GET) && req.uri().contains(ZIP_RESOURCE_FLAG)) {
             // zip resource and path
             int seperationIndex = req.uri().lastIndexOf(ZIP_RESOURCE_FLAG) + ZIP_RESOURCE_FLAG.length() - 1;
             String zipUrl = req.uri().substring(0, seperationIndex);
@@ -58,8 +58,7 @@ public class ZipExtractHandler {
             performGETRequest(req, zipUrl, insidePath);
 
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
@@ -75,23 +74,30 @@ public class ZipExtractHandler {
         Logger log = RequestLoggerFactory.getLogger(ZipExtractHandler.class, req);
 
         // perform Initial GET request
-        HttpClientRequest selfRequest = selfClient.get(zipUrl, response -> {
-            if (response.statusCode() == StatusCode.OK.getStatusCode()) {
-                extractResourceFromZip(req, zipUrl, insidePath, response);
-            } else {
-                log.debug("GET of zip resource {} failed.", zipUrl);
-                createResponse(req, response.statusCode(), response.statusMessage(), null, null);
+        selfClient.request(HttpMethod.GET, zipUrl).onComplete(asyncReqResult -> {
+            if (asyncReqResult.failed()) {
+                log.warn("Failed request to {}: {}", zipUrl, asyncReqResult.cause());
+                return;
             }
+            HttpClientRequest selfRequest = asyncReqResult.result();
+
+            // setting headers
+            selfRequest.headers().setAll(req.headers());
+
+            // avoids blocking other requests
+            selfRequest.setTimeout(DEFAULT_TIMEOUT);
+
+            // fire
+            selfRequest.send(event -> {
+                HttpClientResponse response = event.result();
+                if (response.statusCode() == StatusCode.OK.getStatusCode()) {
+                    extractResourceFromZip(req, zipUrl, insidePath, response);
+                } else {
+                    log.debug("GET of zip resource {} failed.", zipUrl);
+                    createResponse(req, response.statusCode(), response.statusMessage(), null, null);
+                }
+            });
         });
-
-        // setting headers
-        selfRequest.headers().setAll(req.headers());
-
-        // avoids blocking other requests
-        selfRequest.setTimeout(DEFAULT_TIMEOUT);
-
-        // fire
-        selfRequest.end();
     }
 
     /**
@@ -108,14 +114,13 @@ public class ZipExtractHandler {
         req.response().setStatusCode(statusCode);
         req.response().setStatusMessage(statusMessage);
 
-        if ( mimeType != null ) {
+        if (mimeType != null) {
             req.response().headers().add("Content-Type", mimeType);
         }
 
-        if ( buffer != null ) {
+        if (buffer != null) {
             req.response().end(buffer);
-        }
-        else {
+        } else {
             req.response().end();
         }
     }
@@ -143,7 +148,7 @@ public class ZipExtractHandler {
 
                 while ((entry = inputStream.getNextEntry()) != null) {
                     // if name does not match, go on ...
-                    if ( ! entry.getName().equalsIgnoreCase(insidePath) ) {
+                    if (!entry.getName().equalsIgnoreCase(insidePath)) {
                         continue;
                     }
 
@@ -159,18 +164,17 @@ public class ZipExtractHandler {
                     break;
                 }
 
-                if ( foundEntry ) {
+                if (foundEntry) {
                     // append content to response
-                    createResponse(req, StatusCode.OK.getStatusCode(),StatusCode.OK.getStatusMessage(), contentBuffer, mimeTypeResolver.resolveMimeType(insidePath));
-                }
-                else {
+                    createResponse(req, StatusCode.OK.getStatusCode(), StatusCode.OK.getStatusMessage(), contentBuffer, mimeTypeResolver.resolveMimeType(insidePath));
+                } else {
                     // return 404 - not found
                     log.error("could not extract {} from {}", insidePath, zipUrl);
-                    createResponse(req, StatusCode.NOT_FOUND.getStatusCode(),StatusCode.NOT_FOUND.getStatusMessage(), null, null);
+                    createResponse(req, StatusCode.NOT_FOUND.getStatusCode(), StatusCode.NOT_FOUND.getStatusMessage(), null, null);
                 }
             } catch (Exception e) {
                 log.error("could not extract {} from {}: {}", insidePath, zipUrl, e.getMessage());
-                createResponse(req, StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(),StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage(), null, null);
+                createResponse(req, StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage(), null, null);
             }
         });
     }

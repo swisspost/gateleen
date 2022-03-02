@@ -2,6 +2,7 @@ package org.swisspush.gateleen.kafka;
 
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import org.slf4j.Logger;
@@ -17,7 +18,7 @@ public class KafkaMessageSender {
 
     Future<Void> sendMessages(KafkaProducer<String, String> kafkaProducer,
                               List<KafkaProducerRecord<String, String>> messages) {
-        Future<Void> future = Future.future();
+        Promise<Void> promise = Promise.promise();
         log.debug("Start processing {} messages for kafka", messages.size());
 
         @SuppressWarnings("rawtypes") //https://github.com/eclipse-vertx/vert.x/issues/2627
@@ -25,33 +26,33 @@ public class KafkaMessageSender {
                 .map(message -> KafkaMessageSender.this.sendMessage(kafkaProducer, message))
                 .collect(toList());
 
-        CompositeFuture.all(futures).<Void>mapEmpty().setHandler(result -> {
+        CompositeFuture.all(futures).<Void>mapEmpty().onComplete(result -> {
             if (result.succeeded()) {
-                future.complete();
+                promise.complete();
                 log.debug("Batch messages successfully sent to Kafka.");
             } else {
-                future.fail(result.cause());
+                promise.fail(result.cause());
             }
         });
 
-        return future;
+        return promise.future();
     }
 
     private Future<Void> sendMessage(KafkaProducer<String, String> kafkaProducer, KafkaProducerRecord<String, String> message) {
-        Future<Void> f = Future.future();
+        Promise<Void> promise = Promise.promise();
         kafkaProducer.write(message, event -> {
             if (event.succeeded()) {
                 if (message.key() != null) {
-                    log.debug("Message with key '{}' successfully sent to kafka. Result: {}", message.key(), event.result().toJson());
+                    log.debug("Message with key '{}' successfully sent to kafka. Result: {}", message.key(), event);
                 } else {
-                    log.debug("Message without key successfully sent to kafka. Result: {}", event.result().toJson());
+                    log.debug("Message without key successfully sent to kafka. Result: {}", event);
                 }
-                f.complete();
+                promise.complete();
             } else {
                 log.warn("Failed to send message with key '{}' to kafka. Cause: {}", message.key(), event.cause());
-                f.fail(event.cause());
+                promise.fail(event.cause());
             }
         });
-        return f;
+        return promise.future();
     }
 }

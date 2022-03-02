@@ -2,7 +2,7 @@ package org.swisspush.gateleen.kafka;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
@@ -131,7 +131,7 @@ public class KafkaProducerRecordBuilderTest {
     @Test
     public void buildRecordsValidWithKeyWithHeaders(TestContext context) throws ValidationException {
         JsonObject payload = buildPayload("someKey",
-                new CaseInsensitiveHeaders()
+                MultiMap.caseInsensitiveMultiMap()
                         .add("header_1", "value_1")
                         .add("header_2", "value_2"));
         final List<KafkaProducerRecord<String, String>> records =

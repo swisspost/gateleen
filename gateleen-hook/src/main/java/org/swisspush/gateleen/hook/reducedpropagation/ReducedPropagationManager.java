@@ -3,9 +3,9 @@ package org.swisspush.gateleen.hook.reducedpropagation;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
+import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
@@ -16,7 +16,6 @@ import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -70,7 +69,7 @@ public class ReducedPropagationManager {
         vertx.cancelTimer(processExpiredQueuesTimerId);
         processExpiredQueuesTimerId = vertx.setPeriodic(intervalMs, event -> {
             final String token = createToken("reducedpropagation_expired_queue_processing");
-            acquireLock(this.lock, PROCESS_EXPIRED_QUEUES_LOCK, token, getLockExpiry(intervalMs), log).setHandler(lockEvent -> {
+            acquireLock(this.lock, PROCESS_EXPIRED_QUEUES_LOCK, token, getLockExpiry(intervalMs), log).onComplete(lockEvent -> {
                 if(lockEvent.succeeded()){
                     if(lockEvent.result()){
                         processExpiredQueues(token);
@@ -100,77 +99,77 @@ public class ReducedPropagationManager {
      * @param doneHandler         a handler which is called as soon as the request is written into the queue.
      * @return a future when the processing is done
      */
-    public Future<Void> processIncomingRequest(HttpMethod method, String targetUri, MultiMap queueHeaders, Buffer payload, String queue, long propagationIntervalMs, Handler<Void> doneHandler) {
-        Future<Void> future = Future.future();
+    public Promise<Void> processIncomingRequest(HttpMethod method, String targetUri, MultiMap queueHeaders, Buffer payload, String queue, long propagationIntervalMs, Handler<Void> doneHandler) {
+        Promise<Void> promise = Promise.promise();
 
         long expireTS = System.currentTimeMillis() + propagationIntervalMs;
 
         log.debug("Going to perform a lockedEnqueue for (original) queue '{}' and eventually starting a new timer", queue);
         requestQueue.lockedEnqueue(new HttpRequest(method, targetUri, queueHeaders, payload.getBytes()), queue, LOCK_REQUESTER, doneHandler);
 
-        storage.addQueue(queue, expireTS).setHandler(event -> {
+        storage.addQueue(queue, expireTS).onComplete(event -> {
             if (event.failed()) {
                 log.error("starting a new timer for queue '{}' and propagationIntervalMs '{}' failed. Cause: {}",
                         queue, propagationIntervalMs, event.cause());
-                future.fail(event.cause());
+                promise.fail(event.cause());
                 return;
             }
             if (event.result()) {
                 log.debug("Timer for queue '{}' with expiration at '{}' started.", queue, expireTS);
-                storeQueueRequest(queue, method, targetUri, queueHeaders).setHandler(storeResult -> {
+                storeQueueRequest(queue, method, targetUri, queueHeaders).future().onComplete(storeResult -> {
                     if (storeResult.failed()) {
-                        future.fail(storeResult.cause());
+                        promise.fail(storeResult.cause());
                     } else {
-                        future.complete();
+                        promise.complete();
                     }
                 });
             } else {
                 log.debug("Timer for queue '{}' is already running.", queue);
-                future.complete();
+                promise.complete();
             }
         });
-        return future;
+        return promise;
     }
 
-    private Future<Void> storeQueueRequest(String queue, HttpMethod method, String targetUri, MultiMap queueHeaders) {
+    private Promise<Void> storeQueueRequest(String queue, HttpMethod method, String targetUri, MultiMap queueHeaders) {
         log.debug("Going to write the queue request for queue '{}' to the storage", queue);
-        Future<Void> future = Future.future();
+        Promise<Void> promise = Promise.promise();
 
-        MultiMap queueHeadersCopy = new CaseInsensitiveHeaders().addAll(queueHeaders);
+        MultiMap queueHeadersCopy = MultiMap.caseInsensitiveMultiMap().addAll(queueHeaders);
         if (HttpRequestHeader.containsHeader(queueHeadersCopy, CONTENT_LENGTH)) {
             queueHeadersCopy.set(CONTENT_LENGTH.getName(), "0");
         }
         HttpRequest request = new HttpRequest(method, targetUri, queueHeadersCopy, null);
-        storage.storeQueueRequest(queue, request.toJsonObject()).setHandler(storeResult -> {
+        storage.storeQueueRequest(queue, request.toJsonObject()).onComplete(storeResult -> {
             if (storeResult.failed()) {
                 log.error("Storing the queue request for queue '{}' failed. Cause: {}", queue, storeResult.cause());
-                future.fail(storeResult.cause());
+                promise.fail(storeResult.cause());
             } else {
                 log.debug("Successfully stored the queue request for queue '{}'", queue);
-                future.complete();
+                promise.complete();
             }
         });
-        return future;
+        return promise;
     }
 
     private void processExpiredQueues(String lockToken) {
         log.debug("Going to process expired queues");
-        storage.removeExpiredQueues(System.currentTimeMillis()).setHandler(event -> {
+        storage.removeExpiredQueues(System.currentTimeMillis()).onComplete(event -> {
             if (event.failed()) {
                 log.error("Going to release lock because process expired queues failed. Cause: " + event.cause());
                 releaseLock(this.lock, PROCESS_EXPIRED_QUEUES_LOCK, lockToken, log);
                 return;
             }
-            List<String> expiredQueues = event.result();
-            log.debug("Got {} expired queues to process", expiredQueues.size());
-            for (String expiredQueue : expiredQueues) {
+            Response response = event.result();
+            log.debug("Got {} expired queues to process", response.size());
+            for (Response expiredQueue : response) {
                 log.debug("About to notify a consumer to process expired queue '{}'", expiredQueue);
-                vertx.eventBus().send(PROCESSOR_ADDRESS, expiredQueue, (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {
+                vertx.eventBus().request(PROCESSOR_ADDRESS, expiredQueue.toString(), (Handler<AsyncResult<Message<JsonObject>>>) event1 -> {
                     if(event1.failed()){
                         log.error("Failed to process expired queue '{}'. Cause: {}", expiredQueue, event1.cause());
-                        handleFailedQueueRetry(expiredQueue);
+                        handleFailedQueueRetry(expiredQueue.toString());
                     } else {
-                        failedQueueRetries.remove(expiredQueue);
+                        failedQueueRetries.remove(expiredQueue.toString());
                         if (!OK.equals(event1.result().body().getString(STATUS))) {
                             log.error("Failed to process expired queue '{}'. Message: {}", expiredQueue,  event1.result().body().getString(MESSAGE));
                         } else {
@@ -191,7 +190,7 @@ public class ReducedPropagationManager {
             failedQueueRetries.put(expiredQueue, updatedRetryCount);
             int randomExpiry = random.nextInt(30000 - 2000) + 2000; // expiry between 2sec and 30sec
             log.info("Retry attempt #{} to process expired queue '{}' again in {}ms", updatedRetryCount, expiredQueue, randomExpiry);
-            storage.addQueue(expiredQueue, System.currentTimeMillis() + randomExpiry).setHandler(addQueueReply -> {
+            storage.addQueue(expiredQueue, System.currentTimeMillis() + randomExpiry).onComplete(addQueueReply -> {
                 if(addQueueReply.failed()){
                     log.error("attempt #{} failed to add queue '{}' again for a later retry. Cause: {}",
                             updatedRetryCount, expiredQueue, addQueueReply.cause());
@@ -235,7 +234,7 @@ public class ReducedPropagationManager {
 
         // 1. get queue request from storage
         log.debug("get queue request for queue '{}'", queue);
-        storage.getQueueRequest(queue).setHandler(getQueuedRequestResult -> {
+        storage.getQueueRequest(queue).onComplete(getQueuedRequestResult -> {
             if(getQueuedRequestResult.failed()){
                 event.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, getQueuedRequestResult.cause().getMessage()));
             } else {
@@ -247,7 +246,7 @@ public class ReducedPropagationManager {
                 // 2a. deleteAllQueueItems of manager queue
                 String managerQueue = MANAGER_QUEUE_PREFIX + queue;
                 log.debug("going to delete all queue items of manager queue '{}'", managerQueue);
-                requestQueue.deleteAllQueueItems(managerQueue, false).setHandler(managerQueueDeleteAllResult -> {
+                requestQueue.deleteAllQueueItems(managerQueue, false).onComplete(managerQueueDeleteAllResult -> {
                     if(managerQueueDeleteAllResult.failed()){
                         event.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, managerQueueDeleteAllResult.cause().getMessage()));
                     } else {
@@ -260,13 +259,13 @@ public class ReducedPropagationManager {
                             return;
                         }
                         log.debug("going to enqueue into manager queue '{}'", managerQueue);
-                        requestQueue.enqueueFuture(request, managerQueue).setHandler(enqueueResult -> {
+                        requestQueue.enqueueFuture(request, managerQueue).onComplete(enqueueResult -> {
                             if(enqueueResult.failed()){
                                 event.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, enqueueResult.cause().getMessage()));
                             } else {
                                 // 3. remove queue request from storage
                                 log.debug("going to remove queue request from storage of queue '{}'", queue);
-                                storage.removeQueueRequest(queue).setHandler(removeQueueRequestResult -> {
+                                storage.removeQueueRequest(queue).onComplete(removeQueueRequestResult -> {
                                     if(removeQueueRequestResult.failed()){
                                         log.error("Failed to remove request for queue '{}'. Remove it manually to " +
                                                 "remove expired data from storage", queue);
@@ -274,7 +273,7 @@ public class ReducedPropagationManager {
 
                                     // 4. deleteAllQueueItems + deleteLock of original queue
                                     log.debug("going to unlock and delete all queue items of queue '{}'", queue);
-                                    requestQueue.deleteAllQueueItems(queue, true).setHandler(deleteAllQueueItemsResult -> {
+                                    requestQueue.deleteAllQueueItems(queue, true).onComplete(deleteAllQueueItemsResult -> {
                                         if (deleteAllQueueItemsResult.succeeded()) {
                                             event.reply(new JsonObject().put(STATUS, OK).put(MESSAGE, "Successfully deleted lock and all queue items of queue " + queue));
                                         } else {

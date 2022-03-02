@@ -1,14 +1,12 @@
 package org.swisspush.gateleen.kafka;
 
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -19,8 +17,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
-import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
-import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
@@ -35,7 +31,6 @@ import java.util.regex.Pattern;
 import static com.jayway.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.lessThan;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
@@ -80,7 +75,7 @@ public class KafkaHandlerTest {
     public void initWithMissingConfigResource(TestContext context) {
         Async async = context.async();
         context.assertFalse(handler.isInitialized());
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             verifyZeroInteractions(repository);
             verifyZeroInteractions(kafkaMessageSender);
             context.assertFalse(handler.isInitialized());
@@ -93,7 +88,7 @@ public class KafkaHandlerTest {
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
         context.assertFalse(handler.isInitialized());
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             verify(repository, times(1)).closeAll();
 
             Map<String, String> configs_1 = new HashMap<String, String>() {{
@@ -128,7 +123,7 @@ public class KafkaHandlerTest {
                 configResourceUri, streamingPath, props);
         context.assertFalse(handler.isInitialized());
 
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             // depending whether resourceChanged fires or not we get one or two invocations
             verify(repository, atLeastOnce()).closeAll();
             Map<String, String> configs_1 = new HashMap<String, String>() {{
@@ -154,7 +149,7 @@ public class KafkaHandlerTest {
                 configResourceUri, streamingPath, props);
         context.assertFalse(handler.isInitialized());
 
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             verify(repository, never()).addKafkaProducer(any());
             verifyZeroInteractions(kafkaMessageSender);
             context.assertTrue(handler.isInitialized());
@@ -165,7 +160,7 @@ public class KafkaHandlerTest {
     @Test
     public void resourceRemovedTriggersCloseAllProducers(TestContext context){
         Async async = context.async();
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             JsonObject object = new JsonObject();
             object.put("requestUri", configResourceUri);
             object.put("type", "remove");
@@ -210,7 +205,7 @@ public class KafkaHandlerTest {
     @Test
     public void handleNotStreamingPath(TestContext context){
         Async async = context.async();
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             StreamingRequest request = new StreamingRequest(HttpMethod.POST, "/some/other/uri/path");
             final boolean handled = handler.handle(request);
             context.assertFalse(handled);
@@ -222,10 +217,10 @@ public class KafkaHandlerTest {
     @Test
     public void handleNotPOSTRequest(TestContext context){
         Async async = context.async();
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
 
-            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
-            StreamingRequest request = new StreamingRequest(HttpMethod.GET, streamingPath + "myTopic", "", new CaseInsensitiveHeaders(), response);
+            HttpServerResponse response = spy(new StreamingResponse(MultiMap.caseInsensitiveMultiMap()));
+            StreamingRequest request = new StreamingRequest(HttpMethod.GET, streamingPath + "myTopic", "", MultiMap.caseInsensitiveMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
@@ -239,10 +234,10 @@ public class KafkaHandlerTest {
     @Test
     public void handleEmptyTopic(TestContext context){
         Async async = context.async();
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
 
-            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
-            StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath, "", new CaseInsensitiveHeaders(), response);
+            HttpServerResponse response = spy(new StreamingResponse(MultiMap.caseInsensitiveMultiMap()));
+            StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath, "", MultiMap.caseInsensitiveMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
@@ -256,10 +251,10 @@ public class KafkaHandlerTest {
     @Test
     public void handleNoMatchingProducer(TestContext context){
         Async async = context.async();
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
 
-            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
-            StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "someTopic", "", new CaseInsensitiveHeaders(), response);
+            HttpServerResponse response = spy(new StreamingResponse(MultiMap.caseInsensitiveMultiMap()));
+            StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "someTopic", "", MultiMap.caseInsensitiveMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
@@ -274,11 +269,11 @@ public class KafkaHandlerTest {
     public void handleInvalidPayload(TestContext context){
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             context.assertTrue(handler.isInitialized());
 
-            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
-            StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "my.topic.x", "{}", new CaseInsensitiveHeaders(), response);
+            HttpServerResponse response = spy(new StreamingResponse(MultiMap.caseInsensitiveMultiMap()));
+            StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "my.topic.x", "{}", MultiMap.caseInsensitiveMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
@@ -293,7 +288,7 @@ public class KafkaHandlerTest {
     public void handleValidPayloadWithSingleMessage(TestContext context){
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             context.assertTrue(handler.isInitialized());
 
             String singleMessagePayload = "{\n" +
@@ -318,9 +313,9 @@ public class KafkaHandlerTest {
                     "\t}]\n" +
                     "}";
 
-            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
+            HttpServerResponse response = spy(new StreamingResponse(MultiMap.caseInsensitiveMultiMap()));
             StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "my.topic.x",
-                    singleMessagePayload, new CaseInsensitiveHeaders(), response);
+                    singleMessagePayload, MultiMap.caseInsensitiveMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
@@ -336,7 +331,7 @@ public class KafkaHandlerTest {
     public void handleValidPayloadWithTwoMessages(TestContext context){
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             context.assertTrue(handler.isInitialized());
 
             String singleMessagePayload = "{\n" +
@@ -374,9 +369,9 @@ public class KafkaHandlerTest {
                     "\t}]\n" +
                     "}";
 
-            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
+            HttpServerResponse response = spy(new StreamingResponse(MultiMap.caseInsensitiveMultiMap()));
             StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "my.topic.x",
-                    singleMessagePayload, new CaseInsensitiveHeaders(), response);
+                    singleMessagePayload, MultiMap.caseInsensitiveMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
@@ -396,7 +391,7 @@ public class KafkaHandlerTest {
         when(kafkaMessageSender.sendMessages(any(), any())).thenReturn(Future.failedFuture("booom: message could not be sent!"));
 
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             context.assertTrue(handler.isInitialized());
 
             String singleMessagePayload = "{\n" +
@@ -421,9 +416,9 @@ public class KafkaHandlerTest {
                     "\t}]\n" +
                     "}";
 
-            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
+            HttpServerResponse response = spy(new StreamingResponse(MultiMap.caseInsensitiveMultiMap()));
             StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "my.topic.x",
-                    singleMessagePayload, new CaseInsensitiveHeaders(), response);
+                    singleMessagePayload, MultiMap.caseInsensitiveMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
@@ -445,7 +440,7 @@ public class KafkaHandlerTest {
                 .thenReturn(Future.succeededFuture(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Boooom")));
 
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             context.assertTrue(handler.isInitialized());
 
             String singleMessagePayload = "{\n" +
@@ -470,9 +465,9 @@ public class KafkaHandlerTest {
                     "\t}]\n" +
                     "}";
 
-            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
+            HttpServerResponse response = spy(new StreamingResponse(new HeadersMultiMap()));
             StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "my.topic.x",
-                    singleMessagePayload, new CaseInsensitiveHeaders(), response);
+                    singleMessagePayload, new HeadersMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
@@ -494,7 +489,7 @@ public class KafkaHandlerTest {
                 .thenReturn(Future.failedFuture("Boooom"));
 
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             context.assertTrue(handler.isInitialized());
 
             String singleMessagePayload = "{\n" +
@@ -519,9 +514,9 @@ public class KafkaHandlerTest {
                     "\t}]\n" +
                     "}";
 
-            HttpServerResponse response = spy(new StreamingResponse(new CaseInsensitiveHeaders()));
+            HttpServerResponse response = spy(new StreamingResponse(new HeadersMultiMap()));
             StreamingRequest request = new StreamingRequest(HttpMethod.POST, streamingPath + "my.topic.x",
-                    singleMessagePayload, new CaseInsensitiveHeaders(), response);
+                    singleMessagePayload, new HeadersMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);

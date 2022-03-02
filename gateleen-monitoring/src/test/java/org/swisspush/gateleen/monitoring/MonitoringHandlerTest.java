@@ -5,13 +5,13 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.impl.RedisClient;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -127,7 +127,7 @@ public class MonitoringHandlerTest {
         request.addHeader(PROPERTY_NAME, "my_value_123");
         mh.updateRequestPerRuleMonitoring(request, "a_fancy_rule");
 
-        await().atMost(Duration.ONE_SECOND).until(storageContainsData("my_value_123.a_fancy_rule"));
+        await().atMost(Duration.TWO_SECONDS).until(storageContainsData("my_value_123.a_fancy_rule"));
     }
 
     private Callable<Boolean> storageContainsData(String valueToLookFor) {
@@ -144,7 +144,7 @@ public class MonitoringHandlerTest {
     }
 
     class PUTRequest extends DummyHttpServerRequest {
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
         @Override public HttpMethod method() {
             return HttpMethod.PUT;

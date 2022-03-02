@@ -56,7 +56,7 @@ public class KafkaMessageSenderTest {
             return null;
         }).when(producer).write(any(KafkaProducerRecord.class), any());
 
-        kafkaMessageSender.sendMessages(producer, records).setHandler(event -> {
+        kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
@@ -77,7 +77,7 @@ public class KafkaMessageSenderTest {
             return null;
         }).when(producer).write(any(KafkaProducerRecord.class), any());
 
-        kafkaMessageSender.sendMessages(producer, records).setHandler(event -> {
+        kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
@@ -98,7 +98,7 @@ public class KafkaMessageSenderTest {
             return null;
         }).when(producer).write(any(KafkaProducerRecord.class), any());
 
-        kafkaMessageSender.sendMessages(producer, records).setHandler(event -> {
+        kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
@@ -131,7 +131,7 @@ public class KafkaMessageSenderTest {
             return null;
         }).when(producer).write(eq(records.get(1)), any());
 
-        kafkaMessageSender.sendMessages(producer, records).setHandler(event -> {
+        kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertFalse(event.succeeded());
             context.assertEquals("Message with key 'key_2' failed.", event.cause().getMessage());
             async.complete();

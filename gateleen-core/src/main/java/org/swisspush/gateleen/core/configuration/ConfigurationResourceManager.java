@@ -2,6 +2,7 @@ package org.swisspush.gateleen.core.configuration;
 
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
@@ -178,27 +179,27 @@ public class ConfigurationResourceManager implements LoggableResource {
     }
 
     private Future<Optional<Buffer>> getValidatedRegisteredResource(String resourceUri){
-        Future<Optional<Buffer>> future = Future.future();
+        Promise<Optional<Buffer>> promise = Promise.promise();
         String resourceSchema = getRegisteredResources().get(resourceUri);
         storage.get(resourceUri, buffer -> {
             if (buffer != null) {
                 configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
                     if (event.succeeded()) {
                         if (event.result().isSuccess()) {
-                            future.complete(Optional.of(buffer));
+                            promise.complete(Optional.of(buffer));
                         } else {
-                            future.fail("Failure during validation of resource " + resourceUri + ". Message: " + event.result().getMessage());
+                            promise.fail("Failure during validation of resource " + resourceUri + ". Message: " + event.result().getMessage());
                         }
                     } else {
-                        future.fail("Failure during validation of resource " + resourceUri + ". Message: " + event.cause());
+                        promise.fail("Failure during validation of resource " + resourceUri + ". Message: " + event.cause());
                     }
                 });
             } else {
-                future.complete(Optional.empty());
+                promise.complete(Optional.empty());
             }
         });
 
-        return future;
+        return promise.future();
     }
 
     private void notifyObserversAboutRemovedResource(String requestUri) {
@@ -210,7 +211,7 @@ public class ConfigurationResourceManager implements LoggableResource {
     }
 
     private void notifyObserverAboutResourceChange(String requestUri, ConfigurationResourceObserver observer) {
-        getValidatedRegisteredResource(requestUri).setHandler(event -> {
+        getValidatedRegisteredResource(requestUri).onComplete(event -> {
             if(event.failed()){
                 log.warn(event.cause().getMessage());
             } else if(event.result().isPresent()){

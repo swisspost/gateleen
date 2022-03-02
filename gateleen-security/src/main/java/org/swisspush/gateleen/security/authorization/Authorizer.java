@@ -2,6 +2,7 @@ package org.swisspush.gateleen.security.authorization;
 
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
@@ -97,52 +98,52 @@ public class Authorizer implements LoggableResource {
 
 
     public Future<Boolean> authorize(final HttpServerRequest request) {
-        Future<Boolean> future = Future.future();
+        Promise<Boolean> promise = Promise.promise();
 
-        handleUserUriRequest(request, future);
+        handleUserUriRequest(request, promise);
 
-        if (!future.isComplete()) {
-            roleAuthorizer.handleIsAuthorized(request, future);
+        if (!promise.future().isComplete()) {
+            roleAuthorizer.handleIsAuthorized(request, promise);
         }
 
-        if (!future.isComplete()) {
-            handleConfigurationUriRequest(request, future, aclUriPattern, roleAuthorizer);
+        if (!promise.future().isComplete()) {
+            handleConfigurationUriRequest(request, promise, aclUriPattern, roleAuthorizer);
         }
 
-        if (!future.isComplete()) {
-            handleConfigurationUriRequest(request, future, roleMapperUriPattern, roleMapper);
+        if (!promise.future().isComplete()) {
+            handleConfigurationUriRequest(request, promise, roleMapperUriPattern, roleMapper);
         }
 
-        if (!future.isComplete()) {
-            future.complete(Boolean.TRUE);
+        if (!promise.future().isComplete()) {
+            promise.complete(Boolean.TRUE);
         }
 
-        return future;
+        return promise.future();
     }
 
     public void authorize(final HttpServerRequest request, final Handler<Void> handler) {
-        Future<Boolean> future = Future.future();
+        Promise<Boolean> promise = Promise.promise();
 
-        handleUserUriRequest(request, future);
+        handleUserUriRequest(request, promise);
 
-        if (!future.isComplete()) {
-            roleAuthorizer.handleIsAuthorized(request, future);
+        if (!promise.future().isComplete()) {
+            roleAuthorizer.handleIsAuthorized(request, promise);
         }
 
-        if (!future.isComplete()) {
-            handleConfigurationUriRequest(request, future, aclUriPattern, roleAuthorizer);
+        if (!promise.future().isComplete()) {
+            handleConfigurationUriRequest(request, promise, aclUriPattern, roleAuthorizer);
         }
 
-        if (!future.isComplete()) {
-            handleConfigurationUriRequest(request, future, roleMapperUriPattern, roleMapper);
+        if (!promise.future().isComplete()) {
+            handleConfigurationUriRequest(request, promise, roleMapperUriPattern, roleMapper);
         }
 
-        if (!future.isComplete()) {
+        if (!promise.future().isComplete()) {
             handler.handle(null);
         }
     }
 
-    private void handleUserUriRequest(final HttpServerRequest request, Future<Boolean> future) {
+    private void handleUserUriRequest(final HttpServerRequest request, Promise<Boolean> promise) {
         if (userUriPattern.matcher(request.uri()).matches()) {
             if (HttpMethod.GET == request.method()) {
                 String userId = request.headers().get("x-rp-usr");
@@ -166,7 +167,7 @@ public class Authorizer implements LoggableResource {
                 request.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
                 request.response().end();
             }
-            future.complete(Boolean.FALSE);
+            promise.complete(Boolean.FALSE);
         }
     }
 
@@ -174,11 +175,11 @@ public class Authorizer implements LoggableResource {
      * Common handler for uri requests with PatternHolder and a class implementing the AuthorisationResource Interface
      *
      * @param request       The original request
-     * @param future        The future with the result feeded
+     * @param promise       The promise with the result feeded
      * @param patternHolder The pattern with the Configuration Resource to be used for Configuration reload
      * @param checker       The checker Object (implementing ConfigurationResource interface) to be used to validate the configuration
      */
-    private void handleConfigurationUriRequest(final HttpServerRequest request, Future<Boolean> future, PatternHolder patternHolder, ConfigurationResource checker) {
+    private void handleConfigurationUriRequest(final HttpServerRequest request, Promise<Boolean> promise, PatternHolder patternHolder, ConfigurationResource checker) {
         // Intercept configuration
         final Matcher aclMatcher = patternHolder.getPattern(request.headers()).matcher(request.uri());
         if (aclMatcher.matches()) {
@@ -212,7 +213,7 @@ public class Authorizer implements LoggableResource {
                         request.response().end();
                     });
                 });
-                future.complete(Boolean.FALSE);
+                promise.complete(Boolean.FALSE);
             } else if (HttpMethod.DELETE == request.method()) {
                 storage.delete(request.uri(), status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
@@ -225,7 +226,7 @@ public class Authorizer implements LoggableResource {
                     ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), Authorizer.class);
                     request.response().end();
                 });
-                future.complete(Boolean.FALSE);
+                promise.complete(Boolean.FALSE);
             }
         }
     }

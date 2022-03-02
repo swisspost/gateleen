@@ -5,12 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.*;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -37,7 +38,6 @@ import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.validation.RegexpValidator;
 import org.swisspush.gateleen.validation.ValidationException;
 
-import java.net.URL;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -535,10 +535,28 @@ public class HookHandler implements LoggableResource {
                     log.trace("createListingIfRequested > (parentUri) {}, (parentCollection) {}", parentUri, parentCollection);
                 }
 
-                HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
-                    HttpServerRequestUtil.prepareResponse(request, response);
+                selfClient.request(request.method(), request.uri()).onComplete(asyncReqResult -> {
+                    if (asyncReqResult.failed()) {
+                        log.warn("Failed request to {}: {}", request.uri(), asyncReqResult.cause());
+                        return;
+                    }
+                    HttpClientRequest selfRequest = asyncReqResult.result();
 
-                    request.response().headers().remove(HOOK_ROUTES_LISTED);
+
+                    if (request.headers() != null && !request.headers().isEmpty()) {
+                        selfRequest.headers().setAll(request.headers());
+                    }
+
+                    // mark request as already listed
+                    selfRequest.headers().add(HOOK_ROUTES_LISTED, "true");
+
+                    selfRequest.exceptionHandler(exception -> log.warn("HookHandler: listing of collections (routes) failed: {}: {}", request.uri(), exception.getMessage()));
+                    selfRequest.setTimeout(120000); // avoids blocking other requests
+                    selfRequest.send(asyncResult -> {
+                        HttpClientResponse response = asyncResult.result();
+                        HttpServerRequestUtil.prepareResponse(request, response);
+
+                        request.response().headers().remove(HOOK_ROUTES_LISTED);
 
                     // if everything is fine, we add the listed collections to the given array
                     if (response.statusCode() == StatusCode.OK.getStatusCode()) {
@@ -546,71 +564,60 @@ public class HookHandler implements LoggableResource {
                             log.trace("createListingIfRequested > use existing array");
                         }
 
-                        response.handler(data -> {
-                            JsonObject responseObject = new JsonObject(data.toString());
+                            response.handler(data -> {
+                                JsonObject responseObject = new JsonObject(data.toString());
 
-                            // we only got an array back, if we perform a simple request
-                            if (responseObject.getValue(parentCollection) instanceof JsonArray) {
-                                JsonArray parentCollectionArray = responseObject.getJsonArray(parentCollection);
+                                // we only got an array back, if we perform a simple request
+                                if (responseObject.getValue(parentCollection) instanceof JsonArray) {
+                                    JsonArray parentCollectionArray = responseObject.getJsonArray(parentCollection);
+
+                                    // add the listed routes
+                                    collections.forEach(parentCollectionArray::add);
+                                }
+
+                                if (log.isTraceEnabled()) {
+                                    log.trace("createListingIfRequested > response: {}", responseObject.toString());
+                                }
+
+                                // write the response
+                                request.response().write(Buffer.buffer(responseObject.toString()));
+                            });
+                        }
+                        // if nothing is found, we create a new array
+                        else if (response.statusCode() == StatusCode.NOT_FOUND.getStatusCode()) {
+                            if (log.isTraceEnabled()) {
+                                log.trace("createListingIfRequested > creating new array");
+                            }
+
+                            response.handler(data -> {
+                                // override status message and code
+                                request.response().setStatusCode(StatusCode.OK.getStatusCode());
+                                request.response().setStatusMessage(StatusCode.OK.getStatusMessage());
+
+                                JsonObject responseObject = new JsonObject();
+                                JsonArray parentCollectionArray = new JsonArray();
+                                responseObject.put(parentCollection, parentCollectionArray);
 
                                 // add the listed routes
                                 collections.forEach(parentCollectionArray::add);
-                            }
 
-                            if (log.isTraceEnabled()) {
-                                log.trace("createListingIfRequested > response: {}", responseObject.toString());
-                            }
+                                if (log.isTraceEnabled()) {
+                                    log.trace("createListingIfRequested > response: {}", responseObject.toString());
+                                }
 
-                            // write the response
-                            request.response().write(Buffer.buffer(responseObject.toString()));
-                        });
-                    }
-                    // if nothing is found, we create a new array
-                    else if (response.statusCode() == StatusCode.NOT_FOUND.getStatusCode()) {
-                        if (log.isTraceEnabled()) {
-                            log.trace("createListingIfRequested > creating new array");
+                                // write the response
+                                request.response().write(Buffer.buffer(responseObject.toString()));
+                            });
+                        }
+                        // something's wrong ...
+                        else {
+                            log.debug("createListingIfRequested - got response - ERROR");
+                            response.handler(data -> request.response().write(data));
                         }
 
-                        response.handler(data -> {
-                            // override status message and code
-                            request.response().setStatusCode(StatusCode.OK.getStatusCode());
-                            request.response().setStatusMessage(StatusCode.OK.getStatusMessage());
-
-                            JsonObject responseObject = new JsonObject();
-                            JsonArray parentCollectionArray = new JsonArray();
-                            responseObject.put(parentCollection, parentCollectionArray);
-
-                            // add the listed routes
-                            collections.forEach(parentCollectionArray::add);
-
-                            if (log.isTraceEnabled()) {
-                                log.trace("createListingIfRequested > response: {}", responseObject.toString());
-                            }
-
-                            // write the response
-                            request.response().write(Buffer.buffer(responseObject.toString()));
-                        });
-                    }
-                    // something's wrong ...
-                    else {
-                        log.debug("createListingIfRequested - got response - ERROR");
-                        response.handler(data -> request.response().write(data));
-                    }
-
-                    response.endHandler(v -> request.response().end());
+                        response.endHandler(v -> request.response().end());
+                    });
                 });
-
-                if (request.headers() != null && !request.headers().isEmpty()) {
-                    selfRequest.headers().setAll(request.headers());
-                }
-
-                // mark request as already listed
-                selfRequest.headers().add(HOOK_ROUTES_LISTED, "true");
-
-                selfRequest.exceptionHandler(exception -> log.warn("HookHandler: listing of collections (routes) failed: {}: {}", request.uri(), exception.getMessage()));
-                selfRequest.setTimeout(120000); // avoids blocking other requests
-                selfRequest.end();
-
                 // consumed
                 return true;
             }
@@ -712,7 +719,7 @@ public class HookHandler implements LoggableResource {
 
             // Create a new multimap, copied from the original request,
             // so that the original request is not overridden with the new values.
-            VertxHttpHeaders queueHeaders = new VertxHttpHeaders();
+            HeadersMultiMap queueHeaders = new HeadersMultiMap();
             queueHeaders.addAll(request.headers());
 
             // Apply the header manipulation chain - errors (unresolvable references) will just be WARN logged - but we still enqueue
@@ -1133,37 +1140,47 @@ public class HookHandler implements LoggableResource {
     private void createSelfRequest(final HttpServerRequest request, final Buffer requestBody, final Handler<Void> afterHandler) {
         log.debug("Create self request for {}", request.uri());
 
-        HttpClientRequest selfRequest = selfClient.request(request.method(), request.uri(), response -> {
-            /*
-             * it shouldn't matter if the request is
-             * already consumed to write a response.
-             */
+        selfClient.request(request.method(), request.uri()).onComplete(asyncReqResult -> {
+            if (asyncReqResult.failed()) {
+                log.warn("Failed request to {}: {}", request.uri(), asyncReqResult.cause());
+                return;
+            }
+            HttpClientRequest selfRequest = asyncReqResult.result();
 
-            HttpServerRequestUtil.prepareResponse(request, response);
 
-            response.handler(data -> request.response().write(data));
+            if (request.headers() != null && !request.headers().isEmpty()) {
+                selfRequest.headers().setAll(request.headers());
+            }
 
-            response.endHandler(v -> request.response().end());
+            selfRequest.exceptionHandler(exception -> log.warn("HookHandler HOOK_ERROR: Failed self request to {}: {}", request.uri(), exception.getMessage()));
 
-            // if everything is fine, we call the after handler
-            if (response.statusCode() == StatusCode.OK.getStatusCode()) {
-                afterHandler.handle(null);
+            selfRequest.setTimeout(120000); // avoids blocking other requests
+
+            Handler<AsyncResult<HttpClientResponse>> asyncResultHandler = asyncResult -> {
+                HttpClientResponse response = asyncResult.result();
+                /*
+                 * it shouldn't matter if the request is
+                 * already consumed to write a response.
+                 */
+
+                HttpServerRequestUtil.prepareResponse(request, response);
+
+                response.handler(data -> request.response().write(data));
+
+                response.endHandler(v -> request.response().end());
+
+                // if everything is fine, we call the after handler
+                if (response.statusCode() == StatusCode.OK.getStatusCode()) {
+                    afterHandler.handle(null);
+                }
+            };
+
+            if (requestBody != null) {
+                selfRequest.send(requestBody, asyncResultHandler);
+            } else {
+                selfRequest.send(asyncResultHandler);
             }
         });
-
-        if (request.headers() != null && !request.headers().isEmpty()) {
-            selfRequest.headers().setAll(request.headers());
-        }
-
-        selfRequest.exceptionHandler(exception -> log.warn("HookHandler HOOK_ERROR: Failed self request to {}: {}", request.uri(), exception.getMessage()));
-
-        selfRequest.setTimeout(120000); // avoids blocking other requests
-
-        if (requestBody != null) {
-            selfRequest.end(requestBody);
-        } else {
-            selfRequest.end();
-        }
     }
 
     /**
@@ -1337,7 +1354,7 @@ public class HookHandler implements LoggableResource {
     /**
      * Extract proxyOptions attribute from jsonHook and create a
      * appropriate property in the hook object.
-     *
+     * <p>
      * This is the same concept as in gateleen-routing:
      * {@link org.swisspush.gateleen.routing.RuleFactory#setProxyOptions(Rule, JsonObject)}}
      */
@@ -1351,7 +1368,7 @@ public class HookHandler implements LoggableResource {
     /**
      * Extract staticHeaders attribute from jsonHook and create a
      * appropriate list in the hook object.
-     *
+     * <p>
      * This is the same concept as in gateleen-routing:
      * {@link org.swisspush.gateleen.routing.RuleFactory#setStaticHeaders(Rule, JsonObject)}}
      */

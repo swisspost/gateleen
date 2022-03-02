@@ -4,6 +4,7 @@ import com.google.common.base.Splitter;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -95,7 +96,7 @@ public class CacheHandler {
         }
 
         String cacheIdentifier = request.uri();
-        cacheStorage.cachedRequest(cacheIdentifier).setHandler(event -> {
+        cacheStorage.cachedRequest(cacheIdentifier).onComplete(event -> {
             if(event.failed()){
                 log.warn("Failed to get cached request from storage", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
@@ -116,7 +117,9 @@ public class CacheHandler {
 
     private void updateCacheAndRespond(final HttpServerRequest request, String cacheIdentifier, Long expireMs){
         log.debug("Request to {} not found in cache storage, going to fetch it.", request.uri());
-        dataFetcher.fetchData(request.uri(), request.headers(), TIMEOUT_MS).setHandler(event -> {
+        HeadersMultiMap headersMultiMap = new HeadersMultiMap();
+        headersMultiMap.addAll(request.headers());
+        dataFetcher.fetchData(request.uri(), headersMultiMap, TIMEOUT_MS).onComplete(event -> {
             if(event.failed()) {
                 log.warn("Failed to fetch data from request", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
@@ -130,7 +133,7 @@ public class CacheHandler {
             }
 
             Buffer fetchedData = result.ok();
-            cacheStorage.cacheRequest(cacheIdentifier, fetchedData, Duration.ofMillis(expireMs)).setHandler(event1 -> {
+            cacheStorage.cacheRequest(cacheIdentifier, fetchedData, Duration.ofMillis(expireMs)).onComplete(event1 -> {
                 if (event1.failed()){
                     log.warn("Failed to store request to cache", event1.cause());
                 }
@@ -178,7 +181,7 @@ public class CacheHandler {
 
     private void handleClearCache(final HttpServerRequest request) {
         log.debug("About to clear all cached entries manually");
-        cacheStorage.clearCache().setHandler(event -> {
+        cacheStorage.clearCache().onComplete(event -> {
             if(event.failed()) {
                 log.warn("Error while clearing cache", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
@@ -192,7 +195,7 @@ public class CacheHandler {
 
     private void handleCacheEntries(final HttpServerRequest request) {
         log.debug("About to get cached entries list");
-        cacheStorage.cacheEntries().setHandler(event -> {
+        cacheStorage.cacheEntries().onComplete(event -> {
             if(event.failed()) {
                 log.warn("Error while getting cached entries list", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
@@ -210,7 +213,7 @@ public class CacheHandler {
 
     private void handleCacheCount(final HttpServerRequest request) {
         log.debug("About to get cached entries count");
-        cacheStorage.cacheEntriesCount().setHandler(event -> {
+        cacheStorage.cacheEntriesCount().onComplete(event -> {
             if(event.failed()) {
                 log.warn("Error while getting cached entries count", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);

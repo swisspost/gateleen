@@ -262,7 +262,7 @@ public class ValidatorTest extends AbstractTest {
 
         Buffer jsonBuffer = Buffer.buffer(CONTENT_MATCHING_SAMPLE_SCHEMA);
         validator.validateWithSchemaLocation(new SchemaLocation("/path/to/the/schema", null), jsonBuffer, logger)
-                .setHandler(validationResult -> {
+                .onComplete(validationResult -> {
                     context.assertTrue(validationResult.succeeded());
                     context.assertEquals(ValidationStatus.VALIDATED_POSITIV, validationResult.result().getValidationStatus());
                     async.complete();
@@ -277,7 +277,7 @@ public class ValidatorTest extends AbstractTest {
 
         Buffer jsonBuffer = Buffer.buffer(CONTENT_MATCHING_SAMPLE_SCHEMA);
         validator.validateWithSchemaLocation(new SchemaLocation("/path/to/the/schema", null), jsonBuffer, logger)
-                .setHandler(validationResult -> {
+                .onComplete(validationResult -> {
                     context.assertFalse(validationResult.result().isSuccess());
                     context.assertEquals(ValidationStatus.COULD_NOT_VALIDATE, validationResult.result().getValidationStatus());
                     context.assertEquals("Error while getting schema. Cause: Boooom", validationResult.result().getMessage());
@@ -294,7 +294,7 @@ public class ValidatorTest extends AbstractTest {
         Buffer jsonBuffer = Buffer.buffer(CONTENT_MATCHING_SAMPLE_SCHEMA);
 
         validator.validateWithSchemaLocation(new SchemaLocation("/path/to/the/schema", null), jsonBuffer, logger)
-                .setHandler(validationResult -> {
+                .onComplete(validationResult -> {
                     context.assertFalse(validationResult.result().isSuccess(), "ValidationResult should not be a success (COULD_NOT_VALIDATE)");
                     context.assertEquals(ValidationStatus.COULD_NOT_VALIDATE, validationResult.result().getValidationStatus());
                     context.assertEquals("No schema found in location /path/to/the/schema", validationResult.result().getMessage());
@@ -312,7 +312,7 @@ public class ValidatorTest extends AbstractTest {
         Buffer jsonBuffer = Buffer.buffer(CONTENT_NOT_MATCHING_SAMPLE_SCHEMA);
 
         validator.validateWithSchemaLocation(new SchemaLocation("/path/to/the/schema", null), jsonBuffer, logger)
-                .setHandler(validationResult -> {
+                .onComplete(validationResult -> {
                     context.assertFalse(validationResult.result().isSuccess());
                     context.assertEquals(ValidationStatus.VALIDATED_NEGATIV, validationResult.result().getValidationStatus());
                     String message = validationResult.result().getMessage();

@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.core.http;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.json.JsonArray;
 import org.junit.Assert;
 import org.junit.Test;
@@ -24,7 +24,7 @@ public class HeaderFunctionsTest {
         chain = chain.andThen(setAlways   ("preSuff","pre-{yyy}-suff")); // test constant prefix and suffix
 
         // Execute the Header manipulator chain
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         EvalScope evalScope = new EvalScope(headers);
         chain.accept(evalScope);
         System.out.println(headers);
@@ -40,7 +40,7 @@ public class HeaderFunctionsTest {
     @Test
     public void testUnresolvableHeaderName() {
         Consumer<EvalScope> c = setAlways("gugus","{no-exist}");
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         EvalScope evalScope = new EvalScope(headers);
         c.accept(evalScope);
         Assert.assertNotNull("eval error message present", evalScope.getErrorMessage());
@@ -63,7 +63,7 @@ public class HeaderFunctionsTest {
         JsonArray config = new JsonArray(json);
         HeaderFunction chain = HeaderFunctions.parseFromJson(config);
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         final EvalScope evalScope = chain.apply(headers);
 
         Assert.assertFalse(headers.contains("xxx")); // explicit removed

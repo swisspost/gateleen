@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.security.content;
 
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import org.apache.commons.lang3.StringUtils;
@@ -55,18 +56,18 @@ public class ContentTypeConstraintHandler extends ConfigurationResourceConsumer 
     }
 
     public Future<Void> initialize() {
-        Future<Void> future = Future.future();
-        configurationResourceManager().getRegisteredResource(configResourceUri()).setHandler(event -> {
+        Promise<Void> promise = Promise.promise();
+        configurationResourceManager().getRegisteredResource(configResourceUri()).onComplete(event -> {
             if (event.succeeded() && event.result().isPresent()) {
                 initializeConstraintConfiguration(event.result().get());
-                future.complete();
+                promise.complete();
             } else {
                 log.warn("No (valid) Content-Type constraint configuration resource with uri '{}' found. Unable to setup " +
                         "Content-Type constraint handler correctly", configResourceUri());
-                future.complete();
+                promise.complete();
             }
         });
-        return future;
+        return promise.future();
     }
 
     public boolean handle(final HttpServerRequest request) {

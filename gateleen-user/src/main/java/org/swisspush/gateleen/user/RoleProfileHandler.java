@@ -48,8 +48,8 @@ public class RoleProfileHandler implements LoggableResource {
 
     public void handle(final HttpServerRequest request) {
         RequestLoggerFactory.getLogger(RoleProfileHandler.class, request).info("handling " + request.method() + " " + request.path());
-        switch (request.method()) {
-        case GET:
+        switch (request.method().name()) {
+        case "GET":
             storage.get(request.path(), buffer -> {
                 request.response().headers().set("Content-Type", "application/json");
                 if (buffer != null) {
@@ -63,7 +63,7 @@ public class RoleProfileHandler implements LoggableResource {
                 }
             });
             break;
-        case PUT:
+        case "PUT":
             request.bodyHandler(newBuffer -> {
                 JsonObject roleProfileProperties = new JsonObject(newBuffer.toString("UTF-8"));
                 if (JsonUtil.containsNoNestedProperties(roleProfileProperties)) {
@@ -87,7 +87,7 @@ public class RoleProfileHandler implements LoggableResource {
                 }
             });
             break;
-        case DELETE:
+        case "DELETE":
             storage.delete(request.path(), status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
                     eb.publish(UPDATE_ADDRESS, "*");

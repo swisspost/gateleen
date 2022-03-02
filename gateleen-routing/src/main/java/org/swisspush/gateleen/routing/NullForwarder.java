@@ -4,7 +4,8 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
@@ -40,7 +41,7 @@ public class NullForwarder extends AbstractForwarder {
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), eventBus);
         log.debug("Not forwarding request: {} with rule {}", ctx.request().uri(), rule.getRuleIdentifier());
-        final VertxHttpHeaders requestHeaders = new VertxHttpHeaders();
+        final HeadersMultiMap requestHeaders = new HeadersMultiMap();
         requestHeaders.addAll(ctx.request().headers());
 
         // probably useless, as the request is discarded anyway
@@ -75,7 +76,7 @@ public class NullForwarder extends AbstractForwarder {
             loggingHandler.appendRequestPayload(buffer, requestHeaders);
             requestBuffer.appendBuffer(buffer);
             MultiMap responseHeaders = ctx.response().headers();
-            loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage, requestHeaders, responseHeaders != null ? responseHeaders : new VertxHttpHeaders());
+            loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage, requestHeaders, responseHeaders != null ? responseHeaders : new HeadersMultiMap());
         });
 
         ctx.response().end();

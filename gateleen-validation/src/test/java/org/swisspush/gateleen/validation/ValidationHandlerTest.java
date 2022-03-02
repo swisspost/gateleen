@@ -1,10 +1,13 @@
 package org.swisspush.gateleen.validation;
 
 import io.vertx.core.Future;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.*;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -18,7 +21,6 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import java.util.Optional;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
@@ -102,9 +104,9 @@ public class ValidationHandlerTest extends AbstractTest {
 
         httpClient = Mockito.mock(HttpClient.class);
         clientRequest = Mockito.mock(HttpClientRequest.class);
-        Mockito.when(clientRequest.headers()).thenReturn(new CaseInsensitiveHeaders());
-        Mockito.when(httpClient.request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any()))
-                .thenReturn(clientRequest);
+        Mockito.when(clientRequest.headers()).thenReturn(new HeadersMultiMap());
+        Mockito.when(httpClient.request(any(HttpMethod.class), Matchers.anyString()))
+                .thenReturn(Future.succeededFuture(clientRequest));
 
         storage = new MockResourceStorage();
         validationResourceManager = new ValidationResourceManager(vertx, storage, VALIDATION_URI);
@@ -225,7 +227,7 @@ public class ValidationHandlerTest extends AbstractTest {
         sendValidationResourcesUpdate(RESOURCE_GET_PUT_SCHEMA_LOCATION);
 
         HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
-        when(response.headers()).thenReturn(new CaseInsensitiveHeaders());
+        when(response.headers()).thenReturn(new HeadersMultiMap());
         CustomHttpServerRequest request = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource", response);
         request.setBodyContent("{\"key\": \"12345xx\"}");
 
@@ -245,7 +247,7 @@ public class ValidationHandlerTest extends AbstractTest {
         sendValidationResourcesUpdate(RESOURCE_GET_PUT_SCHEMA_LOCATION);
 
         HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
-        when(response.headers()).thenReturn(new CaseInsensitiveHeaders());
+        when(response.headers()).thenReturn(new HeadersMultiMap());
         CustomHttpServerRequest request = new CustomHttpServerRequest(HttpMethod.PUT, "/gateleen/resources/someResource", response);
         request.setBodyContent("{\"key\": \"12345\"}");
 

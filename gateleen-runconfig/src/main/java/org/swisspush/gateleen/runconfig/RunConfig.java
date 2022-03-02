@@ -6,7 +6,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.RedisAPI;
 import org.apache.commons.lang.ArrayUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -71,8 +71,8 @@ public class RunConfig {
     public static final String SERVER_NAME = "gateleen";
     public static final String SERVER_ROOT = ROOT + "/server";
     public static final String ROLE_PATTERN = "^z-gateleen[-_](.*)$";
-    public static final String[] PROFILE_PROPERTIES_PROVIDED_BY_THE_PROXY = new String[] { "username", "personalNumber", "fullname", "mail", "department", "lang" };
-    public static final String[] PROFILE_PROPERTIES_PROVIDED_BY_THE_CLIENT = new String[] { "tour", "zip", "context", "contextIsDefault", "passkeyChanged", "volumeBeep", "torchMode", "spn" };
+    public static final String[] PROFILE_PROPERTIES_PROVIDED_BY_THE_PROXY = new String[]{"username", "personalNumber", "fullname", "mail", "department", "lang"};
+    public static final String[] PROFILE_PROPERTIES_PROVIDED_BY_THE_CLIENT = new String[]{"tour", "zip", "context", "contextIsDefault", "passkeyChanged", "volumeBeep", "torchMode", "spn"};
 
     private org.joda.time.format.DateTimeFormatter dfISO8601;
     private org.joda.time.format.DateTimeFormatter isoDateTimeParser;
@@ -82,7 +82,7 @@ public class RunConfig {
     private final Class verticleClass;
 
     private Vertx vertx;
-    private RedisClient redisClient;
+    private RedisAPI redisAPI;
     private Router router;
     private CacheHandler cacheHandler;
     private CORSHandler corsHandler;
@@ -111,7 +111,7 @@ public class RunConfig {
     private KafkaHandler kafkaHandler;
     private CustomHttpResponseHandler customHttpResponseHandler;
 
-    public RunConfig(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler,
+    public RunConfig(Vertx vertx, RedisAPI redisAPI, Class verticleClass, Router router, MonitoringHandler monitoringHandler,
                      QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
                      ConfigurationResourceManager configurationResourceManager,
@@ -124,7 +124,7 @@ public class RunConfig {
                      CustomHttpResponseHandler customHttpResponseHandler, ContentTypeConstraintHandler contentTypeConstraintHandler,
                      CacheHandler cacheHandler) {
         this.vertx = vertx;
-        this.redisClient = redisClient;
+        this.redisAPI = redisAPI;
         this.verticleClass = verticleClass;
         this.router = router;
         this.monitoringHandler = monitoringHandler;
@@ -156,9 +156,9 @@ public class RunConfig {
         init();
     }
 
-    private RunConfig(RunConfigBuilder builder){
+    private RunConfig(RunConfigBuilder builder) {
         this(builder.vertx,
-                builder.redisClient,
+                builder.redisAPI,
                 builder.verticleClass,
                 builder.router,
                 builder.monitoringHandler,
@@ -190,7 +190,7 @@ public class RunConfig {
         );
     }
 
-    private void init(){
+    private void init() {
         random = new Random(System.currentTimeMillis());
         log = LoggerFactory.getLogger(verticleClass);
         requestLog = LoggerFactory.getLogger("Request");
@@ -210,7 +210,7 @@ public class RunConfig {
         }
     }
 
-    public static RunConfigBuilder with(){
+    public static RunConfigBuilder with() {
         return new RunConfigBuilder();
     }
 
@@ -219,7 +219,7 @@ public class RunConfig {
      */
     public static class RunConfigBuilder {
         private Vertx vertx;
-        private RedisClient redisClient;
+        private RedisAPI redisAPI;
         private Class verticleClass;
         private Router router;
         private MonitoringHandler monitoringHandler;
@@ -249,99 +249,100 @@ public class RunConfig {
         private MergeHandler mergeHandler;
         private CacheHandler cacheHandler;
 
-        public RunConfigBuilder(){}
+        public RunConfigBuilder() {
+        }
 
-        public RunConfigBuilder corsHandler(CORSHandler corsHandler){
+        public RunConfigBuilder corsHandler(CORSHandler corsHandler) {
             this.corsHandler = corsHandler;
             return this;
         }
 
-        public RunConfigBuilder schedulerResourceManager(SchedulerResourceManager schedulerResourceManager){
+        public RunConfigBuilder schedulerResourceManager(SchedulerResourceManager schedulerResourceManager) {
             this.schedulerResourceManager = schedulerResourceManager;
             return this;
         }
 
-        public RunConfigBuilder validationResourceManager(ValidationResourceManager validationResourceManager){
+        public RunConfigBuilder validationResourceManager(ValidationResourceManager validationResourceManager) {
             this.validationResourceManager = validationResourceManager;
             return this;
         }
 
-        public RunConfigBuilder loggingResourceManager(LoggingResourceManager loggingResourceManager){
+        public RunConfigBuilder loggingResourceManager(LoggingResourceManager loggingResourceManager) {
             this.loggingResourceManager = loggingResourceManager;
             return this;
         }
 
-        public RunConfigBuilder configurationResourceManager(ConfigurationResourceManager configurationResourceManager){
+        public RunConfigBuilder configurationResourceManager(ConfigurationResourceManager configurationResourceManager) {
             this.configurationResourceManager = configurationResourceManager;
             return this;
         }
 
-        public RunConfigBuilder queueCircuitBreakerConfigurationResourceManager(QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager){
+        public RunConfigBuilder queueCircuitBreakerConfigurationResourceManager(QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager) {
             this.queueCircuitBreakerConfigurationResourceManager = queueCircuitBreakerConfigurationResourceManager;
             return this;
         }
 
-        public RunConfigBuilder eventBusHandler(EventBusHandler eventBusHandler){
+        public RunConfigBuilder eventBusHandler(EventBusHandler eventBusHandler) {
             this.eventBusHandler = eventBusHandler;
             return this;
         }
 
-        public RunConfigBuilder kafkaHandler(KafkaHandler kafkaHandler){
+        public RunConfigBuilder kafkaHandler(KafkaHandler kafkaHandler) {
             this.kafkaHandler = kafkaHandler;
             return this;
         }
 
-        public RunConfigBuilder customHttpResponseHandler(CustomHttpResponseHandler customHttpResponseHandler){
+        public RunConfigBuilder customHttpResponseHandler(CustomHttpResponseHandler customHttpResponseHandler) {
             this.customHttpResponseHandler = customHttpResponseHandler;
             return this;
         }
 
-        public RunConfigBuilder contentTypeConstraintHandler(ContentTypeConstraintHandler contentTypeConstraintHandler){
+        public RunConfigBuilder contentTypeConstraintHandler(ContentTypeConstraintHandler contentTypeConstraintHandler) {
             this.contentTypeConstraintHandler = contentTypeConstraintHandler;
             return this;
         }
 
-        public RunConfigBuilder validationHandler(ValidationHandler validationHandler){
+        public RunConfigBuilder validationHandler(ValidationHandler validationHandler) {
             this.validationHandler = validationHandler;
             return this;
         }
 
-        public RunConfigBuilder hookHandler(HookHandler hookHandler){
+        public RunConfigBuilder hookHandler(HookHandler hookHandler) {
             this.hookHandler = hookHandler;
             return this;
         }
 
-        public RunConfigBuilder userProfileHandler(UserProfileHandler userProfileHandler){
+        public RunConfigBuilder userProfileHandler(UserProfileHandler userProfileHandler) {
             this.userProfileHandler = userProfileHandler;
             return this;
         }
 
-        public RunConfigBuilder roleProfileHandler(RoleProfileHandler roleProfileHandler){
+        public RunConfigBuilder roleProfileHandler(RoleProfileHandler roleProfileHandler) {
             this.roleProfileHandler = roleProfileHandler;
             return this;
         }
 
-        public RunConfigBuilder expansionHandler(ExpansionHandler expansionHandler){
+        public RunConfigBuilder expansionHandler(ExpansionHandler expansionHandler) {
             this.expansionHandler = expansionHandler;
             return this;
         }
 
-        public RunConfigBuilder deltaHandler(DeltaHandler deltaHandler){
+        public RunConfigBuilder deltaHandler(DeltaHandler deltaHandler) {
             this.deltaHandler = deltaHandler;
             return this;
         }
 
-        public RunConfigBuilder authorizer(Authorizer authorizer){
+        public RunConfigBuilder authorizer(Authorizer authorizer) {
             this.authorizer = authorizer;
             return this;
         }
 
-        public RunConfigBuilder copyResourceHandler(CopyResourceHandler copyResourceHandler){
+        public RunConfigBuilder copyResourceHandler(CopyResourceHandler copyResourceHandler) {
             this.copyResourceHandler = copyResourceHandler;
             return this;
         }
 
-        public RunConfigBuilder qosHandler(QoSHandler qosHandler){
+        public RunConfigBuilder qosHandler(QoSHandler qosHandler) {
             this.qosHandler = qosHandler;
             return this;
         }
@@ -371,9 +372,9 @@ public class RunConfig {
             return this;
         }
 
-        public RunConfig build(Vertx vertx, RedisClient redisClient, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser){
+        public RunConfig build(Vertx vertx, RedisAPI redisAPI, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser) {
             this.vertx = vertx;
-            this.redisClient = redisClient;
+            this.redisAPI = redisAPI;
             this.verticleClass = verticleClass;
             this.router = router;
             this.monitoringHandler = monitoringHandler;
@@ -385,7 +386,7 @@ public class RunConfig {
     /**
      * Builds redis properties configuration.
      */
-    public static Map<String, Object> buildRedisProps(String redisHost, int redisPort){
+    public static Map<String, Object> buildRedisProps(String redisHost, int redisPort) {
         final Map<String, Object> props = new HashMap<>();
         props.put("redis.host", redisHost);
         props.put("redis.port", redisPort);
@@ -396,7 +397,7 @@ public class RunConfig {
     /**
      * Builds a standard mod redis configuration.
      */
-    public static JsonObject buildModRedisConfig(String redisHost, int redisPort){
+    public static JsonObject buildModRedisConfig(String redisHost, int redisPort) {
         JsonObject config = new JsonObject();
         config.put("host", redisHost);
         config.put("port", redisPort);
@@ -407,7 +408,7 @@ public class RunConfig {
     /**
      * Builds a standard metrics configuration.
      */
-    public static JsonObject buildMetricsConfig(){
+    public static JsonObject buildMetricsConfig() {
         JsonObject metricsConfig = new JsonObject();
         metricsConfig.put("address", Address.monitoringAddress());
         return metricsConfig;
@@ -416,7 +417,7 @@ public class RunConfig {
     /**
      * Builds a standard redisques configuration.
      */
-    public static JsonObject buildRedisquesConfig(){
+    public static JsonObject buildRedisquesConfig() {
         return RedisquesConfiguration.with()
                 .address(Address.redisquesAddress())
                 .processorAddress(Address.queueProcessorAddress())
@@ -429,7 +430,7 @@ public class RunConfig {
     /**
      * Builds a standard storage configuration.
      */
-    public static JsonObject buildStorageConfig(){
+    public static JsonObject buildStorageConfig() {
         return new ModuleConfiguration()
                 .storageType(ModuleConfiguration.StorageType.redis)
                 .storageAddress(Address.storageAddress() + "-main")
@@ -439,7 +440,7 @@ public class RunConfig {
     /**
      * Builds a standard UserProfileConfiguration.
      */
-    public static UserProfileConfiguration buildUserProfileConfiguration(){
+    public static UserProfileConfiguration buildUserProfileConfiguration() {
         String[] allAllowedProfileProperties = (String[]) ArrayUtils.addAll(PROFILE_PROPERTIES_PROVIDED_BY_THE_PROXY,
                 PROFILE_PROPERTIES_PROVIDED_BY_THE_CLIENT);
 
@@ -480,7 +481,7 @@ public class RunConfig {
      * @param props
      * @param handler
      */
-    public static void deployModules(final Vertx vertx, Class verticleClass, Map<String, Object> props, final Handler<Boolean> handler){
+    public static void deployModules(final Vertx vertx, Class verticleClass, Map<String, Object> props, final Handler<Boolean> handler) {
         final Logger log = LoggerFactory.getLogger(verticleClass);
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
@@ -517,7 +518,7 @@ public class RunConfig {
     /**
      * Builds a handler for {@link RoutingContext}s with a "default" behaviour.
      */
-    public Handler<RoutingContext> buildRoutingContextHandler(){
+    public Handler<RoutingContext> buildRoutingContextHandler() {
 
         // add refreshables
         if (propertyHandler != null) {
@@ -545,22 +546,22 @@ public class RunConfig {
                     return;
                 }
 
-                if(corsHandler != null) {
+                if (corsHandler != null) {
                     corsHandler.handle(request);
                     if (corsHandler.isOptionsRequest(request)) {
                         return;
                     }
                 }
 
-                if(contentTypeConstraintHandler != null && contentTypeConstraintHandler.handle(request)) {
+                if (contentTypeConstraintHandler != null && contentTypeConstraintHandler.handle(request)) {
                     return;
                 }
 
-                if(authorizer != null){
-                    authorizer.authorize(request).setHandler(event -> {
-                        if(event.succeeded() && event.result()){
+                if (authorizer != null) {
+                    authorizer.authorize(request).onComplete(event -> {
+                        if (event.succeeded() && event.result()) {
                             handleRequest(request);
-                        } else if(event.failed()){
+                        } else if (event.failed()) {
                             ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, RunConfig.class);
                             request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                             request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
@@ -572,18 +573,18 @@ public class RunConfig {
                 }
             }
 
-            private void handleRequest(final HttpServerRequest request){
+            private void handleRequest(final HttpServerRequest request) {
                 if (request.path().equals(SERVER_ROOT + "/cleanup")) {
                     QueuingHandler.cleanup(vertx);
                     request.response().end();
                     return;
                 }
                 if (PackingHandler.isPacked(request)) {
-                    request.bodyHandler(new PackingHandler(request, new QueuingHandler(vertx, redisClient, request, monitoringHandler)));
+                    request.bodyHandler(new PackingHandler(request, new QueuingHandler(vertx, redisAPI, request, monitoringHandler)));
                 } else {
                     if (QueuingHandler.isQueued(request)) {
                         setISO8601Timestamps(request);
-                        request.bodyHandler(new QueuingHandler(vertx, redisClient, request, monitoringHandler));
+                        request.bodyHandler(new QueuingHandler(vertx, redisAPI, request, monitoringHandler));
                     } else {
                         if (cacheHandler != null && cacheHandler.handle(request)) {
                             return;
@@ -601,7 +602,7 @@ public class RunConfig {
                         if (eventBusHandler != null && eventBusHandler.handle(request)) {
                             return;
                         }
-                        if(kafkaHandler != null && kafkaHandler.handle(request)){
+                        if (kafkaHandler != null && kafkaHandler.handle(request)) {
                             return;
                         }
                         if (validationHandler != null && validationHandler.isToValidate(request)) {
@@ -611,7 +612,7 @@ public class RunConfig {
                         if (loggingResourceManager != null && loggingResourceManager.handleLoggingResource(request)) {
                             return;
                         }
-                        if(configurationResourceManager != null && configurationResourceManager.handleConfigurationResource(request)){
+                        if (configurationResourceManager != null && configurationResourceManager.handleConfigurationResource(request)) {
                             return;
                         }
                         if (validationResourceManager != null && validationResourceManager.handleValidationResource(request)) {
@@ -620,20 +621,20 @@ public class RunConfig {
                         if (schedulerResourceManager != null && schedulerResourceManager.handleSchedulerResource(request)) {
                             return;
                         }
-                        if(queueCircuitBreakerConfigurationResourceManager != null &&
-                                queueCircuitBreakerConfigurationResourceManager.handleConfigurationResource(request)){
+                        if (queueCircuitBreakerConfigurationResourceManager != null &&
+                                queueCircuitBreakerConfigurationResourceManager.handleConfigurationResource(request)) {
                             return;
                         }
                         if (propertyHandler != null && propertyHandler.handle(request)) {
                             return;
                         }
-                        if ( zipExtractHandler != null && zipExtractHandler.handle(request) ) {
+                        if (zipExtractHandler != null && zipExtractHandler.handle(request)) {
                             return;
                         }
-                        if ( delegateHandler != null && delegateHandler.handle(request)) {
+                        if (delegateHandler != null && delegateHandler.handle(request)) {
                             return;
                         }
-                        if ( customHttpResponseHandler != null && customHttpResponseHandler.handle(request)) {
+                        if (customHttpResponseHandler != null && customHttpResponseHandler.handle(request)) {
                             return;
                         }
                         if (userProfileHandler != null && userProfileHandler.isUserProfileRequest(request)) {
@@ -644,11 +645,10 @@ public class RunConfig {
                             expansionHandler.handleZipRecursion(request);
                         } else if (expansionHandler != null && expansionHandler.isExpansionRequest(request)) {
                             expansionHandler.handleExpansionRecursion(request);
-                        }
-                        else if (deltaHandler != null && deltaHandler.isDeltaRequest(request)) {
+                        } else if (deltaHandler != null && deltaHandler.isDeltaRequest(request)) {
                             setISO8601Timestamps(request);
                             deltaHandler.handle(request, router);
-                        } else if ( mergeHandler != null && mergeHandler.handle(request) ) {
+                        } else if (mergeHandler != null && mergeHandler.handle(request)) {
                             return;
                         } else {
                             setISO8601Timestamps(request);
@@ -764,7 +764,7 @@ public class RunConfig {
      * Transform a timestamp header to local time timestamp header it is UTC. If the header is absent or not parsable, do nothing.
      *
      * @param request The request containing the header.
-     * @param header The header name.
+     * @param header  The header name.
      */
     private void localizeTimestamp(HttpServerRequest request, String header) {
         String timestamp = request.headers().get(header);

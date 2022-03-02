@@ -21,12 +21,12 @@ import java.util.stream.Collectors;
  * The MergeHandler has to be addressed by the header <code>x-merge-collections</code>. <br>
  * The following example shows how to use the MergeHandler. <br>
  * <pre>
-    "/gateleen/data/(.*)" : {
-        "path": "data/$1",
-        "staticHeaders": {
-            "x-merge-collections": "/gateleen/masterdata/parent/"
-        }
-    }
+ * "/gateleen/data/(.*)" : {
+ * "path": "data/$1",
+ * "staticHeaders": {
+ * "x-merge-collections": "/gateleen/masterdata/parent/"
+ * }
+ * }
  * </pre>
  *
  * <b>Note:</b> <br>
@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
  *     <li>x-delta</li>
  *     <li></li>
  * </ul>
+ *
  * @author https://github.com/ljucam [Mario Aerni]
  */
 public class MergeHandler {
@@ -52,6 +53,7 @@ public class MergeHandler {
 
     /**
      * Creates a new instance of the MergeHandler
+     *
      * @param httpClient the self client
      */
     public MergeHandler(HttpClient httpClient) {
@@ -73,76 +75,81 @@ public class MergeHandler {
         if (mergeCollection != null && request.method().equals(HttpMethod.GET)) {
 
             // perform a get request on the parent, to get all collections of the routes
-            final HttpClientRequest cReq = httpClient.request(HttpMethod.GET, mergeCollection, cRes -> {
-                // everything is ok
-                if ( cRes.statusCode() == StatusCode.OK.getStatusCode() ) {
-                    final String collectionName = getCollectionName(mergeCollection);
-                    final String targetUrlPart = getTargetUrlPart(request.path());
+            httpClient.request(HttpMethod.GET, mergeCollection).onComplete(asyncReqResult -> {
+                if (asyncReqResult.failed()) {
+                    log.warn("Failed request to {}: {}", request.uri(), asyncReqResult.cause());
+                    return;
+                }
+                HttpClientRequest cReq = asyncReqResult.result();
 
-                    if ( log.isTraceEnabled() ) {
-                        log.trace("handle > (mergeCollection) {}, (collectionName) {}, (targetUrlPart) {}", mergeCollection, collectionName, targetUrlPart);
-                    }
 
-                    // process respons
-                    cRes.handler(data -> {
-                        JsonObject dataObject = new JsonObject(data.toString());
+                cReq.setTimeout(TIMEOUT);
+                cReq.headers().set("Accept", "application/json");
+                cReq.headers().set(SELF_REQUEST_HEADER, "true");
+                cReq.setChunked(true);
+                cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, mergeCollection, MergeHandler.class));
+                cReq.send(asyncResult -> {
+                    HttpClientResponse cRes = asyncResult.result();
+                    // everything is ok
+                    if (cRes.statusCode() == StatusCode.OK.getStatusCode()) {
+                        final String collectionName = getCollectionName(mergeCollection);
+                        final String targetUrlPart = getTargetUrlPart(request.path());
 
-                        if ( log.isTraceEnabled() ) {
-                            log.trace(" >> body is \"{}\"", dataObject.toString());
+                        if (log.isTraceEnabled()) {
+                            log.trace("handle > (mergeCollection) {}, (collectionName) {}, (targetUrlPart) {}", mergeCollection, collectionName, targetUrlPart);
                         }
 
-                        // we get an array back
-                        if (dataObject.getValue(collectionName) instanceof JsonArray) {
-                            List<String> collections = getCollections(dataObject.getJsonArray(collectionName));
+                        // process respons
+                        cRes.handler(data -> {
+                            JsonObject dataObject = new JsonObject(data.toString());
 
-                            final Handler<MergeData> mergeCollectionHandler = installMergeCollectionHandler(request, collections.size(), targetUrlPart);
-                                    
-                            for( final String collection : collections ) {
-                                /*
-                                    In order to perform the right request (direct request for a resource,
-                                    merge request for a collection), we are forced to first perform a
-                                    request to the underlying collection. This seems to be the only way to
-                                    distinguish weather we hare requesting a collection or a resource.
-                                    We cannot ask redis (storage), because we may perform this request
-                                    against a service behind a dynamic route.
-                                    This way we always get two requests (one for the underlying collection and one
-                                    for the wished original request).
-                                    We may however improve the performance by using the following algorithm.
-
-                                    First request the underlying collection (for all routes) and mark the ones,
-                                    which are not available (404 - NOT FOUND). This one’s doesn't have to be
-                                    requested again.
-
-                                    If an error occured (not 404), create an error response.
-                                 */
-                                if ( log.isTraceEnabled() ) {
-                                    log.trace("requestCollection {}", collection);
-                                }
-                                requestCollection(request, mergeCollection, collection, request.path(), mergeCollectionHandler);
+                            if (log.isTraceEnabled()) {
+                                log.trace(" >> body is \"{}\"", dataObject.toString());
                             }
-                        }
-                        else {
-                            // write the data back
-                            request.response().end(dataObject.toBuffer());
-                        }
-                    });
-                }
-                // something is odd
-                else {
-                    request.response().setChunked(true);
-                    cRes.handler(data -> request.response().write(data));
-                    cRes.endHandler(v -> request.response().end());
-                }
 
+                            // we get an array back
+                            if (dataObject.getValue(collectionName) instanceof JsonArray) {
+                                List<String> collections = getCollections(dataObject.getJsonArray(collectionName));
+
+                                final Handler<MergeData> mergeCollectionHandler = installMergeCollectionHandler(request, collections.size(), targetUrlPart);
+
+                                for (final String collection : collections) {
+                            /*
+                                In order to perform the right request (direct request for a resource,
+                                merge request for a collection), we are forced to first perform a
+                                request to the underlying collection. This seems to be the only way to
+                                distinguish weather we hare requesting a collection or a resource.
+                                We cannot ask redis (storage), because we may perform this request
+                                against a service behind a dynamic route.
+                                This way we always get two requests (one for the underlying collection and one
+                                for the wished original request).
+                                We may however improve the performance by using the following algorithm.
+
+                                First request the underlying collection (for all routes) and mark the ones,
+                                which are not available (404 - NOT FOUND). This one’s doesn't have to be
+                                requested again.
+
+                                If an error occured (not 404), create an error response.
+                             */
+                                    if (log.isTraceEnabled()) {
+                                        log.trace("requestCollection {}", collection);
+                                    }
+                                    requestCollection(request, mergeCollection, collection, request.path(), mergeCollectionHandler);
+                                }
+                            } else {
+                                // write the data back
+                                request.response().end(dataObject.toBuffer());
+                            }
+                        });
+                    }
+                    // something is odd
+                    else {
+                        request.response().setChunked(true);
+                        cRes.handler(data -> request.response().write(data));
+                        cRes.endHandler(v -> request.response().end());
+                    }
+                });
             });
-
-            cReq.setTimeout(TIMEOUT);
-            cReq.headers().set("Accept", "application/json");
-            cReq.headers().set(SELF_REQUEST_HEADER, "true");
-            cReq.setChunked(true);
-            cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, mergeCollection, MergeHandler.class));
-            cReq.end();
-
             return true;
         }
 
@@ -155,10 +162,10 @@ public class MergeHandler {
      * request. This way it is possible to determin if we have a
      * resource or a collection request.
      *
-     * @param request the original request
-     * @param mergeCollection the path value from the header
-     * @param collection the requested sub resource with trailing slash
-     * @param path the path component from the rule
+     * @param request                the original request
+     * @param mergeCollection        the path value from the header
+     * @param collection             the requested sub resource with trailing slash
+     * @param path                   the path component from the rule
      * @param mergeCollectionHandler the merge handler
      */
     private void requestCollection(final HttpServerRequest request,
@@ -190,126 +197,134 @@ public class MergeHandler {
 
           */
         final String requestUrl = mergeCollection + collection +
-                ( path.startsWith(SLASH) ? path.substring(path.indexOf(SLASH) + 1, path.length()) : path );
+                (path.startsWith(SLASH) ? path.substring(path.indexOf(SLASH) + 1, path.length()) : path);
         final String parentUrl = prepareParentCollection(requestUrl);
         final String targetUrlPart = getTargetUrlPart(requestUrl);
 
-        if ( log.isTraceEnabled() ) {
+        if (log.isTraceEnabled()) {
             log.trace("requestCollection > (requestUrl)" + requestUrl + " (parentUrl) " + parentUrl + " (targetUrlPart) " + targetUrlPart);
         }
 
-        final HttpClientRequest collectionRequest = httpClient.request(HttpMethod.GET, parentUrl, collectionResponse -> {
-            collectionResponse.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, parentUrl, MergeHandler.class));
-            // everything is ok
-            if ( collectionResponse.statusCode() == StatusCode.OK.getStatusCode() ) {
-                final String parentCollection = getCollectionName(parentUrl);
+        httpClient.request(HttpMethod.GET, parentUrl).onComplete(asyncReqResult -> {
+            if (asyncReqResult.failed()) {
+                log.warn("Failed request to {}: {}", request.uri(), asyncReqResult.cause());
+                return;
+            }
+            HttpClientRequest collectionRequest = asyncReqResult.result();
 
-                // do superfanzy things
-                collectionResponse.bodyHandler( data -> {
-                    String collectionName = parentCollection;
-                    JsonObject dataObject = new JsonObject(data.toString());
 
-                    if ( ! dataObject.containsKey(collectionName) ) {
-                        /*
-                            in case the parent collection can not be found, we
-                            most surely have a request which is performed over a
-                            route.
-                            E.G.
-                            Source: /gateleen/dynamicdata/
-                            Target: /gateleen/target/t1/
-                            GET /gateleen/dynamicdata/
-                            {
-                                "t1" : [
-                                    "..."
-                                ]
+            collectionRequest.setTimeout(TIMEOUT);
+            collectionRequest.headers().set("Accept", "application/json");
+            collectionRequest.headers().set(SELF_REQUEST_HEADER, "true");
+            collectionRequest.setChunked(true);
+            collectionRequest.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, parentUrl, MergeHandler.class));
+            collectionRequest.send(asyncResult -> {
+                HttpClientResponse collectionResponse = asyncResult.result();
+                collectionResponse.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, parentUrl, MergeHandler.class));
+                // everything is ok
+                if (collectionResponse.statusCode() == StatusCode.OK.getStatusCode()) {
+                    final String parentCollection = getCollectionName(parentUrl);
+
+                    // do superfanzy things
+                    collectionResponse.bodyHandler(data -> {
+                        String collectionName = parentCollection;
+                        JsonObject dataObject = new JsonObject(data.toString());
+
+                        if (!dataObject.containsKey(collectionName)) {
+                    /*
+                        in case the parent collection can not be found, we
+                        most surely have a request which is performed over a
+                        route.
+                        E.G.
+                        Source: /gateleen/dynamicdata/
+                        Target: /gateleen/target/t1/
+                        GET /gateleen/dynamicdata/
+                        {
+                            "t1" : [
+                                "..."
+                            ]
+                        }
+
+                        This has to be handled in order to be able to perform
+                        even root - GET requests.
+
+                        In this case there may only exists (always) one Element
+                        in the dataObject. This element we do need!
+                     */
+                            if (dataObject.size() == 1) {
+                                collectionName = dataObject.fieldNames().stream().findFirst().get();
+
+                                if (log.isTraceEnabled()) {
+                                    log.trace("   >>> collection {} could not be found, use instead key: {}", parentCollection, collectionName);
+                                }
                             }
+                        }
 
-                            This has to be handled in order to be able to perform
-                            even root - GET requests.
 
-                            In this case there may only exists (always) one Element
-                            in the dataObject. This element we do need!
-                         */
-                        if ( dataObject.size() == 1 ) {
-                            collectionName = dataObject.fieldNames().stream().findFirst().get();
+                        if (log.isTraceEnabled()) {
+                            log.trace("requestCollection >> uri is: {}, body is: {}", parentUrl, data.toString());
+                        }
 
-                            if ( log.isTraceEnabled() ) {
-                                log.trace("   >>> collection {} could not be found, use instead key: {}", parentCollection, collectionName);
+
+                        if (dataObject.getValue(collectionName) instanceof JsonArray) {
+                            List<String> collectionContent = getCollectionContent(dataObject.getJsonArray(collectionName));
+
+                            // collection
+                            if (collectionContent.contains(targetUrlPart + SLASH)) {
+                                mergeCollectionHandler.handle(new MergeData(
+                                        data,
+                                        collectionResponse.statusCode(),
+                                        collectionResponse.statusMessage(),
+                                        true,
+                                        requestUrl));
+                            }
+                            // resource
+                            else if (collectionContent.contains(targetUrlPart)) {
+                                mergeCollectionHandler.handle(new MergeData(
+                                        data,
+                                        collectionResponse.statusCode(),
+                                        collectionResponse.statusMessage(),
+                                        false,
+                                        requestUrl));
+                            }
+                            // not found
+                            else {
+                                mergeCollectionHandler.handle(new MergeData(
+                                        data,
+                                        StatusCode.NOT_FOUND.getStatusCode(),
+                                        StatusCode.NOT_FOUND.getStatusMessage(),
+                                        false,
+                                        requestUrl));
                             }
                         }
-                    }
-
-
-                    if ( log.isTraceEnabled() ) {
-                        log.trace("requestCollection >> uri is: {}, body is: {}", parentUrl, data.toString());
-                    }
-
-
-                    if (dataObject.getValue(collectionName) instanceof JsonArray) {
-                        List<String> collectionContent = getCollectionContent(dataObject.getJsonArray(collectionName));
-
-                        // collection
-                        if ( collectionContent.contains(targetUrlPart + SLASH) ) {
-                            mergeCollectionHandler.handle( new MergeData(
-                                    data,
-                                    collectionResponse.statusCode(),
-                                    collectionResponse.statusMessage(),
-                                    true,
-                                    requestUrl) );
-                        }
-                        // resource
-                        else if ( collectionContent.contains(targetUrlPart) ) {
-                            mergeCollectionHandler.handle( new MergeData(
-                                    data,
-                                    collectionResponse.statusCode(),
-                                    collectionResponse.statusMessage(),
-                                    false,
-                                    requestUrl) );
-                        }
-                        // not found
+                        // this is an optimization
                         else {
-                            mergeCollectionHandler.handle( new MergeData(
+                            if (log.isTraceEnabled()) {
+                                log.trace("requestCollection >> given array was not found");
+                            }
+
+                            mergeCollectionHandler.handle(new MergeData(
                                     data,
                                     StatusCode.NOT_FOUND.getStatusCode(),
                                     StatusCode.NOT_FOUND.getStatusMessage(),
                                     false,
-                                    requestUrl) );
+                                    requestUrl));
                         }
-                    }
-                    // this is an optimization
-                    else {
-                        if ( log.isTraceEnabled() ) {
-                            log.trace("requestCollection >> given array was not found");
-                        }
-
-                        mergeCollectionHandler.handle( new MergeData(
+                    });
+                }
+                // not found or something else is not ok
+                else {
+                    collectionResponse.handler(data -> {
+                        mergeCollectionHandler.handle(new MergeData(
                                 data,
-                                StatusCode.NOT_FOUND.getStatusCode(),
-                                StatusCode.NOT_FOUND.getStatusMessage(),
+                                collectionResponse.statusCode(),
+                                collectionResponse.statusMessage(),
                                 false,
-                                requestUrl) );
-                    }
-                });
-            }
-            // not found or something else is not ok
-            else {
-                collectionResponse.handler( data -> {
-                    mergeCollectionHandler.handle( new MergeData(
-                            data,
-                            collectionResponse.statusCode(),
-                            collectionResponse.statusMessage(),
-                            false,
-                            requestUrl) );
-                });
-            }
+                                requestUrl));
+                    });
+                }
+            });
         });
-
-        collectionRequest.setTimeout(TIMEOUT);
-        collectionRequest.headers().set("Accept", "application/json");
-        collectionRequest.headers().set(SELF_REQUEST_HEADER, "true");
-        collectionRequest.setChunked(true);
-        collectionRequest.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, parentUrl, MergeHandler.class));
-        collectionRequest.end();
     }
 
     /**
@@ -321,8 +336,8 @@ public class MergeHandler {
      */
     private List<String> getCollections(JsonArray array) {
         return ((List<Object>) array.getList()).stream()
-                .map( r -> (String) r )
-                .filter( r -> r.endsWith(SLASH))
+                .map(r -> (String) r)
+                .filter(r -> r.endsWith(SLASH))
                 .collect(Collectors.toList());
     }
 
@@ -334,8 +349,8 @@ public class MergeHandler {
      * @return list of content strings of the collection
      */
     private List<String> getCollectionContent(JsonArray array) {
-        return  ((List<Object>) array.getList()).stream()
-                .map( r -> (String) r )
+        return ((List<Object>) array.getList()).stream()
+                .map(r -> (String) r)
                 .collect(Collectors.toList());
     }
 
@@ -348,7 +363,7 @@ public class MergeHandler {
 
             @Override
             public void handle(MergeData subCollectionData) {
-                if ( log.isTraceEnabled() ) {
+                if (log.isTraceEnabled()) {
                     log.trace("mergeCollectionHandler - handle (count: {}) > {}", totalCollectionCount, subCollectionData.getTargetRequest());
                     log.trace(" >>> data: {}", subCollectionData.getContent().toString());
                 }
@@ -356,8 +371,8 @@ public class MergeHandler {
                 collectedData.add(subCollectionData);
 
                 // we collected every subrequest, ready to proceed
-                if ( collectedData.size() == totalCollectionCount ) {
-                    if ( log.isTraceEnabled() ) {
+                if (collectedData.size() == totalCollectionCount) {
+                    if (log.isTraceEnabled()) {
                         log.trace("mergeCollectionHandler - handle > list complete, start processing");
                     }
 
@@ -372,45 +387,43 @@ public class MergeHandler {
                     MergeData error = null;
                     int found = 0;
                     int collectionCount = 0;
-                    int resourceCount  = 0;
+                    int resourceCount = 0;
                     int notFound = 0;
 
-                    for( MergeData data : collectedData ) {
+                    for (MergeData data : collectedData) {
                         // found
-                        if ( data.getStatusCode() == StatusCode.OK.getStatusCode() ) {
+                        if (data.getStatusCode() == StatusCode.OK.getStatusCode()) {
                             found++;
 
                             // collection?
-                            if ( data.isTargetCollection() ) {
+                            if (data.isTargetCollection()) {
                                 collectionCount++;
                             }
                             // resource
                             else {
                                 resourceCount++;
                             }
-                        }
-                        else if ( data.getStatusCode() == StatusCode.NOT_FOUND.getStatusCode() ) {
+                        } else if (data.getStatusCode() == StatusCode.NOT_FOUND.getStatusCode()) {
                             notFound++;
-                        }
-                        else {
+                        } else {
                             error = data;
                             break;
                         }
                     }
 
-                    if ( log.isTraceEnabled() ) {
+                    if (log.isTraceEnabled()) {
                         log.trace("mergeCollectionHandler - handle > error {}, found {}, collectionCount {}, resourceCount {}, notFound {}", error, found, collectionCount, resourceCount, notFound);
                     }
 
                     // no errors recorded, case 3) is fulfilled
-                    if ( error == null ) {
-                        if ( log.isTraceEnabled() ) {
+                    if (error == null) {
+                        if (log.isTraceEnabled()) {
                             log.trace("mergeCollectionHandler - handle > no errors found");
                         }
 
                         // nothing is found, case 2) is fulfilled
-                        if ( notFound == totalCollectionCount ) {
-                            if ( log.isTraceEnabled() ) {
+                        if (notFound == totalCollectionCount) {
+                            if (log.isTraceEnabled()) {
                                 log.trace("mergeCollectionHandler - handle > nothing found");
                             }
 
@@ -422,61 +435,61 @@ public class MergeHandler {
                                     null);
                         }
                         // process collection
-                        else if ( found == collectionCount && ! collectedData.isEmpty() ) {
-                            if ( log.isTraceEnabled() ) {
+                        else if (found == collectionCount && !collectedData.isEmpty()) {
+                            if (log.isTraceEnabled()) {
                                 log.trace("mergeCollectionHandler - handle > performMergeRequest");
                             }
 
                             final List<MergeData> subCollectionsToRequest = collectedData.stream()
-                                    .filter( cData -> cData.getStatusCode() == StatusCode.OK.getStatusCode() &&
-                                            cData.isTargetCollection() )
+                                    .filter(cData -> cData.getStatusCode() == StatusCode.OK.getStatusCode() &&
+                                            cData.isTargetCollection())
                                     .collect(Collectors.toList());
                             final Handler<MergeData> mergeRequestHandler = installMergeRequestHandler(request, subCollectionsToRequest.size(), targetUrlPart);
 
-                            for( final MergeData data : subCollectionsToRequest ) {
+                            for (final MergeData data : subCollectionsToRequest) {
                                 performMergeRequest(request, data, mergeRequestHandler);
                             }
                         }
                         // process resource
-                        else if ( found == resourceCount && ! collectedData.isEmpty() ) {
-                            if ( log.isTraceEnabled() ) {
+                        else if (found == resourceCount && !collectedData.isEmpty()) {
+                            if (log.isTraceEnabled()) {
                                 log.trace("mergeCollectionHandler - handle > performDirectRequest");
                             }
 
                             // we only process the very first resource in a merge request!
                             final MergeData resource = collectedData.stream()
-                                    .filter( cData -> cData.getStatusCode() == StatusCode.OK.getStatusCode() &&
-                                             ! cData.isTargetCollection() )
+                                    .filter(cData -> cData.getStatusCode() == StatusCode.OK.getStatusCode() &&
+                                            !cData.isTargetCollection())
                                     .findFirst()
                                     .get();
                             performDirectRequest(request, resource);
                         }
                         // missmatch, resources as well as collections with given name were found, case 1) is fulfilled
                         else {
-                            if ( log.isTraceEnabled() ) {
+                            if (log.isTraceEnabled()) {
                                 log.trace("mergeCollectionHandler - handle > createResponse (missmatch)");
                             }
 
                             // return status 500
                             createResponse(request,
-                                           StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(),
-                                           StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage(),
-                                           null,
-                                           MISSMATCH_ERROR);
+                                    StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(),
+                                    StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage(),
+                                    null,
+                                    MISSMATCH_ERROR);
                         }
                     }
                     // errors found
                     else {
-                        if ( log.isTraceEnabled() ) {
+                        if (log.isTraceEnabled()) {
                             log.trace("mergeCollectionHandler - handle > createResponse (error)");
                         }
 
                         // return given error code & data
                         createResponse(request,
-                                       error.getStatusCode(),
-                                       error.getStatusMessage(),
-                                       error.getContent(),
-                                       null);
+                                error.getStatusCode(),
+                                error.getStatusMessage(),
+                                error.getContent(),
+                                null);
                     }
                 }
             }
@@ -486,29 +499,35 @@ public class MergeHandler {
     private void performMergeRequest(final HttpServerRequest request, final MergeData data, final Handler<MergeData> mergeRequestHandler) {
         final String uri = data.getTargetRequest() + getParameters(request.uri());
 
-        if ( log.isTraceEnabled() ) {
+        if (log.isTraceEnabled()) {
             log.trace("performMergeRequest > {}, {}", data.getTargetRequest(), uri);
         }
 
-        final HttpClientRequest mergeRequest = httpClient.request(HttpMethod.GET,uri,res -> {
+        httpClient.request(HttpMethod.GET, uri).onComplete(asyncReqResult -> {
+            if (asyncReqResult.failed()) {
+                log.warn("Failed request to {}: {}", request.uri(), asyncReqResult.cause());
+                return;
+            }
+            HttpClientRequest mergeRequest = asyncReqResult.result();
 
-            res.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, data.getTargetRequest(), MergeHandler.class));
-            res.bodyHandler( buffer -> {
-                mergeRequestHandler.handle( new MergeData(buffer,
-                        res.statusCode(),
-                        res.statusMessage(),
-                        true,
-                        data.getTargetRequest()));
+            mergeRequest.setTimeout(TIMEOUT);
+            mergeRequest.headers().addAll(request.headers());
+            mergeRequest.headers().set(SELF_REQUEST_HEADER, "true");
+            mergeRequest.headers().remove(MERGE_HEADER);
+            mergeRequest.setChunked(true);
+            mergeRequest.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, data.getTargetRequest(), MergeHandler.class));
+            mergeRequest.send(asyncResult -> {
+                HttpClientResponse res = asyncResult.result();
+                res.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, data.getTargetRequest(), MergeHandler.class));
+                res.bodyHandler(buffer -> {
+                    mergeRequestHandler.handle(new MergeData(buffer,
+                            res.statusCode(),
+                            res.statusMessage(),
+                            true,
+                            data.getTargetRequest()));
+                });
             });
         });
-
-        mergeRequest.setTimeout(TIMEOUT);
-        mergeRequest.headers().addAll(request.headers());
-        mergeRequest.headers().set(SELF_REQUEST_HEADER, "true");
-        mergeRequest.headers().remove(MERGE_HEADER);
-        mergeRequest.setChunked(true);
-        mergeRequest.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, data.getTargetRequest(), MergeHandler.class));
-        mergeRequest.end();
     }
 
     private Handler<MergeData> installMergeRequestHandler(final HttpServerRequest request, final int size, final String targetUrlPart) {
@@ -520,7 +539,7 @@ public class MergeHandler {
                 collectedData.add(requestData);
 
                 if (collectedData.size() == size) {
-                    if ( log.isTraceEnabled() ) {
+                    if (log.isTraceEnabled()) {
                         log.trace("installMergeRequestHandler > process started");
                     }
 
@@ -535,23 +554,22 @@ public class MergeHandler {
                     }
 
                     if (error == null) {
-                        if ( log.isTraceEnabled() ) {
+                        if (log.isTraceEnabled()) {
                             log.trace("installMergeRequestHandler > no error found");
                         }
 
                         final List<MergeData> validData = collectedData.stream()
-                                .filter( cData -> cData.getStatusCode() == StatusCode.OK.getStatusCode() )
+                                .filter(cData -> cData.getStatusCode() == StatusCode.OK.getStatusCode())
                                 .collect(Collectors.toList());
 
-                        if ( ! validData.isEmpty() ) {
-                            if ( log.isTraceEnabled() ) {
+                        if (!validData.isEmpty()) {
+                            if (log.isTraceEnabled()) {
                                 log.trace("installMergeRequestHandler > createMergedResponse");
                             }
 
                             createMergedResponse(request, targetUrlPart, validData);
-                        }
-                        else {
-                            if ( log.isTraceEnabled() ) {
+                        } else {
+                            if (log.isTraceEnabled()) {
                                 log.trace("installMergeRequestHandler > nothing found");
                             }
 
@@ -561,9 +579,8 @@ public class MergeHandler {
                                     null,
                                     null);
                         }
-                    }
-                    else {
-                        if ( log.isTraceEnabled() ) {
+                    } else {
+                        if (log.isTraceEnabled()) {
                             log.trace("installMergeRequestHandler > error");
                         }
 
@@ -583,21 +600,21 @@ public class MergeHandler {
      * Merges the result of all collection requests to one request
      * and creates a valid response.
      *
-     * @param request the original request
+     * @param request        the original request
      * @param collectionName the name of the resulting collection
      * @param collectionData the data which has to be merged to the given collection
      */
     private void createMergedResponse(final HttpServerRequest request, final String collectionName, final List<MergeData> collectionData) {
-        if ( log.isTraceEnabled() ) {
+        if (log.isTraceEnabled()) {
             log.trace("createMergedResponse > {}", collectionName);
         }
 
         final Set<String> collectionContent = new HashSet<>();
 
         // merge all responses
-        for( final MergeData data : collectionData ) {
+        for (final MergeData data : collectionData) {
             final JsonObject dataObject = new JsonObject(data.getContent().toString());
-            if ( log.isTraceEnabled() ) {
+            if (log.isTraceEnabled()) {
                 log.trace("createMergedResponse > loop - {}", dataObject.toString());
             }
 
@@ -617,7 +634,7 @@ public class MergeHandler {
          * to set the header to the expected content type.
          */
 
-        final MultiMap headers = new CaseInsensitiveHeaders();
+        final MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Content-Type", "application/json");
 
         // create response
@@ -632,62 +649,67 @@ public class MergeHandler {
     /**
      * Performs a direct request to the given resourceData
      *
-     * @param request request
+     * @param request      request
      * @param resourceData resourceData
      */
     private void performDirectRequest(final HttpServerRequest request, final MergeData resourceData) {
         final String uri = resourceData.getTargetRequest() + getParameters(request.uri());
 
-        if ( log.isTraceEnabled() ) {
+        if (log.isTraceEnabled()) {
             log.trace("performDirectRequest > {}", uri);
         }
 
-        final HttpClientRequest directRequest = httpClient.request(HttpMethod.GET, uri, res -> {
-            HttpServerRequestUtil.prepareResponse(request, res);
+        httpClient.request(HttpMethod.GET, uri).onComplete(asyncReqResult -> {
+            if (asyncReqResult.failed()) {
+                log.warn("Failed request to {}: {}", request.uri(), asyncReqResult.cause());
+                return;
+            }
+            HttpClientRequest directRequest = asyncReqResult.result();
 
-            res.handler( data -> request.response().write(data));
-            res.endHandler( data -> request.response().end());
+            directRequest.setTimeout(TIMEOUT);
+            directRequest.headers().addAll(request.headers());
+            directRequest.headers().set(SELF_REQUEST_HEADER, "true");
+            directRequest.headers().remove(MERGE_HEADER);
+            directRequest.setChunked(true);
+            directRequest.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, resourceData.getTargetRequest(), MergeHandler.class));
+            directRequest.send(asyncResult -> {
+                HttpClientResponse res = asyncResult.result();
+                HttpServerRequestUtil.prepareResponse(request, res);
+
+                res.handler(data -> request.response().write(data));
+                res.endHandler(data -> request.response().end());
+            });
         });
-
-        directRequest.setTimeout(TIMEOUT);
-        directRequest.headers().addAll(request.headers());
-        directRequest.headers().set(SELF_REQUEST_HEADER, "true");
-        directRequest.headers().remove(MERGE_HEADER);
-        directRequest.setChunked(true);
-        directRequest.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, resourceData.getTargetRequest(), MergeHandler.class));
-        directRequest.end();
     }
 
     /**
      * Creates the final response to the original request.
      *
-     * @param request the original request
-     * @param statusCode the resulting status code
+     * @param request       the original request
+     * @param statusCode    the resulting status code
      * @param statusMessage the resulting status message
-     * @param data the data (may be null)
-     * @param freetext  a freetext in case of an error (may be null)
-     * @param headers headers used for the response
+     * @param data          the data (may be null)
+     * @param freetext      a freetext in case of an error (may be null)
+     * @param headers       headers used for the response
      */
     private void createResponse(final HttpServerRequest request, final int statusCode, final String statusMessage, final Buffer data, final String freetext, final MultiMap headers) {
-        if ( log.isTraceEnabled() ) {
+        if (log.isTraceEnabled()) {
             log.trace("createResponse - for -> {} with statusCode {}.", request.uri(), statusCode);
         }
 
         request.response().setStatusCode(statusCode);
         request.response().setStatusMessage(statusMessage);
 
-        if ( headers != null ) {
+        if (headers != null) {
             request.response().headers().addAll(headers);
         }
 
         request.response().setChunked(true);
-        if ( freetext != null ) {
+        if (freetext != null) {
             request.response().end(freetext);
-        }
-        else if ( data != null ) {
+        } else if (data != null) {
             request.response().end(data);
-        }
-        else {
+        } else {
             request.response().end();
         }
     }
@@ -695,11 +717,11 @@ public class MergeHandler {
     /**
      * Creates the final response to the original request.
      *
-     * @param request the original request
-     * @param statusCode the resulting status code
+     * @param request       the original request
+     * @param statusCode    the resulting status code
      * @param statusMessage the resulting status message
-     * @param data the data (may be null)
-     * @param freetext  a freetext in case of an error (may be null)
+     * @param data          the data (may be null)
+     * @param freetext      a freetext in case of an error (may be null)
      */
     private void createResponse(final HttpServerRequest request, final int statusCode, final String statusMessage, final Buffer data, final String freetext) {
         createResponse(request, statusCode, statusMessage, data, freetext, null);
@@ -712,7 +734,7 @@ public class MergeHandler {
      * @return last part of url
      */
     private String getTargetUrlPart(String requestUrl) {
-        if ( requestUrl.endsWith(SLASH) ) {
+        if (requestUrl.endsWith(SLASH)) {
             requestUrl = requestUrl.substring(0, requestUrl.lastIndexOf(SLASH));
         }
 
@@ -721,7 +743,7 @@ public class MergeHandler {
 
 
     private String prepareParentCollection(String collection) {
-        if ( collection.endsWith(SLASH) ) {
+        if (collection.endsWith(SLASH)) {
             collection = collection.substring(0, collection.lastIndexOf(SLASH));
         }
 
@@ -736,7 +758,7 @@ public class MergeHandler {
      * @return name without slash
      */
     private String getCollectionName(String url) {
-        if ( url.endsWith(SLASH) ) {
+        if (url.endsWith(SLASH)) {
             url = url.substring(0, url.lastIndexOf(SLASH));
         }
 

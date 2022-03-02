@@ -88,7 +88,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
             if (ctx.request() != null && ctx.request().params().contains("limit")) {
                 limitParam = ctx.request().params().get("limit");
             }
-            eb.send(redisquesAddress, buildGetQueueItemsOperation(queue, limitParam), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            eb.request(redisquesAddress, buildGetQueueItemsOperation(queue, limitParam), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                 JsonObject replyBody = reply.result().body();
                 if (OK.equals(replyBody.getString(STATUS))) {
                     List<Object> list = reply.result().body().getJsonArray(VALUE).getList();
@@ -109,7 +109,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         // Delete all queue items
         router.deleteWithRegex(prefix + "/queues/[^/]+").handler(ctx -> {
             final String queue = lastPart(ctx.request().path(), "/");
-            eb.send(redisquesAddress, buildDeleteAllQueueItemsOperation(queue), reply -> {
+            eb.request(redisquesAddress, buildDeleteAllQueueItemsOperation(queue), reply -> {
                 ctx.response().end();
             });
         });
@@ -118,7 +118,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         router.getWithRegex(prefix + "/queues/([^/]+)/[0-9]+").handler(ctx -> {
             final String queue = lastPart(ctx.request().path().substring(0, ctx.request().path().length() - 2), "/");
             final int index = Integer.parseInt(lastPart(ctx.request().path(), "/"));
-            eb.send(redisquesAddress, buildGetQueueItemOperation(queue, index), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            eb.request(redisquesAddress, buildGetQueueItemOperation(queue, index), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                 JsonObject replyBody = reply.result().body();
                 if (OK.equals(replyBody.getString(STATUS))) {
                     ctx.response().putHeader(CONTENT_TYPE, APPLICATION_JSON);
@@ -138,7 +138,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
                 final int index = Integer.parseInt(lastPart(ctx.request().path(), "/"));
                 ctx.request().bodyHandler(buffer -> {
                     String strBuffer = encode(buffer.toString());
-                    eb.send(redisquesAddress, buildReplaceQueueItemOperation(queue, index, strBuffer),
+                    eb.request(redisquesAddress, buildReplaceQueueItemOperation(queue, index, strBuffer),
                             (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.NOT_FOUND));
                 });
             });
@@ -148,7 +148,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         router.deleteWithRegex(prefix + "/queues/([^/]+)/[0-9]+").handler(ctx -> {
             final String queue = part(ctx.request().path(), "/", 2);
             final int index = Integer.parseInt(lastPart(ctx.request().path(), "/"));
-            checkLocked(queue, ctx.request(), aVoid -> eb.send(redisquesAddress, buildDeleteQueueItemOperation(queue, index),
+            checkLocked(queue, ctx.request(), aVoid -> eb.request(redisquesAddress, buildDeleteQueueItemOperation(queue, index),
                     (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.NOT_FOUND)));
         });
 
@@ -157,13 +157,13 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
             final String queue = part(ctx.request().path(), "/", 1);
             ctx.request().bodyHandler(buffer -> {
                 String strBuffer = encode(buffer.toString());
-                eb.send(redisquesAddress, buildAddQueueItemOperation(queue, strBuffer),
+                eb.request(redisquesAddress, buildAddQueueItemOperation(queue, strBuffer),
                         (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST));
             });
         });
 
         // get all locks
-        router.getWithRegex(prefix + "/locks/").handler(ctx -> eb.send(redisquesAddress, buildGetAllLocksOperation(),
+        router.getWithRegex(prefix + "/locks/").handler(ctx -> eb.request(redisquesAddress, buildGetAllLocksOperation(),
                 (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                     if (OK.equals(reply.result().body().getString(STATUS))) {
                         jsonResponse(ctx.response(), reply.result().body().getJsonObject(VALUE));
@@ -177,14 +177,14 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         // add lock
         router.putWithRegex(prefix + "/locks/[^/]+").handler(ctx -> {
             String queue = lastPart(ctx.request().path(), "/");
-            eb.send(redisquesAddress, buildPutLockOperation(queue, extractUser(ctx.request())),
+            eb.request(redisquesAddress, buildPutLockOperation(queue, extractUser(ctx.request())),
                     (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST));
         });
 
         // get single lock
         router.getWithRegex(prefix + "/locks/[^/]+").handler(ctx -> {
             String queue = lastPart(ctx.request().path(), "/");
-            eb.send(redisquesAddress, buildGetLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            eb.request(redisquesAddress, buildGetLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                 if (OK.equals(reply.result().body().getString(STATUS))) {
                     ctx.response().putHeader(CONTENT_TYPE, APPLICATION_JSON);
                     ctx.response().end(reply.result().body().getString(VALUE));
@@ -199,7 +199,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         // delete single lock
         router.deleteWithRegex(prefix + "/locks/[^/]+").handler(ctx -> {
             String queue = lastPart(ctx.request().path(), "/");
-            eb.send(redisquesAddress, buildDeleteLockOperation(queue),
+            eb.request(redisquesAddress, buildDeleteLockOperation(queue),
                     (Handler<AsyncResult<Message<JsonObject>>>) reply -> checkReply(reply.result(), ctx.request(), StatusCode.BAD_REQUEST));
         });
 
@@ -286,7 +286,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
     }
 
     public void handle(HttpServerRequest request) {
-        router.accept(request);
+        router.handle(request);
     }
 
     /**
@@ -363,7 +363,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
 
     private void checkLocked(String queue, final HttpServerRequest request, final Handler<Void> handler) {
         request.pause();
-        eb.send(redisquesAddress, buildGetLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+        eb.request(redisquesAddress, buildGetLockOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (NO_SUCH_LOCK.equals(reply.result().body().getString(STATUS))) {
                 request.resume();
                 request.response().setStatusCode(StatusCode.CONFLICT.getStatusCode());

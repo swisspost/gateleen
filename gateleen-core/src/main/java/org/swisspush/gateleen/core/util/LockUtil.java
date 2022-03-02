@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.lock.Lock;
 
@@ -24,29 +25,29 @@ public class LockUtil {
      * @return A boolean {@link Future} whether the lock could has been acquired or not
      */
     public static Future<Boolean> acquireLock(Lock lockImpl, String lock, String token, long lockExpiryMs, Logger log){
-        Future<Boolean> future = Future.future();
+        Promise<Boolean> promise = Promise.promise();
 
         if(lockImpl == null){
             log.info("No lock implementation defined, going to pretend like we got the lock");
-            future.complete(Boolean.TRUE);
-            return future;
+            promise.complete(Boolean.TRUE);
+            return promise.future();
         }
 
         log.debug("Trying to acquire lock '{}' with token '{}' and expiry {}ms", lock, token, lockExpiryMs);
-        lockImpl.acquireLock(lock, token, lockExpiryMs).setHandler(lockEvent -> {
+        lockImpl.acquireLock(lock, token, lockExpiryMs).onComplete(lockEvent -> {
             if(lockEvent.succeeded()){
                 if(lockEvent.result()){
                     log.debug("Acquired lock '{}' with token '{}'", lock, token);
-                    future.complete(Boolean.TRUE);
+                    promise.complete(Boolean.TRUE);
                 } else {
-                    future.complete(Boolean.FALSE);
+                    promise.complete(Boolean.FALSE);
                 }
             } else {
-                future.fail(lockEvent.cause());
+                promise.fail(lockEvent.cause());
             }
         });
 
-        return future;
+        return promise.future();
     }
 
     /**
@@ -63,7 +64,7 @@ public class LockUtil {
             return;
         }
         log.debug("Trying to release lock '{}' with token '{}'", lock, token);
-        lockImpl.releaseLock(lock, token).setHandler(releaseEvent -> {
+        lockImpl.releaseLock(lock, token).onComplete(releaseEvent -> {
             if(releaseEvent.succeeded()){
                 if(releaseEvent.result()){
                     log.debug("Released lock '{}' with token '{}'", lock, token);

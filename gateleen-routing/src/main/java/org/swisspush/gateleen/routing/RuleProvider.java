@@ -2,6 +2,7 @@ package org.swisspush.gateleen.routing;
 
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import org.slf4j.Logger;
@@ -65,28 +66,28 @@ public class RuleProvider {
     /**
      * Get the routing rules from storage (async)
      *
-     * @return a {@link Future} containing a list of {@link Rule} objects (when successful)
+     * @return a {@link Promise} containing a list of {@link Rule} objects (when successful)
      */
     public Future<List<Rule>> getRules(){
-        Future<List<Rule>> future = Future.future();
+        Promise<List<Rule>> promise = Promise.promise();
         storage.get(rulesPath, buffer -> {
             if (buffer != null) {
                 try {
                     List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
-                    future.complete(rules);
+                    promise.complete(rules);
                 } catch (ValidationException e) {
                     log.error("Could parse routing rules", e);
-                    future.fail(e);
+                    promise.fail(e);
                 }
             } else {
-                future.fail("Could not get URL '" + (rulesPath == null ? "<null>" : rulesPath) + "' (getting rules).");
+                promise.fail("Could not get URL '" + (rulesPath == null ? "<null>" : rulesPath) + "' (getting rules).");
             }
         });
-        return future;
+        return promise.future();
     }
 
     private void notifyRuleChangesObservers(){
-        getRules().setHandler(event -> {
+        getRules().onComplete(event -> {
             if(event.failed()){
                 log.error(event.cause().getMessage());
             } else {

@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -24,7 +24,7 @@ public class HttpRequestHeaderTest {
 
     @Before
     public void setUp() {
-        headers = new CaseInsensitiveHeaders();
+        headers = MultiMap.caseInsensitiveMultiMap();
     }
 
     @Test

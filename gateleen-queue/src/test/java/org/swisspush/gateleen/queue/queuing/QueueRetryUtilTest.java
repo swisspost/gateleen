@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.queue.queuing;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -28,9 +28,9 @@ public class QueueRetryUtilTest {
 
     @Test
     public void testNoQueueRetryConfig(TestContext context){
-        context.assertTrue(QueueRetryUtil.retryQueueItem(new CaseInsensitiveHeaders(), 0, logger));
-        context.assertTrue(QueueRetryUtil.retryQueueItem(new CaseInsensitiveHeaders(), 100, logger));
-        context.assertTrue(QueueRetryUtil.retryQueueItem(new CaseInsensitiveHeaders(), 404, logger));
+        context.assertTrue(QueueRetryUtil.retryQueueItem(MultiMap.caseInsensitiveMultiMap(), 0, logger));
+        context.assertTrue(QueueRetryUtil.retryQueueItem(MultiMap.caseInsensitiveMultiMap(), 100, logger));
+        context.assertTrue(QueueRetryUtil.retryQueueItem(MultiMap.caseInsensitiveMultiMap(), 404, logger));
     }
 
     @Test
@@ -75,6 +75,6 @@ public class QueueRetryUtilTest {
     }
 
     private MultiMap headers(String name, String value){
-        return new CaseInsensitiveHeaders().set(name, value);
+        return MultiMap.caseInsensitiveMultiMap().set(name, value);
     }
 }

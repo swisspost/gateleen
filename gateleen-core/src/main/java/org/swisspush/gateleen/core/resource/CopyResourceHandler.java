@@ -16,7 +16,7 @@ import org.swisspush.gateleen.core.util.StatusCodeTranslator;
 
 /**
  * Allows to copy one single resource to another destination.
- * 
+ *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 public class CopyResourceHandler {
@@ -35,7 +35,7 @@ public class CopyResourceHandler {
 
     /**
      * Handles the copy task.
-     * 
+     *
      * @param request - the request
      * @return true if the request was handled, false otherwise
      */
@@ -65,9 +65,9 @@ public class CopyResourceHandler {
 
     /**
      * Checks if the copy task is valid (simple resource, not a collection).
-     * 
+     *
      * @param request - the original request
-     * @param task - the copy task
+     * @param task    - the copy task
      * @return true if the task is valid otherwise false
      */
     protected boolean validTask(HttpServerRequest request, CopyTask task) {
@@ -82,64 +82,77 @@ public class CopyResourceHandler {
     }
 
 
-
     /**
      * Performs the initial GET request to the source.
-     * 
+     *
      * @param request - the original request
-     * @param task - the task which has to be performed
+     * @param task    - the task which has to be performed
      */
     protected void performGETRequest(final HttpServerRequest request, final CopyTask task) {
-
         // perform Initial GET request
-        HttpClientRequest selfRequest = selfClient.get(task.getSourceUri(), response -> {
-            // POST response is OK
-            if (response.statusCode() == StatusCode.OK.getStatusCode()) {
-                performPUTRequest(request, response, task);
-            } else {
-                createResponse(request, response, task);
+
+        selfClient.request(HttpMethod.GET, task.getSourceUri()).onComplete(event -> {
+            if (event.failed()) {
+                log.warn("Failed request to {}: {}", request.uri(), event.cause());
+                return;
             }
+            HttpClientRequest selfRequest = event.result();
+            // setting headers
+            selfRequest.headers().setAll(task.getHeaders());
+
+            // avoids blocking other requests
+            selfRequest.setTimeout(DEFAULT_TIMEOUT);
+
+            // add exception handler
+            selfRequest.exceptionHandler(exception -> log.warn("CopyResourceHandler: GET request failed: " + request.uri() + ": " + exception.getMessage()));
+
+            // fire
+            selfRequest.send(asyncResult -> {
+                HttpClientResponse response = asyncResult.result();
+                // POST response is OK
+                if (response.statusCode() == StatusCode.OK.getStatusCode()) {
+                    performPUTRequest(request, response, task);
+                } else {
+                    createResponse(request, response, task);
+                }
+            });
         });
-
-        // setting headers
-        selfRequest.headers().setAll(task.getHeaders());
-
-        // avoids blocking other requests
-        selfRequest.setTimeout(DEFAULT_TIMEOUT);
-
-        // add exception handler
-        selfRequest.exceptionHandler(exception -> log.warn("CopyResourceHandler: GET request failed: " + request.uri() + ": " + exception.getMessage()));
-
-        // fire
-        selfRequest.end();
     }
 
     /**
      * Performs the PUT request to the target.
-     * 
-     * @param request - the original request
+     *
+     * @param request     - the original request
      * @param getResponse - the GET response
-     * @param task - the task
+     * @param task        - the task
      */
     protected void performPUTRequest(final HttpServerRequest request, final HttpClientResponse getResponse, final CopyTask task) {
         getResponse.bodyHandler(data -> {
             // GET response is OK
             if (getResponse.statusCode() == StatusCode.OK.getStatusCode()) {
 
-                HttpClientRequest selfRequest = selfClient.put(task.getDestinationUri(), response -> createResponse(request, response, task));
+                selfClient.request(HttpMethod.PUT, task.getDestinationUri()).onComplete(event -> {
+                    if (event.failed()) {
+                        log.warn("Failed request to {}: {}", request.uri(), event.cause());
+                        return;
+                    }
+                    HttpClientRequest selfRequest = event.result();
 
-                // setting headers
-                selfRequest.headers().addAll(task.getHeaders());
+                    // setting headers
+                    selfRequest.headers().addAll(task.getHeaders());
 
-                // writing data
-                selfRequest.write(data);
+                    // writing data
+                    selfRequest.write(data);
 
-                // avoids blocking other requests
-                selfRequest.setTimeout(DEFAULT_TIMEOUT);
+                    // avoids blocking other requests
+                    selfRequest.setTimeout(DEFAULT_TIMEOUT);
 
-                // fire
-                selfRequest.end();
-
+                    // fire
+                    selfRequest.send(asyncResult -> {
+                        HttpClientResponse response = asyncResult.result();
+                        createResponse(request, response, task);
+                    });
+                });
             } else {
                 createResponse(request, getResponse, task);
             }
@@ -148,8 +161,8 @@ public class CopyResourceHandler {
 
     /**
      * Create a response of the original request.
-     * 
-     * @param request - the original request
+     *
+     * @param request  - the original request
      * @param response - the resulting response
      */
     private void createResponse(final HttpServerRequest request, final HttpClientResponse response, final CopyTask task) {
@@ -170,9 +183,9 @@ public class CopyResourceHandler {
 
     /**
      * Creates a new copy task based on the request body and the given headers.
-     * 
+     *
      * @param request - the original request
-     * @param buffer - the buffer of the request
+     * @param buffer  - the buffer of the request
      * @return a new CopyTask
      */
     CopyTask createCopyTask(final HttpServerRequest request, final Buffer buffer) {

@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.core.http;
 
 import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
@@ -11,10 +12,6 @@ public interface FastFailHttpClientRequest extends HttpClientRequest {
     String msg = "Do override this method to mock expected behaviour.";
 
     default HttpClientRequest exceptionHandler(Handler<Throwable> handler) {
-        throw new UnsupportedOperationException(msg);
-    }
-
-    default HttpClientRequest write(Buffer data) {
         throw new UnsupportedOperationException(msg);
     }
 
@@ -118,39 +115,7 @@ public interface FastFailHttpClientRequest extends HttpClientRequest {
         throw new UnsupportedOperationException(msg);
     }
 
-    default HttpClientRequest write(String chunk) {
-        throw new UnsupportedOperationException(msg);
-    }
-
-    default HttpClientRequest write(String chunk, String enc) {
-        throw new UnsupportedOperationException(msg);
-    }
-
     default HttpClientRequest continueHandler(@Nullable Handler<Void> handler) {
-        throw new UnsupportedOperationException(msg);
-    }
-
-    default HttpClientRequest sendHead() {
-        throw new UnsupportedOperationException(msg);
-    }
-
-    default HttpClientRequest sendHead(Handler<HttpVersion> completionHandler) {
-        throw new UnsupportedOperationException(msg);
-    }
-
-    default void end(String chunk) {
-        throw new UnsupportedOperationException(msg);
-    }
-
-    default void end(String chunk, String enc) {
-        throw new UnsupportedOperationException(msg);
-    }
-
-    default void end(Buffer chunk) {
-        throw new UnsupportedOperationException(msg);
-    }
-
-    default void end() {
         throw new UnsupportedOperationException(msg);
     }
 
@@ -179,6 +144,22 @@ public interface FastFailHttpClientRequest extends HttpClientRequest {
     }
 
     default StreamPriority getStreamPriority() {
+        throw new UnsupportedOperationException(msg);
+    }
+
+    default void end(String s, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException(msg);
+    }
+
+    default void end(String s, String s1, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException(msg);
+    }
+
+    default void end(Buffer buffer, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException(msg);
+    }
+
+    default void end(Handler<AsyncResult<Void>> handler) {
         throw new UnsupportedOperationException(msg);
     }
 }

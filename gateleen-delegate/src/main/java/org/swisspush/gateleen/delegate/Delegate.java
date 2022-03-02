@@ -3,9 +3,10 @@ package org.swisspush.gateleen.delegate;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -87,8 +88,8 @@ public class Delegate {
             // check if Pattern matches the given request url
             Matcher matcher = pattern.matcher(request.uri());
             if (matcher.matches()) {
-                extractDelegateExecutionRequestJsonPayload(request).setHandler(payload -> {
-                    if(payload.failed()){
+                extractDelegateExecutionRequestJsonPayload(request).onComplete(payload -> {
+                    if (payload.failed()) {
                         String message = "Unable to parse payload of delegate execution request. " +
                                 "When a delegate definition with a 'transformation' spec is defined, a valid json payload is required!";
                         LOG.warn(message);
@@ -124,9 +125,9 @@ public class Delegate {
         // matcher to replace wildcards with matching groups
         final Matcher matcher = pattern.matcher(originalRequest.uri());
 
-        generatePayload(delegateExecutionRequestJsonPayload, originalRequest.headers(), requestContainer, matcher).setHandler(payloadBuffer -> {
+        generatePayload(delegateExecutionRequestJsonPayload, originalRequest.headers(), requestContainer, matcher).onComplete(payloadBuffer -> {
 
-            if(payloadBuffer.failed()){
+            if (payloadBuffer.failed()) {
                 String message = "Unable to generate delegate request payload. Cause: " + payloadBuffer.cause().getClass().getName();
                 LOG.warn(message);
                 originalRequest.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
@@ -141,34 +142,39 @@ public class Delegate {
             final String requestUri = matcher.replaceAll(requestObject.getString(URI));
 
             // headers of the delegate
-            VertxHttpHeaders headers = createRequestHeaders(requestContainer, originalRequest.headers());
+            HeadersMultiMap headers = createRequestHeaders(requestContainer, originalRequest.headers());
 
-            HttpClientRequest delegateRequest = clientRequestCreator.createClientRequest(
+            clientRequestCreator.createClientRequest(
                     HttpMethod.valueOf(requestObject.getString(METHOD)),
                     requestUri,
                     headers,
                     120000,
-                    doneHandler,
                     exception -> LOG.warn("Delegate request {} failed: {}", requestUri, exception.getMessage())
-            );
+            ).onComplete(asyncResult -> {
+                if (asyncResult.failed()) {
+                    LOG.warn("Failed request to {}: {}", requestUri, asyncResult.cause());
+                    return;
+                }
+                HttpClientRequest delegateRequest = asyncResult.result();
 
-            Buffer buf = payloadBuffer.result();
-            if (buf != null) {
-                delegateRequest.putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(buf.length()));
-                delegateRequest.end(buf);
-            } else {
-                delegateRequest.end();
-            }
+                Buffer buf = payloadBuffer.result();
+                if (buf != null) {
+                    delegateRequest.putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(buf.length()));
+                    delegateRequest.send(buf, event -> doneHandler.handle(event.result()));
+                } else {
+                    delegateRequest.send(event -> doneHandler.handle(event.result()));
+                }
+            });
         });
     }
 
-    private VertxHttpHeaders createRequestHeaders(DelegateRequest requestContainer, MultiMap originalRequestHeaders){
-        VertxHttpHeaders headers = new VertxHttpHeaders();
+    private HeadersMultiMap createRequestHeaders(DelegateRequest requestContainer, MultiMap originalRequestHeaders) {
+        HeadersMultiMap headers = new HeadersMultiMap();
 
         JsonArray headersArray = requestContainer.getRequest().getJsonArray(HEADERS);
 
         // headers definition?
-        if(headersArray != null){
+        if (headersArray != null) {
             if (LOG.isTraceEnabled()) {
                 LOG.trace("Request headers:");
             }
@@ -183,7 +189,7 @@ public class Delegate {
         }
 
         // evaluate dynamicHeaders
-        if(requestContainer.getHeaderFunction() != HeaderFunctions.DO_NOTHING){
+        if (requestContainer.getHeaderFunction() != HeaderFunctions.DO_NOTHING) {
             headers.addAll(originalRequestHeaders);
             final HeaderFunctions.EvalScope evalScope = requestContainer.getHeaderFunction().apply(headers);
             if (evalScope.getErrorMessage() != null) {
@@ -197,75 +203,72 @@ public class Delegate {
     /**
      * Extract the json payload of the original request when a delegate request definition with a transformation spec
      * is defined. If no transformation is found, the payload will not be parsed and <code>null</code> will be returned.
+     *
      * @param request the request to get the payload from
      * @return returns a parsed json payload as string or null
      */
-    private Future<String> extractDelegateExecutionRequestJsonPayload(HttpServerRequest request){
-        Future<String> future = Future.future();
-        if(delegateContainsJoltSpecRequest) {
+    private Future<String> extractDelegateExecutionRequestJsonPayload(HttpServerRequest request) {
+        Promise<String> promise = Promise.promise();
+        if (delegateContainsJoltSpecRequest) {
             request.bodyHandler(bodyHandler -> {
                 try {
-                    future.complete(bodyHandler.toJsonObject().encode());
+                    promise.complete(bodyHandler.toJsonObject().encode());
                 } catch (Exception ex) {
-                    future.fail(ex);
+                    promise.fail(ex);
                 }
             });
         } else {
-            future.complete(null);
+            promise.complete(null);
         }
-        return future;
+        return promise.future();
     }
 
     private Future<Buffer> generatePayload(String delegateExecutionRequestJsonPayload, MultiMap headers, DelegateRequest requestContainer, final Matcher matcher) {
-        Future<Buffer> future = Future.future();
+        Promise<Buffer> promise = Promise.promise();
 
         if (requestContainer.getJoltSpec() != null) {
             try {
-                if(delegateExecutionRequestJsonPayload != null){
+                if (delegateExecutionRequestJsonPayload != null) {
 
                     String transformInput = TransformPayloadInputBuilder.build(requestContainer.getJoltSpec(),
                             delegateExecutionRequestJsonPayload, headers, matcher);
                     LOG.debug("Jolt transformation input: {}", transformInput);
-                    JoltTransformer.transform(transformInput, requestContainer.getJoltSpec()).setHandler(transformed -> {
-                        if(transformed.failed()){
-                            future.fail(transformed.cause());
+                    JoltTransformer.transform(transformInput, requestContainer.getJoltSpec()).onComplete(transformed -> {
+                        if (transformed.failed()) {
+                            promise.fail(transformed.cause());
                         } else {
                             JsonObject transformedJsonObject = transformed.result();
                             try {
                                 String transformedOutput = transformedJsonObject.encode();
                                 LOG.debug("Jolt transformation output: {}", transformedOutput);
-                                future.complete(Buffer.buffer(transformedOutput));
-                            } catch (Exception ex){
-                                future.fail(ex);
+                                promise.complete(Buffer.buffer(transformedOutput));
+                            } catch (Exception ex) {
+                                promise.fail(ex);
                             }
                         }
                     });
                 } else {
-                    future.fail("nothing to transform");
+                    promise.fail("nothing to transform");
                 }
-            } catch (Exception ex){
-                future.fail(ex);
+            } catch (Exception ex) {
+                promise.fail(ex);
             }
         } else {
             // matcher to replace wildcards with matching groups
             final JsonObject requestObject = requestContainer.getRequest();
             // get the string represantion of the payload object
             String payloadStr;
-            try {
-                payloadStr = requestObject.getString(PAYLOAD);
-            } catch (ClassCastException e) {
-                payloadStr = requestObject.getJsonObject(PAYLOAD).encode();
-            }
+            payloadStr = requestObject.getJsonObject(PAYLOAD).encode();
 
             // replacement of matching groups
             if (payloadStr != null) {
                 payloadStr = matcher.replaceAll(payloadStr);
-                future.complete(Buffer.buffer(payloadStr));
+                promise.complete(Buffer.buffer(payloadStr));
             } else {
-                future.complete(null);
+                promise.complete(null);
             }
         }
-        return future;
+        return promise.future();
     }
 
     /**
@@ -331,12 +334,12 @@ public class Delegate {
         response.endHandler(v -> request.response().end());
     }
 
-    private boolean doesDelegateContainJoltSpecRequest(){
-        if(this.requests == null || this.requests.isEmpty()){
+    private boolean doesDelegateContainJoltSpecRequest() {
+        if (this.requests == null || this.requests.isEmpty()) {
             return false;
         }
         for (DelegateRequest request : requests) {
-            if(request.getJoltSpec() != null){
+            if (request.getJoltSpec() != null) {
                 return true;
             }
         }

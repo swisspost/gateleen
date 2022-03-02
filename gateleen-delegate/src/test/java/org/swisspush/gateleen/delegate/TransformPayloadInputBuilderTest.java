@@ -1,7 +1,8 @@
 package org.swisspush.gateleen.delegate;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -47,7 +48,7 @@ public class TransformPayloadInputBuilderTest {
     @Test
     public void testBuildNoMetadata(TestContext context) throws Exception {
         JoltSpec spec = JoltSpecBuilder.buildSpec(specValid, false);
-        MultiMap headers = new VertxHttpHeaders();
+        MultiMap headers = new HeadersMultiMap();
 
         String builtInput = TransformPayloadInputBuilder.build(spec, SIMPLE_PAYLOAD, headers, matcher);
         context.assertEquals(SIMPLE_PAYLOAD, builtInput);
@@ -56,7 +57,7 @@ public class TransformPayloadInputBuilderTest {
     @Test
     public void testBuildWithMetadata(TestContext context) throws Exception {
         JoltSpec spec = JoltSpecBuilder.buildSpec(specValid, true);
-        MultiMap headers = new VertxHttpHeaders();
+        MultiMap headers = new HeadersMultiMap();
         headers.add("x-abc", "x");
         headers.add("x-def", "y");
         headers.add("x-def", "y2");

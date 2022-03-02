@@ -44,7 +44,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // resource should not be in storage
         context.assertFalse(storage.getMockData().containsKey(resourceURI));
 
-        configurationResourceManager.getRegisteredResource(resourceURI).setHandler(event -> {
+        configurationResourceManager.getRegisteredResource(resourceURI).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result().isPresent());
             async.complete();
@@ -77,7 +77,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // resource should be in storage
         await().atMost(3, SECONDS).until( () -> storage.getMockData().get(resourceURI), equalTo(CONTENT_MATCHING_PERSON_SCHEMA));
 
-        configurationResourceManager.getRegisteredResource(resourceURI).setHandler(event -> {
+        configurationResourceManager.getRegisteredResource(resourceURI).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result().isPresent());
             context.assertEquals(CONTENT_MATCHING_PERSON_SCHEMA, event.result().get().toString());
@@ -108,7 +108,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // resource should not be in storage
         context.assertTrue(storage.getMockData().containsKey(resourceURI));
 
-        configurationResourceManager.getRegisteredResource(resourceURI).setHandler(event -> {
+        configurationResourceManager.getRegisteredResource(resourceURI).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result().isPresent());
             context.assertEquals(CONTENT_MATCHING_PERSON_SCHEMA, event.result().get().toString());
@@ -139,7 +139,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // resource should not be in storage
         context.assertTrue(storage.getMockData().containsKey(resourceURI));
 
-        configurationResourceManager.getRegisteredResource(resourceURI).setHandler(event -> {
+        configurationResourceManager.getRegisteredResource(resourceURI).onComplete(event -> {
             context.assertTrue(event.failed());
             context.assertTrue(event.cause().getMessage().contains("Validation failed"));
             async.complete();

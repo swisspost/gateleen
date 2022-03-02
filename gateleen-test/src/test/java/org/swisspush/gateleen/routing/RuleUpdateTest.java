@@ -7,10 +7,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerResponse;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +22,6 @@ import java.util.Random;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 
 public class RuleUpdateTest {
 
@@ -79,22 +75,8 @@ public class RuleUpdateTest {
             InputStream largeResource = newLargeResource(largeResourceSeed, largeResourceSize);
             byte[] buf = new byte[1024 * 1024];
             Buffer vBuf = Buffer.buffer(buf);
-            rsp.drainHandler(event -> {
-                int readLen;
-                logger.debug("Upstream: pump()");
-                try {
-                    readLen = largeResource.read(buf);
-                } catch (IOException e) {
-                    throw new RuntimeException("Not impl", e);
-                }
-                if (readLen == -1){
-                    logger.info("Upstream: rsp.end()");
-                    rsp.end();
-                    return;
-                }
-                vBuf.setBytes(0, buf, 0, readLen);
-                rsp.write(vBuf);
-            });
+            writeDataToResponse(rsp, largeResource, buf, vBuf); // write first part of data, and this will trigger the drainHandler
+            rsp.drainHandler(event -> writeDataToResponse(rsp, largeResource, buf, vBuf));
         });
         httpServer.listen(upstreamPort, upstreamHost);
         logger.info("Mock httpServer.listen( {}, \"{}\")", upstreamPort, upstreamHost);
@@ -102,6 +84,24 @@ public class RuleUpdateTest {
         putCustomUpstreamRoute();
         // Give it some time to properly initialize.
         Thread.sleep(42);
+    }
+
+    private static boolean writeDataToResponse(HttpServerResponse rsp, InputStream largeResource, byte[] buf, Buffer vBuf) {
+        int readLen;
+        logger.debug("Upstream: pump()");
+        try {
+            readLen = largeResource.read(buf);
+        } catch (IOException e) {
+            throw new RuntimeException("Not impl", e);
+        }
+        if (readLen == -1) {
+            logger.info("Upstream: rsp.end()");
+            rsp.end();
+            return true;
+        }
+        vBuf.setBytes(0, buf, 0, readLen);
+        rsp.write(vBuf);
+        return false;
     }
 
     @AfterClass
@@ -145,7 +145,7 @@ public class RuleUpdateTest {
                     break; // EOF
                 }
                 bytesSoFar += len;
-                logger.trace(String.format("Read %9d of %9d bytes (%3d%%)", bytesSoFar, largeResourceSize, bytesSoFar*100 / largeResourceSize));
+                logger.trace(String.format("Read %9d of %9d bytes (%3d%%)", bytesSoFar, largeResourceSize, bytesSoFar * 100 / largeResourceSize));
             }
             logger.info("EOF reached after {} bytes of expected {} bytes.", bytesSoFar, largeResourceSize);
             Assert.assertEquals("RspBody expected to be complete", largeResourceSize, bytesSoFar);
@@ -197,7 +197,7 @@ public class RuleUpdateTest {
                     }
                     Assert.assertEquals("Stream must not contain incorrect data", cExp, cAct);
                 }
-                logger.trace(String.format("Read %9d of %9d bytes (%3d%%)", bytesSoFar, largeResourceSize, bytesSoFar*100 / largeResourceSize));
+                logger.trace(String.format("Read %9d of %9d bytes (%3d%%)", bytesSoFar, largeResourceSize, bytesSoFar * 100 / largeResourceSize));
             }
             logger.info("EOF reached on response.");
         }
@@ -247,10 +247,10 @@ public class RuleUpdateTest {
     /**
      * I liked to use RestAssured. But cannot because:
      * - We MUST use Content-Type "application/javascript" (which is a non-existing
-     *   type BTW) as we cannot use "application/octet-stream" due to the gateleen
-     *   constraint handler.
+     * type BTW) as we cannot use "application/octet-stream" due to the gateleen
+     * constraint handler.
      * - RestAssured is unable to "encode" binary garbage as "application/javascript".
-     *
+     * <p>
      * So just wrote the HTTP PUT in pure java. And guess what: Just works.
      */
     private static void customPut(String path, String contentType, InputStream body) throws IOException {

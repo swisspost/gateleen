@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -23,7 +23,7 @@ public class JsonObjectUtilsTest {
         JsonObject converted = JsonObjectUtils.multiMapToJsonObject(null);
         context.assertEquals(new JsonObject(), converted);
 
-        CaseInsensitiveHeaders map = new CaseInsensitiveHeaders();
+        MultiMap map = MultiMap.caseInsensitiveMultiMap();
         JsonObject expected = new JsonObject();
 
         context.assertEquals(expected, JsonObjectUtils.multiMapToJsonObject(map));
