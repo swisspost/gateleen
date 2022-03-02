@@ -41,21 +41,64 @@ public class DeferCloseHttpClient implements HttpClient {
         countOfRequestsInProgress += 1;
         logger.debug("Pending request count: {}", countOfRequestsInProgress);
         delegate.request(method, port, host, requestURI).onComplete(handler);
+
+        // TODO: Migrate the original implementation
+        // Delegate to the same method on the delegate. But install our own handler which
+        // allows us to intercept the response.
+//      HttpClientRequest request = delegate.request(method, port, host, requestURI, upstreamRsp -> {
+//            logger.debug("onUpstreamRsp(code={})", upstreamRsp.statusCode());
+//            // 1st we have to pass-through the response so our caller is able to install its handlers.
+//            try {
+//                callHandlerIfExists(responseHandler, upstreamRsp);
+//            } catch (Exception e) {
+//                // Does not make sense to install any handlers. Just make sure we decrement
+//                // our counter then pass-through the exception.
+//                onEndOfRequestResponseCycle();
+//                throw e;
+//            }
+//            // We also need to ensure that our reference counter stays accurate. Badly vertx
+//            // may call BOTH of our handlers. And in this scenario we MUST NOT decrement
+//            // twice. So we additionally track this too.
+//            final AtomicBoolean needToDecrementCounter = new AtomicBoolean(true);
+//            // Then (after client installed its handlers), we now can intercept those by
+//            // replacing them with our own handlers.
+//            // To do this, we 1st backup the original handler (so we can delegate to it later).
+//            Handler<Void> originalEndHandler = getEndHandler(upstreamRsp);
+//            upstreamRsp.endHandler(event -> {
+//                logger.debug("upstreamRsp.endHandler()");
+//                if (needToDecrementCounter.getAndSet(false)) {
+//                    onEndOfRequestResponseCycle();
+//                }
+//                // Call the original handler independent of the above condition to not change
+//                // behaviour of the impl we are decorating.
+//                callHandlerIfExists(originalEndHandler, event);
+//            });
+//            // We also need to intercept exception handler to decrement our counter in case
+//            // of erroneous-end scenario. Basically same idea as above.
+//            Handler<Throwable> originalExceptionHandler = getExceptionHandler(upstreamRsp);
+//            upstreamRsp.exceptionHandler(event -> {
+//                logger.debug("upstreamRsp.exceptionHandler({})", event.toString());
+//                if (needToDecrementCounter.getAndSet(false)) {
+//                    onEndOfRequestResponseCycle();
+//                }
+//                callHandlerIfExists(originalExceptionHandler, event);
+//            });
+//        }
     }
 
-    private void onEndOfRequestResponseCycle() {
-        countOfRequestsInProgress -= 1;
-        logger.debug("Pending request count: {}", countOfRequestsInProgress);
-        if (countOfRequestsInProgress == 0 && doCloseWhenDone) {
-            logger.debug("No pending request right now. And someone called 'close()' earlier. So close now.");
-            doCloseWhenDone = false;
-            try {
-                delegate.close();
-            } catch (Exception e) {
-                logger.warn("delegate.close() failed", e);
-            }
-        }
-    }
+//    private void onEndOfRequestResponseCycle() {
+//        countOfRequestsInProgress -= 1;
+//        logger.debug("Pending request count: {}", countOfRequestsInProgress);
+//        if (countOfRequestsInProgress == 0 && doCloseWhenDone) {
+//            logger.debug("No pending request right now. And someone called 'close()' earlier. So close now.");
+//            doCloseWhenDone = false;
+//            try {
+//                delegate.close();
+//            } catch (Exception e) {
+//                logger.warn("delegate.close() failed", e);
+//            }
+//        }
+//    }
 
     @Override
     public Future<Void> close() {
@@ -76,6 +119,35 @@ public class DeferCloseHttpClient implements HttpClient {
         delegate.close();
         return Future.succeededFuture();
     }
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // Some helpers so we are able to do our work.
+    ///////////////////////////////////////////////////////////////////////////////
+
+//    private <T> void callHandlerIfExists(Handler<T> maybeNull, T event) {
+//        if (maybeNull == null) {
+//            return; // No handler? Nothing we could call.
+//        }
+//        maybeNull.handle(event);
+//    }
+//
+//    private Handler<Void> getEndHandler(HttpClientResponse rsp) {
+//        return getPrivateField(rsp, "endHandler", Handler.class);
+//    }
+//
+//    private Handler<Throwable> getExceptionHandler(HttpClientResponse rsp) {
+//        return getPrivateField(rsp, "exceptionHandler", Handler.class);
+//    }
+//
+//    private <T> T getPrivateField(HttpClientResponse rsp, String name, Class<T> type) {
+//        try {
+//            Field field = rsp.getClass().getDeclaredField(name);
+//            field.setAccessible(true);
+//            return (T) field.get(rsp);
+//        } catch (NoSuchFieldException | IllegalAccessException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
     ///////////////////////////////////////////////////////////////////////////////
     // Below are only the remaining methods which all just delegate.
