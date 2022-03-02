@@ -88,10 +88,10 @@ public class QueueCircuitBreakerRulePatternToCircuitMappingTest {
         Map<String, Object> properties = new HashMap<>();
         ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
         mapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
-        ruleProvider.getRules().setHandler(event -> {
+        ruleProvider.getRules().onComplete(event -> {
             rules = event.result();
             ((MockResourceStorage)storage).putMockData(rulesPath, RULES_STORAGE_AFTER_UPDATE);
-            ruleProvider.getRules().setHandler(event1 -> {
+            ruleProvider.getRules().onComplete(event1 -> {
                 rulesAfterUpdate = event1.result();
                 async.complete();
             });

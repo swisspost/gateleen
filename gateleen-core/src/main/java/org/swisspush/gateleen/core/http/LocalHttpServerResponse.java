@@ -1,14 +1,16 @@
 package org.swisspush.gateleen.core.http;
 
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
+
+import java.util.Set;
 
 /**
  * Bridges the reponses of a LocalHttpClientRequest.
@@ -21,14 +23,13 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     private int statusCode;
     private String statusMessage;
     private static final String EMPTY = "";
-    private Handler<HttpClientResponse> responseHandler;
-    private MultiMap headers = new VertxHttpHeaders();
+    private MultiMap headers = new HeadersMultiMap();
     private boolean chunked = false;
     private boolean bound = false;
     private boolean closed = false;
     private boolean written = false;
-
-    private HttpClientResponse clientResponse = new FastFaiHttpClientResponse () {
+    private Handler<AsyncResult<HttpClientResponse>> responseHandler;
+    public HttpClientResponse clientResponse = new FastFaiHttpClientResponse() {
         @Override
         public int statusCode() {
             return statusCode;
@@ -36,9 +37,9 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 
         @Override
         public String statusMessage() {
-            if(statusMessage == null){
+            if (statusMessage == null) {
                 StatusCode code = StatusCode.fromCode(statusCode());
-                if(code != null){
+                if (code != null) {
                     statusMessage = code.getStatusMessage();
                 } else {
                     statusMessage = EMPTY;
@@ -71,11 +72,23 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
         }
 
         @Override
-        public HttpClientResponse customFrameHandler(Handler<HttpFrame> handler) { return this; }
+        public Future<Buffer> body() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Future<Void> end() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public HttpClientResponse customFrameHandler(Handler<HttpFrame> handler) {
+            return this;
+        }
 
         @Override
         public HttpClientRequest request() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -108,13 +121,13 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
         }
     };
 
-    public LocalHttpServerResponse(Vertx vertx, Handler<HttpClientResponse> responseHandler) {
+
+    public LocalHttpServerResponse(Vertx vertx) {
         super(vertx);
         // Attach most simple possible exception handler to base.
         setExceptionHandler(thr -> {
             logger.error("Processing of response failed.", thr);
         });
-        this.responseHandler = responseHandler;
     }
 
     @Override
@@ -130,9 +143,9 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 
     @Override
     public String getStatusMessage() {
-        if(statusMessage == null){
+        if (statusMessage == null) {
             StatusCode code = StatusCode.fromCode(getStatusCode());
-            if(code != null){
+            if (code != null) {
                 statusMessage = code.getStatusMessage();
             } else {
                 statusMessage = EMPTY;
@@ -179,7 +192,7 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 
     @Override
     public HttpServerResponse putHeader(String name, Iterable<String> values) {
-        for(String value : values) {
+        for (String value : values) {
             headers().add(name, value);
         }
         return this;
@@ -187,7 +200,7 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 
     @Override
     public HttpServerResponse putHeader(CharSequence name, Iterable<CharSequence> values) {
-        for(CharSequence value : values) {
+        for (CharSequence value : values) {
             headers().add(name, value);
         }
         return this;
@@ -199,7 +212,12 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     }
 
     @Override
-    public HttpServerResponse write(Buffer chunk) {
+    public Future<Void> write(String chunk, String enc) {
+        return write(Buffer.buffer(chunk, enc));
+    }
+
+    @Override
+    public Future<Void> write(Buffer data) {
         // emulate Vertx's HttpServerResponseImpl
         if (!chunked && !headers.contains(HttpHeaders.CONTENT_LENGTH)) {
             IllegalStateException ex = new IllegalStateException("You must set the Content-Length header to be the total size of the message "
@@ -208,8 +226,29 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
             throw ex;
         }
         ensureBound();
-        doWrite(chunk);
-        return this;
+        doWrite(data);
+        return Future.succeededFuture();
+    }
+
+    @Override
+    public void write(Buffer data, Handler<AsyncResult<Void>> handler) {
+        write(data).onComplete(handler);
+    }
+
+
+    @Override
+    public void write(String chunk, String enc, Handler<AsyncResult<Void>> handler) {
+        write(chunk, enc).onComplete(handler);
+    }
+
+    @Override
+    public Future<Void> write(String chunk) {
+        return write(Buffer.buffer(chunk));
+    }
+
+    @Override
+    public void write(String chunk, Handler<AsyncResult<Void>> handler) {
+        write(chunk).onComplete(handler);
     }
 
     private void ensureBound() {
@@ -222,34 +261,22 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
             if (chunked) {
                 headers.set(HttpHeaders.TRANSFER_ENCODING, HttpHeaders.CHUNKED);
             }
-            responseHandler.handle(clientResponse);
+            responseHandler.handle(Future.succeededFuture(clientResponse));
         }
     }
 
     @Override
-    public HttpServerResponse write(String chunk, String enc) {
-        write(Buffer.buffer(chunk, enc));
-        return this;
+    public Future<Void> end(String chunk) {
+        return end(Buffer.buffer(chunk));
     }
 
     @Override
-    public HttpServerResponse write(String chunk) {
-        write(Buffer.buffer(chunk));
-        return this;
+    public Future<Void> end(String chunk, String enc) {
+        return end(Buffer.buffer(chunk, enc));
     }
 
     @Override
-    public void end(String chunk) {
-        end(Buffer.buffer(chunk));
-    }
-
-    @Override
-    public void end(String chunk, String enc) {
-        end(Buffer.buffer(chunk, enc));
-    }
-
-    @Override
-    public void end(Buffer chunk) {
+    public Future<Void> end(Buffer chunk) {
         if (!bound) {
             // this is a call to 'end(...)' without calling any 'write(...)' before
             // in this case it is allows to _not_ setChunked(true) and _not_ set a content-length header.
@@ -259,14 +286,19 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
             }
         }
         write(chunk);
-        end();
+        return end();
     }
 
     @Override
-    public void end() {
+    public Future<Void> end() {
         written = true;
         ensureBound();
-        doEnd();
+        return doEnd();
+    }
+
+    @Override
+    public Future<Void> sendFile(String filename, long offset, long length) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -295,6 +327,31 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     }
 
     @Override
+    public Future<HttpServerResponse> push(HttpMethod method, String host, String path, MultiMap headers) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerResponse addCookie(Cookie cookie) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @Nullable Cookie removeCookie(String name, boolean invalidate) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Set<Cookie> removeCookies(String name, boolean invalidate) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @Nullable Cookie removeCookie(String name, String domain, String path, boolean invalidate) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public HttpServerResponse setWriteQueueMaxSize(int maxSize) {
         return this;
     }
@@ -308,5 +365,9 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     public HttpServerResponse exceptionHandler(Handler<Throwable> handler) {
         setExceptionHandler(handler);
         return this;
+    }
+
+    public void setHttpClientResponseHandler(Handler<AsyncResult<HttpClientResponse>> responseHandler) {
+        this.responseHandler = responseHandler;
     }
 }

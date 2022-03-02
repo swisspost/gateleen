@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -81,7 +81,7 @@ public class LoggingHandlerTest {
     }
 
     class GETRequest extends DummyHttpServerRequest {
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
         @Override
         public HttpMethod method() {

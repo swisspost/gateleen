@@ -8,6 +8,7 @@ import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.Json;
@@ -41,26 +42,26 @@ public class Validator {
     }
 
     public Future<ValidationResult> validateWithSchemaLocation(SchemaLocation schemaLocation, Buffer jsonBuffer, Logger log) {
-        Future<ValidationResult> future = Future.future();
+        Promise<ValidationResult> promise = Promise.promise();
         log.debug("Validating request");
-        schemaProvider.schemaFromLocation(schemaLocation).setHandler(event -> {
+        schemaProvider.schemaFromLocation(schemaLocation).onComplete(event -> {
             if (event.failed()) {
-                future.complete(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
+                promise.complete(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
                         "Error while getting schema. Cause: " + event.cause().getMessage()));
                 return;
             }
 
             Optional<JsonSchema> schemaOptional = event.result();
             if (schemaOptional.isEmpty()) {
-                future.complete(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
+                promise.complete(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
                         "No schema found in location " + schemaLocation.schemaLocation()));
                 return;
             }
 
             JsonSchema jsonSchema = schemaOptional.get();
-            performValidation(jsonSchema, schemaLocation, jsonBuffer, log).setHandler(validationEvent -> future.complete(validationEvent.result()));
+            performValidation(jsonSchema, schemaLocation, jsonBuffer, log).onComplete(validationEvent -> promise.complete(validationEvent.result()));
         });
-        return future;
+        return promise.future();
     }
 
     public void validate(HttpServerRequest req, String type, Buffer jsonBuffer, SchemaLocation schemaLocation, Handler<ValidationResult> callback) {
@@ -70,7 +71,7 @@ public class Validator {
             final Logger log = RequestLoggerFactory.getLogger(Validator.class, req);
             if (!req.path().startsWith(schemaRoot)) {
                 log.debug("Validating request");
-                schemaProvider.schemaFromLocation(schemaLocation).setHandler(event -> {
+                schemaProvider.schemaFromLocation(schemaLocation).onComplete(event -> {
                     if (event.failed()) {
                         callback.handle(new ValidationResult(ValidationStatus.COULD_NOT_VALIDATE,
                                 "Error while getting schema. Cause: " + event.cause().getMessage()));
@@ -188,19 +189,19 @@ public class Validator {
 
     private static Future<ValidationResult> performValidation(JsonSchema schema, SchemaLocation schemaLocation,
                                                               Buffer jsonBuffer, Logger log) {
-        Future<ValidationResult> future = Future.future();
+        Promise<ValidationResult> promise = Promise.promise();
 
         try {
             JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
             if (jsonNode == null) {
-                future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV,
+                promise.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV,
                         "no valid JSON object: " + jsonBuffer.toString()));
-                return future;
+                return promise.future();
             }
             final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
             if (valMsgs.isEmpty()) {
                 log.debug("Used schema: {}", schemaLocation.schemaLocation());
-                future.complete(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+                promise.complete(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
             } else {
                 JsonArray validationDetails = extractMessagesAsJson(valMsgs, log);
                 String messages = StringUtils.getStringOrEmpty(extractMessages(valMsgs));
@@ -216,16 +217,16 @@ public class Validator {
 
                 log.warn(msgBuilder.toString());
 
-                future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString(), validationDetails));
+                promise.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString(), validationDetails));
                 log.warn("Used schema: {}", schemaLocation.schemaLocation());
             }
         } catch (IOException e) {
             String message = "Cannot read JSON of schema " + " (" + schemaLocation.schemaLocation() + ")";
             log.warn(message, e.getMessage());
-            future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
+            promise.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
         }
 
-        return future;
+        return promise.future();
     }
 
     private static void performValidation(JsonSchema schema, Logger log, String base, Buffer jsonBuffer, String type,

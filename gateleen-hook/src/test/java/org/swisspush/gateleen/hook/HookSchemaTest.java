@@ -11,7 +11,6 @@ import org.junit.Test;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 
 import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Set;
 

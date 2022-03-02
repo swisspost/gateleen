@@ -1,13 +1,11 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
+import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
@@ -59,15 +57,15 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     /**
      * Constructor for the QueueCircuitBreakerImpl.
      *
-     * @param vertx vertx
-     * @param lock the lock implementation
-     * @param redisquesAddress the event bus address of redisques
-     * @param queueCircuitBreakerStorage the storage
-     * @param ruleProvider the provider for the rule objects
-     * @param ruleToCircuitMapping ruleToCircuitMapping helper class
-     * @param configResourceManager the manager for the configuration resource
+     * @param vertx                                 vertx
+     * @param lock                                  the lock implementation
+     * @param redisquesAddress                      the event bus address of redisques
+     * @param queueCircuitBreakerStorage            the storage
+     * @param ruleProvider                          the provider for the rule objects
+     * @param ruleToCircuitMapping                  ruleToCircuitMapping helper class
+     * @param configResourceManager                 the manager for the configuration resource
      * @param queueCircuitBreakerHttpRequestHandler request handler
-     * @param requestHandlerPort the port to listen to
+     * @param requestHandlerPort                    the port to listen to
      */
     public QueueCircuitBreakerImpl(Vertx vertx, Lock lock, String redisquesAddress, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
         this.vertx = vertx;
@@ -100,12 +98,12 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         registerUnlockSampleQueuesTask();
     }
 
-    private String createToken(String appendix){
-        return Address.instanceAddress()+ "_" + System.currentTimeMillis() + "_" + appendix;
+    private String createToken(String appendix) {
+        return Address.instanceAddress() + "_" + System.currentTimeMillis() + "_" + appendix;
     }
 
-    private long getLockExpiry(int taskInterval){
-        if(taskInterval <= 1){
+    private long getLockExpiry(int taskInterval) {
+        if (taskInterval <= 1) {
             return 1;
         }
         return taskInterval / 2;
@@ -120,10 +118,10 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
             openToHalfOpenTimerId = vertx.setPeriodic(openToHalfOpenTaskInterval,
                     event -> {
                         final String token = createToken(OPEN_TO_HALF_OPEN_TASK_LOCK);
-                        acquireLock(this.lock, OPEN_TO_HALF_OPEN_TASK_LOCK, token, getLockExpiry(openToHalfOpenTaskInterval), log).setHandler(lockEvent ->{
-                            if(lockEvent.succeeded()){
-                                if(lockEvent.result()){
-                                    setOpenCircuitsToHalfOpen().setHandler(event1 -> {
+                        acquireLock(this.lock, OPEN_TO_HALF_OPEN_TASK_LOCK, token, getLockExpiry(openToHalfOpenTaskInterval), log).onComplete(lockEvent -> {
+                            if (lockEvent.succeeded()) {
+                                if (lockEvent.result()) {
+                                    setOpenCircuitsToHalfOpen().onComplete(event1 -> {
                                         if (event1.succeeded()) {
                                             if (event1.result() > 0) {
                                                 log.info("Successfully changed {} circuits from state open to state half-open", event1.result());
@@ -155,10 +153,10 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
             unlockQueuesTimerId = vertx.setPeriodic(unlockQueuesTaskInterval,
                     event -> {
                         final String token = createToken(UNLOCK_QUEUES_TASK_LOCK);
-                        acquireLock(this.lock, UNLOCK_QUEUES_TASK_LOCK, token, getLockExpiry(unlockQueuesTaskInterval), log).setHandler(lockEvent ->{
-                            if(lockEvent.succeeded()){
-                                if(lockEvent.result()){
-                                    unlockNextQueue().setHandler(event1 -> {
+                        acquireLock(this.lock, UNLOCK_QUEUES_TASK_LOCK, token, getLockExpiry(unlockQueuesTaskInterval), log).onComplete(lockEvent -> {
+                            if (lockEvent.succeeded()) {
+                                if (lockEvent.result()) {
+                                    unlockNextQueue().onComplete(event1 -> {
                                         if (event1.succeeded()) {
                                             if (event1.result() == null) {
                                                 log.debug("No locked queues to unlock");
@@ -189,10 +187,10 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
             log.info("About to register periodic unlock sample queues task execution every {}ms", unlockSampleQueuesTaskInterval);
             unlockSampleQueuesTimerId = vertx.setPeriodic(unlockSampleQueuesTaskInterval, event -> {
                 final String token = createToken(UNLOCK_SAMPLE_QUEUES_TASK_LOCK);
-                acquireLock(this.lock, UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token, getLockExpiry(unlockSampleQueuesTaskInterval), log).setHandler(lockEvent ->{
-                    if(lockEvent.succeeded()){
-                        if(lockEvent.result()){
-                            unlockSampleQueues().setHandler(event1 -> {
+                acquireLock(this.lock, UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token, getLockExpiry(unlockSampleQueuesTaskInterval), log).onComplete(lockEvent -> {
+                    if (lockEvent.succeeded()) {
+                        if (lockEvent.result()) {
+                            unlockSampleQueues().onComplete(event1 -> {
                                 if (event1.succeeded()) {
                                     if (event1.result() == 0L) {
                                         log.debug("No sample queues to unlock");
@@ -241,28 +239,28 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     @Override
     public Future<QueueCircuitState> handleQueuedRequest(String queueName, HttpRequest queuedRequest) {
-        Future<QueueCircuitState> future = Future.future();
+        Promise<QueueCircuitState> promise = Promise.promise();
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
         if (patternAndCircuitHash != null) {
-            this.queueCircuitBreakerStorage.getQueueCircuitState(patternAndCircuitHash).setHandler(event -> {
+            this.queueCircuitBreakerStorage.getQueueCircuitState(patternAndCircuitHash).onComplete(event -> {
                 if (event.failed()) {
-                    future.fail(event.cause());
+                    promise.fail(event.cause());
                 } else {
-                    future.complete(event.result());
+                    promise.complete(event.result());
                     if (QueueCircuitState.OPEN == event.result()) {
                         lockQueueSync(queueName, queuedRequest);
                     }
                 }
             });
         } else {
-            failWithNoRuleToCircuitMappingMessage(future, queueName, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(promise, queueName, queuedRequest);
         }
-        return future;
+        return promise.future();
     }
 
     @Override
     public Future<Void> updateStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType) {
-        Future<Void> future = Future.future();
+        Promise<Void> promise = Promise.promise();
         String requestId = getRequestUniqueId(queuedRequest);
         long currentTS = System.currentTimeMillis();
 
@@ -275,46 +273,46 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
             this.queueCircuitBreakerStorage.updateStatistics(patternAndCircuitHash, requestId, currentTS,
                     errorThresholdPercentage, entriesMaxAgeMS, minQueueSampleCount, maxQueueSampleCount,
-                    queueResponseType).setHandler(event -> {
+                    queueResponseType).onComplete(event -> {
                 if (event.failed()) {
-                    future.fail(event.cause());
+                    promise.fail(event.cause());
                 } else {
                     if (UpdateStatisticsResult.OPENED == event.result()) {
                         log.warn("circuit '{}' has been opened", patternAndCircuitHash.getPattern().pattern());
                         lockQueueSync(queueName, queuedRequest);
                     }
-                    future.complete();
+                    promise.complete();
                 }
             });
         } else {
-            failWithNoRuleToCircuitMappingMessage(future, queueName, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(promise, queueName, queuedRequest);
         }
-        return future;
+        return promise.future();
     }
 
     @Override
     public Future<Void> closeCircuit(HttpRequest queuedRequest) {
-        Future<Void> future = Future.future();
+        Promise<Void> promise = Promise.promise();
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
         if (patternAndCircuitHash != null) {
             log.info("About to close circuit {}", patternAndCircuitHash.getPattern().pattern());
-            queueCircuitBreakerStorage.closeCircuit(patternAndCircuitHash).setHandler(event -> {
+            queueCircuitBreakerStorage.closeCircuit(patternAndCircuitHash).onComplete(event -> {
                 if (event.failed()) {
-                    future.fail(event.cause());
+                    promise.fail(event.cause());
                     return;
                 }
                 log.debug("circuit '{}' has been closed", patternAndCircuitHash.getPattern().pattern());
-                future.complete();
+                promise.complete();
             });
         } else {
-            failWithNoRuleToCircuitMappingMessage(future, null, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(promise, null, queuedRequest);
         }
-        return future;
+        return promise.future();
     }
 
     private void closeAndRemoveCircuit(PatternAndCircuitHash patternAndCircuitHash) {
         log.info("circuit {} has been removed. Closing corresponding circuit", patternAndCircuitHash.getPattern().pattern());
-        queueCircuitBreakerStorage.closeAndRemoveCircuit(patternAndCircuitHash).setHandler(event -> {
+        queueCircuitBreakerStorage.closeAndRemoveCircuit(patternAndCircuitHash).onComplete(event -> {
             if (event.failed()) {
                 log.error("failed to close circuit {}", patternAndCircuitHash.getPattern().pattern());
             }
@@ -329,81 +327,81 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
 
     @Override
     public Future<Void> reOpenCircuit(HttpRequest queuedRequest) {
-        Future<Void> future = Future.future();
+        Promise<Void> promise = Promise.promise();
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
         if (patternAndCircuitHash != null) {
             log.info("About to reopen circuit {}", patternAndCircuitHash.getPattern().pattern());
-            queueCircuitBreakerStorage.reOpenCircuit(patternAndCircuitHash).setHandler(event -> {
+            queueCircuitBreakerStorage.reOpenCircuit(patternAndCircuitHash).onComplete(event -> {
                 if (event.failed()) {
-                    future.fail(event.cause());
+                    promise.fail(event.cause());
                     return;
                 }
                 log.info("circuit '{}' has been reopened", patternAndCircuitHash.getPattern().pattern());
-                future.complete();
+                promise.complete();
             });
         } else {
-            failWithNoRuleToCircuitMappingMessage(future, null, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(promise, null, queuedRequest);
         }
-        return future;
+        return promise.future();
     }
 
     @Override
     public Future<Void> lockQueue(String queueName, HttpRequest queuedRequest) {
-        Future<Void> future = Future.future();
+        Promise<Void> promise = Promise.promise();
 
         PatternAndCircuitHash patternAndCircuitHash = getPatternAndCircuitHashFromRequest(queuedRequest);
         if (patternAndCircuitHash != null) {
-            queueCircuitBreakerStorage.lockQueue(queueName, patternAndCircuitHash).setHandler(event -> {
+            queueCircuitBreakerStorage.lockQueue(queueName, patternAndCircuitHash).onComplete(event -> {
                 if (event.failed()) {
-                    future.fail(event.cause());
+                    promise.fail(event.cause());
                     return;
                 }
-                vertx.eventBus().send(redisquesAddress, buildPutLockOperation(queueName, "queue_circuit_breaker"),
+                vertx.eventBus().request(redisquesAddress, buildPutLockOperation(queueName, "queue_circuit_breaker"),
                         (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
                             if (reply.failed()) {
-                                future.fail(reply.cause());
+                                promise.fail(reply.cause());
                                 return;
                             }
                             if (OK.equals(reply.result().body().getString(STATUS))) {
                                 log.info("locked queue '{}' because the circuit '{}' is open", queueName,
                                         patternAndCircuitHash.getPattern().pattern());
-                                future.complete();
+                                promise.complete();
                             } else {
-                                future.fail("failed to lock queue '" + queueName
+                                promise.fail("failed to lock queue '" + queueName
                                         + "'. Queue should have been locked, because the circuit '"
                                         + patternAndCircuitHash.getPattern().pattern() + "' is open");
                             }
                         });
             });
         } else {
-            failWithNoRuleToCircuitMappingMessage(future, queueName, queuedRequest);
+            failWithNoRuleToCircuitMappingMessage(promise, queueName, queuedRequest);
         }
-        return future;
+        return promise.future();
     }
 
     @Override
     public Future<String> unlockNextQueue() {
         log.debug("About to unlock the next queue");
-        Future<String> future = Future.future();
-        queueCircuitBreakerStorage.popQueueToUnlock().setHandler(event -> {
+        Promise<String> promise = Promise.promise();
+        queueCircuitBreakerStorage.popQueueToUnlock().onComplete(event -> {
             if (event.failed()) {
-                future.fail(event.cause().getMessage());
+                promise.fail(event.cause().getMessage());
                 return;
             }
             String queueToUnlock = event.result();
             if (queueToUnlock != null) {
-                unlockQueue(queueToUnlock).setHandler(event1 -> {
+                unlockQueue(queueToUnlock).onComplete(event1 -> {
                     if (event1.failed()) {
-                        future.fail(event1.cause().getMessage());
+                        promise.fail(event1.cause().getMessage());
                         return;
                     }
-                    future.complete(event1.result());
+                    promise.complete(event1.result());
                 });
             } else {
-                future.complete(null);
+                promise.complete(null);
             }
         });
-        return future;
+        return promise.future();
     }
 
     private void logQueueUnlockError(String queueToUnlock, String errorMessage) {
@@ -419,72 +417,72 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     @Override
     public Future<Long> unlockSampleQueues() {
         log.debug("About to unlock a sample queue for each circuit");
-        Future<Long> future = Future.future();
-        queueCircuitBreakerStorage.unlockSampleQueues().setHandler(event -> {
+        Promise<Long> promise = Promise.promise();
+        queueCircuitBreakerStorage.unlockSampleQueues().onComplete(event -> {
             if (event.failed()) {
-                future.fail(event.cause().getMessage());
+                promise.fail(event.cause().getMessage());
                 return;
             }
-            List<String> queuesToUnlock = event.result();
-            if (queuesToUnlock == null || queuesToUnlock.isEmpty()) {
-                future.complete(0L);
+            Response queuesToUnlock = event.result();
+            if (queuesToUnlock == null || queuesToUnlock.size() == 0) {
+                promise.complete(0L);
                 return;
             }
             final AtomicInteger futureCounter = new AtomicInteger(queuesToUnlock.size());
             List<String> failedFutures = new ArrayList<>();
-            for (String queueToUnlock : queuesToUnlock) {
+            for (Response queueToUnlock : queuesToUnlock) {
                 log.info("About to unlock sample queue '{}'", queueToUnlock);
-                unlockQueue(queueToUnlock).setHandler(event1 -> {
+                unlockQueue(queueToUnlock.toString()).onComplete(event1 -> {
                     futureCounter.decrementAndGet();
                     if (event1.failed()) {
                         failedFutures.add(event1.cause().getMessage());
                     }
                     if (futureCounter.get() == 0) {
                         if (failedFutures.size() > 0) {
-                            future.fail("The following queues could not be unlocked: " + failedFutures);
+                            promise.fail("The following queues could not be unlocked: " + failedFutures);
                         } else {
-                            future.complete((long) queuesToUnlock.size());
+                            promise.complete((long) queuesToUnlock.size());
                         }
                     }
                 });
             }
         });
-        return future;
+        return promise.future();
     }
 
     @Override
     public Future<String> unlockQueue(String queueName) {
         log.info("About to unlock queue '{}'", queueName);
-        Future<String> future = Future.future();
-        vertx.eventBus().send(redisquesAddress, buildDeleteLockOperation(queueName), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+        Promise<String> promise = Promise.promise();
+        vertx.eventBus().request(redisquesAddress, buildDeleteLockOperation(queueName), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (reply.failed()) {
                 logQueueUnlockError(queueName, reply.cause().getMessage());
-                future.fail(queueName);
+                promise.fail(queueName);
                 return;
             }
             if (OK.equals(reply.result().body().getString(STATUS))) {
-                future.complete(queueName);
+                promise.complete(queueName);
             } else {
                 logQueueUnlockError(queueName, "Got reply with status value '" + reply.result().body().getString(STATUS) + "'");
-                future.fail(queueName);
+                promise.fail(queueName);
             }
         });
-        return future;
+        return promise.future();
     }
 
     private void lockQueueSync(String queueName, HttpRequest queuedRequest) {
-        lockQueue(queueName, queuedRequest).setHandler(event -> {
+        lockQueue(queueName, queuedRequest).onComplete(event -> {
             if (event.failed()) {
                 log.warn(event.cause().getMessage());
             }
         });
     }
 
-    private void failWithNoRuleToCircuitMappingMessage(Future future, String queueName, HttpRequest request) {
+    private void failWithNoRuleToCircuitMappingMessage(Promise promise, String queueName, HttpRequest request) {
         if (queueName == null) {
-            future.fail("no rule to circuit mapping found for uri " + request.getUri());
+            promise.fail("no rule to circuit mapping found for uri " + request.getUri());
         } else {
-            future.fail("no rule to circuit mapping found for queue '" + queueName + "' and uri " + request.getUri());
+            promise.fail("no rule to circuit mapping found for queue '" + queueName + "' and uri " + request.getUri());
         }
     }
 

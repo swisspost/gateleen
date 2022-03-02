@@ -33,6 +33,9 @@ public class Route {
     private static final boolean CLIENT_DEFAULT_EXPAND_IN_STORAGE = false;
     private static final int CLIENT_DEFAULT_LOG_EXPIRY = 4 * 3600;
 
+    private static final String HTTP_CONNECTION_KEEP_ALIVE_TIMEOUT = "org.swisspush.gateleen.routing.rule.http.connection.keep.alive.timeout";
+    private static int keepAliveTimeout;
+
     private static final Pattern URL_PARSE_PATTERN = Pattern.compile("^(?<scheme>https?)://(?<host>[^/:]+)(:(?<port>[0-9]+))?(?<path>/.*)$");
     private static final Logger LOG = LoggerFactory.getLogger(Route.class);
     private static final Logger CLEANUP_LOGGER = LoggerFactory.getLogger(Route.class.getName() + "Cleanup");
@@ -50,6 +53,15 @@ public class Route {
     private HttpClient client;
     private Forwarder forwarder;
     private HttpClient selfClient;
+
+    static {
+        String keepAliveTimeoutProperty =  System.getProperty(HTTP_CONNECTION_KEEP_ALIVE_TIMEOUT);
+        if (keepAliveTimeoutProperty != null) {
+            keepAliveTimeout = Integer.parseInt(keepAliveTimeoutProperty);
+        } else {
+            keepAliveTimeout = HttpClientOptions.DEFAULT_KEEP_ALIVE_TIMEOUT;
+        }
+    }
 
     /**
      * Creates a new instance of a Route.
@@ -98,6 +110,7 @@ public class Route {
 
         rule.setTimeout(1000 * CLIENT_DEFAULT_TIMEOUT_SEC);
         rule.setKeepAlive(CLIENT_DEFAULT_KEEP_ALIVE);
+        rule.setKeepAliveTimeout(keepAliveTimeout);
         rule.setExpandOnBackend(CLIENT_DEFAULT_EXPAND_ON_BACKEND);
         rule.setStorageExpand(CLIENT_DEFAULT_EXPAND_IN_STORAGE);
         rule.setLogExpiry(CLIENT_DEFAULT_LOG_EXPIRY);

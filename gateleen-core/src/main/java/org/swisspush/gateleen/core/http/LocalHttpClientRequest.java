@@ -2,12 +2,10 @@ package org.swisspush.gateleen.core.http;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.codegen.annotations.Nullable;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetSocket;
@@ -18,6 +16,7 @@ import io.vertx.ext.web.*;
 
 import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,7 +28,7 @@ import java.util.Set;
  */
 public class LocalHttpClientRequest extends BufferBridge implements FastFailHttpClientRequest {
 
-    private MultiMap headers = new VertxHttpHeaders();
+    private MultiMap headers = new HeadersMultiMap();
     private MultiMap params;
     private HttpMethod method;
     private String uri;
@@ -54,7 +53,9 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
-        public boolean isSSL() { return false; }
+        public boolean isSSL() {
+            return false;
+        }
 
         @Override
         public String uri() {
@@ -82,9 +83,9 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
             if (params == null) {
                 QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri());
                 Map<String, List<String>> prms = queryStringDecoder.parameters();
-                params = new VertxHttpHeaders();
+                params = new HeadersMultiMap();
                 if (!prms.isEmpty()) {
-                    for (Map.Entry<String, List<String>> entry: prms.entrySet()) {
+                    for (Map.Entry<String, List<String>> entry : prms.entrySet()) {
                         params.add(entry.getKey(), entry.getValue());
                     }
                 }
@@ -124,7 +125,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
         @Override
         public SSLSession sslSession() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -139,12 +140,12 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
         @Override
         public NetSocket netSocket() {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public HttpServerRequest setExpectMultipart(boolean expect) {
-            return null;
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -153,7 +154,9 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
-        public HttpConnection connection() { return connection; }
+        public HttpConnection connection() {
+            return connection;
+        }
 
         @Override
         public HttpServerRequest endHandler(Handler<Void> handler) {
@@ -192,6 +195,13 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         @Override
         public boolean isEnded() {
             return false;
+        }
+
+        @Override
+        public Future<Buffer> body() {
+            Promise<Buffer> promise = Promise.promise();
+            this.handler(event -> promise.complete(event));
+            return promise.future();
         }
     };
 
@@ -237,7 +247,14 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
-        public <T> T remove(String key) { throw new UnsupportedOperationException(); }
+        public <T> T get(String s, T t) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <T> T remove(String key) {
+            throw new UnsupportedOperationException();
+        }
 
         @Override
         public Map<String, Object> data() {
@@ -265,6 +282,11 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
+        public String normalizedPath() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public Cookie getCookie(String name) {
             throw new UnsupportedOperationException();
         }
@@ -280,7 +302,9 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
-        public @Nullable Cookie removeCookie(String s, boolean b) { throw new UnsupportedOperationException(); }
+        public @Nullable Cookie removeCookie(String s, boolean b) {
+            throw new UnsupportedOperationException();
+        }
 
         @Override
         public int cookieCount() {
@@ -288,9 +312,10 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
-        public Set<Cookie> cookies() {
+        public Map<String, Cookie> cookieMap() {
             throw new UnsupportedOperationException();
         }
+
 
         @Override
         public String getBodyAsString() {
@@ -303,12 +328,24 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
+        public @Nullable JsonObject getBodyAsJson(int i) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public @Nullable JsonArray getBodyAsJsonArray(int i) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public JsonObject getBodyAsJson() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public JsonArray getBodyAsJsonArray() { throw new UnsupportedOperationException(); }
+        public JsonArray getBodyAsJsonArray() {
+            throw new UnsupportedOperationException();
+        }
 
         @Override
         public Buffer getBody() {
@@ -322,6 +359,11 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
         @Override
         public Session session() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean isSessionAccessed() {
             throw new UnsupportedOperationException();
         }
 
@@ -350,7 +392,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
             throw new UnsupportedOperationException();
         }
 
-         @Override
+        @Override
         public int addHeadersEndHandler(Handler<Void> handler) {
             throw new UnsupportedOperationException();
         }
@@ -367,6 +409,16 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
         @Override
         public boolean removeBodyEndHandler(int handlerID) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int addEndHandler(Handler<AsyncResult<Void>> handler) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean removeEndHandler(int i) {
             throw new UnsupportedOperationException();
         }
 
@@ -401,35 +453,44 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
-        public void reroute(String path) { throw new UnsupportedOperationException(); }
+        public void reroute(String path) {
+            throw new UnsupportedOperationException();
+        }
 
         @Override
         public void reroute(HttpMethod method, String path) {
             throw new UnsupportedOperationException();
         }
 
+
         @Override
-        public List<Locale> acceptableLocales() {
+        public List<LanguageHeader> acceptableLanguages() {
+            throw new UnsupportedOperationException();
+        }
+
+
+        @Override
+        public LanguageHeader preferredLanguage() {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public List<LanguageHeader> acceptableLanguages() { throw new UnsupportedOperationException(); }
+        public Map<String, String> pathParams() {
+            throw new UnsupportedOperationException();
+        }
 
         @Override
-        public Locale preferredLocale() { throw new UnsupportedOperationException(); }
-
-        @Override
-        public LanguageHeader preferredLanguage() { throw new UnsupportedOperationException(); }
-
-        @Override
-        public Map<String, String> pathParams() { throw new UnsupportedOperationException(); }
-
-        @Override
-        public @Nullable String pathParam(String name) { throw new UnsupportedOperationException(); }
+        public @Nullable String pathParam(String name) {
+            throw new UnsupportedOperationException();
+        }
 
         @Override
         public MultiMap queryParams() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public MultiMap queryParams(Charset charset) {
             throw new UnsupportedOperationException();
         }
 
@@ -459,19 +520,38 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
+    public HttpMethod getMethod() {
+        return method;
+    }
+
+    @Override
     public HttpMethod method() {
         return method;
     }
 
     @Override
-    public String getRawMethod() { return null; }
+    public String getRawMethod() {
+        return method.name();
+    }
 
     @Override
-    public HttpClientRequest setRawMethod(String method) { return this; }
+    public HttpClientRequest setRawMethod(String method) {
+        return this;
+    }
 
     @Override
     public String absoluteURI() {
-        return null;
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getURI() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpClientRequest setURI(String uri) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -480,16 +560,39 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
-    public String path() { return null; }
+    public String path() {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
-    public String query() { return null; }
+    public String query() {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
-    public HttpClientRequest setHost(String host) { return this; }
+    public HttpClientRequest setHost(String host) {
+        return this;
+    }
 
     @Override
-    public String getHost() { return null; }
+    public String getHost() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpClientRequest setPort(int port) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getPort() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpClientRequest setMaxRedirects(int maxRedirects) {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public MultiMap headers() {
@@ -510,7 +613,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
     @Override
     public HttpClientRequest putHeader(String name, Iterable<String> values) {
-        for(String value : values) {
+        for (String value : values) {
             headers().add(name, value);
         }
         return this;
@@ -518,68 +621,108 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
     @Override
     public HttpClientRequest putHeader(CharSequence name, Iterable<CharSequence> values) {
-        for(CharSequence value : values) {
+        for (CharSequence value : values) {
             headers().add(name, value);
         }
         return this;
     }
 
     @Override
-    public HttpClientRequest write(Buffer chunk) {
-        ensureBound();
-        doWrite(chunk);
+    public HttpVersion version() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Future<Void> sendHead() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpClientRequest sendHead(Handler<AsyncResult<Void>> completionHandler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void connect(Handler<AsyncResult<HttpClientResponse>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Future<HttpClientResponse> connect() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpClientRequest response(Handler<AsyncResult<HttpClientResponse>> handler) {
+        ((LocalHttpServerResponse) serverResponse).setHttpClientResponseHandler(handler);
         return this;
     }
 
+    @Override
+    public Future<HttpClientResponse> response() {
+        HttpClientResponse response = ((LocalHttpServerResponse) serverResponse).clientResponse;
+        return Future.succeededFuture(response);
+    }
+
+
     private void ensureBound() {
-        if(!bound) {
+        if (!bound) {
             bound = true;
             routingContextHandler.handle(routingContext);
         }
     }
 
     @Override
-    public HttpClientRequest write(String chunk) {
-        write(Buffer.buffer(chunk));
-        return this;
+    public Future<Void> write(String chunk) {
+        return write(Buffer.buffer(chunk));
     }
 
     @Override
-    public HttpClientRequest write(String chunk, String enc) {
-        write(Buffer.buffer(chunk, enc));
-        return this;
+    public Future<Void> write(String chunk, String enc) {
+        return write(Buffer.buffer(chunk, enc));
     }
 
     @Override
-    public HttpClientRequest sendHead() {
-        return this;
-    }
-
-    @Override
-    public HttpClientRequest sendHead(Handler<HttpVersion> completionHandler) { return this; }
-
-    @Override
-    public void end(String chunk) {
-        write(chunk);
-        end();
-    }
-
-    @Override
-    public void end(String chunk, String enc) {
-        write(chunk, enc);
-        end();
-    }
-
-    @Override
-    public void end(Buffer chunk) {
-        write(chunk);
-        end();
-    }
-
-    @Override
-    public void end() {
+    public Future<Void> write(Buffer data) {
         ensureBound();
-        doEnd();
+        doWrite(data);
+        return Future.succeededFuture();
+    }
+
+    @Override
+    public void write(Buffer data, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void write(String chunk, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void write(String chunk, String enc, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Future<Void> end(String chunk) {
+        return write(chunk).onComplete(event -> end());
+    }
+
+    @Override
+    public Future<Void> end(String chunk, String enc) {
+        return write(chunk, enc).onComplete(event -> end());
+    }
+
+    @Override
+    public Future<Void> end(Buffer chunk) {
+        return write(chunk).onComplete(event -> end());
+    }
+
+    @Override
+    public Future<Void> end() {
+        ensureBound();
+        return doEnd();
     }
 
     @Override
@@ -588,26 +731,39 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
-    public HttpClientRequest pushHandler(Handler<HttpClientRequest> handler) { return this; }
+    public HttpClientRequest pushHandler(Handler<HttpClientRequest> handler) {
+        return this;
+    }
 
     @Override
     public boolean reset() {
-        return false;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean reset(long code) {
-        return false;
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public HttpConnection connection() { return null; }
+    public boolean reset(long code, Throwable cause) {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
-    public HttpClientRequest connectionHandler(@Nullable Handler<HttpConnection> handler) { return this; }
+    public HttpConnection connection() {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
-    public HttpClientRequest writeCustomFrame(int type, int flags, Buffer payload) { return this; }
+    public HttpClientRequest connectionHandler(@Nullable Handler<HttpConnection> handler) {
+        return this;
+    }
+
+    @Override
+    public HttpClientRequest writeCustomFrame(int type, int flags, Buffer payload) {
+        return this;
+    }
 
     @Override
     public HttpClientRequest setWriteQueueMaxSize(int maxSize) {
@@ -624,14 +780,15 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         return this;
     }
 
-     @Override
+    @Override
     public HttpClientRequest exceptionHandler(Handler<Throwable> handler) {
         setExceptionHandler(handler);
         return this;
     }
 
-    public void setMethod(HttpMethod method) {
+    public HttpClientRequest setMethod(HttpMethod method) {
         this.method = method;
+        return this;
     }
 
     public void setUri(String uri) {

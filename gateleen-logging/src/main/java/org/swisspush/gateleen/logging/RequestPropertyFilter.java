@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.logging;
 
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
+import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerRequest;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -30,7 +31,7 @@ public class RequestPropertyFilter {
      */
     public static FilterResult filterProperty(HttpServerRequest request, String filterPropertyKey, String filterPropertyValue, boolean reject) {
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.setAll(request.headers());
 
         if (URL.equals(filterPropertyKey)) {

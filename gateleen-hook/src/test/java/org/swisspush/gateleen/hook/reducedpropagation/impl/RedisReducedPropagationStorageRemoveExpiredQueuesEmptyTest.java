@@ -5,8 +5,9 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.redis.RedisClient;
-import io.vertx.redis.RedisOptions;
+import io.vertx.redis.client.RedisAPI;
+import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.impl.RedisClient;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -22,7 +23,7 @@ import static org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPr
 /**
  * Testing the {@link RedisReducedPropagationStorage#removeExpiredQueues(long)} method with an empty queues set.
  * This showes a very (very) strange behaviour when running in the same test class as the other {@link RedisReducedPropagationStorage} tests.
- *
+ * <p>
  * Instead of returning an empty <code>JsonArray</code>, the test sometimes returnes a <code>JsonArray</code> with a single entry of 1 or 0.
  * No idea why!
  *
@@ -42,7 +43,7 @@ public class RedisReducedPropagationStorageRemoveExpiredQueuesEmptyTest {
     @BeforeClass
     public static void setupStorage() {
         vertx = Vertx.vertx();
-        storage = new RedisReducedPropagationStorage(RedisClient.create(vertx, new RedisOptions()));
+        storage = new RedisReducedPropagationStorage(RedisAPI.api(new RedisClient(vertx, new RedisOptions())));
     }
 
     @Before
@@ -59,7 +60,7 @@ public class RedisReducedPropagationStorageRemoveExpiredQueuesEmptyTest {
     public void testRemoveExpiredQueuesEmpty(TestContext context) {
         Async async = context.async();
         context.assertFalse(jedis.exists(QUEUE_TIMERS));
-        storage.removeExpiredQueues(10).setHandler(event -> {
+        storage.removeExpiredQueues(10).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertNotNull(event.result());
             context.assertEquals(Collections.emptyList(), event.result()); //dd

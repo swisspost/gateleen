@@ -29,9 +29,10 @@ public class EventBusResourceStorage implements ResourceStorage {
     @Override
     public void get(String uri, final Handler<Buffer> bodyHandler) {
         Buffer header = Buffer.buffer(new HttpRequest(HttpMethod.GET, uri, null, null).toJsonObject().encode());
-        Buffer request = Buffer.buffer(4+header.length());
+        Buffer request = Buffer.buffer(4 + header.length());
         request.setInt(0, header.length()).appendBuffer(header);
-        eventBus.send(address, request, (Handler<AsyncResult<Message<Buffer>>>) message -> {
+
+        eventBus.request(address, request, (Handler<AsyncResult<Message<Buffer>>>) message -> {
             if (message.failed()) {
                 log.warn("Got failed msg from event bus while GET. Lets run into NPE now.", message.cause());
                 // Would be best to stop processing now. But we don't to keep backward
@@ -39,9 +40,9 @@ public class EventBusResourceStorage implements ResourceStorage {
             }
             Buffer buffer = message.result().body();
             int headerLength = buffer.getInt(0);
-            JsonObject header1 = new JsonObject(buffer.getString(4, headerLength+4));
-            if(header1.getInteger("statusCode") == 200) {
-                bodyHandler.handle(buffer.getBuffer(4+headerLength, buffer.length()));
+            JsonObject header1 = new JsonObject(buffer.getString(4, headerLength + 4));
+            if (header1.getInteger("statusCode") == 200) {
+                bodyHandler.handle(buffer.getBuffer(4 + headerLength, buffer.length()));
             } else {
                 bodyHandler.handle(null);
             }
@@ -51,9 +52,9 @@ public class EventBusResourceStorage implements ResourceStorage {
     @Override
     public void put(String uri, MultiMap headers, Buffer buffer, final Handler<Integer> doneHandler) {
         Buffer header = Buffer.buffer(new HttpRequest(HttpMethod.PUT, uri, headers, null).toJsonObject().encode());
-        Buffer request = Buffer.buffer(4+header.length());
+        Buffer request = Buffer.buffer(4 + header.length());
         request.setInt(0, header.length()).appendBuffer(header).appendBuffer(buffer);
-        eventBus.send(address, request, (Handler<AsyncResult<Message<Buffer>>>) message -> {
+        eventBus.request(address, request, (Handler<AsyncResult<Message<Buffer>>>) message -> {
             if (message.failed()) {
                 log.warn("Got failed msg from event bus while PUT. Lets run into NPE now.", message.cause());
                 // Would be best to stop processing now. But we don't to keep backward
@@ -61,7 +62,7 @@ public class EventBusResourceStorage implements ResourceStorage {
             }
             Buffer buffer1 = message.result().body();
             int headerLength = buffer1.getInt(0);
-            JsonObject header1 = new JsonObject(buffer1.getString(4, headerLength+4));
+            JsonObject header1 = new JsonObject(buffer1.getString(4, headerLength + 4));
             doneHandler.handle(header1.getInteger("statusCode"));
         });
     }
@@ -74,9 +75,9 @@ public class EventBusResourceStorage implements ResourceStorage {
     @Override
     public void delete(String uri, final Handler<Integer> doneHandler) {
         Buffer header = Buffer.buffer(new HttpRequest(HttpMethod.DELETE, uri, null, null).toJsonObject().encode());
-        Buffer request = Buffer.buffer(4+header.length());
+        Buffer request = Buffer.buffer(4 + header.length());
         request.setInt(0, header.length()).appendBuffer(header);
-        eventBus.send(address, request, (Handler<AsyncResult<Message<Buffer>>>) message -> {
+        eventBus.request(address, request, (Handler<AsyncResult<Message<Buffer>>>) message -> {
             if (message.failed()) {
                 log.warn("Got failed msg from event bus while DELETE. Lets run into NPE now.", message.cause());
                 // Would be best to stop processing now. But we don't to keep backward

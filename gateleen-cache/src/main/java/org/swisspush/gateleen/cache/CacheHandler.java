@@ -4,6 +4,7 @@ import com.google.common.base.Splitter;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -29,7 +30,7 @@ public class CacheHandler {
 
     public static final String CONTENT_TYPE_HEADER = "Content-Type";
     public static final String CONTENT_TYPE_JSON = "application/json";
-    public static final String CACHE_CONTROL_HEADER = "Cache-Control";
+    public static final String DEFAULT_CACHE_CONTROL_HEADER = "Cache-Control";
     private static final String NO_CACHE = "no-cache";
     private static final String MAX_AGE = "max-age=";
     private static final String MAX_AGE_ZERO = MAX_AGE + "0";
@@ -40,10 +41,32 @@ public class CacheHandler {
     private final CacheStorage cacheStorage;
     private final String cacheAdminUri;
 
+    private final String cacheControlHeader;
+
+    /**
+     * Constructor for the {@link CacheHandler} using the default `Cache-Control` request header
+     *
+     * @param dataFetcher the {@link CacheDataFetcher}
+     * @param cacheStorage the {@link CacheStorage}
+     * @param cacheAdminUri the uri for the admin API
+     */
     public CacheHandler(CacheDataFetcher dataFetcher, CacheStorage cacheStorage, String cacheAdminUri) {
+        this(dataFetcher, cacheStorage, cacheAdminUri, DEFAULT_CACHE_CONTROL_HEADER);
+    }
+
+    /**
+     * Constructor for the {@link CacheHandler} using a custom request header
+     *
+     * @param dataFetcher the {@link CacheDataFetcher}
+     * @param cacheStorage the {@link CacheStorage}
+     * @param cacheAdminUri the uri for the admin API
+     * @param customCacheControlHeader custom request header for cached requests instead of `Cache-Control`
+     */
+    public CacheHandler(CacheDataFetcher dataFetcher, CacheStorage cacheStorage, String cacheAdminUri, String customCacheControlHeader) {
         this.dataFetcher = dataFetcher;
         this.cacheStorage = cacheStorage;
         this.cacheAdminUri = cacheAdminUri;
+        this.cacheControlHeader = customCacheControlHeader;
     }
 
     public boolean handle(final HttpServerRequest request) {
@@ -73,7 +96,7 @@ public class CacheHandler {
         }
 
         String cacheIdentifier = request.uri();
-        cacheStorage.cachedRequest(cacheIdentifier).setHandler(event -> {
+        cacheStorage.cachedRequest(cacheIdentifier).onComplete(event -> {
             if(event.failed()){
                 log.warn("Failed to get cached request from storage", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
@@ -94,7 +117,9 @@ public class CacheHandler {
 
     private void updateCacheAndRespond(final HttpServerRequest request, String cacheIdentifier, Long expireMs){
         log.debug("Request to {} not found in cache storage, going to fetch it.", request.uri());
-        dataFetcher.fetchData(request.uri(), request.headers(), TIMEOUT_MS).setHandler(event -> {
+        HeadersMultiMap headersMultiMap = new HeadersMultiMap();
+        headersMultiMap.addAll(request.headers());
+        dataFetcher.fetchData(request.uri(), headersMultiMap, TIMEOUT_MS).onComplete(event -> {
             if(event.failed()) {
                 log.warn("Failed to fetch data from request", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
@@ -108,7 +133,7 @@ public class CacheHandler {
             }
 
             Buffer fetchedData = result.ok();
-            cacheStorage.cacheRequest(cacheIdentifier, fetchedData, Duration.ofMillis(expireMs)).setHandler(event1 -> {
+            cacheStorage.cacheRequest(cacheIdentifier, fetchedData, Duration.ofMillis(expireMs)).onComplete(event1 -> {
                 if (event1.failed()){
                     log.warn("Failed to store request to cache", event1.cause());
                 }
@@ -119,7 +144,7 @@ public class CacheHandler {
     }
 
     private boolean containsCacheHeaders(final HttpServerRequest request) {
-        List<String> cacheControlHeaderValues = request.headers().getAll(CACHE_CONTROL_HEADER);
+        List<String> cacheControlHeaderValues = request.headers().getAll(cacheControlHeader);
         for (String cacheControlHeaderValue : cacheControlHeaderValues) {
             if (NO_CACHE.equalsIgnoreCase(cacheControlHeaderValue) ||
                     cacheControlHeaderValue.toLowerCase().contains(MAX_AGE_ZERO)) {
@@ -133,13 +158,13 @@ public class CacheHandler {
     }
 
     private Optional<Long> extractExpireMs(final HttpServerRequest request) {
-        String cacheControlHeader = request.headers().get(CACHE_CONTROL_HEADER);
-        if (cacheControlHeader == null || !cacheControlHeader.toLowerCase().contains(MAX_AGE)) {
+        String cacheControlHeaderValue = request.headers().get(cacheControlHeader);
+        if (cacheControlHeaderValue == null || !cacheControlHeaderValue.toLowerCase().contains(MAX_AGE)) {
             return Optional.empty();
         }
 
-        cacheControlHeader = StringUtils.trim(cacheControlHeader).toLowerCase();
-        List<String> headerValues = Splitter.on(MAX_AGE).omitEmptyStrings().splitToList(cacheControlHeader);
+        cacheControlHeaderValue = StringUtils.trim(cacheControlHeaderValue).toLowerCase();
+        List<String> headerValues = Splitter.on(MAX_AGE).omitEmptyStrings().splitToList(cacheControlHeaderValue);
         if (headerValues.size() != 1) {
             return Optional.empty();
         }
@@ -149,14 +174,14 @@ public class CacheHandler {
             long expireSeconds = Long.parseLong(headerValue);
             return Optional.of(expireSeconds * 1000);
         } catch (NumberFormatException ex) {
-            log.warn("Value of Cache-Control max-age header is not a number: {}", headerValue);
+            log.warn("Value of {} max-age header is not a number: {}", cacheControlHeader, headerValue);
             return Optional.empty();
         }
     }
 
     private void handleClearCache(final HttpServerRequest request) {
         log.debug("About to clear all cached entries manually");
-        cacheStorage.clearCache().setHandler(event -> {
+        cacheStorage.clearCache().onComplete(event -> {
             if(event.failed()) {
                 log.warn("Error while clearing cache", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
@@ -170,7 +195,7 @@ public class CacheHandler {
 
     private void handleCacheEntries(final HttpServerRequest request) {
         log.debug("About to get cached entries list");
-        cacheStorage.cacheEntries().setHandler(event -> {
+        cacheStorage.cacheEntries().onComplete(event -> {
             if(event.failed()) {
                 log.warn("Error while getting cached entries list", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);
@@ -188,7 +213,7 @@ public class CacheHandler {
 
     private void handleCacheCount(final HttpServerRequest request) {
         log.debug("About to get cached entries count");
-        cacheStorage.cacheEntriesCount().setHandler(event -> {
+        cacheStorage.cacheEntriesCount().onComplete(event -> {
             if(event.failed()) {
                 log.warn("Error while getting cached entries count", event.cause());
                 respondWith(StatusCode.INTERNAL_SERVER_ERROR, request);

@@ -3,10 +3,11 @@ package org.swisspush.gateleen.cache;
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
@@ -51,44 +52,51 @@ public class CacheHandlerTest {
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.of(bufferFromJson(new JsonObject()))));
         HttpServerResponse response = spy(new Response());
 
-        Request putRequest = new Request(HttpMethod.PUT, "/some/path", new CaseInsensitiveHeaders(), response);
+        Request putRequest = new Request(HttpMethod.PUT, "/some/path", MultiMap.caseInsensitiveMultiMap(), response);
         context.assertFalse(cacheHandler.handle(putRequest));
 
-        Request getRequestNoHeaders = new Request(HttpMethod.GET, "/some/path", new CaseInsensitiveHeaders(), response);
+        Request getRequestNoHeaders = new Request(HttpMethod.GET, "/some/path", MultiMap.caseInsensitiveMultiMap(), response);
         context.assertFalse(cacheHandler.handle(getRequestNoHeaders));
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("foo", "bar");
         Request getRequestOtherHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(getRequestOtherHeaders));
 
-        headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
+
+        // custom cache control header
+        cacheHandler = new CacheHandler(dataFetcher, cacheStorage, "/playground/server/cache", "x-cache-control");
+        headers = new HeadersMultiMap();
+        headers.add("x-cache-control", "max-age=120");
+        Request getRequestWithCustomCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
+        context.assertTrue(cacheHandler.handle(getRequestWithCustomCacheControlHeaders));
     }
 
     @Test
     public void testNotSupportedCacheControlHeadersAreNotHandled(TestContext context) {
         HttpServerResponse response = spy(new Response());
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "private");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "private");
         Request cacheControlPrivate = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(cacheControlPrivate));
 
-        headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "public");
+        headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "public");
         Request cacheControlPublic = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(cacheControlPublic));
 
-        headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "no-cache");
+        headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "no-cache");
         Request cacheControlNoCache = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(cacheControlNoCache));
 
-        headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=0");
+        headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=0");
         Request cacheControlMaxAgeZero = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(cacheControlMaxAgeZero));
 
@@ -99,8 +107,8 @@ public class CacheHandlerTest {
     public void testInvalidCacheControlHeader(TestContext context) {
         HttpServerResponse response = spy(new Response());
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=foobar");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=foobar");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -114,8 +122,8 @@ public class CacheHandlerTest {
         HttpServerResponse response = spy(new Response());
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.of(dataObj)));
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -129,8 +137,8 @@ public class CacheHandlerTest {
         HttpServerResponse response = spy(new Response());
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.failedFuture("Boooom"));
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -145,8 +153,8 @@ public class CacheHandlerTest {
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.empty()));
         when(dataFetcher.fetchData(anyString(), any(), anyLong())).thenReturn(Future.failedFuture("Booom"));
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -163,8 +171,8 @@ public class CacheHandlerTest {
         when(cacheStorage.cachedRequest(anyString())).thenReturn(Future.succeededFuture(Optional.empty()));
         when(dataFetcher.fetchData(anyString(), any(), anyLong())).thenReturn(Future.succeededFuture(Result.err(StatusCode.NOT_FOUND)));
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -183,8 +191,8 @@ public class CacheHandlerTest {
         when(dataFetcher.fetchData(anyString(), any(), anyLong())).thenReturn(Future.succeededFuture(Result.ok(dataObj)));
         when(cacheStorage.cacheRequest(anyString(), any(), any())).thenReturn(Future.failedFuture("Booom"));
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -203,8 +211,8 @@ public class CacheHandlerTest {
         when(dataFetcher.fetchData(anyString(), any(), anyLong())).thenReturn(Future.succeededFuture(Result.ok(dataObj)));
         when(cacheStorage.cacheRequest(anyString(), any(), any())).thenReturn(Future.succeededFuture());
 
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
-        headers.add(CACHE_CONTROL_HEADER, "max-age=120");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(DEFAULT_CACHE_CONTROL_HEADER, "max-age=120");
         Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
@@ -220,7 +228,7 @@ public class CacheHandlerTest {
     public void testCacheAdminFunctionNotSupported(TestContext context) {
         HttpServerResponse response = spy(new Response());
 
-        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/foobar", new CaseInsensitiveHeaders(), response);
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/foobar", MultiMap.caseInsensitiveMultiMap(), response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
         verify(response, times(1)).setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
@@ -233,7 +241,7 @@ public class CacheHandlerTest {
         HttpServerResponse response = spy(new Response());
         when(cacheStorage.clearCache()).thenReturn(Future.succeededFuture(99L));
 
-        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.POST, "/playground/server/cache/clear", new CaseInsensitiveHeaders(), response);
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.POST, "/playground/server/cache/clear", MultiMap.caseInsensitiveMultiMap(), response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
@@ -247,7 +255,7 @@ public class CacheHandlerTest {
         HttpServerResponse response = spy(new Response());
         when(cacheStorage.cacheEntriesCount()).thenReturn(Future.succeededFuture(15L));
 
-        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/count", new CaseInsensitiveHeaders(), response);
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/count", MultiMap.caseInsensitiveMultiMap(), response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
@@ -261,7 +269,7 @@ public class CacheHandlerTest {
         HttpServerResponse response = spy(new Response());
         when(cacheStorage.cacheEntries()).thenReturn(Future.succeededFuture(Set.of("/cached/res/1", "/cached/res/2", "/cached/res/3")));
 
-        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/entries", new CaseInsensitiveHeaders(), response);
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/entries", MultiMap.caseInsensitiveMultiMap(), response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
@@ -284,7 +292,7 @@ public class CacheHandlerTest {
         HttpServerResponse response = spy(new Response());
         when(cacheStorage.cacheEntries()).thenReturn(Future.succeededFuture(Collections.emptySet()));
 
-        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/entries", new CaseInsensitiveHeaders(), response);
+        Request getRequestWithCacheControlHeaders = new Request(HttpMethod.GET, "/playground/server/cache/entries", MultiMap.caseInsensitiveMultiMap(), response);
         context.assertTrue(cacheHandler.handle(getRequestWithCacheControlHeaders));
 
         verify(response, times(1)).setStatusCode(StatusCode.OK.getStatusCode());
@@ -294,12 +302,12 @@ public class CacheHandlerTest {
     }
 
     private class Request extends DummyHttpServerRequest {
-        private CaseInsensitiveHeaders headers;
+        private MultiMap headers;
         private HttpMethod httpMethod;
         private String uri;
         private HttpServerResponse response;
 
-        public Request(HttpMethod httpMethod, String uri, CaseInsensitiveHeaders headers, HttpServerResponse response) {
+        public Request(HttpMethod httpMethod, String uri, MultiMap headers, HttpServerResponse response) {
             this.httpMethod = httpMethod;
             this.uri = uri;
             this.headers = headers;
@@ -325,10 +333,10 @@ public class CacheHandlerTest {
     }
 
     private class Response extends DummyHttpServerResponse {
-        private CaseInsensitiveHeaders headers;
+        private MultiMap headers;
 
         public Response() {
-            this.headers = new CaseInsensitiveHeaders();
+            this.headers = MultiMap.caseInsensitiveMultiMap();
         }
 
         @Override

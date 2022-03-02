@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.queue.queuing;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -7,6 +8,7 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -53,15 +55,15 @@ public class QueueProcessor {
         this.monitoringHandler = monitoringHandler;
         this.queueCircuitBreaker = queueCircuitBreaker;
 
-        if(immediatelyStartQueueProcessing) {
+        if (immediatelyStartQueueProcessing) {
             startQueueProcessing();
         } else {
             log.info("initialized QueueProcessor but queue processing has disabled");
         }
     }
 
-    public void startQueueProcessing(){
-        if(this.consumer == null || !this.consumer.isRegistered()) {
+    public void startQueueProcessing() {
+        if (this.consumer == null || !this.consumer.isRegistered()) {
             log.info("about to register consumer to start queue processing");
             this.consumer = vertx.eventBus().consumer(getQueueProcessorAddress(), (Handler<Message<JsonObject>>) message -> {
                 HttpRequest queuedRequestTry = null;
@@ -84,7 +86,7 @@ public class QueueProcessor {
                 if (!isCircuitCheckEnabled()) {
                     executeQueuedRequest(message, logger, queuedRequest, jsonRequest, queueName, null);
                 } else {
-                    queueCircuitBreaker.handleQueuedRequest(queueName, queuedRequest).setHandler(event -> {
+                    queueCircuitBreaker.handleQueuedRequest(queueName, queuedRequest).onComplete(event -> {
                         if (event.failed()) {
                             String msg = "Error in QueueCircuitBreaker occurred for queue " + queueName + ". Reply with status ERROR. Message is: " + event.cause().getMessage();
                             logger.error(msg);
@@ -106,8 +108,8 @@ public class QueueProcessor {
         }
     }
 
-    public void stopQueueProcessing(){
-        if(this.consumer != null && this.consumer.isRegistered()) {
+    public void stopQueueProcessing() {
+        if (this.consumer != null && this.consumer.isRegistered()) {
             log.info("about to unregister consumer to stop queue processing");
             this.consumer.unregister();
         } else {
@@ -115,11 +117,11 @@ public class QueueProcessor {
         }
     }
 
-    public boolean isQueueProcessingStarted(){
+    public boolean isQueueProcessingStarted() {
         return this.consumer != null && this.consumer.isRegistered();
     }
 
-    public String getQueueProcessorAddress(){
+    public String getQueueProcessorAddress() {
         return Address.queueProcessorAddress();
     }
 
@@ -139,21 +141,20 @@ public class QueueProcessor {
      * there's no sense to enqueue a request which we cannot process in
      * {@link #startQueueProcessing()}.</p>
      *
-     * @return
-     *      True if method is allowed to be enqueued. Not all methods are allowed
-     *      here because we deliver only whitelisted methods.
+     * @return True if method is allowed to be enqueued. Not all methods are allowed
+     * here because we deliver only whitelisted methods.
      */
     public static boolean httpMethodIsQueueable(HttpMethod method) {
         final boolean result;
-        switch (method) {
+        switch (method.name()) {
             // We accept those methods:
-            case GET:
-            case HEAD:
-            case PUT:
-            case POST:
-            case DELETE:
-            case OPTIONS:
-            case PATCH:
+            case "GET":
+            case "HEAD":
+            case "PUT":
+            case "POST":
+            case "DELETE":
+            case "OPTIONS":
+            case "PATCH":
                 result = true;
                 break;
             // We do NOT accept all other methods.
@@ -181,7 +182,7 @@ public class QueueProcessor {
 
     private void updateCircuitBreakerStatistics(String queueName, HttpRequest queuedRequest, QueueResponseType queueResponseType, QueueCircuitState state) {
         if (isStatisticsUpdateEnabled() && QueueCircuitState.OPEN != state) {
-            queueCircuitBreaker.updateStatistics(queueName, queuedRequest, queueResponseType).setHandler(event -> {
+            queueCircuitBreaker.updateStatistics(queueName, queuedRequest, queueResponseType).onComplete(event -> {
                 if (event.failed()) {
                     String message = "failed to update statistics for queue '" + queueName + "' to uri " + queuedRequest.getUri() +
                             ". Message is: " + event.cause().getMessage();
@@ -193,7 +194,7 @@ public class QueueProcessor {
 
     private void closeCircuit(HttpRequest queuedRequest) {
         if (queueCircuitBreaker != null) {
-            queueCircuitBreaker.closeCircuit(queuedRequest).setHandler(event -> {
+            queueCircuitBreaker.closeCircuit(queuedRequest).onComplete(event -> {
                 if (event.failed()) {
                     String message = "failed to close circuit " + queuedRequest.getUri() +
                             ". Message is: " + event.cause().getMessage();
@@ -205,7 +206,7 @@ public class QueueProcessor {
 
     private void reOpenCircuit(HttpRequest queuedRequest) {
         if (queueCircuitBreaker != null) {
-            queueCircuitBreaker.reOpenCircuit(queuedRequest).setHandler(event -> {
+            queueCircuitBreaker.reOpenCircuit(queuedRequest).onComplete(event -> {
                 if (event.failed()) {
                     String message = "failed to re-open circuit " + queuedRequest.getUri() +
                             ". Message is: " + event.cause().getMessage();
@@ -225,52 +226,61 @@ public class QueueProcessor {
             return;
         }
 
-        HttpClientRequest request = httpClient.request(queuedRequest.getMethod(), queuedRequest.getUri(), response -> {
-            if (logger.isTraceEnabled()) {
-                logger.trace("response: " + response.statusCode());
+        httpClient.request(queuedRequest.getMethod(), queuedRequest.getUri()).onComplete(asyncReqResult -> {
+            if (asyncReqResult.failed()) {
+                logger.warn("Failed request to {}: {}", queuedRequest.getUri(), asyncReqResult.cause());
+                return;
             }
-            if (response.statusCode() >= 200 && response.statusCode() < 300 || response.statusCode() == 409) {
-                if (response.statusCode() != StatusCode.CONFLICT.getStatusCode()) {
-                    logger.debug("Successful request to " + queuedRequest.getUri());
-                } else {
-                    logger.warn("Ignoring request conflict to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
-                }
-                message.reply(new JsonObject().put(STATUS, OK));
-                performCircuitBreakerActions(queueName, queuedRequest, SUCCESS, state);
-                monitoringHandler.updateDequeue();
-            } else if(QueueRetryUtil.retryQueueItem(queuedRequest.getHeaders(), response.statusCode(), logger)) {
-                logger.info("Failed queued request to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
-                message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, response.statusCode() + " " + response.statusMessage()));
-                performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
-            } else {
-                logger.info("Reply success, because no more retries left for failed queued request to {}: {} {}", queuedRequest.getUri(), response.statusCode(), response.statusMessage());
-                message.reply(new JsonObject().put(STATUS, OK));
-                performCircuitBreakerActions(queueName, queuedRequest, SUCCESS, state);
+            HttpClientRequest request1 = asyncReqResult.result();
+            if (queuedRequest.getHeaders() != null && !queuedRequest.getHeaders().isEmpty()) {
+                request1.headers().setAll(queuedRequest.getHeaders());
             }
-            response.bodyHandler(event -> logger.debug("Discarding backend body"));
-            response.endHandler(event -> logger.debug("Backend response end"));
-            response.exceptionHandler(exception -> {
-                logger.warn("Exception on response from " + queuedRequest.getUri() + ": " + exception.getMessage());
+
+            request1.exceptionHandler(exception -> {
+                logger.warn("Failed request to {}: {}", queuedRequest.getUri(), asyncReqResult.cause());
                 message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
                 performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
             });
+
+            Handler<AsyncResult<HttpClientResponse>> httpAsyncHandler = asyncResult -> {
+                HttpClientResponse response = asyncResult.result();
+                if (logger.isTraceEnabled()) {
+                    logger.trace("response: " + response.statusCode());
+                }
+                if (response.statusCode() >= 200 && response.statusCode() < 300 || response.statusCode() == 409) {
+                    if (response.statusCode() != StatusCode.CONFLICT.getStatusCode()) {
+                        logger.debug("Successful request to " + queuedRequest.getUri());
+                    } else {
+                        logger.warn("Ignoring request conflict to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
+                    }
+                    message.reply(new JsonObject().put(STATUS, OK));
+                    performCircuitBreakerActions(queueName, queuedRequest, SUCCESS, state);
+                    monitoringHandler.updateDequeue();
+                } else if (QueueRetryUtil.retryQueueItem(queuedRequest.getHeaders(), response.statusCode(), logger)) {
+                    logger.info("Failed queued request to " + queuedRequest.getUri() + ": " + response.statusCode() + " " + response.statusMessage());
+                    message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, response.statusCode() + " " + response.statusMessage()));
+                    performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
+                } else {
+                    logger.info("Reply success, because no more retries left for failed queued request to {}: {} {}", queuedRequest.getUri(), response.statusCode(), response.statusMessage());
+                    message.reply(new JsonObject().put(STATUS, OK));
+                    performCircuitBreakerActions(queueName, queuedRequest, SUCCESS, state);
+                }
+                response.bodyHandler(event -> logger.debug("Discarding backend body"));
+                response.endHandler(event -> logger.debug("Backend response end"));
+                response.exceptionHandler(exception -> {
+                    logger.warn("Exception on response from " + queuedRequest.getUri() + ": " + exception.getMessage());
+                    message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
+                    performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
+                });
+            };
+            request1.setTimeout(120000); // avoids blocking other requests
+            if (queuedRequest.getPayload() != null) {
+                request1.send(Buffer.buffer(queuedRequest.getPayload()), httpAsyncHandler);
+            } else {
+                request1.send(httpAsyncHandler);
+            }
         });
 
-        if (queuedRequest.getHeaders() != null && !queuedRequest.getHeaders().isEmpty()) {
-            request.headers().setAll(queuedRequest.getHeaders());
-        }
-
-        request.exceptionHandler(exception -> {
-            logger.warn("Failed request to " + queuedRequest.getUri() + ": " + exception.getMessage());
-            message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
-            performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
-        });
-        request.setTimeout(120000); // avoids blocking other requests
-        if (queuedRequest.getPayload() != null) {
-            request.end(Buffer.buffer(queuedRequest.getPayload()));
-        } else {
-            request.end();
-        }
     }
 
     public HttpClient getHttpClient() {

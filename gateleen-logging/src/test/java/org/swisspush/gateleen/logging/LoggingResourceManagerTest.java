@@ -7,7 +7,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -187,7 +187,7 @@ public class LoggingResourceManagerTest {
                 return null;
             }
             @Override public MultiMap headers() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
             @Override public HttpServerResponse response() {
                 return httpServerResponse;
@@ -219,6 +219,6 @@ public class LoggingResourceManagerTest {
         @Override public String uri() {
             return LOGGING_URI;
         }
-        @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+        @Override public MultiMap headers() { return MultiMap.caseInsensitiveMultiMap(); }
     }
 }

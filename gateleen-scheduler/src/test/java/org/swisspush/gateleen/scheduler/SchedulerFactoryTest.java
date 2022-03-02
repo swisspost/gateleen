@@ -6,7 +6,7 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.RedisAPI;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,11 +32,12 @@ public class SchedulerFactoryTest {
 
     private Vertx vertx;
     private MonitoringHandler monitoringHandler;
-    private RedisClient redisClient;
+
+    private RedisAPI redisAPI;
     private SchedulerFactory schedulerFactory;
 
     @Rule
-    public ExpectedException thrown= ExpectedException.none();
+    public ExpectedException thrown = ExpectedException.none();
 
     private String schedulersSchema = ResourcesUtils.loadResource("gateleen_scheduler_schema_schedulers", true);
 
@@ -46,18 +47,20 @@ public class SchedulerFactoryTest {
     private final String INVALID_JSON = ResourcesUtils.loadResource("testresource_invalid_json", true);
 
     @Before
-    public void setUp(){
+    public void setUp() {
         vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
-        redisClient = Mockito.mock(RedisClient.class);
+
+        redisAPI = Mockito.mock(RedisAPI.class);
+
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
 
-        schedulerFactory = new SchedulerFactory(null, Collections.emptyMap(), vertx, redisClient, monitoringHandler, schedulersSchema, Address.redisquesAddress());
+        schedulerFactory = new SchedulerFactory(null, Collections.emptyMap(), vertx, redisAPI, monitoringHandler, schedulersSchema, Address.redisquesAddress());
     }
 
     @Test
     public void testInvalidJson() throws ValidationException {
-        thrown.expect( ValidationException.class );
+        thrown.expect(ValidationException.class);
         thrown.expectMessage("Unable to parse json");
         schedulerFactory.parseSchedulers(Buffer.buffer(INVALID_JSON));
     }
@@ -89,7 +92,7 @@ public class SchedulerFactoryTest {
 
     @Test
     public void testValidSchedulerConfigWithDefaultHeaders(TestContext context) throws ValidationException {
-        schedulerFactory = new SchedulerFactory(null, Collections.singletonMap("x-foo", "zzz"), vertx, redisClient,
+        schedulerFactory = new SchedulerFactory(null, Collections.singletonMap("x-foo", "zzz"), vertx, redisAPI,
                 monitoringHandler, schedulersSchema, Address.redisquesAddress());
         List<Scheduler> schedulers = schedulerFactory.parseSchedulers(Buffer.buffer(VALID_SCHEDULER_RESOURCE));
         context.assertNotNull(schedulers);
@@ -124,14 +127,14 @@ public class SchedulerFactoryTest {
         try {
             schedulerFactory.parseSchedulers(Buffer.buffer(MISSING_SCHEDULERS_PROPERTY));
             context.fail("Should have thrown a ValidationException since 'schedulers' property is missing");
-        } catch(ValidationException ex){
+        } catch (ValidationException ex) {
             context.assertNotNull(ex.getValidationDetails());
             context.assertEquals(2, ex.getValidationDetails().size());
-            for(Object obj : ex.getValidationDetails()){
+            for (Object obj : ex.getValidationDetails()) {
                 JsonObject jsonObject = (JsonObject) obj;
-                if("additionalProperties".equalsIgnoreCase(jsonObject.getString("keyword"))){
+                if ("additionalProperties".equalsIgnoreCase(jsonObject.getString("keyword"))) {
                     context.assertEquals("listofschedulers", jsonObject.getJsonArray("unwanted").getString(0));
-                } else if("required".equalsIgnoreCase(jsonObject.getString("keyword"))){
+                } else if ("required".equalsIgnoreCase(jsonObject.getString("keyword"))) {
                     context.assertEquals("schedulers", jsonObject.getJsonArray("missing").getString(0));
                 }
             }
@@ -143,14 +146,14 @@ public class SchedulerFactoryTest {
         try {
             schedulerFactory.parseSchedulers(Buffer.buffer(MISSING_CRONEXPRESSION_PROPERTY));
             context.fail("Should have thrown a ValidationException since 'cronExpression' property is missing");
-        } catch(ValidationException ex){
+        } catch (ValidationException ex) {
             context.assertNotNull(ex.getValidationDetails());
             context.assertEquals(2, ex.getValidationDetails().size());
-            for(Object obj : ex.getValidationDetails()){
+            for (Object obj : ex.getValidationDetails()) {
                 JsonObject jsonObject = (JsonObject) obj;
-                if("additionalProperties".equalsIgnoreCase(jsonObject.getString("keyword"))){
+                if ("additionalProperties".equalsIgnoreCase(jsonObject.getString("keyword"))) {
                     context.assertEquals("cron", jsonObject.getJsonArray("unwanted").getString(0));
-                } else if("required".equalsIgnoreCase(jsonObject.getString("keyword"))){
+                } else if ("required".equalsIgnoreCase(jsonObject.getString("keyword"))) {
                     context.assertEquals("cronExpression", jsonObject.getJsonArray("missing").getString(0));
                 }
             }

@@ -4,7 +4,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
@@ -35,10 +35,10 @@ public class RequestLoggerTest {
     @Test
     public void testLogRequest(TestContext context){
         EventBus eventBus = Mockito.mock(EventBus .class);
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Content-Type", "application/json");
         headers.add("x-rp-unique-id", "123456");
-        MockedResponse response = new MockedResponse(new CaseInsensitiveHeaders());
+        MockedResponse response = new MockedResponse(MultiMap.caseInsensitiveMultiMap());
         MockedRequest request = new MockedRequest("/uri/to/a/resource", HttpMethod.PUT, headers, response);
         JsonObject body = new JsonObject().put("key_1", "value_2").put("key_2", 99);
 
@@ -54,20 +54,20 @@ public class RequestLoggerTest {
         expected.put(BODY, Buffer.buffer(body.encode()).toString());
 
         Mockito.verify(eventBus, Mockito.times(1))
-                .send(eq(Address.requestLoggingConsumerAddress()), eq(expected), any(Handler.class));
+                .request(eq(Address.requestLoggingConsumerAddress()), eq(expected), any(Handler.class));
     }
 
     @Test
     public void testLogRequestResponseHeaders(TestContext context){
         EventBus eventBus = Mockito.mock(EventBus .class);
-        CaseInsensitiveHeaders headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Content-Type", "application/json");
         headers.add("x-rp-unique-id", "123456");
         MockedRequest request = new MockedRequest("/uri/to/a/resource", HttpMethod.PUT, headers,
-                new MockedResponse(new CaseInsensitiveHeaders()));
+                new MockedResponse(MultiMap.caseInsensitiveMultiMap()));
         JsonObject body = new JsonObject().put("key_1", "value_2").put("key_2", 99);
 
-        CaseInsensitiveHeaders responseHeaders = new CaseInsensitiveHeaders();
+        MultiMap responseHeaders = MultiMap.caseInsensitiveMultiMap();
         responseHeaders.add("header_1", "value_1");
         responseHeaders.add("header_2", "value_2");
 
@@ -84,7 +84,7 @@ public class RequestLoggerTest {
         expected.put(BODY, Buffer.buffer(body.encode()).toString());
 
         Mockito.verify(eventBus, Mockito.times(1))
-                .send(eq(Address.requestLoggingConsumerAddress()), eq(expected), any(Handler.class));
+                .request(eq(Address.requestLoggingConsumerAddress()), eq(expected), any(Handler.class));
     }
 
     class MockedRequest extends DummyHttpServerRequest {

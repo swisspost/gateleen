@@ -33,7 +33,7 @@ public class LockUtilTest {
     @Test
     public void testAcquireLockWithoutLockImplementationDefined(TestContext context) {
         Async async = context.async();
-        LockUtil.acquireLock(null, "someLock", "someToken", 100, log).setHandler(event -> {
+        LockUtil.acquireLock(null, "someLock", "someToken", 100, log).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
             Mockito.verify(log, Mockito.times(1)).info(eq("No lock implementation defined, going to pretend like we got the lock"));
@@ -45,7 +45,7 @@ public class LockUtilTest {
     public void testAcquireLockSuccess(TestContext context) {
         Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.succeededFuture(Boolean.TRUE));
         Async async = context.async();
-        LockUtil.acquireLock(lock, "someLock", "someToken", 100, log).setHandler(event -> {
+        LockUtil.acquireLock(lock, "someLock", "someToken", 100, log).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertTrue(event.result());
             Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to acquire lock '{}' with token '{}' and expiry {}ms"), eq("someLock"), eq("someToken"), eq(100L));
@@ -58,7 +58,7 @@ public class LockUtilTest {
     public void testAcquireLockFail(TestContext context) {
         Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.succeededFuture(Boolean.FALSE));
         Async async = context.async();
-        LockUtil.acquireLock(lock, "someLock", "someToken", 100, log).setHandler(event -> {
+        LockUtil.acquireLock(lock, "someLock", "someToken", 100, log).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertFalse(event.result());
             Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to acquire lock '{}' with token '{}' and expiry {}ms"), eq("someLock"), eq("someToken"), eq(100L));
@@ -70,7 +70,7 @@ public class LockUtilTest {
     public void testAcquireLockError(TestContext context) {
         Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.failedFuture("Booom"));
         Async async = context.async();
-        LockUtil.acquireLock(lock, "someLock", "someToken", 100, log).setHandler(event -> {
+        LockUtil.acquireLock(lock, "someLock", "someToken", 100, log).onComplete(event -> {
             context.assertFalse(event.succeeded());
             context.assertEquals("Booom", event.cause().getMessage());
             async.complete();

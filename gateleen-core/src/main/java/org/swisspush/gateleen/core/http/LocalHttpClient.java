@@ -3,7 +3,6 @@ package org.swisspush.gateleen.core.http;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.web.RoutingContext;
 
@@ -24,8 +23,7 @@ public class LocalHttpClient extends AbstractHttpClient {
     }
 
     @Override
-    protected HttpClientRequest doRequest(HttpMethod method, String uri, Handler<HttpClientResponse> responseHandler) {
-        return new LocalHttpClientRequest(method, uri, vertx, wrappedRoutingContexttHandler, new LocalHttpServerResponse(vertx, responseHandler));
+    protected HttpClientRequest doRequest(HttpMethod method, String uri) {
+        return new LocalHttpClientRequest(method, uri, vertx, wrappedRoutingContexttHandler, new LocalHttpServerResponse(vertx));
     }
-
 }

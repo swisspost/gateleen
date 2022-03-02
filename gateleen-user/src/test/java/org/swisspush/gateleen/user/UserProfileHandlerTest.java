@@ -3,7 +3,7 @@ package org.swisspush.gateleen.user;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.json.JsonObject;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -173,13 +173,13 @@ public class UserProfileHandlerTest {
     }
 
     private MultiMap createHeadersWithUserId09000555() {
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("x-rp-usr", "09000555");
         return headers;
     }
 
     private MultiMap createHeadersWithUserId09000555(String employeeId) {
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("x-rp-usr", "09000555");
         headers.add("x-rp-employeeid", employeeId);
         return headers;

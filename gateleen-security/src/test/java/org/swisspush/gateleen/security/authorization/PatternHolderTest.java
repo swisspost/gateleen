@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.security.authorization;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
@@ -64,7 +64,7 @@ public class PatternHolderTest {
 
     @Test
     public void testGetPatternNoWildcards(TestContext context) {
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         String pattern = "(mouse|cat|dog|wolf|bear|human)";
         PatternHolder pH = new PatternHolder(pattern);
         context.assertNotNull(pH.getPattern(headers));
@@ -77,7 +77,7 @@ public class PatternHolderTest {
 
     @Test
     public void testGetPatternWithWildcardsNoHeaders(TestContext context) {
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         String patternWithWildcard = "/gateleen/<foo>/resources/.*";
         PatternHolder pH = new PatternHolder(patternWithWildcard);
         context.assertNotNull(pH.getPattern(headers));
@@ -88,7 +88,7 @@ public class PatternHolderTest {
 
     @Test
     public void testGetPatternWithWildcards(TestContext context) {
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("foo", "bar");
 
         String patternWithWildcard = "/gateleen/<foo>/resources/.*";
@@ -100,7 +100,7 @@ public class PatternHolderTest {
 
     @Test
     public void testGetPatternWithSameWildcardTwice(TestContext context) {
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("foo", "bar");
 
         String patternWithSameWildcardTwice = "/gateleen/<foo>/resources/<foo>/.*";
@@ -112,7 +112,7 @@ public class PatternHolderTest {
 
     @Test
     public void testGetPatternWithMultipleWildcards(TestContext context) {
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("foo", "bar");
         headers.add("zzz", "yyy");
 

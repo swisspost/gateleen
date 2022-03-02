@@ -5,7 +5,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -77,7 +77,7 @@ public class QoSHandlerTest {
                 "  }" +
                 "}";
 
-        CustomHttpServerRequest request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, validMinimalConfig, new CaseInsensitiveHeaders(), response);
+        CustomHttpServerRequest request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, validMinimalConfig, MultiMap.caseInsensitiveMultiMap(), response);
         qosHandler.handle(request);
 
         verify(response, times(1)).end();
@@ -110,7 +110,7 @@ public class QoSHandlerTest {
                 "}";
 
         response = mock(HttpServerResponse.class);
-        request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, validFullConfig, new CaseInsensitiveHeaders(), response);
+        request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, validFullConfig, MultiMap.caseInsensitiveMultiMap(), response);
         qosHandler.handle(request);
 
         verify(response, times(1)).end();
@@ -119,7 +119,7 @@ public class QoSHandlerTest {
     @Test
     public void testQoSSettingsUpdateWithInvalidPercentileValues(TestContext context){
         QoSHandler qosHandler = new QoSHandler(vertx, storage, qosSettingsPath, new HashMap<>(), prefix);
-        HttpServerResponse response = spy(new CustomHttpServerResponse(new CaseInsensitiveHeaders()));
+        HttpServerResponse response = spy(new CustomHttpServerResponse(MultiMap.caseInsensitiveMultiMap()));
 
         String percentileNotAnyOfExpectedNumber = "{" +
                 "  \"config\":{" +
@@ -131,7 +131,7 @@ public class QoSHandlerTest {
                 "  }" +
                 "}";
 
-        CustomHttpServerRequest request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, percentileNotAnyOfExpectedNumber, new CaseInsensitiveHeaders(), response);
+        CustomHttpServerRequest request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, percentileNotAnyOfExpectedNumber, MultiMap.caseInsensitiveMultiMap(), response);
         qosHandler.handle(request);
 
         verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
@@ -147,8 +147,8 @@ public class QoSHandlerTest {
                 "  }" +
                 "}";
 
-        response = spy(new CustomHttpServerResponse(new CaseInsensitiveHeaders()));
-        request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, percentileNotANumber, new CaseInsensitiveHeaders(), response);
+        response = spy(new CustomHttpServerResponse(MultiMap.caseInsensitiveMultiMap()));
+        request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, percentileNotANumber, MultiMap.caseInsensitiveMultiMap(), response);
         qosHandler.handle(request);
 
         verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
@@ -158,7 +158,7 @@ public class QoSHandlerTest {
     @Test
     public void testQoSSettingsUpdateWithRulesButNoSentinels(TestContext context){
         QoSHandler qosHandler = new QoSHandler(vertx, storage, qosSettingsPath, new HashMap<>(), prefix);
-        HttpServerResponse response = spy(new CustomHttpServerResponse(new CaseInsensitiveHeaders()));
+        HttpServerResponse response = spy(new CustomHttpServerResponse(MultiMap.caseInsensitiveMultiMap()));
 
         String rulesWithoutSentinelsConfig = "{" +
                 "  \"config\":{" +
@@ -179,7 +179,7 @@ public class QoSHandlerTest {
                 "  }" +
                 "}";
 
-        CustomHttpServerRequest request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, rulesWithoutSentinelsConfig, new CaseInsensitiveHeaders(), response);
+        CustomHttpServerRequest request = new CustomHttpServerRequest(QOS_URI, HttpMethod.PUT, rulesWithoutSentinelsConfig, MultiMap.caseInsensitiveMultiMap(), response);
         qosHandler.handle(request);
 
         verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));

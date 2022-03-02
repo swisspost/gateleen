@@ -6,7 +6,11 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.*;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -169,7 +173,7 @@ public class RouterTest {
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
         class GETRandomResourceRequest extends DummyHttpServerRequest {
 
-            MultiMap headers = new CaseInsensitiveHeaders();
+            MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
             @Override
             public HttpMethod method() {
@@ -181,11 +185,20 @@ public class RouterTest {
                 return "/gateleen/server/loop/4/resource";
             }
 
-            @Override public String path() { return "/gateleen/server/loop/4/resource"; }
+            @Override
+            public String path() {
+                return "/gateleen/server/loop/4/resource";
+            }
 
-            @Override public MultiMap headers() { return headers; }
+            @Override
+            public MultiMap headers() {
+                return headers;
+            }
 
-            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap params() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
 
             @Override
             public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
@@ -238,7 +251,7 @@ public class RouterTest {
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
         class GETRandomResourceRequest extends DummyHttpServerRequest {
 
-            MultiMap headers = new CaseInsensitiveHeaders();
+            MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
             @Override
             public HttpMethod method() {
@@ -250,11 +263,20 @@ public class RouterTest {
                 return "/gateleen/server/loop/4/resource";
             }
 
-            @Override public String path() { return "/gateleen/server/loop/4/resource"; }
+            @Override
+            public String path() {
+                return "/gateleen/server/loop/4/resource";
+            }
 
-            @Override public MultiMap headers() { return headers; }
+            @Override
+            public MultiMap headers() {
+                return headers;
+            }
 
-            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap params() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
 
             @Override
             public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
@@ -307,7 +329,7 @@ public class RouterTest {
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
         class GETRandomResourceRequest extends DummyHttpServerRequest {
 
-            MultiMap headers = new CaseInsensitiveHeaders();
+            MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
             @Override
             public HttpMethod method() {
@@ -319,11 +341,20 @@ public class RouterTest {
                 return "/gateleen/server/loop/4/resource";
             }
 
-            @Override public String path() { return "/gateleen/server/loop/4/resource"; }
+            @Override
+            public String path() {
+                return "/gateleen/server/loop/4/resource";
+            }
 
-            @Override public MultiMap headers() { return headers; }
+            @Override
+            public MultiMap headers() {
+                return headers;
+            }
 
-            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap params() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
 
             @Override
             public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
@@ -377,7 +408,7 @@ public class RouterTest {
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
         class GETRandomResourceRequest extends DummyHttpServerRequest {
 
-            MultiMap headers = new CaseInsensitiveHeaders();
+            MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
             @Override
             public HttpMethod method() {
@@ -389,11 +420,20 @@ public class RouterTest {
                 return "/gateleen/server/loop/4/resource";
             }
 
-            @Override public String path() { return "/gateleen/server/loop/4/resource"; }
+            @Override
+            public String path() {
+                return "/gateleen/server/loop/4/resource";
+            }
 
-            @Override public MultiMap headers() { return headers; }
+            @Override
+            public MultiMap headers() {
+                return headers;
+            }
 
-            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap params() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
 
             @Override
             public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
@@ -478,7 +518,7 @@ public class RouterTest {
 
             @Override
             public MultiMap headers() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
 
             @Override
@@ -519,7 +559,7 @@ public class RouterTest {
 
             @Override
             public MultiMap headers() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
         }
         GETRoutingRulesRequest request = new GETRoutingRulesRequest();
@@ -560,7 +600,7 @@ public class RouterTest {
 
             @Override
             public MultiMap headers() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
         }
         GETRandomResourceRequest request = new GETRandomResourceRequest();
@@ -596,9 +636,15 @@ public class RouterTest {
                 return "/gateleen/server/random/resource";
             }
 
-            @Override public String path() { return "/gateleen/server/random/resource"; }
+            @Override
+            public String path() {
+                return "/gateleen/server/random/resource";
+            }
 
-            @Override public MultiMap headers() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap headers() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
 
             @Override
             public DummyHttpServerResponse response() {
@@ -637,7 +683,7 @@ public class RouterTest {
 
             @Override
             public MultiMap headers() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
 
             @Override
@@ -669,17 +715,22 @@ public class RouterTest {
 
             @Override
             public MultiMap params() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
 
             @Override
             public MultiMap headers() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
 
             @Override
             public DummyHttpServerResponse response() {
                 return responseRandomResource;
+            }
+
+            @Override
+            public HttpServerRequest pause() {
+                return this;
             }
         }
         GETRandomResourceAgainRequest requestRandomResource = new GETRandomResourceAgainRequest();
@@ -718,12 +769,12 @@ public class RouterTest {
 
             @Override
             public MultiMap params() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
 
             @Override
             public MultiMap headers() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
 
             @Override
@@ -773,12 +824,12 @@ public class RouterTest {
 
             @Override
             public MultiMap params() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
 
             @Override
             public MultiMap headers() {
-                return new CaseInsensitiveHeaders();
+                return MultiMap.caseInsensitiveMultiMap();
             }
 
             @Override
@@ -809,7 +860,7 @@ public class RouterTest {
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = new HeadersMultiMap();
         headers.set("x-foo", "bar");
         DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/storage", headers, Buffer.buffer(RANDOM_RESOURCE), response);
         router.route(request);
@@ -834,7 +885,7 @@ public class RouterTest {
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = new HeadersMultiMap();
         DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/storage", headers, Buffer.buffer(RANDOM_RESOURCE), response);
         router.route(request);
 
@@ -858,7 +909,7 @@ public class RouterTest {
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = new HeadersMultiMap();
         headers.set("x-foo", "99");
         DummyHttpServerRequest request = buildRequest(HttpMethod.PUT, "/gateleen/server/forward/to/nowhere", headers, Buffer.buffer(RANDOM_RESOURCE), response);
         router.route(request);
@@ -883,7 +934,7 @@ public class RouterTest {
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = new HeadersMultiMap();
         headers.set("x-foo", "999");
         DummyHttpServerRequest request = buildRequest(HttpMethod.PUT, "/gateleen/server/forward/to/nowhere", headers, Buffer.buffer(RANDOM_RESOURCE), response);
         router.route(request);
@@ -908,7 +959,7 @@ public class RouterTest {
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = new HeadersMultiMap();
         headers.set("x-foo", "A");
         DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/backend", headers, Buffer.buffer(RANDOM_RESOURCE), response);
         router.route(request);
@@ -934,7 +985,7 @@ public class RouterTest {
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
 
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = new HeadersMultiMap();
         headers.set("x-foo", "X");
         DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/backend", headers, Buffer.buffer(RANDOM_RESOURCE), response);
         router.route(request);
@@ -943,7 +994,7 @@ public class RouterTest {
         context.assertEquals(StatusCode.BAD_REQUEST.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be Bad Request");
     }
 
-    private DummyHttpServerRequest buildRequest(HttpMethod method, String uri, MultiMap headers, Buffer body, DummyHttpServerResponse response){
+    private DummyHttpServerRequest buildRequest(HttpMethod method, String uri, MultiMap headers, Buffer body, DummyHttpServerResponse response) {
         return new DummyHttpServerRequest() {
             @Override
             public HttpMethod method() {
@@ -955,11 +1006,25 @@ public class RouterTest {
                 return uri;
             }
 
-            @Override public String path() { return uri; }
+            @Override
+            public String path() {
+                return uri;
+            }
 
-            @Override public MultiMap headers() { return headers; }
+            @Override
+            public MultiMap headers() {
+                return headers;
+            }
 
-            @Override public MultiMap params() { return new CaseInsensitiveHeaders(); }
+            @Override
+            public MultiMap params() {
+                return new HeadersMultiMap();
+            }
+
+            @Override
+            public HttpServerRequest pause() {
+                return this;
+            }
 
             @Override
             public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {

@@ -4,7 +4,6 @@ import java.util.Iterator;
 import java.util.Map;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.json.JsonArray;
 
 public final class JsonMultiMap {
@@ -20,7 +19,7 @@ public final class JsonMultiMap {
 	}
 	
 	public static MultiMap fromJson(JsonArray json) {
-		MultiMap result = new CaseInsensitiveHeaders();
+		MultiMap result = MultiMap.caseInsensitiveMultiMap();
 		Iterator<Object> it = json.iterator();
 		while(it.hasNext()) {
 			Object next = it.next();

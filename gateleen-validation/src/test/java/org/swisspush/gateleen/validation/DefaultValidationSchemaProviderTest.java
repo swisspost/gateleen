@@ -3,8 +3,8 @@ package org.swisspush.gateleen.validation;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.CaseInsensitiveHeaders;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
@@ -16,7 +16,6 @@ import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 
 import static org.mockito.Matchers.*;
@@ -43,13 +42,12 @@ public class DefaultValidationSchemaProviderTest {
     public void testSchemaFromLocation(TestContext context){
         schemaProvider.schemaFromLocation(new SchemaLocation("/path/to/schema", null));
 
-        ArgumentCaptor<MultiMap> headersCaptor = ArgumentCaptor.forClass(MultiMap.class);
+        ArgumentCaptor<HeadersMultiMap> headersCaptor = ArgumentCaptor.forClass(HeadersMultiMap.class);
         verify(clientRequestCreator, times(1)).createClientRequest(
                 eq(HttpMethod.GET),
                 eq("/path/to/schema"),
                 headersCaptor.capture(),
                 anyLong(),
-                any(Handler.class),
                 any(Handler.class)
         );
 
@@ -63,13 +61,12 @@ public class DefaultValidationSchemaProviderTest {
         schemaProvider = new DefaultValidationSchemaProvider(vertx, clientRequestCreator, Duration.ofSeconds(5), Map.of("foo", "bar"));
         schemaProvider.schemaFromLocation(new SchemaLocation("/path/to/schema", null));
 
-        ArgumentCaptor<MultiMap> headersCaptor = ArgumentCaptor.forClass(MultiMap.class);
+        ArgumentCaptor<HeadersMultiMap> headersCaptor = ArgumentCaptor.forClass(HeadersMultiMap.class);
         verify(clientRequestCreator, times(1)).createClientRequest(
                 eq(HttpMethod.GET),
                 eq("/path/to/schema"),
                 headersCaptor.capture(),
                 anyLong(),
-                any(Handler.class),
                 any(Handler.class)
         );
 

@@ -9,8 +9,9 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.RedisClient;
-import io.vertx.redis.RedisOptions;
+import io.vertx.redis.client.RedisAPI;
+import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.impl.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
@@ -107,6 +108,7 @@ public class Server extends AbstractVerticle {
 
     private HttpServer mainServer;
     private RedisClient redisClient;
+    private RedisAPI redisApi;
     private ResourceStorage storage;
     private CacheStorage cacheStorage;
     private CacheDataFetcher cacheDataFetcher;
@@ -185,21 +187,22 @@ public class Server extends AbstractVerticle {
 
         RunConfig.deployModules(vertx, Server.class, props, success -> {
             if (success) {
-                redisClient = RedisClient.create(vertx, new RedisOptions().setHost(redisHost).setPort(redisPort));
-                new CustomRedisMonitor(vertx, redisClient, "main", "rest-storage", 10).start();
+                redisClient = new RedisClient(vertx, new RedisOptions().setConnectionString("redis://" + redisHost + ":" + redisPort));
+                redisApi = RedisAPI.api(redisClient);
+                new CustomRedisMonitor(vertx, redisApi, "main", "rest-storage", 10).start();
                 storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
                 corsHandler = new CORSHandler();
 
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
 
-                deltaHandler = new DeltaHandler(redisClient, selfClient, ruleProvider, true);
+                deltaHandler = new DeltaHandler(redisApi, selfClient, ruleProvider, true);
                 expansionHandler = new ExpansionHandler(ruleProvider, selfClient, props, ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
 
                 Lock lock = new RedisBasedLock(redisClient);
 
-                cacheStorage = new RedisCacheStorage(vertx, lock, redisClient, 20 * 1000);
+                cacheStorage = new RedisCacheStorage(vertx, lock, redisApi, 20 * 1000);
                 cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));
                 cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
 
@@ -210,7 +213,7 @@ public class Server extends AbstractVerticle {
                 configurationResourceManager.enableResourceLogging(true);
 
                 eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/",
-                        SERVER_ROOT + "/event/v1/sock/*", "event/channels/",
+                        SERVER_ROOT + "/event/v1/sock/", "event/channels/",
                         "channels/([^/]+).*", configurationResourceManager, SERVER_ROOT + "/admin/v1/hookconfig");
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
 
@@ -233,7 +236,7 @@ public class Server extends AbstractVerticle {
                 roleProfileHandler.enableResourceLogging(true);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
-                reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisClient),
+                reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisApi),
                         queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
 
@@ -258,7 +261,7 @@ public class Server extends AbstractVerticle {
                         SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
                 kafkaHandler.initialize();
 
-                schedulerResourceManager = new SchedulerResourceManager(vertx, redisClient, storage, monitoringHandler,
+                schedulerResourceManager = new SchedulerResourceManager(vertx, redisApi, storage, monitoringHandler,
                         SERVER_ROOT + "/admin/v1/schedulers");
                 schedulerResourceManager.enableResourceLogging(true);
 
@@ -294,7 +297,7 @@ public class Server extends AbstractVerticle {
                 queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx,
                         storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
                 queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
-                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisClient);
+                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisApi);
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
@@ -335,7 +338,7 @@ public class Server extends AbstractVerticle {
                         .delegateHandler(delegateHandler)
                         .customHttpResponseHandler(customHttpResponseHandler)
                         .contentTypeConstraintHandler(contentTypeConstraintHandler)
-                        .build(vertx, redisClient, Server.class, router, monitoringHandler, queueBrowser);
+                        .build(vertx, redisApi, Server.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
 
@@ -348,7 +351,7 @@ public class Server extends AbstractVerticle {
                 io.vertx.ext.web.Router vertxRouter = io.vertx.ext.web.Router.router(vertx);
                 eventBusHandler.install(vertxRouter);
                 vertxRouter.route().handler(routingContextHandlerrNew);
-                mainServer.requestHandler(vertxRouter::accept);
+                mainServer.requestHandler(vertxRouter);
                 mainServer.listen(mainPort);
             }
         });

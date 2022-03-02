@@ -2,7 +2,7 @@ package org.swisspush.gateleen.core.resource;
 
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -22,7 +22,7 @@ public class CopyResourceHandlerTest {
         httpServerRequestMock = Mockito.mock(HttpServerRequest.class);
         copyResourceHandler = new CopyResourceHandler(Mockito.mock(HttpClient.class), null);
 
-        MultiMap headers = new CaseInsensitiveHeaders().add("x-expire-after", "700");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap().add("x-expire-after", "700");
         Mockito.doReturn(headers).when(httpServerRequestMock).headers();
     }
 

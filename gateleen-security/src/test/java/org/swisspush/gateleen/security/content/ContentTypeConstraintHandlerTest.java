@@ -3,7 +3,7 @@ package org.swisspush.gateleen.security.content;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.unit.Async;
@@ -57,7 +57,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
     public void initWithMissingConfigResource(TestContext context) {
         Async async = context.async();
         context.assertFalse(handler.isInitialized());
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             verifyZeroInteractions(repository);
             context.assertFalse(handler.isInitialized());
             async.complete();
@@ -69,7 +69,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         Async async = context.async();
         storage.putMockData(configResourceUri, VALID_CONFIG);
         context.assertFalse(handler.isInitialized());
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             List<ContentTypeConstraint> constraints = Arrays.asList(
                     createConstraint("/gateleen/contacts/zips/(.*)", Arrays.asList("image/.*")),
                     createConstraint("/gateleen/contacts/storage/(.*)", Arrays.asList("image/png", "image/bmp", "video/mp4"))
@@ -84,10 +84,10 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
     public void handleWithNoConfigNoHeaderNoDefaults(TestContext context) {
         Async async = context.async();
         String requestUri = "/gateleen/constraint/tests/abc";
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
 
             HttpServerResponse response = spy(new ConstraintResponse());
-            ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, new CaseInsensitiveHeaders(), response);
+            ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, MultiMap.caseInsensitiveMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertFalse(handled);
@@ -105,10 +105,10 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         handler = new ContentTypeConstraintHandler(configurationResourceManager, repository, configResourceUri,
                 Arrays.asList(new PatternHolder("image/png")));
 
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
 
             HttpServerResponse response = spy(new ConstraintResponse());
-            ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, new CaseInsensitiveHeaders(), response);
+            ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, MultiMap.caseInsensitiveMultiMap(), response);
             final boolean handled = handler.handle(request);
 
             context.assertFalse(handled);
@@ -125,7 +125,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         handler = new ContentTypeConstraintHandler(configurationResourceManager, repository, configResourceUri,
                 Arrays.asList(new PatternHolder("image/.*")));
 
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             HttpServerResponse response = spy(new ConstraintResponse());
             ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, headersWithContentType("image/bmp"), response);
             final boolean handled = handler.handle(request);
@@ -144,7 +144,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         handler = new ContentTypeConstraintHandler(configurationResourceManager, repository, configResourceUri,
                 Arrays.asList(new PatternHolder("image/.*")));
 
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             HttpServerResponse response = spy(new ConstraintResponse());
             ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, headersWithContentType("video/mp4"), response);
             final boolean handled = handler.handle(request);
@@ -162,7 +162,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         storage.putMockData(configResourceUri, VALID_CONFIG);
         context.assertFalse(handler.isInitialized());
         String requestUri = "/gateleen/constraint/tests/abc";
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
 
             HttpServerResponse response = spy(new ConstraintResponse());
             ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, headersWithContentType("image/bmp"), response);
@@ -181,7 +181,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         storage.putMockData(configResourceUri, VALID_CONFIG);
         context.assertFalse(handler.isInitialized());
         String requestUri = "/gateleen/contacts/storage/abc";
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
 
             HttpServerResponse response = spy(new ConstraintResponse());
             ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, headersWithContentType("application/json"), response);
@@ -200,7 +200,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         storage.putMockData(configResourceUri, VALID_CONFIG);
         context.assertFalse(handler.isInitialized());
         String requestUri = "/gateleen/contacts/storage/abc";
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
 
             HttpServerResponse response = spy(new ConstraintResponse());
             ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, headersWithContentType("video/mp4"), response);
@@ -219,7 +219,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         storage.putMockData(configResourceUri, VALID_CONFIG);
         context.assertFalse(handler.isInitialized());
         String requestUri = "/gateleen/contacts/storage/abc";
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
 
             HttpServerResponse response = spy(new ConstraintResponse());
             ConstraintRequest request = new ConstraintRequest(HttpMethod.POST, requestUri, headersWithContentType("video/mp4;charset=UTF-8"), response);
@@ -237,7 +237,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         Async async = context.async();
         storage.putMockData(configResourceUri, VALID_CONFIG);
         context.assertFalse(handler.isInitialized());
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             reset(repository); // reset the calls from initialization
             context.assertTrue(handler.isInitialized());
 
@@ -253,7 +253,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         Async async = context.async();
         storage.putMockData(configResourceUri, VALID_CONFIG);
         context.assertFalse(handler.isInitialized());
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             reset(repository); // reset the calls from initialization
             context.assertTrue(handler.isInitialized());
 
@@ -269,7 +269,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         Async async = context.async();
         storage.putMockData(configResourceUri, VALID_CONFIG);
         context.assertFalse(handler.isInitialized());
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             reset(repository); // reset the calls from initialization
             context.assertTrue(handler.isInitialized());
 
@@ -285,7 +285,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         Async async = context.async();
         storage.putMockData(configResourceUri, VALID_CONFIG);
         context.assertFalse(handler.isInitialized());
-        handler.initialize().setHandler(event -> {
+        handler.initialize().onComplete(event -> {
             reset(repository); // reset the calls from initialization
             context.assertTrue(handler.isInitialized());
 
@@ -306,7 +306,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
     }
 
     private MultiMap headersWithContentType(String contentType){
-        MultiMap headers = new CaseInsensitiveHeaders();
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.set("Content-Type", contentType);
         return headers;
     }
@@ -340,7 +340,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         private final MultiMap headers;
 
         ConstraintResponse(){
-            this.headers = new CaseInsensitiveHeaders();
+            this.headers = MultiMap.caseInsensitiveMultiMap();
         }
 
         @Override public MultiMap headers() { return headers; }

@@ -98,7 +98,7 @@ public class KafkaProducerRepositoryTest {
         context.assertEquals(pattern_2.pattern(), myTopicX.get().getRight().pattern());
 
         // clear the repository to test a different ordering
-        repository.closeAll().setHandler(event -> {
+        repository.closeAll().future().onComplete(event -> {
 
             // switch order by adding "more specific" pattern first
             repository.addKafkaProducer(new KafkaConfiguration(pattern_1, configs));
@@ -132,7 +132,7 @@ public class KafkaProducerRepositoryTest {
         context.assertTrue(repository.findMatchingKafkaProducer("my.topic.zz").isPresent());
         context.assertTrue(repository.findMatchingKafkaProducer("my.other.topic.zz").isPresent());
 
-        repository.closeAll().setHandler(event -> {
+        repository.closeAll().future().onComplete(event -> {
             context.assertFalse(repository.findMatchingKafkaProducer("my.topic.zz").isPresent());
             context.assertFalse(repository.findMatchingKafkaProducer("my.other.topic.zz").isPresent());
             async.complete();

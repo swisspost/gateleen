@@ -1096,7 +1096,7 @@ public class DelegateTest extends AbstractTest {
         JsonObject body = new JsonObject();
         JsonArray jsonMethods = new JsonArray();
         methods.forEach(method -> jsonMethods.add(method.toString()));
-        body.put("methods", methods);
+        body.put("methods", jsonMethods);
         body.put("pattern", pattern);
         body.put("requests", requests);
         return body;

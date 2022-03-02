@@ -1,6 +1,6 @@
 package org.swisspush.gateleen.security.authorization;
 
-import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
@@ -83,13 +83,13 @@ public class RoleAuthorizer implements ConfigurationResource {
         configUpdate();
     }
 
-    public void handleIsAuthorized(final HttpServerRequest request, Future<Boolean> future) {
+    public void handleIsAuthorized(final HttpServerRequest request, Promise<Boolean> promise) {
         if (!isAuthorized(request)) {
             ResponseStatusCodeLogUtil.info(request, StatusCode.FORBIDDEN, RoleAuthorizer.class);
             request.response().setStatusCode(StatusCode.FORBIDDEN.getStatusCode());
             request.response().setStatusMessage(StatusCode.FORBIDDEN.getStatusMessage());
             request.response().end(StatusCode.FORBIDDEN.getStatusMessage());
-            future.complete(Boolean.FALSE);
+            promise.complete(Boolean.FALSE);
         }
     }
 

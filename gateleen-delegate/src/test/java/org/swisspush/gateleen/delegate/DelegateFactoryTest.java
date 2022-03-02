@@ -4,7 +4,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.impl.headers.VertxHttpHeaders;
+
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -113,7 +114,7 @@ public class DelegateFactoryTest {
         context.assertEquals(1, delegate.getDelegateRequests().size());
         context.assertNotEquals(HeaderFunctions.DO_NOTHING, delegate.getDelegateRequests().get(0).getHeaderFunction());
 
-        VertxHttpHeaders inputHeaders = new VertxHttpHeaders();
+        HeadersMultiMap inputHeaders = new HeadersMultiMap();
         inputHeaders.add("x-bar", "hello");
         inputHeaders.add("x-dummy", "world");
         inputHeaders.add("x-remove_me", "remove_me");

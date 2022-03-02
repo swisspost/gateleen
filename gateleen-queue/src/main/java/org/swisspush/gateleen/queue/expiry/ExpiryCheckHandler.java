@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.queue.expiry;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.CaseInsensitiveHeaders;
+
 import io.vertx.core.http.HttpServerRequest;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -44,7 +44,7 @@ public final class ExpiryCheckHandler {
      */
     public static void updateServerTimestampHeader(HttpRequest request) {
         if (request.getHeaders() == null) {
-            request.setHeaders(new CaseInsensitiveHeaders());
+            request.setHeaders(MultiMap.caseInsensitiveMultiMap());
         }
 
         updateServerTimestampHeader(request.getHeaders());

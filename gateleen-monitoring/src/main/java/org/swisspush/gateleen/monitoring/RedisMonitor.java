@@ -1,11 +1,13 @@
 package org.swisspush.gateleen.monitoring;
 
-import org.swisspush.gateleen.core.util.Address;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
-import io.vertx.redis.RedisClient;
+import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.Address;
+
+import java.util.ArrayList;
 
 /**
  * Monitors regularly redis info metrics and arbitrary commands. Sends the results to metrics.
@@ -13,7 +15,7 @@ import org.slf4j.LoggerFactory;
 public class RedisMonitor {
 
     private Vertx vertx;
-    private RedisClient redisClient;
+    private RedisAPI redisAPI;
     private int period;
     private long timer;
     private Logger log = LoggerFactory.getLogger(RedisMonitor.class);
@@ -24,31 +26,31 @@ public class RedisMonitor {
 
     /**
      * @param vertx vertx
-     * @param redisClient redisClient
+     * @param redisAPI redisAPI
      * @param name name
      * @param period in seconds.
      */
-    public RedisMonitor(Vertx vertx, RedisClient redisClient, String name, int period) {
+    public RedisMonitor(Vertx vertx, RedisAPI redisAPI, String name, int period) {
         this.vertx = vertx;
-        this.redisClient = redisClient;
+        this.redisAPI = redisAPI;
         this.period = period * 1000;
         this.prefix = "redis." + name + ".";
     }
 
     public void start() {
         timer = vertx.setPeriodic(period, timer -> {
-            redisClient.info(reply -> {
+            redisAPI.info(new ArrayList<>(), reply -> {
                 if(reply.succeeded()){
-                    collectMetrics(reply.result());
+                   // collectMetrics(reply.result());
                 } else {
                     log.warn("Cannot collect INFO from redis");
                 }
             });
 
             if(metricName != null && elementCountKey != null){
-                redisClient.zcard(elementCountKey, reply -> {
+                redisAPI.zcard(elementCountKey, reply -> {
                     if(reply.succeeded()){
-                        long value = reply.result();
+                        long value = reply.result().toLong();
                         vertx.eventBus().publish(getMonitoringAddress(),
                                 new JsonObject().put("name", prefix + metricName).put("action", "set").put("n", value));
                     } else {
