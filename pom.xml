@@ -44,8 +44,8 @@
         <sonatypeOssDistMgmtSnapshotsUrl>
             https://oss.sonatype.org/content/repositories/snapshots/
         </sonatypeOssDistMgmtSnapshotsUrl>
-        <arguments />
-        <repositoryId />
+        <arguments/>
+        <repositoryId/>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <targetHost>localhost</targetHost>
@@ -293,7 +293,7 @@
             <dependency>
                 <groupId>com.networknt</groupId>
                 <artifactId>json-schema-validator</artifactId>
-                <version>0.1.15</version>
+                <version>0.1.26</version>
             </dependency>
             <dependency>
                 <groupId>commons-codec</groupId>
