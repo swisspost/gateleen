@@ -44,8 +44,8 @@
         <sonatypeOssDistMgmtSnapshotsUrl>
             https://oss.sonatype.org/content/repositories/snapshots/
         </sonatypeOssDistMgmtSnapshotsUrl>
-        <arguments />
-        <repositoryId />
+        <arguments/>
+        <repositoryId/>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <targetHost>localhost</targetHost>
@@ -473,7 +473,7 @@
             <dependency>
                 <groupId>org.webjars</groupId>
                 <artifactId>angularjs</artifactId>
-                <version>1.5.8</version>
+                <version>1.8.2</version>
             </dependency>
             <dependency>
                 <groupId>com.github.tomakehurst</groupId>
