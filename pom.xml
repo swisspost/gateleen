@@ -44,15 +44,15 @@
         <sonatypeOssDistMgmtSnapshotsUrl>
             https://oss.sonatype.org/content/repositories/snapshots/
         </sonatypeOssDistMgmtSnapshotsUrl>
-        <arguments />
-        <repositoryId />
+        <arguments/>
+        <repositoryId/>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <targetHost>localhost</targetHost>
         <targetPort>8989</targetPort>
         <sel_chrome_driver>${session.executionRootDirectory}/gateleen-test/src/test/resources/chromedriver
         </sel_chrome_driver>
-        <vertx.version>4.2.1</vertx.version>
+        <vertx.version>4.2.4</vertx.version>
         <jackson.version>2.13.0</jackson.version>
         <springframework.version>4.3.30.RELEASE</springframework.version>
     </properties>
