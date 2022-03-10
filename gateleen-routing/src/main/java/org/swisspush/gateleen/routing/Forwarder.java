@@ -228,6 +228,9 @@ public class Forwarder extends AbstractForwarder {
             @Override
             public void handle(AsyncResult<HttpClientRequest> event) {
                 req.resume();
+                HttpClientRequest cReq = event.result();
+                final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, startTime);
+                cReq.response(cResHandler);
                 if (event.failed()) {
                     log.warn("Problem to request {}: {}", targetUri, event.cause());
                     final HttpServerResponse response = req.response();
@@ -236,8 +239,7 @@ public class Forwarder extends AbstractForwarder {
                     response.end();
                     return;
                 }
-                HttpClientRequest cReq = event.result();
-                final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, startTime);
+
                 if (timeout != null) {
                     cReq.setTimeout(Long.parseLong(timeout));
                 } else {
@@ -321,7 +323,13 @@ public class Forwarder extends AbstractForwarder {
 
                         @Override
                         public Future<Void> end() {
-                            return cReq.end();
+                            Promise<Void> promise = Promise.promise();
+                            cReq.send(event1 -> {
+                                        cResHandler.handle(event1);
+                                        promise.complete();
+                                    }
+                            );
+                            return promise.future();
                         }
 
                         @Override
