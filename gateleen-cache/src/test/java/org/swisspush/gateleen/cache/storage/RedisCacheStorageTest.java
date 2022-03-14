@@ -210,7 +210,7 @@ public class RedisCacheStorageTest {
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_3"));
 
         //wait
-        Thread.sleep(1000);
+        Thread.sleep(3000);
 
         redisCacheStorage.cacheEntries().onComplete(event -> {
             context.assertTrue(event.succeeded());
