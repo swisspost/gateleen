@@ -85,7 +85,7 @@ public class DeferCloseHttpClient implements HttpClient {
                     callHandlerIfExists(originalExceptionHandler, event);
                 });
             });
-        });
+        }).onComplete(handler);
     }
 
     private void onEndOfRequestResponseCycle() {
