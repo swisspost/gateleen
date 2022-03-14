@@ -209,14 +209,14 @@ public class RedisCacheStorageTest {
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_2"));
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_3"));
 
-        //wait
-        Thread.sleep(3000);
 
-        redisCacheStorage.cacheEntries().onComplete(event -> {
-            context.assertTrue(event.succeeded());
-            context.assertEquals(Set.of("cache_item_1", "cache_item_2", "cache_item_3"), event.result());
-            async.complete();
-        });
+        await().atMost(30, SECONDS).until(() ->
+                redisCacheStorage.cacheEntries().onComplete(event -> {
+                    context.assertTrue(event.succeeded());
+                    context.assertEquals(Set.of("cache_item_1", "cache_item_2", "cache_item_3"), event.result());
+                    async.complete();
+                })
+        );
     }
 
     @Test
