@@ -198,7 +198,7 @@ public class RedisCacheStorageTest {
     }
 
     @Test
-    public void testCacheEntries(TestContext context) {
+    public void testCacheEntries(TestContext context) throws InterruptedException {
         Async async = context.async();
 
         // prepare
@@ -208,6 +208,9 @@ public class RedisCacheStorageTest {
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_1"));
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_2"));
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_3"));
+
+        //wait
+        Thread.sleep(1000);
 
         redisCacheStorage.cacheEntries().onComplete(event -> {
             context.assertTrue(event.succeeded());
