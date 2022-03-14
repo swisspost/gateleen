@@ -198,25 +198,25 @@ public class RedisCacheStorageTest {
     }
 
     @Test
-    public void testCacheEntries(TestContext context) throws InterruptedException {
+    public void testCacheEntries(TestContext context) {
         Async async = context.async();
 
         // prepare
         jedis.sadd(CACHED_REQUESTS, "cache_item_1", "cache_item_2", "cache_item_3");
+        jedis.set(CACHE_PREFIX + "cache_item_1", jsonObjectStr("payload_1"));
+        jedis.set(CACHE_PREFIX + "cache_item_2", jsonObjectStr("payload_2"));
+        jedis.set(CACHE_PREFIX + "cache_item_3", jsonObjectStr("payload_3"));
 
         // verify
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_1"));
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_2"));
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_3"));
 
-
-        await().atMost(30, SECONDS).until(() ->
-                redisCacheStorage.cacheEntries().onComplete(event -> {
-                    context.assertTrue(event.succeeded());
-                    context.assertEquals(Set.of("cache_item_1", "cache_item_2", "cache_item_3"), event.result());
-                    async.complete();
-                })
-        );
+        redisCacheStorage.cacheEntries().onComplete(event -> {
+            context.assertTrue(event.succeeded());
+            context.assertEquals(Set.of("cache_item_1", "cache_item_2", "cache_item_3"), event.result());
+            async.complete();
+        });
     }
 
     @Test
