@@ -15,15 +15,15 @@ module.exports = function (config) {
 
         // list of files / patterns to load in the browser
         files: [
-            'build/optimization/angularjs/angular.min.js',
-            'build/optimization/angularjs/angular-mocks.js',
+            'target/webjars/META-INF/resources/webjars/angularjs/angular.min.js',
+            'target/webjars/META-INF/resources/webjars/angularjs/angular-mocks.js',
 
             // vertexbus and socketjs
-            'build/optimization/gateleen-hook-js/js/sockjs.js',
-            'build/optimization/gateleen-hook-js/js/vertxbus.js',
+            'target/dist/js/sockjs.js',
+            'target/dist/js/vertxbus.js',
 
             // hook js
-            'build/optimization/gateleen-hook-js/js/gateleen-hook.js',
+            'target/dist/js/gateleen-hook.js',
 
             // the test files
             'src/test/**/*.js'
@@ -89,9 +89,9 @@ module.exports = function (config) {
 
         // start these browsers
         // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
-        browsers: ['PhantomJS'], // we use 1 not 2 as last is not yet stable enough
+        //browsers: ['PhantomJS'], // we use 1 not 2 as last is not yet stable enough
         // browsers: ['Chrome'],
-
+        browsers: ['ChromeHeadless'],
         // Continuous Integration mode
         // if true, Karma captures browsers, runs the tests and exits
         singleRun: true
