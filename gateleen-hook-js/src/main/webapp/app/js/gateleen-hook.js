@@ -3,10 +3,10 @@
 
     angular.module('gateleen.hook', [])
 
-    /**********************************************************
-     * Easy hook placing and handling.
-     * @author bovetl
-     */
+        /**********************************************************
+         * Easy hook placing and handling.
+         * @author bovetl
+         */
         .factory('Hook', ['$timeout', '$interval', '$http', '$window', '$rootScope', HookService]);
 
     function HookService($timeout, $interval, $http, $window, $rootScope) {
@@ -39,6 +39,10 @@
             }
             var match = /(.*:\/\/.+?)?\/.+?\//.exec(path);
             context = match[0].substring(0, match[0].length - 1);
+            if (match[1]) {
+                // remove domain if exists
+                context = context.substring(match[1].length);
+            }
             var queue;
             if (options && options.fetch) {
                 queue = [];
