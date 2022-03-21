@@ -15,8 +15,8 @@ module.exports = function (config) {
 
         // list of files / patterns to load in the browser
         files: [
-            'target/webjars/META-INF/resources/webjars/angularjs/angular.min.js',
-            'target/webjars/META-INF/resources/webjars/angularjs/angular-mocks.js',
+            'target/webjars/META-INF/resources/webjars/angularjs/1.5.8/angular.min.js',
+            'target/webjars/META-INF/resources/webjars/angularjs/1.5.8/angular-mocks.js',
 
             // vertexbus and socketjs
             'target/dist/js/sockjs.js',
@@ -89,7 +89,6 @@ module.exports = function (config) {
 
         // start these browsers
         // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
-        //browsers: ['PhantomJS'], // we use 1 not 2 as last is not yet stable enough
         // browsers: ['Chrome'],
         browsers: ['ChromeHeadless'],
         // Continuous Integration mode
