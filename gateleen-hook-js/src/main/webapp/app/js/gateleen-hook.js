@@ -39,10 +39,6 @@
             }
             var match = /(.*:\/\/.+?)?\/.+?\//.exec(path);
             context = match[0].substring(0, match[0].length - 1);
-            if (match[1]) {
-                // remove domain if exists
-                context = context.substring(match[1].length);
-            }
             var queue;
             if (options && options.fetch) {
                 queue = [];
