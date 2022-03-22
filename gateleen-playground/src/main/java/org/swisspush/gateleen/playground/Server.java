@@ -200,7 +200,7 @@ public class Server extends AbstractVerticle {
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
 
-                Lock lock = new RedisBasedLock(redisClient);
+                Lock lock = new RedisBasedLock(redisApi);
 
                 cacheStorage = new RedisCacheStorage(vertx, lock, redisApi, 20 * 1000);
                 cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));

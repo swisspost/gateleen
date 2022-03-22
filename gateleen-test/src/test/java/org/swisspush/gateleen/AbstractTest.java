@@ -154,7 +154,7 @@ public abstract class AbstractTest {
                 RoleProfileHandler roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
 
-                Lock lock = new RedisBasedLock(redisClient);
+                Lock lock = new RedisBasedLock(redisAPI);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
                 ReducedPropagationManager reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisAPI), queueClient, lock);
