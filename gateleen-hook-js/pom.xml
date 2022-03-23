@@ -139,8 +139,9 @@
                             <goal>unpack-dependencies</goal>
                         </goals>
                         <configuration>
-                            <includeGroupIds>org.webjars,ch.post.it.webjars</includeGroupIds>
-                            <excludes>META-INF/maven/**,**\MANIFEST.MF,**/angularjs/*/i18n/**</excludes>
+                            <includeGroupIds>org.webjars</includeGroupIds>
+                            <includeArtifactIds>angularjs</includeArtifactIds>
+                            <includes>**/*.js</includes>
                             <outputDirectory>${project.build.directory}/webjars</outputDirectory>
                         </configuration>
                     </execution>
