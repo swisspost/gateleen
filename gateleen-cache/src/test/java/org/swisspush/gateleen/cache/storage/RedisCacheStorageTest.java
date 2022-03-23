@@ -154,6 +154,9 @@ public class RedisCacheStorageTest {
 
         // prepare
         jedis.sadd(CACHED_REQUESTS, "cache_item_1", "cache_item_2", "cache_item_3");
+        jedis.set(CACHE_PREFIX + "cache_item_1", jsonObjectStr("payload_1"));
+        jedis.set(CACHE_PREFIX + "cache_item_2", jsonObjectStr("payload_2"));
+        jedis.set(CACHE_PREFIX + "cache_item_3", jsonObjectStr("payload_3"));
 
         // verify
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_1"));
@@ -203,6 +206,9 @@ public class RedisCacheStorageTest {
 
         // prepare
         jedis.sadd(CACHED_REQUESTS, "cache_item_1", "cache_item_2", "cache_item_3");
+        jedis.set(CACHE_PREFIX + "cache_item_1", jsonObjectStr("payload_1"));
+        jedis.set(CACHE_PREFIX + "cache_item_2", jsonObjectStr("payload_2"));
+        jedis.set(CACHE_PREFIX + "cache_item_3", jsonObjectStr("payload_3"));
 
         // verify
         context.assertTrue(jedis.sismember(CACHED_REQUESTS, "cache_item_1"));
