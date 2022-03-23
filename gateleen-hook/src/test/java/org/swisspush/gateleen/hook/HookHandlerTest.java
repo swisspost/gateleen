@@ -669,7 +669,7 @@ public class HookHandlerTest {
                 return null;
             }
         };
-        final HttpServerRequest request = new FastFailHttpServerRequest() {
+        return new FastFailHttpServerRequest() {
             @Override
             public HttpMethod method() {
                 return method;
@@ -708,7 +708,6 @@ public class HookHandlerTest {
             }
 
         };
-        return request;
     }
 
     /**

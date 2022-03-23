@@ -33,8 +33,7 @@ public abstract class ReaderRequestLog extends RequestLog {
                 return true;
             }
             try {
-                Exchange next = next();
-                readAhead = next;
+                readAhead = next();
                 return true;
             } catch (NoSuchElementException e) {
                 return false;

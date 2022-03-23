@@ -81,8 +81,7 @@ public class Forwarder extends AbstractForwarder {
         Map<String, String> profileValues = new HashMap<>();
         if (rule.getProfile() != null) {
             String[] ruleProfile = rule.getProfile();
-            for (int i = 0; i < ruleProfile.length; i++) {
-                String headerKey = ruleProfile[i];
+            for (String headerKey : ruleProfile) {
                 String headerValue = profile.getString(headerKey);
                 if (headerKey != null && headerValue != null) {
                     profileValues.put(USER_HEADER_PREFIX + headerKey, headerValue);

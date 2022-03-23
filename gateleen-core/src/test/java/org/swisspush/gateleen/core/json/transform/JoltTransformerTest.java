@@ -66,7 +66,7 @@ public class JoltTransformerTest {
     private final String TRANSFORM_WITH_METADATA_EXPECTED_OUTPUT_JSON = ResourcesUtils.loadResource("transform_with_metadata_expected_output_json", true);
 
     @Before
-    public void setUp(TestContext context) throws Exception {
+    public void setUp() throws Exception {
         identitySpec = JoltSpecBuilder.buildSpec(IDENTITY_SPEC);
         copyToArraySpec = JoltSpecBuilder.buildSpec(COPY_TO_ARRAY_SPEC);
         transformWithMetadataSpec = JoltSpecBuilder.buildSpec(TRANSFORM_WITH_METADATA_SPEC, true);
