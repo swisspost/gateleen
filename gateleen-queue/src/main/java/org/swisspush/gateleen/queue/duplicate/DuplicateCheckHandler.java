@@ -8,9 +8,11 @@ import io.vertx.core.buffer.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 /**
  * Class which is responsible for checking wheter a request is duplicate or not
- * 
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public final class DuplicateCheckHandler {
@@ -29,11 +31,11 @@ public final class DuplicateCheckHandler {
      * This method checks if an entry for the provided information (uri and buffer) is stored in the redis database. When no entry was found
      * in the database, a new entry will be saved to the database using a key which is created from the given parameters (uri and buffer).
      * The new entry expires after ttl has expired.
-     * 
+     *
      * @param redisAPI redisAPI
-     * @param uri the request uri
-     * @param buffer the request payload
-     * @param ttl the timeToLive (in seconds) for the storage entry
+     * @param uri      the request uri
+     * @param buffer   the request payload
+     * @param ttl      the timeToLive (in seconds) for the storage entry
      * @param callback the result callback. Returns true if the request is a duplicate else returns false
      */
     public static void checkDuplicateRequest(RedisAPI redisAPI, String uri, Buffer buffer, String ttl, Handler<Boolean> callback) {
@@ -61,22 +63,22 @@ public final class DuplicateCheckHandler {
 
         // read from storage
         redisAPI.get(redisKey, reply -> {
-            if(reply.failed()){
+            if (reply.failed()) {
                 log.error("get command for redisKey '{}' resulted in cause {}", redisKey, logCause(reply));
                 return;
             }
 
-            if (!DEFAULT_REDIS_ENTRY_VALUE.equals(reply.result())) {
+            if (!DEFAULT_REDIS_ENTRY_VALUE.equals(Objects.toString(reply.result(), ""))) {
                 // save to storage
                 redisAPI.setnx(redisKey, DEFAULT_REDIS_ENTRY_VALUE, setnxReply -> {
-                    if(setnxReply.failed()){
+                    if (setnxReply.failed()) {
                         log.error("set command for redisKey '{}' resulted in cause {}", redisKey, logCause(setnxReply));
                         return;
                     }
 
                     // set expire
                     redisAPI.expire(redisKey, String.valueOf(ttl), expireReply -> {
-                        if(expireReply.failed()){
+                        if (expireReply.failed()) {
                             log.error("expire command for redisKey '{}' resulted in cause {}", redisKey, logCause(expireReply));
                         }
                     });
@@ -89,8 +91,8 @@ public final class DuplicateCheckHandler {
         });
     }
 
-    private static String logCause(AsyncResult result){
-        if(result.cause() != null){
+    private static String logCause(AsyncResult result) {
+        if (result.cause() != null) {
             return result.cause().getMessage();
         }
         return null;
