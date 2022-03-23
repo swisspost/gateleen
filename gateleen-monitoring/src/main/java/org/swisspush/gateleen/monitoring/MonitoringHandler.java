@@ -483,7 +483,7 @@ public class MonitoringHandler {
             }
         };
 
-        Collections.sort(input, byMapValues.reverse());
+        input.sort(byMapValues.reverse());
     }
 
     private boolean isRequestToExternalTarget(String target) {

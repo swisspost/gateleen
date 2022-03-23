@@ -125,9 +125,7 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     public LocalHttpServerResponse(Vertx vertx) {
         super(vertx);
         // Attach most simple possible exception handler to base.
-        setExceptionHandler(thr -> {
-            logger.error("Processing of response failed.", thr);
-        });
+        setExceptionHandler(thr -> logger.error("Processing of response failed.", thr));
     }
 
     @Override

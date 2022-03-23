@@ -106,8 +106,6 @@ public class ExpandByBackendTest extends AbstractTest {
             }
         });
 
-        httpServer.listen(9999, event -> {
-            log.info("created http server on port 9999, " + event.result());
-        });
+        httpServer.listen(9999, event -> log.info("created http server on port 9999, " + event.result()));
     }
 }

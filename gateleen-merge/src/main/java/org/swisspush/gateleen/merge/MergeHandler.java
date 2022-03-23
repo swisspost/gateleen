@@ -314,14 +314,12 @@ public class MergeHandler {
                 }
                 // not found or something else is not ok
                 else {
-                    collectionResponse.handler(data -> {
-                        mergeCollectionHandler.handle(new MergeData(
-                                data,
-                                collectionResponse.statusCode(),
-                                collectionResponse.statusMessage(),
-                                false,
-                                requestUrl));
-                    });
+                    collectionResponse.handler(data -> mergeCollectionHandler.handle(new MergeData(
+                            data,
+                            collectionResponse.statusCode(),
+                            collectionResponse.statusMessage(),
+                            false,
+                            requestUrl)));
                 }
             });
         });
@@ -357,7 +355,7 @@ public class MergeHandler {
     private Handler<MergeData> installMergeCollectionHandler(final HttpServerRequest request,
                                                              final int subResourcesCount,
                                                              final String targetUrlPart) {
-        return new Handler<MergeData>() {
+        return new Handler<>() {
             private final List<MergeData> collectedData = new ArrayList<>();
             private final int totalCollectionCount = subResourcesCount;
 
@@ -519,19 +517,17 @@ public class MergeHandler {
             mergeRequest.send(asyncResult -> {
                 HttpClientResponse res = asyncResult.result();
                 res.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, data.getTargetRequest(), MergeHandler.class));
-                res.bodyHandler(buffer -> {
-                    mergeRequestHandler.handle(new MergeData(buffer,
-                            res.statusCode(),
-                            res.statusMessage(),
-                            true,
-                            data.getTargetRequest()));
-                });
+                res.bodyHandler(buffer -> mergeRequestHandler.handle(new MergeData(buffer,
+                        res.statusCode(),
+                        res.statusMessage(),
+                        true,
+                        data.getTargetRequest())));
             });
         });
     }
 
     private Handler<MergeData> installMergeRequestHandler(final HttpServerRequest request, final int size, final String targetUrlPart) {
-        return new Handler<MergeData>() {
+        return new Handler<>() {
             private final List<MergeData> collectedData = new ArrayList<>();
 
             @Override

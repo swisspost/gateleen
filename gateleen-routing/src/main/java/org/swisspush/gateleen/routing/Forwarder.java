@@ -375,9 +375,7 @@ public class Forwarder extends AbstractForwarder {
                         // so we now check if the request already is ended before installing an endHandler
                         cReq.send(cResHandler);
                     } else {
-                        req.endHandler(v -> {
-                            cReq.send(cResHandler);
-                        });
+                        req.endHandler(v -> cReq.send(cResHandler));
                         pump.start();
                     }
                 } else {
@@ -495,9 +493,7 @@ public class Forwarder extends AbstractForwarder {
                 error("Problem with backend: " + exception.getMessage(), req, targetUri);
                 respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
             });
-            req.connection().closeHandler((aVoid) -> {
-                unpump.run();
-            });
+            req.connection().closeHandler((aVoid) -> unpump.run());
         };
     }
 

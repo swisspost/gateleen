@@ -390,9 +390,7 @@ public class QueueCircuitBreakerImplTest {
         Mockito.when(queueCircuitBreakerStorage.lockQueue(Matchers.anyString(), Matchers.any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.failedFuture("queue could not be locked"));
 
-        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            context.fail("Redisques should not have been called when the storage failed");
-        });
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> context.fail("Redisques should not have been called when the storage failed"));
 
         queueCircuitBreaker.lockQueue("someQueue", req).onComplete(event -> {
             context.assertTrue(event.failed());
@@ -454,9 +452,8 @@ public class QueueCircuitBreakerImplTest {
         Mockito.when(queueCircuitBreakerStorage.popQueueToUnlock())
                 .thenReturn(Future.failedFuture("unable to pop queueToUnlock from list"));
 
-        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            context.fail("Redisques should not have been called when the storage failed");
-        });
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) ->
+                context.fail("Redisques should not have been called when the storage failed"));
 
         queueCircuitBreaker.unlockNextQueue().onComplete(event -> {
             context.assertTrue(event.failed());
@@ -528,9 +525,8 @@ public class QueueCircuitBreakerImplTest {
         Mockito.when(queueCircuitBreakerStorage.unlockSampleQueues())
                 .thenReturn(Future.failedFuture("unable to lock queues"));
 
-        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) -> {
-            context.fail("Redisques should not have been called when the storage failed");
-        });
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Message<JsonObject> event) ->
+                context.fail("Redisques should not have been called when the storage failed"));
 
         queueCircuitBreaker.unlockSampleQueues().onComplete(event -> {
             context.assertTrue(event.failed());

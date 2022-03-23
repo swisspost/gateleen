@@ -531,7 +531,7 @@ public class RunConfig {
             }
         }
 
-        return new Handler<RoutingContext>() {
+        return new Handler<>() {
 
             @Override
             public void handle(final RoutingContext ctx) {

@@ -500,25 +500,12 @@ public class HookHandlerTest {
 
     @Test
     public void listenerRegistration_rejectNotWhitelistedHttpMethods(TestContext testContext) {
-        final List<String> badMethods = Collections.unmodifiableList(new ArrayList<>() {{
-            // Some valid HTTP methods gateleen not accepts.
-            add("CONNECT");
-            add("TRACE");
-            // Some methods available in postman gateleen doesn't care about.
-            add("COPY");
-            add("LINK");
-            add("UNLINK");
-            add("PURGE");
-            add("LOCK");
-            add("UNLOCK");
-            add("PROPFIND");
-            add("VIEW");
-            // Some random, hopefully invalid methods.
-            add("FOO");
-            add("BAR");
-            add("ASDF");
-            add("ASSRGHAWERTH");
-        }});
+        // Some valid HTTP methods gateleen not accepts.
+        final List<String> badMethods = List.of("CONNECT", "TRACE",
+                // Some methods available in postman gateleen doesn't care about.
+                "COPY", "LINK", "UNLINK", "PURGE", "LOCK", "UNLOCK", "PROPFIND", "VIEW",
+                // Some random, hopefully invalid methods.
+                "FOO", "BAR", "ASDF", "ASSRGHAWERTH");
 
         // Test every method.
         for (String method : badMethods) {
