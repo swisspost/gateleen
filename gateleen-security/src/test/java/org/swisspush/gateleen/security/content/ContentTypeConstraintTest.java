@@ -7,6 +7,7 @@ import org.junit.runner.RunWith;
 import org.swisspush.gateleen.security.PatternHolder;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * Test class for the {@link ContentTypeConstraint}
@@ -41,7 +42,7 @@ public class ContentTypeConstraintTest {
         context.assertNotEquals(constraint_1.hashCode(), constraint_3.hashCode(), "urlPattern is not equal");
 
         ContentTypeConstraint constraint_4 = new ContentTypeConstraint(new PatternHolder("/gateleen/contacts/zips/(.*)"),
-                Arrays.asList(new PatternHolder("image/png")));
+                Collections.singletonList(new PatternHolder("image/png")));
 
         context.assertNotEquals(constraint_1, constraint_4, "Count of allowedTypes matters");
         context.assertNotEquals(constraint_1.hashCode(), constraint_4.hashCode(), "Count of allowedTypes matters");

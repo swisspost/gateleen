@@ -1,3 +1,2 @@
-registry = http://artifactory.pnet.ch/artifactory/api/npm/npm-virtual
-phantomjs_cdnurl = http://artifactory.pnet.ch/artifactory/files-local/phantomjs
-SASS_BINARY_SITE=http://artifactory.pnet.ch/artifactory/files-local/node-sass 
+registry = https://artifactory.tools.post.ch/artifactory/api/npm/npm-virtual
+sass_binary_site = https://artifactory.tools.post.ch/artifactory/files-local/node-sass

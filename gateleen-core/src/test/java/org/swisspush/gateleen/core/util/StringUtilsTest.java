@@ -135,9 +135,9 @@ public class StringUtilsTest {
         Path path = Paths.get(url.toURI());
         String rules = new String(Files.readAllBytes(path));
         String result =  StringUtils.replaceWildcardConfigs(rules, properties);
-        context.assertTrue(result.indexOf("/playground/([^/]*\\\\.html)")>=0);
-        context.assertTrue(result.indexOf("\"path\": \"my/test/path\"")>=0);
-        context.assertTrue(result.indexOf("\"port\": 123")>=0);
+        context.assertTrue(result.contains("/playground/([^/]*\\\\.html)"));
+        context.assertTrue(result.contains("\"path\": \"my/test/path\""));
+        context.assertTrue(result.contains("\"port\": 123"));
     }
 
     /**

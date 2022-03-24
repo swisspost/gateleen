@@ -785,8 +785,7 @@ public class HookHandler implements LoggableResource {
      * @return the after handler
      */
     private Handler<Void> installAfterHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> afterListener) {
-        Handler<Void> afterHandler = event -> callListener(request, buffer, afterListener, null);
-        return afterHandler;
+        return event -> callListener(request, buffer, afterListener, null);
     }
 
     /**
@@ -802,7 +801,7 @@ public class HookHandler implements LoggableResource {
      * @return the before handler
      */
     private Handler<Void> installBeforeHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> beforeListener, final Handler<Void> afterHandler) {
-        Handler<Void> beforeHandler = new Handler<>() {
+        return new Handler<>() {
             private AtomicInteger currentCount = new AtomicInteger(0);
             private boolean sent = false;
 
@@ -844,8 +843,6 @@ public class HookHandler implements LoggableResource {
                 }
             }
         };
-
-        return beforeHandler;
     }
 
     /**
@@ -1603,9 +1600,7 @@ public class HookHandler implements LoggableResource {
         // find the /_hooks/listeners/ identifier ...
         int pos = requestUrl.indexOf(HOOKS_LISTENERS_URI_PART);
         // ... and use substring after it as segment
-        String segment = requestUrl.substring(pos + HOOKS_LISTENERS_URI_PART.length());
-
-        return segment;
+        return requestUrl.substring(pos + HOOKS_LISTENERS_URI_PART.length());
     }
 
     /**

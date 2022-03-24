@@ -72,25 +72,6 @@ describe('hook', function(){
       $httpBackend.verifyNoOutstandingExpectation();
       $httpBackend.verifyNoOutstandingRequest();
     });
-    it('should create the hook with HTTP PUT from complete URL', function(){
-      $httpBackend.expectPUT('http://server/context/path/_hooks/listeners/http/gateleen-hook-js-0123',
-        {
-          'methods':['PUT', 'POST' ],
-          'destination':'/context/server/event/v1/channels/gateleen-hook-js-0123',
-          'expireAfter':10,
-          'headers': [
-            {
-              'header':'x-queue-mode',
-              'value':'transient'
-            }
-          ]
-        }
-      ).respond(200,'OK');
-      Hook.listen('http://server/context/path', function() {});
-      $httpBackend.flush();
-      $httpBackend.verifyNoOutstandingExpectation();
-      $httpBackend.verifyNoOutstandingRequest();
-    });
     it('should refresh hook after 100 seconds', function(){
       $httpBackend.expectPUT('/context/path/_hooks/listeners/http/gateleen-hook-js-0123').respond(200,'OK');
       Hook.listen('/context/path', function() {});

@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.routing;
 
+import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.*;
@@ -81,8 +82,7 @@ public class Forwarder extends AbstractForwarder {
         Map<String, String> profileValues = new HashMap<>();
         if (rule.getProfile() != null) {
             String[] ruleProfile = rule.getProfile();
-            for (int i = 0; i < ruleProfile.length; i++) {
-                String headerKey = ruleProfile[i];
+            for (String headerKey : ruleProfile) {
                 String headerValue = profile.getString(headerKey);
                 if (headerKey != null && headerValue != null) {
                     profileValues.put(USER_HEADER_PREFIX + headerKey, headerValue);
@@ -375,9 +375,7 @@ public class Forwarder extends AbstractForwarder {
                         // so we now check if the request already is ended before installing an endHandler
                         cReq.send(cResHandler);
                     } else {
-                        req.endHandler(v -> {
-                            cReq.send(cResHandler);
-                        });
+                        req.endHandler(v -> cReq.send(cResHandler));
                         pump.start();
                     }
                 } else {
@@ -408,7 +406,12 @@ public class Forwarder extends AbstractForwarder {
                 error("Timeout", req, targetUri);
                 respondError(req, StatusCode.TIMEOUT);
             } else {
-                LOG.warn("Failed to '{} {}'", req.method(), targetUri, exception);
+                if (exception instanceof ConnectTimeoutException) {
+                    // Don't log stacktrace in case connection timeout
+                    LOG.warn("Failed to '{} {}'", req.method(), targetUri);
+                } else {
+                    LOG.warn("Failed to '{} {}'", req.method(), targetUri, exception);
+                }
                 error(exception.getMessage(), req, targetUri);
                 if (req.response().ended() || req.response().headWritten()) {
                     error("Response already written. Not sure about the state. Closing server connection for stability reason", req, targetUri);
@@ -495,9 +498,7 @@ public class Forwarder extends AbstractForwarder {
                 error("Problem with backend: " + exception.getMessage(), req, targetUri);
                 respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
             });
-            req.connection().closeHandler((aVoid) -> {
-                unpump.run();
-            });
+            req.connection().closeHandler((aVoid) -> unpump.run());
         };
     }
 

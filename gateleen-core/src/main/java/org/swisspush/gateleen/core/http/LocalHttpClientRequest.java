@@ -200,7 +200,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         @Override
         public Future<Buffer> body() {
             Promise<Buffer> promise = Promise.promise();
-            this.handler(event -> promise.complete(event));
+            this.handler(promise::complete);
             return promise.future();
         }
     };
