@@ -134,18 +134,22 @@ public class DeferCloseHttpClient implements HttpClient {
     }
 
     private Handler<Void> getEndHandler(HttpClientResponse rsp) {
-        return getPrivateField(rsp, "endHandler", Handler.class);
+        return getPrivateField(rsp, "endHandler");
     }
 
     private Handler<Throwable> getExceptionHandler(HttpClientResponse rsp) {
-        return getPrivateField(rsp, "exceptionHandler", Handler.class);
+        return getPrivateField(rsp, "exceptionHandler");
     }
 
-    private <T> T getPrivateField(HttpClientResponse rsp, String name, Class<T> type) {
+    private <T> T getPrivateField(HttpClientResponse rsp, String name) {
         try {
-            Field field = rsp.getClass().getDeclaredField(name);
-            field.setAccessible(true);
-            return (T) field.get(rsp);
+            Field eventHandlerField = rsp.getClass().getDeclaredField("eventHandler");
+            eventHandlerField.setAccessible(true);
+            Object eventHanlderObj = eventHandlerField.get(rsp);
+            if (eventHanlderObj == null) return null;
+            Field handlerField = eventHanlderObj.getClass().getDeclaredField(name);
+            handlerField.setAccessible(true);
+            return (T) handlerField.get(eventHanlderObj);
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
