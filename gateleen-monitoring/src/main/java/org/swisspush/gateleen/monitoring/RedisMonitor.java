@@ -1,15 +1,18 @@
 package org.swisspush.gateleen.monitoring;
 
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.json.DecodeException;
-import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.RedisAPI;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.Address;
 
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /**
  * Monitors regularly redis info metrics and arbitrary commands. Sends the results to metrics.
@@ -26,35 +29,45 @@ public class RedisMonitor {
     private String metricName;
     private String elementCountKey;
 
+    private static final String DELIMITER = ":";
+
+    private final MetricsPublisher publisher;
+
     /**
-     * @param vertx vertx
+     * @param vertx    vertx
      * @param redisAPI redisAPI
-     * @param name name
-     * @param period in seconds.
+     * @param name     name
+     * @param period   in seconds.
      */
     public RedisMonitor(Vertx vertx, RedisAPI redisAPI, String name, int period) {
+        this(vertx, redisAPI, name, period,
+                new EventBusMetricsPublisher(vertx, Address.monitoringAddress(), "redis." + name + ".")
+        );
+    }
+
+    public RedisMonitor(Vertx vertx, RedisAPI redisAPI, String name, int period, MetricsPublisher publisher) {
         this.vertx = vertx;
         this.redisAPI = redisAPI;
         this.period = period * 1000;
         this.prefix = "redis." + name + ".";
+        this.publisher = publisher;
     }
 
     public void start() {
         timer = vertx.setPeriodic(period, timer -> {
-            redisAPI.info(new ArrayList<>(), reply -> {
-                if(reply.succeeded()){
-                    collectMetrics(reply.result().toBuffer());
+            redisAPI.info(new ArrayList<>()).onComplete(event -> {
+                if (event.succeeded()) {
+                    collectMetrics(event.result().toBuffer());
                 } else {
                     log.warn("Cannot collect INFO from redis");
                 }
             });
 
-            if(metricName != null && elementCountKey != null){
+            if (metricName != null && elementCountKey != null) {
                 redisAPI.zcard(elementCountKey, reply -> {
-                    if(reply.succeeded()){
+                    if (reply.succeeded()) {
                         long value = reply.result().toLong();
-                        vertx.eventBus().publish(getMonitoringAddress(),
-                                new JsonObject().put("name", prefix + metricName).put("action", "set").put("n", value));
+                        publisher.publishMetric(prefix + metricName, value);
                     } else {
                         log.warn("Cannot collect zcard from redis for key {}", elementCountKey);
                     }
@@ -75,56 +88,47 @@ public class RedisMonitor {
      *
      * @return the event bus address of monitoring
      */
-    protected String getMonitoringAddress(){
+    protected String getMonitoringAddress() {
         return Address.monitoringAddress();
     }
 
-    public void enableElementCount(String metricName, String key){
+    public void enableElementCount(String metricName, String key) {
         this.metricName = metricName;
         this.elementCountKey = key;
     }
 
     private void collectMetrics(Buffer buffer) {
-        try {
-            JsonObject info = new JsonObject(buffer);
-            for (String fieldName : info.fieldNames()) {
-                Object field = info.getValue(fieldName);
-                if (field instanceof JsonObject) {
-                    for (String sectionFieldName : ((JsonObject) field).fieldNames()) {
-                        if ("keyspace".equals(fieldName)) {
-                            String[] pairs = ((JsonObject) field).getString(sectionFieldName).split(",");
-                            for (String pair : pairs) {
-                                String[] tokens = pair.split("=");
-                                sendMetric(fieldName + "." + sectionFieldName + "." + tokens[0], tokens[1]);
-                            }
-                        } else {
-                            sendMetric(fieldName + "." + sectionFieldName, ((JsonObject) field).getString(sectionFieldName));
-                        }
+        Splitter.on(System.lineSeparator()).omitEmptyStrings()
+                .trimResults().splitToList(buffer.toString()).stream()
+                .filter((Predicate<String>) input -> input.contains(DELIMITER) && !input.contains("executable") && !input.contains("config_file"))
+                .collect(Collectors.toMap(new Function<>() {
+                    @Nullable
+                    @Override
+                    public String apply(@Nullable String input) {
+                        return input.split(DELIMITER)[0];
                     }
+                }, c -> c.split(DELIMITER)[1])).forEach((keyObj, val) -> {
+            String key = (String) keyObj;
+            long value = 0;
+            try {
+                if (key.startsWith("db")) {
+                    String[] pairs = val.split(",");
+                    for (String pair : pairs) {
+                        String[] tokens = pair.split("=");
+                        value = Long.parseLong(tokens[1]);
+                        publisher.publishMetric("keyspace." + key + "." + tokens[0], value);
+                    }
+                } else if (key.contains("_cpu_")) {
+                    value = (long) (Double.parseDouble(val) * 1000.0);
+                } else if (key.contains("fragmentation_ratio")) {
+                    value = (long) (Double.parseDouble(val));
                 } else {
-                    sendMetric(fieldName, field.toString());
+                    value = Long.parseLong(val);
                 }
+                publisher.publishMetric(key, value);
+            } catch (Exception e) {
+                // ignore this field
             }
-        } catch (DecodeException ex) {
-            log.warn("Could not parse redis info", ex);
-        }
-    }
-
-    private void sendMetric(String name, String stringValue) {
-        if (stringValue == null) {
-            return;
-        }
-        long value = 0;
-        try {
-            if (name.contains("_cpu_")) {
-                value = (long) (Double.parseDouble(stringValue) * 1000.0);
-            } else {
-                value = Long.parseLong(stringValue);
-            }
-            vertx.eventBus().publish(getMonitoringAddress(),
-                    new JsonObject().put("name", prefix + name).put("action", "set").put("n", value));
-        } catch (NumberFormatException e) {
-            // ignore this field
-        }
+        });
     }
 }
