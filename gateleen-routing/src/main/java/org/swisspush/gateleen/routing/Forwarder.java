@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.routing;
 
+import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.*;
@@ -408,7 +409,12 @@ public class Forwarder extends AbstractForwarder {
                 error("Timeout", req, targetUri);
                 respondError(req, StatusCode.TIMEOUT);
             } else {
-                LOG.warn("Failed to '{} {}'", req.method(), targetUri, exception);
+                if (exception instanceof ConnectTimeoutException) {
+                    // Don't log stacktrace in case connection timeout
+                    LOG.warn("Failed to '{} {}'", req.method(), targetUri);
+                } else {
+                    LOG.warn("Failed to '{} {}'", req.method(), targetUri, exception);
+                }
                 error(exception.getMessage(), req, targetUri);
                 if (req.response().ended() || req.response().headWritten()) {
                     error("Response already written. Not sure about the state. Closing server connection for stability reason", req, targetUri);
