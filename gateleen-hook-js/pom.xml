@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.swisspush.gateleen</groupId>
         <artifactId>gateleen</artifactId>
-        <version>1.3.3</version>
+        <version>1.3.4-SNAPSHOT</version>
     </parent>
     <artifactId>gateleen-hook-js</artifactId>
     <packaging>jar</packaging>
