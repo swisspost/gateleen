@@ -51,6 +51,23 @@
                             </resources>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>prepare-js-for-tests</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>
+                                ${project.basedir}/target/dist/js
+                            </outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/target/classes/META-INF/resources/webjars/${project.artifactId}/${projects.version}/js</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -98,7 +115,36 @@
                             <arguments>build</arguments>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>grunt test</id>
+                        <goals>
+                            <goal>grunt</goal>
+                        </goals>
+                        <phase>test</phase>
 
+                        <configuration>
+                            <arguments>test</arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>2.10</version>
+                <executions>
+                    <execution>
+                        <id>unpack org.webjars dependencies</id>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeGroupIds>org.webjars</includeGroupIds>
+                            <includeArtifactIds>angularjs</includeArtifactIds>
+                            <includes>**/*.js</includes>
+                            <outputDirectory>${project.build.directory}/webjars</outputDirectory>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
