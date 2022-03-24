@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.monitoring;
 
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
@@ -41,7 +43,7 @@ public class RedisMonitor {
         timer = vertx.setPeriodic(period, timer -> {
             redisAPI.info(new ArrayList<>(), reply -> {
                 if(reply.succeeded()){
-                   // collectMetrics(reply.result());
+                    collectMetrics(reply.result().toBuffer());
                 } else {
                     log.warn("Cannot collect INFO from redis");
                 }
@@ -82,24 +84,29 @@ public class RedisMonitor {
         this.elementCountKey = key;
     }
 
-    private void collectMetrics(JsonObject info) {
-        for (String fieldName : info.fieldNames()) {
-            Object field = info.getValue(fieldName);
-            if (field instanceof JsonObject) {
-                for (String sectionFieldName : ((JsonObject) field).fieldNames()) {
-                    if ("keyspace".equals(fieldName)) {
-                        String[] pairs = ((JsonObject) field).getString(sectionFieldName).split(",");
-                        for (String pair : pairs) {
-                            String[] tokens = pair.split("=");
-                            sendMetric(fieldName + "." + sectionFieldName + "." + tokens[0], tokens[1]);
+    private void collectMetrics(Buffer buffer) {
+        try {
+            JsonObject info = new JsonObject(buffer);
+            for (String fieldName : info.fieldNames()) {
+                Object field = info.getValue(fieldName);
+                if (field instanceof JsonObject) {
+                    for (String sectionFieldName : ((JsonObject) field).fieldNames()) {
+                        if ("keyspace".equals(fieldName)) {
+                            String[] pairs = ((JsonObject) field).getString(sectionFieldName).split(",");
+                            for (String pair : pairs) {
+                                String[] tokens = pair.split("=");
+                                sendMetric(fieldName + "." + sectionFieldName + "." + tokens[0], tokens[1]);
+                            }
+                        } else {
+                            sendMetric(fieldName + "." + sectionFieldName, ((JsonObject) field).getString(sectionFieldName));
                         }
-                    } else {
-                        sendMetric(fieldName + "." + sectionFieldName, ((JsonObject) field).getString(sectionFieldName));
                     }
+                } else {
+                    sendMetric(fieldName, field.toString());
                 }
-            } else {
-                sendMetric(fieldName, field.toString());
             }
+        } catch (DecodeException ex) {
+            log.warn("Could not parse redis info", ex);
         }
     }
 

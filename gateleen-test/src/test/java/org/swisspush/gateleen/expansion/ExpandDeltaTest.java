@@ -215,7 +215,7 @@ public class ExpandDeltaTest extends AbstractTest {
                 .then().assertThat().header("x-delta", notNullValue()).header("x-delta", is(not(equalTo(updateId1))))
                 .body("resources", hasItem("res1")).extract().header("x-delta");
 
-        context.assertTrue(Integer.valueOf(updateId2) > Integer.valueOf(updateId1), "new x-delta value should be bigger");
+        context.assertTrue(Integer.parseInt(updateId2) > Integer.parseInt(updateId1), "new x-delta value should be bigger");
 
         async.complete();
     }

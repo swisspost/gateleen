@@ -140,7 +140,7 @@ public class RedisCacheStorage implements CacheStorage {
                 promise.fail(message);
             } else {
                 JsonArray array = new JsonArray();
-                reply.result().stream().forEach(e -> array.add(e));
+                reply.result().stream().forEach(array::add);
                 Set<String> result = IntStream.range(0, array.size())
                         .mapToObj(array::getString)
                         .map(Object::toString)

@@ -1,12 +1,12 @@
 package org.swisspush.gateleen.player.player;
 
-import org.swisspush.gateleen.player.exchange.Exchange;
-import org.swisspush.gateleen.player.exchange.IgnoreHeadersTransformer;
-import org.swisspush.gateleen.player.exchange.TimeResolver;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.player.exchange.Exchange;
+import org.swisspush.gateleen.player.exchange.IgnoreHeadersTransformer;
+import org.swisspush.gateleen.player.exchange.TimeResolver;
 import org.swisspush.gateleen.player.log.*;
 
 import java.util.Iterator;
@@ -48,11 +48,11 @@ public class Player {
     }
 
     public Player setInputLog(String urlPrefix, String inputLogLocation) {
-        return setInputLog(urlPrefix, inputLogLocation, alwaysTrue());
+        return setInputLog(urlPrefix, inputLogLocation, exchange -> true);
     }
 
-    public Player setInputLog(String urlPrefix, String inputLogLocation, Predicate<? super Exchange> inputFilter) {
-        inputLog = new ResourceRequestLog(urlPrefix, inputLogLocation).filter(inputFilter);
+    public Player setInputLog(String urlPrefix, String inputLogLocation, java.util.function.Predicate<Exchange> inputFilter) {
+        inputLog = new ResourceRequestLog(urlPrefix, inputLogLocation).filter(inputFilter::test);
         return this;
     }
 

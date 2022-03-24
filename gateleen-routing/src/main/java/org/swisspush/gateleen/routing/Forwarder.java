@@ -82,8 +82,7 @@ public class Forwarder extends AbstractForwarder {
         Map<String, String> profileValues = new HashMap<>();
         if (rule.getProfile() != null) {
             String[] ruleProfile = rule.getProfile();
-            for (int i = 0; i < ruleProfile.length; i++) {
-                String headerKey = ruleProfile[i];
+            for (String headerKey : ruleProfile) {
                 String headerValue = profile.getString(headerKey);
                 if (headerKey != null && headerValue != null) {
                     profileValues.put(USER_HEADER_PREFIX + headerKey, headerValue);
@@ -376,9 +375,7 @@ public class Forwarder extends AbstractForwarder {
                         // so we now check if the request already is ended before installing an endHandler
                         cReq.send(cResHandler);
                     } else {
-                        req.endHandler(v -> {
-                            cReq.send(cResHandler);
-                        });
+                        req.endHandler(v -> cReq.send(cResHandler));
                         pump.start();
                     }
                 } else {
@@ -501,9 +498,7 @@ public class Forwarder extends AbstractForwarder {
                 error("Problem with backend: " + exception.getMessage(), req, targetUri);
                 respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
             });
-            req.connection().closeHandler((aVoid) -> {
-                unpump.run();
-            });
+            req.connection().closeHandler((aVoid) -> unpump.run());
         };
     }
 

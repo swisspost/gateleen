@@ -91,14 +91,14 @@ public class KafkaHandlerTest {
         handler.initialize().onComplete(event -> {
             verify(repository, times(1)).closeAll();
 
-            Map<String, String> configs_1 = new HashMap<String, String>() {{
+            Map<String, String> configs_1 = new HashMap<>() {{
                 put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
                 put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
                 put("bootstrap.servers", "localhost:9092");
             }};
             verify(repository, times(1)).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("my.topic.*"), configs_1)));
 
-            Map<String, String> configs_2 = new HashMap<String, String>() {{
+            Map<String, String> configs_2 = new HashMap<>() {{
                 put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
                 put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
                 put("bootstrap.servers", "localhost:9093");
@@ -126,7 +126,7 @@ public class KafkaHandlerTest {
         handler.initialize().onComplete(event -> {
             // depending whether resourceChanged fires or not we get one or two invocations
             verify(repository, atLeastOnce()).closeAll();
-            Map<String, String> configs_1 = new HashMap<String, String>() {{
+            Map<String, String> configs_1 = new HashMap<>() {{
                 put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
                 put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
                 put("bootstrap.servers", "localhost:9094");
@@ -183,14 +183,14 @@ public class KafkaHandlerTest {
         vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
         verify(repository, timeout(500).times(1)).closeAll();
 
-        Map<String, String> configs_1 = new HashMap<String, String>() {{
+        Map<String, String> configs_1 = new HashMap<>() {{
             put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("bootstrap.servers", "localhost:9092");
         }};
         verify(repository, timeout(500).times(1)).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("my.topic.*"), configs_1)));
 
-        Map<String, String> configs_2 = new HashMap<String, String>() {{
+        Map<String, String> configs_2 = new HashMap<>() {{
             put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             put("bootstrap.servers", "localhost:9093");

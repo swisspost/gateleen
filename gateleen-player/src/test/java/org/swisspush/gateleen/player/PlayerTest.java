@@ -40,7 +40,7 @@ public class PlayerTest {
                         request(
                                 or(
                                         url(containsPattern("/gateleen/galaxy/v1/wormhole/there$")),
-                                        body(where("sound").exists(true))))).
+                                        body(where("sound").exists(true))))::apply).
                 setClient(client).
                 play();
     }

@@ -22,6 +22,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.security.PatternHolder;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Matchers.eq;
@@ -71,7 +72,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         context.assertFalse(handler.isInitialized());
         handler.initialize().onComplete(event -> {
             List<ContentTypeConstraint> constraints = Arrays.asList(
-                    createConstraint("/gateleen/contacts/zips/(.*)", Arrays.asList("image/.*")),
+                    createConstraint("/gateleen/contacts/zips/(.*)", Collections.singletonList("image/.*")),
                     createConstraint("/gateleen/contacts/storage/(.*)", Arrays.asList("image/png", "image/bmp", "video/mp4"))
             );
             verify(repository, times(1)).setConstraints(eq(constraints));
@@ -103,7 +104,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         String requestUri = "/gateleen/constraint/tests/abc";
 
         handler = new ContentTypeConstraintHandler(configurationResourceManager, repository, configResourceUri,
-                Arrays.asList(new PatternHolder("image/png")));
+                Collections.singletonList(new PatternHolder("image/png")));
 
         handler.initialize().onComplete(event -> {
 
@@ -123,7 +124,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         String requestUri = "/gateleen/constraint/tests/abc";
 
         handler = new ContentTypeConstraintHandler(configurationResourceManager, repository, configResourceUri,
-                Arrays.asList(new PatternHolder("image/.*")));
+                Collections.singletonList(new PatternHolder("image/.*")));
 
         handler.initialize().onComplete(event -> {
             HttpServerResponse response = spy(new ConstraintResponse());
@@ -142,7 +143,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         String requestUri = "/gateleen/constraint/tests/abc";
 
         handler = new ContentTypeConstraintHandler(configurationResourceManager, repository, configResourceUri,
-                Arrays.asList(new PatternHolder("image/.*")));
+                Collections.singletonList(new PatternHolder("image/.*")));
 
         handler.initialize().onComplete(event -> {
             HttpServerResponse response = spy(new ConstraintResponse());
@@ -291,8 +292,8 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
 
             handler.resourceChanged(configResourceUri, Buffer.buffer(VALID_CONFIG2));
 
-            List<ContentTypeConstraint> constraints = Arrays.asList(
-                    createConstraint("/gateleen/images/(.*)", Arrays.asList("image/.*"))
+            List<ContentTypeConstraint> constraints = Collections.singletonList(
+                    createConstraint("/gateleen/images/(.*)", Collections.singletonList("image/.*"))
             );
             verify(repository, times(1)).setConstraints(eq(constraints));
 
