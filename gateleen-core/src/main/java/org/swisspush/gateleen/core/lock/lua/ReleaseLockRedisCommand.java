@@ -35,17 +35,18 @@ public class ReleaseLockRedisCommand implements RedisCommand {
     public void exec(int executionCounter) {
         List<String> args = new ArrayList<>();
         args.add(luaScriptState.getSha());
+        args.add(String.valueOf(keys.size()));
         args.addAll(keys);
         args.addAll(arguments);
         redisAPI.evalsha(args, event -> {
             if(event.succeeded()){
-                Long unlocked = event.result().get(0).toLong();
+                Long unlocked = event.result().toLong();
                 promise.complete(unlocked > 0);
             } else {
                 String message = event.cause().getMessage();
                 if(message != null && message.startsWith("NOSCRIPT")) {
                     log.warn("ReleaseLockRedisCommand script couldn't be found, reload it");
-                    log.warn("amount the script got loaded: " + String.valueOf(executionCounter));
+                    log.warn("amount the script got loaded: " + executionCounter);
                     if(executionCounter > 10) {
                         promise.fail("amount the script got loaded is higher than 10, we abort");
                     } else {
