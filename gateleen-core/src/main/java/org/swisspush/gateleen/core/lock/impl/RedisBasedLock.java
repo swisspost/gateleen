@@ -53,7 +53,7 @@ public class RedisBasedLock implements Lock {
     @Override
     public Future<Boolean> acquireLock(String lock, String token, long lockExpiryMs) {
         Promise<Boolean> promise = Promise.promise();
-        redisSetWithOptions(lock, token, true, lockExpiryMs, event -> {
+        redisSetWithOptions(buildLockKey(lock), token, true, lockExpiryMs, event -> {
             if (event.succeeded()) {
                 if (event.result() != null) {
                     promise.complete("OK".equalsIgnoreCase(event.result().toString()));

@@ -11,7 +11,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.testng.Assert;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -140,15 +139,15 @@ public class StringUtilsTest {
         context.assertTrue(result.indexOf("\"port\": 123")>=0);
     }
 
-    /**
-     * Within 10000 invocations and 10 threads we normally see it fail consistently if there is threading issue.
-     */
-    @org.testng.annotations.Test(threadPoolSize = 10, invocationCount = 10000, timeOut = 10000)
-    public void testConcurrentAccessToJmteEngine() {
-        String test = "/playground/[^/]*\\\\.html";
-        String expected = "/playground/[^/]*\\.html";
-        String result = StringUtils.replaceWildcardConfigs(test, new HashMap<>());
-        Assert.assertEquals(expected, result);
-    }
+//    /**
+//     * Within 10000 invocations and 10 threads we normally see it fail consistently if there is threading issue.
+//     */
+//    @org.testng.annotations.Test(threadPoolSize = 10, invocationCount = 10000, timeOut = 10000)
+//    public void testConcurrentAccessToJmteEngine() {
+//        String test = "/playground/[^/]*\\\\.html";
+//        String expected = "/playground/[^/]*\\.html";
+//        String result = StringUtils.replaceWildcardConfigs(test, new HashMap<>());
+//        Assert.assertEquals(expected, result);
+//    }
 
 }
