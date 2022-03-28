@@ -115,8 +115,12 @@ public class RedisMonitor {
                     String[] pairs = val.split(",");
                     for (String pair : pairs) {
                         String[] tokens = pair.split("=");
-                        value = Long.parseLong(tokens[1]);
-                        publisher.publishMetric("keyspace." + key + "." + tokens[0], value);
+                        if(tokens.length == 2) {
+                            value = Long.parseLong(tokens[1]);
+                            publisher.publishMetric("keyspace." + key + "." + tokens[0], value);
+                        } else {
+                            log.warn("Invalid keyspace property. Will be ignored");
+                        }
                     }
                 } else if (key.contains("_cpu_")) {
                     value = (long) (Double.parseDouble(val) * 1000.0);
@@ -126,7 +130,7 @@ public class RedisMonitor {
                     value = Long.parseLong(val);
                 }
                 publisher.publishMetric(key, value);
-            } catch (Exception e) {
+            } catch (NumberFormatException e) {
                 // ignore this field
             }
         });

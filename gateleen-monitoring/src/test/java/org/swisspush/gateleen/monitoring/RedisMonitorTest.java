@@ -51,7 +51,7 @@ public class RedisMonitorTest {
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Long> valueCaptor = ArgumentCaptor.forClass(Long.class);
 
-        verify(publisher, timeout(1200).times(57)).publishMetric(keyCaptor.capture(), valueCaptor.capture());
+        verify(publisher, timeout(1200).times(58)).publishMetric(keyCaptor.capture(), valueCaptor.capture());
 
         List<String> keys = keyCaptor.getAllValues();
         testContext.assertTrue(keys.containsAll(List.of("redis_git_sha1", "redis_git_dirty",
