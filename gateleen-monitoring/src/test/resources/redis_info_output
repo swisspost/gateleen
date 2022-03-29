@@ -83,4 +83,5 @@ used_cpu_user_children:0.00
 
 # Keyspace
 db0:keys=2,expires=1,avg_ttl=10235
+db1:keys=44,expires=232,avg_ttl=111111
 dbX:99

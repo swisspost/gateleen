@@ -51,7 +51,7 @@ public class RedisMonitorTest {
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Long> valueCaptor = ArgumentCaptor.forClass(Long.class);
 
-        verify(publisher, timeout(1200).times(58)).publishMetric(keyCaptor.capture(), valueCaptor.capture());
+        verify(publisher, timeout(1200).times(59)).publishMetric(keyCaptor.capture(), valueCaptor.capture());
 
         List<String> keys = keyCaptor.getAllValues();
         testContext.assertTrue(keys.containsAll(List.of("redis_git_sha1", "redis_git_dirty",
@@ -65,7 +65,8 @@ public class RedisMonitorTest {
                 "expired_keys", "evicted_keys", "keyspace_hits", "keyspace_misses", "pubsub_channels", "pubsub_patterns",
                 "latest_fork_usec", "connected_slaves", "master_repl_offset", "repl_backlog_active", "repl_backlog_size",
                 "repl_backlog_first_byte_offset", "repl_backlog_histlen", "used_cpu_sys", "used_cpu_user",
-                "used_cpu_sys_children", "used_cpu_user_children", "keyspace.db0.keys", "keyspace.db0.expires", "keyspace.db0.avg_ttl")));
+                "used_cpu_sys_children", "used_cpu_user_children", "keyspace.db0.keys", "keyspace.db0.expires", "keyspace.db0.avg_ttl",
+                "keyspace.db1.keys", "keyspace.db1.expires", "keyspace.db1.avg_ttl")));
 
         // assert non numeric entries not published
         testContext.assertFalse(keys.containsAll(List.of("redis_version", "redis_build_id", "redis_mode", "os",

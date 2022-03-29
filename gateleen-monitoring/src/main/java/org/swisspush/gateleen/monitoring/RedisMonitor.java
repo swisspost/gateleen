@@ -124,12 +124,14 @@ public class RedisMonitor {
                     }
                 } else if (key.contains("_cpu_")) {
                     value = (long) (Double.parseDouble(val) * 1000.0);
+                    publisher.publishMetric(key, value);
                 } else if (key.contains("fragmentation_ratio")) {
                     value = (long) (Double.parseDouble(val));
+                    publisher.publishMetric(key, value);
                 } else {
                     value = Long.parseLong(val);
+                    publisher.publishMetric(key, value);
                 }
-                publisher.publishMetric(key, value);
             } catch (NumberFormatException e) {
                 // ignore this field
             }
