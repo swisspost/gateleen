@@ -130,11 +130,14 @@ public class SchedulerFactory {
 
     private JsonObject prepare(JsonObject httpRequestJsonObject) {
         String payloadStr;
-
         try {
+            if (httpRequestJsonObject.getJsonObject(PAYLOAD) != null) {
+                payloadStr = httpRequestJsonObject.getJsonObject(PAYLOAD).encode();
+            } else {
+                payloadStr = null;
+            }
+        } catch (ClassCastException e) {
             payloadStr = httpRequestJsonObject.getString(PAYLOAD);
-        } catch(ClassCastException e) {
-            payloadStr = httpRequestJsonObject.getJsonObject(PAYLOAD).encode();
         }
 
         JsonArray headers = httpRequestJsonObject.getJsonArray(HEADERS);
