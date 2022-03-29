@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.swisspush.gateleen</groupId>
         <artifactId>gateleen</artifactId>
-        <version>1.3.3-SNAPSHOT</version>
+        <version>1.3.4-SNAPSHOT</version>
     </parent>
 
     <artifactId>gateleen-core</artifactId>
@@ -67,11 +67,6 @@
             <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-testhelper</artifactId>
             <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testng</groupId>
-            <artifactId>testng</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -7,14 +7,19 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.testng.Assert;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for the {@link StringUtils} class
@@ -143,12 +148,20 @@ public class StringUtilsTest {
     /**
      * Within 10000 invocations and 10 threads we normally see it fail consistently if there is threading issue.
      */
-    @org.testng.annotations.Test(threadPoolSize = 10, invocationCount = 10000, timeOut = 10000)
-    public void testConcurrentAccessToJmteEngine() {
-        String test = "/playground/[^/]*\\\\.html";
-        String expected = "/playground/[^/]*\\.html";
-        String result = StringUtils.replaceWildcardConfigs(test, new HashMap<>());
-        Assert.assertEquals(expected, result);
+    @Test
+    public void testConcurrentAccessToJmteEngine() throws InterruptedException {
+        ExecutorService service = Executors.newFixedThreadPool(10);
+        final int invocationCount = 10000;
+        CountDownLatch lock = new CountDownLatch(invocationCount);
+        for (int i = 0; i < invocationCount; i++) {
+            service.submit(() -> {
+                String test = "/playground/[^/]*\\\\.html";
+                String expected = "/playground/[^/]*\\.html";
+                String result = StringUtils.replaceWildcardConfigs(test, new HashMap<>());
+                Assert.assertEquals(expected, result);
+                lock.countDown();
+            });
+        }
+        lock.await(10, TimeUnit.SECONDS);
     }
-
 }
