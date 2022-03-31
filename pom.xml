@@ -54,7 +54,7 @@
         </sel_chrome_driver>
         <vertx.version>4.2.1</vertx.version>
         <jackson.version>2.13.0</jackson.version>
-        <springframework.version>4.3.30.RELEASE</springframework.version>
+        <springframework.version>5.3.18</springframework.version>
     </properties>
 
     <repositories>
