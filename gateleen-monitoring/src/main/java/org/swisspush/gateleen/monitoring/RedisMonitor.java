@@ -1,18 +1,17 @@
 package org.swisspush.gateleen.monitoring;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.redis.client.RedisAPI;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.Address;
 
 import java.util.ArrayList;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Monitors regularly redis info metrics and arbitrary commands. Sends the results to metrics.
@@ -98,24 +97,29 @@ public class RedisMonitor {
     }
 
     private void collectMetrics(Buffer buffer) {
+        Map<String, String> map = new HashMap<>();
+
         Splitter.on(System.lineSeparator()).omitEmptyStrings()
                 .trimResults().splitToList(buffer.toString()).stream()
-                .filter((Predicate<String>) input -> input.contains(DELIMITER) && !input.contains("executable") && !input.contains("config_file"))
-                .collect(Collectors.toMap(new Function<>() {
-                    @Nullable
-                    @Override
-                    public String apply(@Nullable String input) {
-                        return input.split(DELIMITER)[0];
-                    }
-                }, c -> c.split(DELIMITER)[1])).forEach((keyObj, val) -> {
-            String key = (String) keyObj;
-            long value = 0;
+                .filter(input -> input != null && input.contains(DELIMITER)
+                        && !input.contains("executable")
+                        && !input.contains("config_file")).forEach(entry -> {
+            List<String> keyValue = Splitter.on(DELIMITER).omitEmptyStrings().trimResults().splitToList(entry);
+            if (keyValue.size() == 2) {
+                map.put(keyValue.get(0), keyValue.get(1));
+            }
+        });
+
+        log.debug("got redis metrics {}", map);
+
+        map.forEach((key, valueStr) -> {
+            long value;
             try {
                 if (key.startsWith("db")) {
-                    String[] pairs = val.split(",");
+                    String[] pairs = valueStr.split(",");
                     for (String pair : pairs) {
                         String[] tokens = pair.split("=");
-                        if(tokens.length == 2) {
+                        if (tokens.length == 2) {
                             value = Long.parseLong(tokens[1]);
                             publisher.publishMetric("keyspace." + key + "." + tokens[0], value);
                         } else {
@@ -123,13 +127,13 @@ public class RedisMonitor {
                         }
                     }
                 } else if (key.contains("_cpu_")) {
-                    value = (long) (Double.parseDouble(val) * 1000.0);
+                    value = (long) (Double.parseDouble(valueStr) * 1000.0);
                     publisher.publishMetric(key, value);
                 } else if (key.contains("fragmentation_ratio")) {
-                    value = (long) (Double.parseDouble(val));
+                    value = (long) (Double.parseDouble(valueStr));
                     publisher.publishMetric(key, value);
                 } else {
-                    value = Long.parseLong(val);
+                    value = Long.parseLong(valueStr);
                     publisher.publishMetric(key, value);
                 }
             } catch (NumberFormatException e) {
