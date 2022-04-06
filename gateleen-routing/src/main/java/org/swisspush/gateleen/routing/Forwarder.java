@@ -459,9 +459,7 @@ public class Forwarder extends AbstractForwarder {
             // Add received headers to original request but remove headers that should not get forwarded.
             MultiMap headersToForward = cRes.headers();
             headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
-            //remove any "Content-Length" in the header, before add new one.
-            req.response().headers().remove("Content-Length");
-            req.response().headers().addAll(headersToForward);
+            HttpHeaderUtil.mergeHeaders(req.response(), headersToForward);
             if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
                 req.response().headers().addAll(profileHeaderMap);
             }
