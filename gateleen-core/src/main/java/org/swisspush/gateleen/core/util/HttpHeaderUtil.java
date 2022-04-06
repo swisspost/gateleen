@@ -85,26 +85,26 @@ public class HttpHeaderUtil {
     /**
      * Helper method to check and prevent multiple Content-Length values.
      */
-    public static void mergeHeaders(@Nonnull HttpServerResponse response, @Nonnull MultiMap headers, @Nullable String context) {
+    public static void mergeHeaders(@Nonnull MultiMap headers, @Nonnull MultiMap headersToForward, @Nullable String context) {
         String responseContentLength = "";
         String headersContentLength = "";
 
-        if (HttpRequestHeader.containsHeader(response.headers(), HttpRequestHeader.CONTENT_LENGTH)) {
-            responseContentLength = response.headers().get(HttpRequestHeader.CONTENT_LENGTH.getName());
-        }
         if (HttpRequestHeader.containsHeader(headers, HttpRequestHeader.CONTENT_LENGTH)) {
-            headersContentLength = headers.get(HttpRequestHeader.CONTENT_LENGTH.getName());
+            responseContentLength = headers.get(HttpRequestHeader.CONTENT_LENGTH.getName());
+        }
+        if (HttpRequestHeader.containsHeader(headersToForward, HttpRequestHeader.CONTENT_LENGTH)) {
+            headersContentLength = headersToForward.get(HttpRequestHeader.CONTENT_LENGTH.getName());
         }
         if (responseContentLength.isEmpty() || headersContentLength.isEmpty()) {
-            response.headers().addAll(headers);
+            headers.addAll(headersToForward);
         } else {
             if (!responseContentLength.equals(headersContentLength)) {
-                LOG.warn("multiple Content-Length values found and not match {} / {}", responseContentLength, headersContentLength);
+                LOG.warn("multiple Content-Length values found and not match {} / {} for request to url {}", responseContentLength, headersContentLength, context);
             } else {
-                LOG.info("multiple Content-Length values found, removed", responseContentLength, headersContentLength);
+                LOG.info("multiple Content-Length values found for request to url {}, keep only one", context);
             }
-            response.headers().remove(HttpRequestHeader.CONTENT_LENGTH.getName());
-            response.headers().addAll(headers);
+            headers.remove(HttpRequestHeader.CONTENT_LENGTH.getName());
+            headers.addAll(headersToForward);
         }
     }
 }

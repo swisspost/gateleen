@@ -82,4 +82,29 @@ public class HttpHeaderUtilTest {
         testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: (123|999)")));
     }
 
+    @Test
+    public void mergeHeaders(TestContext testContext) {
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "123");
+        headers.add("host", "host:1234");
+
+        MultiMap headersToForward = MultiMap.caseInsensitiveMultiMap();
+        headersToForward.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "123");
+        headersToForward.add("dummy-header", "123");
+
+        HttpHeaderUtil.mergeHeaders(headers, headersToForward, "test");
+
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("Content-Length: 123")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("host: host:1234")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: 123")));
+
+        headersToForward = MultiMap.caseInsensitiveMultiMap();
+        headersToForward.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "126");
+        headersToForward.add("dummy-header", "123");
+        HttpHeaderUtil.mergeHeaders(headers, headersToForward, "test");
+
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("Content-Length: 126")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("host: host:1234")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: 123")));
+    }
 }
