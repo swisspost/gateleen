@@ -1,0 +1,87 @@
+# Server
+redis_version:2.8.7
+redis_git_sha1:00000000
+redis_git_dirty:0
+redis_build_id:f37a784f559f7f7c
+redis_mode:standalone
+os:CYGWIN_NT-10.0 1.7.28(0.271/5/3) x86_64
+arch_bits:64
+multiplexing_api:select
+gcc_version:4.8.2
+process_id:23796
+run_id:931e4e7a92fdb00664f19ea0485a9446d425efcc
+tcp_port:6379
+uptime_in_seconds:796
+uptime_in_days:0
+hz:10
+lru_clock:1234155
+executable:C:\work\tools\redis 3.2.1\redis-server.exe
+config_file:/redis/redis.conf
+
+# Clients
+connected_clients:170
+client_longest_output_list:0
+client_biggest_input_buf:0
+blocked_clients:0
+
+# Memory
+used_memory:5078712
+used_memory_human:4.84M
+used_memory_rss:5078712
+used_memory_peak:5142312
+used_memory_peak_human:4.90M
+used_memory_lua:79872
+mem_fragmentation_ratio:1.00
+mem_allocator:libc
+
+# Persistence
+loading:0
+rdb_changes_since_last_save:40
+rdb_bgsave_in_progress:0
+rdb_last_save_time:1648119323
+rdb_last_bgsave_status:ok
+rdb_last_bgsave_time_sec:-1
+rdb_current_bgsave_time_sec:-1
+aof_enabled:0
+aof_rewrite_in_progress:0
+aof_rewrite_scheduled:0
+aof_last_rewrite_time_sec:-1
+aof_current_rewrite_time_sec:-1
+aof_last_bgrewrite_status:ok
+aof_last_write_status:ok
+
+# Stats
+total_connections_received:170
+total_commands_processed:423
+instantaneous_ops_per_sec:0
+rejected_connections:0
+sync_full:0
+sync_partial_ok:0
+sync_partial_err:0
+expired_keys:39
+evicted_keys:0
+keyspace_hits:0
+keyspace_misses:52
+pubsub_channels:0
+pubsub_patterns:0
+latest_fork_usec:0
+
+# Replication
+role:master
+connected_slaves:0
+master_repl_offset:0
+repl_backlog_active:0
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:0
+repl_backlog_histlen:0
+
+# CPU
+used_cpu_sys:36.44
+used_cpu_user:39.33
+used_cpu_sys_children:0.00
+used_cpu_user_children:0.00
+
+# Keyspace
+db0:keys=2,expires=1,avg_ttl=10235
+db1:keys=44,expires=232,avg_ttl=111111
+dbX:99

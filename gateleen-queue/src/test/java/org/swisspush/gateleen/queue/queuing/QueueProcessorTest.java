@@ -60,9 +60,7 @@ public class QueueProcessorTest {
         // Mockito.when(httpClient.request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any())).thenReturn(Mockito.mock(HttpClientRequest.class));
         Mockito.when(httpClient.request(any(HttpMethod.class), anyString())).thenReturn(Mockito.mock(Future.class));
 
-        vertx.eventBus().consumer(Address.redisquesAddress(), event -> {
-            event.reply(new JsonObject().put("status", "No such lock"));
-        });
+        vertx.eventBus().consumer(Address.redisquesAddress(), event -> event.reply(new JsonObject().put("status", "No such lock")));
     }
 
     @Test

@@ -420,9 +420,8 @@ public class TestMergeHandler extends AbstractTest {
 
     private void addRoute(String from, String to, boolean collection, boolean listable) {
         String route = from + TestUtils.getHookRouteUrlSuffix();
-        String target = to;
         String[] methods = new String[]{"GET", "PUT", "DELETE", "POST"};
         TestUtils.unregisterRoute(route);
-        TestUtils.registerRoute(route, target, methods, null, collection, listable);
+        TestUtils.registerRoute(route, to, methods, null, collection, listable);
     }
 }

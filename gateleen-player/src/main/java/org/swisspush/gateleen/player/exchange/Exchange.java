@@ -138,12 +138,7 @@ public class Exchange {
      * @return Predicate
      */
     public static Predicate<Exchange> request(final Predicate<? super RequestEntity<JSONObject>> requestPredicate) {
-        return new Predicate<Exchange>() {
-            @Override
-            public boolean apply(Exchange exchange) {
-                return requestPredicate.apply(exchange.getRequest());
-            }
-        };
+        return exchange -> requestPredicate.apply(exchange.getRequest());
     }
 
     /**
@@ -153,12 +148,7 @@ public class Exchange {
      * @return Predicate
      */
     public static Predicate<Exchange> response(final Predicate<? super ResponseEntity<JSONObject>> responsePredicate) {
-        return new Predicate<Exchange>() {
-            @Override
-            public boolean apply(Exchange exchange) {
-                return responsePredicate.apply(exchange.getResponse());
-            }
-        };
+        return exchange -> responsePredicate.apply(exchange.getResponse());
     }
 
     /**
@@ -168,15 +158,12 @@ public class Exchange {
      * @return Predicate
      */
     public static Predicate<Exchange> withId(final String... requestIds) {
-        return new Predicate<Exchange>() {
-            @Override
-            public boolean apply(Exchange exchange) {
-                boolean result = false;
-                for (String requestId : requestIds) {
-                    result |= requestId.equals(exchange.getRequest().getHeaders().getFirst("x-request-id"));
-                }
-                return result;
+        return exchange -> {
+            boolean result = false;
+            for (String requestId : requestIds) {
+                result |= requestId.equals(exchange.getRequest().getHeaders().getFirst("x-request-id"));
             }
+            return result;
         };
     }
 
@@ -187,12 +174,7 @@ public class Exchange {
      * @return Predicate
      */
     public static Predicate<RequestEntity<JSONObject>> url(final Predicate<? super CharSequence> stringPredicate) {
-        return new Predicate<RequestEntity<JSONObject>>() {
-            @Override
-            public boolean apply(RequestEntity<JSONObject> request) {
-                return stringPredicate.apply(request.getUrl().toString());
-            }
-        };
+        return request -> stringPredicate.apply(request.getUrl().toString());
     }
 
     /**
@@ -202,12 +184,7 @@ public class Exchange {
      * @return Predicate
      */
     public static Predicate<RequestEntity<JSONObject>> method(final Predicate<HttpMethod> methodPredicate) {
-        return new Predicate<RequestEntity<JSONObject>>() {
-            @Override
-            public boolean apply(RequestEntity<JSONObject> request) {
-                return methodPredicate.apply(request.getMethod());
-            }
-        };
+        return request -> methodPredicate.apply(request.getMethod());
     }
 
     /**
@@ -217,12 +194,7 @@ public class Exchange {
      * @return Predicate
      */
     public static Predicate<ResponseEntity<JSONObject>> status(final Predicate<HttpStatus> statusPredicate) {
-        return new Predicate<ResponseEntity<JSONObject>>() {
-            @Override
-            public boolean apply(ResponseEntity<JSONObject> response) {
-                return statusPredicate.apply(response.getStatusCode());
-            }
-        };
+        return response -> statusPredicate.apply(response.getStatusCode());
     }
 
     /**
@@ -255,12 +227,7 @@ public class Exchange {
      * @return Predicate
      */
     public static <T extends HttpEntity<JSONObject>> Predicate<T> headers(final Predicate<HttpHeaders> headersPredicate) {
-        return new Predicate<>() {
-            @Override
-            public boolean apply(T entity) {
-                return headersPredicate.apply(entity.getHeaders());
-            }
-        };
+        return entity -> headersPredicate.apply(entity.getHeaders());
     }
 
     /**
@@ -271,15 +238,12 @@ public class Exchange {
      * @return Predicate
      */
     public static <T extends HttpEntity<JSONObject>, U extends CharSequence> Predicate<T> header(final String key, final Predicate<U> stringPredicate) {
-        return new Predicate<>() {
-            @Override
-            public boolean apply(T entity) {
-                List<String> found = entity.getHeaders().get(key);
-                if (found != null && !found.isEmpty()) {
-                    return stringPredicate.apply((U) found.get(0));
-                } else {
-                    return false;
-                }
+        return entity -> {
+            List<String> found = entity.getHeaders().get(key);
+            if (found != null && !found.isEmpty()) {
+                return stringPredicate.apply((U) found.get(0));
+            } else {
+                return false;
             }
         };
     }

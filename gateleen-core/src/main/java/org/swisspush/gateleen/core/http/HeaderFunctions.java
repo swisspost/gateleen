@@ -129,9 +129,7 @@ public class HeaderFunctions {
 
 
     public static Consumer<EvalScope> remove(String headerName) {
-        return (scope) -> {
-            scope.headers.remove(headerName);
-        };
+        return (scope) -> scope.headers.remove(headerName);
     }
 
     public static Consumer<EvalScope> setAlways(String headerName, String expression) {
@@ -198,9 +196,7 @@ public class HeaderFunctions {
         if (fix.length() == 0) {
             return c;
         }
-        return c.andThen((scope) -> {
-            scope.sb.append(fix);
-        });
+        return c.andThen((scope) -> scope.sb.append(fix));
     }
 
     private static Consumer<EvalScope> andThenVar(Consumer<EvalScope> c, String varName, String expression) {

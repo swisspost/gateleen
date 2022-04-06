@@ -30,8 +30,8 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
      * Creates a new instance of the local in-memory LocalHookListenerRepository.
      */
     public LocalListenerRepository() {
-        urlToListenersMap = new HashMap<String, Set<Listener>>();
-        listenerToUrlMap = new HashMap<String, Listener>();
+        urlToListenersMap = new HashMap<>();
+        listenerToUrlMap = new HashMap<>();
     }
 
     @Override
@@ -51,7 +51,7 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
          */
         Set<Listener> listeners = urlToListenersMap.get(listener.getMonitoredUrl());
         if (listeners == null) {
-            listeners = new HashSet<Listener>();
+            listeners = new HashSet<>();
         }
 
         listeners.add(listener);
@@ -105,7 +105,7 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
 
     @Override
     public List<Listener> getListeners() {
-        return new ArrayList<Listener>(listenerToUrlMap.values());
+        return new ArrayList<>(listenerToUrlMap.values());
     }
 
     @Override

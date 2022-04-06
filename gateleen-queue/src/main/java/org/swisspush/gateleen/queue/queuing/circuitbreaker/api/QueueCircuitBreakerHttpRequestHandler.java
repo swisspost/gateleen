@@ -73,33 +73,31 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
         });
 
         // change all circuit states
-        router.putWithRegex(prefix + "/" + allPrefix + statusSuffix).handler(ctx -> {
-            ctx.request().bodyHandler(event -> {
-                QueueCircuitState state = extractStatusFromBody(event);
-                log(ctx.request(), "change all circuit states to " + state);
-                if (state == null) {
-                    respondWith(StatusCode.BAD_REQUEST, "Body must contain a correct 'status' value", ctx.request());
-                } else if (QueueCircuitState.CLOSED != state) {
-                    respondWith(StatusCode.FORBIDDEN, "Status can be changed to 'CLOSED' only", ctx.request());
-                } else {
-                    eventBus.request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseAllCircuitsOperation(),
-                            (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
-                                if (reply.succeeded()) {
-                                    JsonObject replyBody = reply.result().body();
-                                    if (OK.equals(replyBody.getString(STATUS))) {
-                                        ctx.response().end();
-                                    } else {
-                                        ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-                                        ctx.response().end(reply.result().body().getString(MESSAGE));
-                                    }
+        router.putWithRegex(prefix + "/" + allPrefix + statusSuffix).handler(ctx -> ctx.request().bodyHandler(event -> {
+            QueueCircuitState state = extractStatusFromBody(event);
+            log(ctx.request(), "change all circuit states to " + state);
+            if (state == null) {
+                respondWith(StatusCode.BAD_REQUEST, "Body must contain a correct 'status' value", ctx.request());
+            } else if (QueueCircuitState.CLOSED != state) {
+                respondWith(StatusCode.FORBIDDEN, "Status can be changed to 'CLOSED' only", ctx.request());
+            } else {
+                eventBus.request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildCloseAllCircuitsOperation(),
+                        (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                            if (reply.succeeded()) {
+                                JsonObject replyBody = reply.result().body();
+                                if (OK.equals(replyBody.getString(STATUS))) {
+                                    ctx.response().end();
                                 } else {
                                     ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-                                    ctx.response().end(reply.cause().getMessage());
+                                    ctx.response().end(reply.result().body().getString(MESSAGE));
                                 }
-                            });
-                }
-            });
-        });
+                            } else {
+                                ctx.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                                ctx.response().end(reply.cause().getMessage());
+                            }
+                        });
+            }
+        }));
 
         // get all circuit states
         router.getWithRegex(prefix + "/" + allPrefix + statusSuffix).handler(ctx -> respondWith(StatusCode.METHOD_NOT_ALLOWED, ctx.request()));

@@ -20,12 +20,10 @@ public final class JsonMultiMap {
 	
 	public static MultiMap fromJson(JsonArray json) {
 		MultiMap result = MultiMap.caseInsensitiveMultiMap();
-		Iterator<Object> it = json.iterator();
-		while(it.hasNext()) {
-			Object next = it.next();
-			if(next instanceof JsonArray) {
-				JsonArray pair = (JsonArray)next;
-				if(pair.size() == 2) {
+		for (Object next : json) {
+			if (next instanceof JsonArray) {
+				JsonArray pair = (JsonArray) next;
+				if (pair.size() == 2) {
 					result.add(pair.getString(0), pair.getString(1));
 				}
 			}

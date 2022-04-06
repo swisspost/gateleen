@@ -24,7 +24,7 @@ public abstract class ListenerRepositoryBase<T> implements ListenerRepository {
      * @return List
      */
     List<Listener> findListeners(T urlToListenerContainer, String url) {
-        List<Listener> foundListener = new ArrayList<Listener>();
+        List<Listener> foundListener = new ArrayList<>();
 
         // get rid of url parameters (if there are any)
         String tUrl = url.contains("?") ? url.substring(0, url.indexOf('?')) : url;

@@ -22,7 +22,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
      * Creates a new instance of a local in-memory HookRouteRepository.
      */
     public LocalRouteRepository() {
-        routes = new HashMap<String, Route>();
+        routes = new HashMap<>();
     }
 
     @Override
@@ -71,7 +71,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
 
     @Override
     public Map<String, Route> getRoutes() {
-        return new HashMap<String, Route>(routes);
+        return new HashMap<>(routes);
     }
 
     @Override

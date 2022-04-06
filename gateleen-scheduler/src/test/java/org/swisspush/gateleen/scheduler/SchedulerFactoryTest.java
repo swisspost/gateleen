@@ -69,7 +69,7 @@ public class SchedulerFactoryTest {
     public void testValidSchedulerConfig(TestContext context) throws ValidationException {
         List<Scheduler> schedulers = schedulerFactory.parseSchedulers(Buffer.buffer(VALID_SCHEDULER_RESOURCE));
         context.assertNotNull(schedulers);
-        context.assertEquals(3, schedulers.size());
+        context.assertEquals(4, schedulers.size());
 
         // scheduler without payload and headers
         List<HttpRequest> requestsScheduler1 = schedulers.get(0).requests();
@@ -88,6 +88,10 @@ public class SchedulerFactoryTest {
         context.assertEquals(1, requestsScheduler3.size());
         context.assertEquals(1, requestsScheduler3.get(0).getHeaders().size());
         context.assertEquals("bar", requestsScheduler3.get(0).getHeaders().get("x-foo"));
+
+        List<HttpRequest> requestsScheduler4 = schedulers.get(3).requests();
+        context.assertEquals(1, requestsScheduler4.size());
+        context.assertNotNull(requestsScheduler4.get(0).getPayload());
     }
 
     @Test
@@ -96,7 +100,7 @@ public class SchedulerFactoryTest {
                 monitoringHandler, schedulersSchema, Address.redisquesAddress());
         List<Scheduler> schedulers = schedulerFactory.parseSchedulers(Buffer.buffer(VALID_SCHEDULER_RESOURCE));
         context.assertNotNull(schedulers);
-        context.assertEquals(3, schedulers.size());
+        context.assertEquals(4, schedulers.size());
 
         // scheduler without payload and headers
         List<HttpRequest> requestsScheduler1 = schedulers.get(0).requests();
