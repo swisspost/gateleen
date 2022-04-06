@@ -313,12 +313,12 @@
             <dependency>
                 <groupId>org.swisspush</groupId>
                 <artifactId>redisques</artifactId>
-                <version>3.0.2</version>
+                <version>3.0.3</version>
             </dependency>
             <dependency>
                 <groupId>org.swisspush</groupId>
                 <artifactId>rest-storage</artifactId>
-                <version>3.0.2</version>
+                <version>3.0.3</version>
             </dependency>
             <dependency>
                 <groupId>org.quartz-scheduler</groupId>
