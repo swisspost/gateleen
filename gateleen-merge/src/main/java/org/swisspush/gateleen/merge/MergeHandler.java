@@ -8,10 +8,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.util.CollectionContentComparator;
-import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
-import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
-import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -509,7 +506,7 @@ public class MergeHandler {
             HttpClientRequest mergeRequest = asyncReqResult.result();
 
             mergeRequest.setTimeout(TIMEOUT);
-            mergeRequest.headers().addAll(request.headers());
+            HttpHeaderUtil.mergeHeaders(mergeRequest.headers(), request.headers(), request.uri());
             mergeRequest.headers().set(SELF_REQUEST_HEADER, "true");
             mergeRequest.headers().remove(MERGE_HEADER);
             mergeRequest.setChunked(true);
@@ -663,7 +660,7 @@ public class MergeHandler {
             HttpClientRequest directRequest = asyncReqResult.result();
 
             directRequest.setTimeout(TIMEOUT);
-            directRequest.headers().addAll(request.headers());
+            HttpHeaderUtil.mergeHeaders(directRequest.headers(), request.headers(), request.uri());
             directRequest.headers().set(SELF_REQUEST_HEADER, "true");
             directRequest.headers().remove(MERGE_HEADER);
             directRequest.setChunked(true);
@@ -697,7 +694,7 @@ public class MergeHandler {
         request.response().setStatusMessage(statusMessage);
 
         if (headers != null) {
-            request.response().headers().addAll(headers);
+            HttpHeaderUtil.mergeHeaders( request.response().headers(), headers, request.uri());
         }
 
         request.response().setChunked(true);
