@@ -83,28 +83,27 @@ public class HttpHeaderUtil {
     }
 
     /**
-     * Helper method to check and prevent multiple Content-Length values.
+     * Merges headers, makes sure that only one value of header {@link HttpRequestHeader#CONTENT_LENGTH} ends up in the result.
      */
-    public static void mergeHeaders(@Nonnull MultiMap headers, @Nonnull MultiMap headersToForward, @Nullable String context) {
-        String responseContentLength = "";
-        String headersContentLength = "";
+    public static void mergeHeaders(@Nonnull MultiMap destination, @Nonnull MultiMap source, @Nullable String context) {
+        String destinationContentLength = "";
+        String sourceContentLength = "";
 
-        if (HttpRequestHeader.containsHeader(headers, HttpRequestHeader.CONTENT_LENGTH)) {
-            responseContentLength = headers.get(HttpRequestHeader.CONTENT_LENGTH.getName());
+        if (HttpRequestHeader.containsHeader(destination, HttpRequestHeader.CONTENT_LENGTH)) {
+            destinationContentLength = destination.get(HttpRequestHeader.CONTENT_LENGTH.getName());
         }
-        if (HttpRequestHeader.containsHeader(headersToForward, HttpRequestHeader.CONTENT_LENGTH)) {
-            headersContentLength = headersToForward.get(HttpRequestHeader.CONTENT_LENGTH.getName());
+        if (HttpRequestHeader.containsHeader(source, HttpRequestHeader.CONTENT_LENGTH)) {
+            sourceContentLength = source.get(HttpRequestHeader.CONTENT_LENGTH.getName());
         }
-        if (responseContentLength.isEmpty() || headersContentLength.isEmpty()) {
-            headers.addAll(headersToForward);
+        if (destinationContentLength.isEmpty() || sourceContentLength.isEmpty()) {
+            destination.addAll(source);
         } else {
-            if (!responseContentLength.equals(headersContentLength)) {
-                LOG.warn("multiple Content-Length values found and not match {} / {} for request to url {}", responseContentLength, headersContentLength, context);
-            } else {
-                LOG.info("multiple Content-Length values found for request to url {}, keep only one", context);
+            if (!destinationContentLength.equals(sourceContentLength)) {
+                LOG.warn("Content-Length values do not match {} != {} for request to url {}",
+                        destinationContentLength, sourceContentLength, context);
             }
-            headers.remove(HttpRequestHeader.CONTENT_LENGTH.getName());
-            headers.addAll(headersToForward);
+            destination.remove(HttpRequestHeader.CONTENT_LENGTH.getName());
+            destination.addAll(source);
         }
     }
 }

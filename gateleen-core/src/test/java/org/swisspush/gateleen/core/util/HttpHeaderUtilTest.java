@@ -99,10 +99,12 @@ public class HttpHeaderUtilTest {
         testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: 123")));
 
         headersToForward = MultiMap.caseInsensitiveMultiMap();
+        // here we add a conflicting value
         headersToForward.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "126");
         headersToForward.add("dummy-header", "123");
         HttpHeaderUtil.mergeHeaders(headers, headersToForward, "test");
 
+        // the implementation takes the value passed in through parameter "source"
         testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("Content-Length: 126")));
         testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("host: host:1234")));
         testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: 123")));
