@@ -250,8 +250,7 @@ public class Forwarder extends AbstractForwarder {
                 // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
                 MultiMap headersToForward = req.headers();
                 headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
-                cReq.headers().addAll(headersToForward);
-
+                HttpHeaderUtil.mergeHeaders(cReq.headers(), headersToForward, targetUri);
                 if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
                     cReq.headers().set(SELF_REQUEST_HEADER, "true");
                 }
@@ -459,10 +458,9 @@ public class Forwarder extends AbstractForwarder {
             // Add received headers to original request but remove headers that should not get forwarded.
             MultiMap headersToForward = cRes.headers();
             headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
-            req.response().headers().addAll(headersToForward);
-
+            HttpHeaderUtil.mergeHeaders(req.response().headers(), headersToForward, targetUri);
             if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
-                req.response().headers().addAll(profileHeaderMap);
+                HttpHeaderUtil.mergeHeaders(req.response().headers(), MultiMap.caseInsensitiveMultiMap().addAll(profileHeaderMap), targetUri);
             }
             // if we receive a chunked transfer then we also use chunked
             // otherwise, upstream must have sent a Content-Length - or no body at all (e.g. for "304 not modified" responses)

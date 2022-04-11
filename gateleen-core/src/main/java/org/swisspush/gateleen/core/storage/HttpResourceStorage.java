@@ -7,6 +7,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 /**
@@ -98,7 +99,7 @@ public class HttpResourceStorage implements ResourceStorage {
 
             if (headers != null) {
                 // headers from the original request (containing x-expire-after time)
-                request.headers().addAll(headers);
+                HttpHeaderUtil.mergeHeaders(request.headers(), headers, uri);
             }
 
             request.setTimeout(TIMEOUT);

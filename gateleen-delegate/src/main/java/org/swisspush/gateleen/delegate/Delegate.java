@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.json.transform.JoltTransformer;
+import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 
@@ -47,11 +48,11 @@ public class Delegate {
     /**
      * Creates a new instance of a Delegate.
      *
-     * @param clientRequestCreator          selfClient
-     * @param name                          name of delegate
-     * @param pattern                       pattern for the delegate
-     * @param methods                       methods of the delegate
-     * @param requests                      requests of the delegate
+     * @param clientRequestCreator selfClient
+     * @param name                 name of delegate
+     * @param pattern              pattern for the delegate
+     * @param methods              methods of the delegate
+     * @param requests             requests of the delegate
      */
     public Delegate(final ClientRequestCreator clientRequestCreator, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
         this.clientRequestCreator = clientRequestCreator;
@@ -142,7 +143,7 @@ public class Delegate {
             final String requestUri = matcher.replaceAll(requestObject.getString(URI));
 
             // headers of the delegate
-            HeadersMultiMap headers = createRequestHeaders(requestContainer, originalRequest.headers());
+            HeadersMultiMap headers = createRequestHeaders(requestContainer, originalRequest.headers(), originalRequest.uri());
 
             clientRequestCreator.createClientRequest(
                     HttpMethod.valueOf(requestObject.getString(METHOD)),
@@ -168,7 +169,7 @@ public class Delegate {
         });
     }
 
-    private HeadersMultiMap createRequestHeaders(DelegateRequest requestContainer, MultiMap originalRequestHeaders) {
+    private HeadersMultiMap createRequestHeaders(DelegateRequest requestContainer, MultiMap originalRequestHeaders, String uri) {
         HeadersMultiMap headers = new HeadersMultiMap();
 
         JsonArray headersArray = requestContainer.getRequest().getJsonArray(HEADERS);
@@ -190,7 +191,7 @@ public class Delegate {
 
         // evaluate dynamicHeaders
         if (requestContainer.getHeaderFunction() != HeaderFunctions.DO_NOTHING) {
-            headers.addAll(originalRequestHeaders);
+            HttpHeaderUtil.mergeHeaders(headers, originalRequestHeaders, uri);
             final HeaderFunctions.EvalScope evalScope = requestContainer.getHeaderFunction().apply(headers);
             if (evalScope.getErrorMessage() != null) {
                 LOG.warn("problem applying header manipulator chain {} in delegate {}", evalScope.getErrorMessage(), getName());

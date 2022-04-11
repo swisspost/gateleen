@@ -139,7 +139,7 @@ public class CopyResourceHandler {
                     HttpClientRequest selfRequest = event.result();
 
                     // setting headers
-                    selfRequest.headers().addAll(task.getHeaders());
+                    HttpHeaderUtil.mergeHeaders(selfRequest.headers(), task.getHeaders(), task.getDestinationUri());
 
                     // writing data
                     selfRequest.write(data);
