@@ -84,6 +84,8 @@ public class HttpHeaderUtil {
 
     /**
      * Merges headers, makes sure that only one value of header {@link HttpRequestHeader#CONTENT_LENGTH} ends up in the result.
+     *
+     * @param context optional context information to be used for logging purposes, not used for the actual merge
      */
     public static void mergeHeaders(@Nonnull MultiMap destination, @Nonnull MultiMap source, @Nullable String context) {
         String destinationContentLength = "";
@@ -99,7 +101,7 @@ public class HttpHeaderUtil {
             destination.addAll(source);
         } else {
             if (!destinationContentLength.equals(sourceContentLength)) {
-                LOG.warn("Content-Length values do not match {} != {} for request to url {}",
+                LOG.error("Content-Length values do not match {} != {} for request {}",
                         destinationContentLength, sourceContentLength, context);
             }
             destination.remove(HttpRequestHeader.CONTENT_LENGTH.getName());
