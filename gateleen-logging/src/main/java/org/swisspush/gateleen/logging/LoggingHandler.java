@@ -10,8 +10,8 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
 import org.apache.log4j.Appender;
-import org.apache.log4j.DailyRollingFileAppender;
-import org.apache.log4j.EnhancedPatternLayout;
+import org.apache.log4j.PatternLayout;
+
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.event.EventBusWriter;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -203,7 +203,7 @@ public class LoggingHandler {
             appender.setAddress(destinationOptions.get(ADDRESS));
             appender.setDeliveryOptionsHeaders(MultiMap.caseInsensitiveMultiMap().add(META_DATA, destinationOptions.get(META_DATA)));
             appender.setTransmissionMode(EventBusWriter.TransmissionMode.fromString(destinationOptions.get(TRANSMISSION)));
-            EnhancedPatternLayout layout = new EnhancedPatternLayout();
+            PatternLayout layout = new PatternLayout();
             layout.setConversionPattern("%m%n");
             appender.setLayout(layout);
             appenders.put(filterDestination, appender);
@@ -238,11 +238,12 @@ public class LoggingHandler {
             log.debug("file path: {}", System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
 
             DailyRollingFileAppender appender = new DailyRollingFileAppender();
+
             appender.setName(filterDestination);
             appender.setFile(System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
             appender.setEncoding("UTF-8");
             appender.setAppend(true);
-            EnhancedPatternLayout layout = new EnhancedPatternLayout();
+            PatternLayout layout = new PatternLayout();
             layout.setConversionPattern("%m%n");
             appender.setLayout(layout);
             appender.activateOptions();
