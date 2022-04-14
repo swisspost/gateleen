@@ -26,13 +26,13 @@ public class KafkaProducerRepositoryTest {
     private Vertx vertx;
     private KafkaProducerRepository repository;
 
-    private final Map<String, String> configs = new HashMap<String, String>() {{
+    private final Map<String, String> configs = new HashMap<>() {{
         put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         put("bootstrap.servers", "localhost:9092");
     }};
 
-    private final Map<String, String> configs_2 = new HashMap<String, String>() {{
+    private final Map<String, String> configs_2 = new HashMap<>() {{
         put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         put("bootstrap.servers", "localhost:9093");

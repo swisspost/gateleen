@@ -7,14 +7,19 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.testng.Assert;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for the {@link StringUtils} class
@@ -135,20 +140,28 @@ public class StringUtilsTest {
         Path path = Paths.get(url.toURI());
         String rules = new String(Files.readAllBytes(path));
         String result =  StringUtils.replaceWildcardConfigs(rules, properties);
-        context.assertTrue(result.indexOf("/playground/([^/]*\\\\.html)")>=0);
-        context.assertTrue(result.indexOf("\"path\": \"my/test/path\"")>=0);
-        context.assertTrue(result.indexOf("\"port\": 123")>=0);
+        context.assertTrue(result.contains("/playground/([^/]*\\\\.html)"));
+        context.assertTrue(result.contains("\"path\": \"my/test/path\""));
+        context.assertTrue(result.contains("\"port\": 123"));
     }
 
     /**
      * Within 10000 invocations and 10 threads we normally see it fail consistently if there is threading issue.
      */
-    @org.testng.annotations.Test(threadPoolSize = 10, invocationCount = 10000, timeOut = 10000)
-    public void testConcurrentAccessToJmteEngine() {
-        String test = "/playground/[^/]*\\\\.html";
-        String expected = "/playground/[^/]*\\.html";
-        String result = StringUtils.replaceWildcardConfigs(test, new HashMap<>());
-        Assert.assertEquals(expected, result);
+    @Test
+    public void testConcurrentAccessToJmteEngine() throws InterruptedException {
+        ExecutorService service = Executors.newFixedThreadPool(10);
+        final int invocationCount = 10000;
+        CountDownLatch lock = new CountDownLatch(invocationCount);
+        for (int i = 0; i < invocationCount; i++) {
+            service.submit(() -> {
+                String test = "/playground/[^/]*\\\\.html";
+                String expected = "/playground/[^/]*\\.html";
+                String result = StringUtils.replaceWildcardConfigs(test, new HashMap<>());
+                Assert.assertEquals(expected, result);
+                lock.countDown();
+            });
+        }
+        lock.await(10, TimeUnit.SECONDS);
     }
-
 }

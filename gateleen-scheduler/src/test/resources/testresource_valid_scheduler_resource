@@ -37,6 +37,25 @@
           ]
         }
       ]
-    }
+    },
+	"soap-scheduler-example": {
+		"description": "A scheduler using a SOAP payload",
+		"cronExpression": "0 0 3 * * ?",
+		"requests": [{
+			"uri": "/playground/osb/scheduler",
+			"method": "PUT",
+			"payload": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:nem=\"http://post.ch/it.eai.osb/playgroundScheduler\"><soapenv:Header/><soapenv:Body><nem:PlaygroundSchedulerRequest xmlns:nem=\"http://post.ch/it.eai.osb/playgroundScheduler\"><eventName>dummy</eventName></nem:PlaygroundSchedulerRequest></soapenv:Body></soapenv:Envelope>",
+			"headers": [
+				[
+					"Content-Type",
+					"text/xml;charset=UTF-8"
+				],
+				[
+					"SOAPAction",
+					"urn:PlaygroundScheduler"
+				]
+			]
+		}]
+	}
   }
 }

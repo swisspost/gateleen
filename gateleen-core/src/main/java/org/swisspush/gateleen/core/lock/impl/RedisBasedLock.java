@@ -8,7 +8,6 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.redis.client.Command;
 import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.Response;
-import io.vertx.redis.client.impl.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.lock.Lock;
@@ -27,7 +26,6 @@ import java.util.List;
  */
 public class RedisBasedLock implements Lock {
 
-    private RedisClient redisClient;
     private Logger log = LoggerFactory.getLogger(RedisBasedLock.class);
 
     public static final String STORAGE_PREFIX = "gateleen.core-lock:";
@@ -35,9 +33,8 @@ public class RedisBasedLock implements Lock {
     private LuaScriptState releaseLockLuaScriptState;
     private RedisAPI redisAPI;
 
-    public RedisBasedLock(RedisClient redisClient) {
-        this.redisClient = redisClient;
-        this.redisAPI = RedisAPI.api(redisClient);
+    public RedisBasedLock(RedisAPI redisAPI) {
+        this.redisAPI = redisAPI;
         this.releaseLockLuaScriptState = new LuaScriptState(LockLuaScripts.LOCK_RELEASE, redisAPI, false);
     }
 
@@ -53,7 +50,7 @@ public class RedisBasedLock implements Lock {
     @Override
     public Future<Boolean> acquireLock(String lock, String token, long lockExpiryMs) {
         Promise<Boolean> promise = Promise.promise();
-        redisSetWithOptions(lock, token, true, lockExpiryMs, event -> {
+        redisSetWithOptions(buildLockKey(lock), token, true, lockExpiryMs, event -> {
             if (event.succeeded()) {
                 if (event.result() != null) {
                     promise.complete("OK".equalsIgnoreCase(event.result().toString()));

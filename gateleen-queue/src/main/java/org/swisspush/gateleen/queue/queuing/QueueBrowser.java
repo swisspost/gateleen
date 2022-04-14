@@ -109,9 +109,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
         // Delete all queue items
         router.deleteWithRegex(prefix + "/queues/[^/]+").handler(ctx -> {
             final String queue = lastPart(ctx.request().path(), "/");
-            eb.request(redisquesAddress, buildDeleteAllQueueItemsOperation(queue), reply -> {
-                ctx.response().end();
-            });
+            eb.request(redisquesAddress, buildDeleteAllQueueItemsOperation(queue), reply -> ctx.response().end());
         });
 
         // Get item

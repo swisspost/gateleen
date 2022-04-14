@@ -18,7 +18,6 @@
   "license": "ISC",
   "TODO": "TODO: copy task can be removed when all services updated gateleen-hook-js",
   "devDependencies": {
-    "phantomjs-prebuilt": "2.1.16",
     "autoprefixer-core": "6.0.1",
     "cssnano": "3.7.4",
     "grunt": "0.4.5",
@@ -37,13 +36,12 @@
     "jasmine-core": "2.5.0",
     "jshint": "2.9.3",
     "karma": "1.2.0",
-    "karma-chrome-launcher": "2.0.0",
+    "karma-chrome-launcher": "2.2.0",
     "karma-coverage": "1.1.1",
     "karma-html-reporter": "0.2.7",
     "karma-jasmine": "1.0.2",
     "karma-junit-reporter": "1.1.0",
     "karma-ng-html2js-preprocessor": "1.0.0",
-    "karma-phantomjs-launcher": "1.0.2",
     "request": "2.81.0",
     "har-validator": "4.2.1",
     "har-schema": "1.0.5"

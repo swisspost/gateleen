@@ -14,7 +14,6 @@ import org.swisspush.gateleen.player.player.Player;
 
 import java.util.Iterator;
 
-import static com.google.common.base.Predicates.alwaysTrue;
 import static com.google.common.base.Predicates.equalTo;
 import static com.jayway.awaitility.Awaitility.await;
 import static org.swisspush.gateleen.player.exchange.Exchange.*;
@@ -29,9 +28,9 @@ public class CollectorTest {
 
     @Test
     public void testEventBusCollector() throws Exception {
-        Collector collector = new EventBusCollector(URL, "/gateleen/server/event/v1/sock", "event/gateleen-request-log", alwaysTrue());
+        Collector collector = new EventBusCollector(URL, "/gateleen/server/event/v1/sock", "event/gateleen-request-log", exchange -> true);
         new Player().
-                setInputLog(URL, "classpath:logs/simple.log", alwaysTrue()).
+                setInputLog(URL, "classpath:logs/simple.log", exchange -> true).
                 setOutputCollector(collector).
                 setExchangeHandler(new ExchangeHandler(){
                     @Override

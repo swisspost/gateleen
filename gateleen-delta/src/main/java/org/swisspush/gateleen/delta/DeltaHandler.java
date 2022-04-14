@@ -296,78 +296,75 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
             cReq.setChunked(true);
             request.handler(cReq::write);
             request.endHandler(v -> {
-                cReq.send(new Handler<AsyncResult<HttpClientResponse>>() {
-                    @Override
-                    public void handle(AsyncResult<HttpClientResponse> asyncResult) {
-                        HttpClientResponse cRes = asyncResult.result();
-                        HttpServerRequestUtil.prepareResponse(request, cRes);
+                cReq.send(asyncResult1 -> {
+                    HttpClientResponse cRes = asyncResult1.result();
+                    HttpServerRequestUtil.prepareResponse(request, cRes);
 
-                        if (cRes.headers().contains(DELTA_HEADER)) {
-                            cRes.handler(data -> request.response().write(data));
-                            cRes.endHandler(v -> request.response().end());
-                        } else {
-                            cRes.bodyHandler(data -> {
-                                try {
-                                    Set<String> originalParams = null;
-                                    if (request.params() != null) {
-                                        originalParams = request.params().names();
-                                    }
-                                    final CollectionResourceContainer dataContainer = ExpansionDeltaUtil.verifyCollectionResponse(request, data, originalParams);
-                                    final List<String> subResourceNames = dataContainer.getResourceNames();
-                                    final List<String> deltaResourceKeys = buildDeltaResourceKeys(request.path(), subResourceNames);
-
-                                    final long updateIdNumber = extractNumberDeltaParameter(updateId, request, log);
-
-                                    if (log.isTraceEnabled()) {
-                                        log.trace("DeltaHandler: deltaResourceKeys for targetUri ({}): {}", targetUri, deltaResourceKeys.toString());
-                                    }
-
-                                    if (deltaResourceKeys.size() > 0) {
-                                        if (log.isTraceEnabled()) {
-                                            log.trace("DeltaHandler: targetUri ({}) using mget command.", targetUri);
-                                        }
-
-                                        // read update-ids
-                                        redisAPI.mget(deltaResourceKeys, event -> {
-                                            if (event.failed()) {
-                                                log.error("mget command failed with cuase: {}", logCause(event));
-                                                handleError(request, "error reading delta information");
-                                                return;
-                                            }
-                                            Response mgetValues = event.result();
-                                            DeltaResourcesContainer deltaResourcesContainer = getDeltaResourceNames(subResourceNames, mgetValues, updateIdNumber);
-
-                                            JsonObject result = buildResultJsonObject(deltaResourcesContainer.getResourceNames(), dataContainer.getCollectionName());
-                                            request.response().putHeader(DELTA_HEADER, "" + deltaResourcesContainer.getMaxUpdateId());
-                                            request.response().end(result.toString());
-                                        });
-
-                                    } else {
-                                        if (log.isTraceEnabled()) {
-                                            log.trace("DeltaHandler: targetUri ({}) NOT using database", targetUri);
-                                        }
-                                        request.response().putHeader(DELTA_HEADER, "" + updateIdNumber);
-                                        request.response().end(data);
-                                    }
-                                } catch (ResourceCollectionException exception) {
-                                    final HttpServerResponse response = request.response();
-                                    if (StatusCode.NOT_FOUND.equals(exception.getStatusCode())) {
-                                        log.info("Failed to handle get for collection because collection could not be found");
-                                    } else {
-                                        log.error("Failed to handle get for collection", exception);
-                                    }
-                                    response.setStatusCode(exception.getStatusCode().getStatusCode());
-                                    response.setStatusMessage(exception.getStatusCode().getStatusMessage());
-                                    response.putHeader("Content-Type", "text/plain");
-                                    if (StatusCode.BAD_GATEWAY.equals(exception.getStatusCode())) {
-                                        response.write("Failed to handle upstream response for \"" + method.name() + " " + targetUri + "\".\nCAUSED BY: ");
-                                    }
-                                    response.end(exception.getMessage());
+                    if (cRes.headers().contains(DELTA_HEADER)) {
+                        cRes.handler(data -> request.response().write(data));
+                        cRes.endHandler(v1 -> request.response().end());
+                    } else {
+                        cRes.bodyHandler(data -> {
+                            try {
+                                Set<String> originalParams = null;
+                                if (request.params() != null) {
+                                    originalParams = request.params().names();
                                 }
-                            });
-                        }
-                        cRes.exceptionHandler(ExpansionDeltaUtil.createResponseExceptionHandler(request, targetUri, DeltaHandler.class));
+                                final CollectionResourceContainer dataContainer = ExpansionDeltaUtil.verifyCollectionResponse(request, data, originalParams);
+                                final List<String> subResourceNames = dataContainer.getResourceNames();
+                                final List<String> deltaResourceKeys = buildDeltaResourceKeys(request.path(), subResourceNames);
+
+                                final long updateIdNumber = extractNumberDeltaParameter(updateId, request, log);
+
+                                if (log.isTraceEnabled()) {
+                                    log.trace("DeltaHandler: deltaResourceKeys for targetUri ({}): {}", targetUri, deltaResourceKeys.toString());
+                                }
+
+                                if (deltaResourceKeys.size() > 0) {
+                                    if (log.isTraceEnabled()) {
+                                        log.trace("DeltaHandler: targetUri ({}) using mget command.", targetUri);
+                                    }
+
+                                    // read update-ids
+                                    redisAPI.mget(deltaResourceKeys, event -> {
+                                        if (event.failed()) {
+                                            log.error("mget command failed with cuase: {}", logCause(event));
+                                            handleError(request, "error reading delta information");
+                                            return;
+                                        }
+                                        Response mgetValues = event.result();
+                                        DeltaResourcesContainer deltaResourcesContainer = getDeltaResourceNames(subResourceNames, mgetValues, updateIdNumber);
+
+                                        JsonObject result = buildResultJsonObject(deltaResourcesContainer.getResourceNames(), dataContainer.getCollectionName());
+                                        request.response().putHeader(DELTA_HEADER, "" + deltaResourcesContainer.getMaxUpdateId());
+                                        request.response().end(result.toString());
+                                    });
+
+                                } else {
+                                    if (log.isTraceEnabled()) {
+                                        log.trace("DeltaHandler: targetUri ({}) NOT using database", targetUri);
+                                    }
+                                    request.response().putHeader(DELTA_HEADER, "" + updateIdNumber);
+                                    request.response().end(data);
+                                }
+                            } catch (ResourceCollectionException exception) {
+                                final HttpServerResponse response = request.response();
+                                if (StatusCode.NOT_FOUND.equals(exception.getStatusCode())) {
+                                    log.info("Failed to handle get for collection because collection could not be found");
+                                } else {
+                                    log.error("Failed to handle get for collection", exception);
+                                }
+                                response.setStatusCode(exception.getStatusCode().getStatusCode());
+                                response.setStatusMessage(exception.getStatusCode().getStatusMessage());
+                                response.putHeader("Content-Type", "text/plain");
+                                if (StatusCode.BAD_GATEWAY.equals(exception.getStatusCode())) {
+                                    response.write("Failed to handle upstream response for \"" + method.name() + " " + targetUri + "\".\nCAUSED BY: ");
+                                }
+                                response.end(exception.getMessage());
+                            }
+                        });
                     }
+                    cRes.exceptionHandler(ExpansionDeltaUtil.createResponseExceptionHandler(request, targetUri, DeltaHandler.class));
                 });
                 log.debug("Request done. Request : {}", cReq);
             });

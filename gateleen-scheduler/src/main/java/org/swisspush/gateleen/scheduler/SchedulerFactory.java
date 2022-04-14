@@ -136,7 +136,7 @@ public class SchedulerFactory {
             } else {
                 payloadStr = null;
             }
-        } catch (DecodeException e) {
+        } catch (ClassCastException e) {
             payloadStr = httpRequestJsonObject.getString(PAYLOAD);
         }
 

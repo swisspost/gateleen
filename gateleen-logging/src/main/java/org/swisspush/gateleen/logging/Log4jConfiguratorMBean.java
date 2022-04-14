@@ -97,14 +97,14 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
     public AttributeList getAttributes(String[] attributes) {
         logging.trace("getAttributes(" + attributes + ")");
         AttributeList ret = new AttributeList();
-        for (int i = 0; i < attributes.length; ++i) {
+        for (String attribute : attributes) {
             Object val = null;
             try {
-                val = getAttribute(attributes[i]);
+                val = getAttribute(attribute);
             } catch (Exception e) {
                 logging.error(e);
             }
-            ret.add(new Attribute(attributes[i], val));
+            ret.add(new Attribute(attribute, val));
         }
         return ret;
     }
@@ -117,11 +117,9 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
      */
     public AttributeList setAttributes(AttributeList attributes) {
         logging.trace("setAttributes(" + attributes + ")");
-        @SuppressWarnings("rawtypes")
-        Iterator it = attributes.iterator();
-        while (it.hasNext()) {
+        for (Object attribute : attributes) {
             try {
-                setAttribute((Attribute) it.next());
+                setAttribute((Attribute) attribute);
             } catch (Exception e) {
                 logging.error(e);
             }
@@ -177,9 +175,8 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
      */
     public MBeanInfo getMBeanInfo() {
         logging.trace("getMBeanInfo()");
-        MBeanInfo mbeanInfo = new MBeanInfo(Log4jConfiguratorMBean.class.getName(), "Test implementation of a MBean",
+        return new MBeanInfo(Log4jConfiguratorMBean.class.getName(), "Test implementation of a MBean",
                 getAttributeInfo(), getConstructorInfo(), getOperationInfo(), getNotificationInfo());
-        return mbeanInfo;
     }
 
     /**
@@ -201,10 +198,10 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
         }
         // Debug logging message
         if (logging.isDebugEnabled()) {
-            for (int idx = 0; idx < attrInfo.length; ++idx) {
-                logging.debug("Attribute '" + attrInfo[idx].getName() + "': type=" + attrInfo[idx].getType()
-                        + "; readable=" + attrInfo[idx].isReadable() + "; writable=" + attrInfo[idx].isWritable()
-                        + "; is=" + attrInfo[idx].isIs());
+            for (MBeanAttributeInfo mBeanAttributeInfo : attrInfo) {
+                logging.debug("Attribute '" + mBeanAttributeInfo.getName() + "': type=" + mBeanAttributeInfo.getType()
+                        + "; readable=" + mBeanAttributeInfo.isReadable() + "; writable=" + mBeanAttributeInfo.isWritable()
+                        + "; is=" + mBeanAttributeInfo.isIs());
             }
         }
         return attrInfo;
@@ -288,8 +285,7 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
             Log4jConfigurator cnf = Log4jConfigurator.getInstance();
             List<String> loggers;
             loggers = cnf.getLoggers();
-            for (Iterator<String> it = loggers.iterator(); it.hasNext();) {
-                String logger = it.next();
+            for (String logger : loggers) {
                 if (rep.matcher(logger).matches()) {
                     cnf.setLoggerLevel(logger, level);
                     modcount++;

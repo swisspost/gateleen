@@ -1,13 +1,17 @@
 package org.swisspush.gateleen.monitoring;
 
+import com.google.common.base.Splitter;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonObject;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.Address;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Monitors regularly redis info metrics and arbitrary commands. Sends the results to metrics.
@@ -24,35 +28,45 @@ public class RedisMonitor {
     private String metricName;
     private String elementCountKey;
 
+    private static final String DELIMITER = ":";
+
+    private final MetricsPublisher publisher;
+
     /**
-     * @param vertx vertx
+     * @param vertx    vertx
      * @param redisAPI redisAPI
-     * @param name name
-     * @param period in seconds.
+     * @param name     name
+     * @param period   in seconds.
      */
     public RedisMonitor(Vertx vertx, RedisAPI redisAPI, String name, int period) {
+        this(vertx, redisAPI, name, period,
+                new EventBusMetricsPublisher(vertx, Address.monitoringAddress(), "redis." + name + ".")
+        );
+    }
+
+    public RedisMonitor(Vertx vertx, RedisAPI redisAPI, String name, int period, MetricsPublisher publisher) {
         this.vertx = vertx;
         this.redisAPI = redisAPI;
         this.period = period * 1000;
         this.prefix = "redis." + name + ".";
+        this.publisher = publisher;
     }
 
     public void start() {
         timer = vertx.setPeriodic(period, timer -> {
-            redisAPI.info(new ArrayList<>(), reply -> {
-                if(reply.succeeded()){
-                   // collectMetrics(reply.result());
+            redisAPI.info(new ArrayList<>()).onComplete(event -> {
+                if (event.succeeded()) {
+                    collectMetrics(event.result().toBuffer());
                 } else {
                     log.warn("Cannot collect INFO from redis");
                 }
             });
 
-            if(metricName != null && elementCountKey != null){
+            if (metricName != null && elementCountKey != null) {
                 redisAPI.zcard(elementCountKey, reply -> {
-                    if(reply.succeeded()){
+                    if (reply.succeeded()) {
                         long value = reply.result().toLong();
-                        vertx.eventBus().publish(getMonitoringAddress(),
-                                new JsonObject().put("name", prefix + metricName).put("action", "set").put("n", value));
+                        publisher.publishMetric(prefix + metricName, value);
                     } else {
                         log.warn("Cannot collect zcard from redis for key {}", elementCountKey);
                     }
@@ -73,51 +87,58 @@ public class RedisMonitor {
      *
      * @return the event bus address of monitoring
      */
-    protected String getMonitoringAddress(){
+    protected String getMonitoringAddress() {
         return Address.monitoringAddress();
     }
 
-    public void enableElementCount(String metricName, String key){
+    public void enableElementCount(String metricName, String key) {
         this.metricName = metricName;
         this.elementCountKey = key;
     }
 
-    private void collectMetrics(JsonObject info) {
-        for (String fieldName : info.fieldNames()) {
-            Object field = info.getValue(fieldName);
-            if (field instanceof JsonObject) {
-                for (String sectionFieldName : ((JsonObject) field).fieldNames()) {
-                    if ("keyspace".equals(fieldName)) {
-                        String[] pairs = ((JsonObject) field).getString(sectionFieldName).split(",");
-                        for (String pair : pairs) {
-                            String[] tokens = pair.split("=");
-                            sendMetric(fieldName + "." + sectionFieldName + "." + tokens[0], tokens[1]);
-                        }
-                    } else {
-                        sendMetric(fieldName + "." + sectionFieldName, ((JsonObject) field).getString(sectionFieldName));
-                    }
-                }
-            } else {
-                sendMetric(fieldName, field.toString());
-            }
-        }
-    }
+    private void collectMetrics(Buffer buffer) {
+        Map<String, String> map = new HashMap<>();
 
-    private void sendMetric(String name, String stringValue) {
-        if (stringValue == null) {
-            return;
-        }
-        long value = 0;
-        try {
-            if (name.contains("_cpu_")) {
-                value = (long) (Double.parseDouble(stringValue) * 1000.0);
-            } else {
-                value = Long.parseLong(stringValue);
+        Splitter.on(System.lineSeparator()).omitEmptyStrings()
+                .trimResults().splitToList(buffer.toString()).stream()
+                .filter(input -> input != null && input.contains(DELIMITER)
+                        && !input.contains("executable")
+                        && !input.contains("config_file")).forEach(entry -> {
+            List<String> keyValue = Splitter.on(DELIMITER).omitEmptyStrings().trimResults().splitToList(entry);
+            if (keyValue.size() == 2) {
+                map.put(keyValue.get(0), keyValue.get(1));
             }
-            vertx.eventBus().publish(getMonitoringAddress(),
-                    new JsonObject().put("name", prefix + name).put("action", "set").put("n", value));
-        } catch (NumberFormatException e) {
-            // ignore this field
-        }
+        });
+
+        log.debug("got redis metrics {}", map);
+
+        map.forEach((key, valueStr) -> {
+            long value;
+            try {
+                if (key.startsWith("db")) {
+                    String[] pairs = valueStr.split(",");
+                    for (String pair : pairs) {
+                        String[] tokens = pair.split("=");
+                        if (tokens.length == 2) {
+                            value = Long.parseLong(tokens[1]);
+                            publisher.publishMetric("keyspace." + key + "." + tokens[0], value);
+                        } else {
+                            log.warn("Invalid keyspace property. Will be ignored");
+                        }
+                    }
+                } else if (key.contains("_cpu_")) {
+                    value = (long) (Double.parseDouble(valueStr) * 1000.0);
+                    publisher.publishMetric(key, value);
+                } else if (key.contains("fragmentation_ratio")) {
+                    value = (long) (Double.parseDouble(valueStr));
+                    publisher.publishMetric(key, value);
+                } else {
+                    value = Long.parseLong(valueStr);
+                    publisher.publishMetric(key, value);
+                }
+            } catch (NumberFormatException e) {
+                // ignore this field
+            }
+        });
     }
 }

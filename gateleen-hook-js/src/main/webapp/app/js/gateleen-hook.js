@@ -3,10 +3,10 @@
 
     angular.module('gateleen.hook', [])
 
-    /**********************************************************
-     * Easy hook placing and handling.
-     * @author bovetl
-     */
+        /**********************************************************
+         * Easy hook placing and handling.
+         * @author bovetl
+         */
         .factory('Hook', ['$timeout', '$interval', '$http', '$window', '$rootScope', HookService]);
 
     function HookService($timeout, $interval, $http, $window, $rootScope) {

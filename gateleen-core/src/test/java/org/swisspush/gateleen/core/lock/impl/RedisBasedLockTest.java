@@ -6,6 +6,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.RedisOptions;
 import io.vertx.redis.client.impl.RedisClient;
 import org.junit.*;
@@ -37,7 +38,7 @@ public class RedisBasedLockTest {
     @BeforeClass
     public static void setupLock(){
         vertx = Vertx.vertx();
-        redisBasedLock = new RedisBasedLock(new RedisClient(vertx, new RedisOptions()));
+        redisBasedLock = new RedisBasedLock(RedisAPI.api(new RedisClient(vertx, new RedisOptions())));
     }
 
     @Before

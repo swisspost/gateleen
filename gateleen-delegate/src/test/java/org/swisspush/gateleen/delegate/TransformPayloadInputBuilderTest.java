@@ -40,7 +40,7 @@ public class TransformPayloadInputBuilderTest {
             "}";
 
     @Before
-    public void setUp(TestContext context) throws Exception {
+    public void setUp() throws Exception {
         Pattern pattern = Pattern.compile(".*/([^/]+.*)");
         matcher = pattern.matcher("/some/test/url");
     }

@@ -42,8 +42,8 @@ public class ContentTypeConstraintRepositoryTest extends ContentTypeConstraintTe
     public void findMatchingContentTypeConstraint(TestContext context) {
         List<ContentTypeConstraint> constraints = Arrays.asList(
                 createConstraint("/gateleen/test/abc/(.*)", Arrays.asList("image/png", "image/bmp")),
-                createConstraint("/gateleen/test/(.*)", Arrays.asList("video/mp4")),
-                createConstraint("/gateleen/some/(.*)", Arrays.asList("application/zip"))
+                createConstraint("/gateleen/test/(.*)", Collections.singletonList("video/mp4")),
+                createConstraint("/gateleen/some/(.*)", Collections.singletonList("application/zip"))
         );
         repository.setConstraints(constraints);
 
@@ -52,7 +52,7 @@ public class ContentTypeConstraintRepositoryTest extends ContentTypeConstraintTe
 
         Optional<ContentTypeConstraint> optConstraint = repository.findMatchingContentTypeConstraint("/gateleen/test/xxx/1");
         context.assertTrue(optConstraint.isPresent());
-        assertAllowedTypes(context, optConstraint.get(), Arrays.asList("video/mp4"));
+        assertAllowedTypes(context, optConstraint.get(), Collections.singletonList("video/mp4"));
 
         Optional<ContentTypeConstraint> optConstraint2 = repository.findMatchingContentTypeConstraint("/gateleen/test/abc/1");
         context.assertTrue(optConstraint2.isPresent());

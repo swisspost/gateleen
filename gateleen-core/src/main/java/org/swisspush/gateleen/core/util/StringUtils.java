@@ -245,7 +245,7 @@ public final class StringUtils {
             return contentWithWildcards;
         }
         // we don't touch it if not really necessary
-        if (contentWithWildcards.indexOf(JSON_NUMERIC_START_TOKEN) < 0) {
+        if (!contentWithWildcards.contains(JSON_NUMERIC_START_TOKEN)) {
             return contentWithWildcards;
         }
         Engine engine = new Engine();
