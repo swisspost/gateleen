@@ -7,6 +7,8 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.Map;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 
@@ -87,6 +89,9 @@ public class HttpHeaderUtilTest {
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "123");
         headers.add("host", "host:1234");
+        headers.add("test-1", "1");
+        headers.add("test-2", "");
+        headers.add("test-3", "");
 
         MultiMap headersToForward = MultiMap.caseInsensitiveMultiMap();
         headersToForward.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "123");
@@ -108,5 +113,27 @@ public class HttpHeaderUtilTest {
         testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("Content-Length: 126")));
         testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("host: host:1234")));
         testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: 123")));
+
+        headersToForward = MultiMap.caseInsensitiveMultiMap();
+        headersToForward.add("test-1", "");
+        headersToForward.add("test-2", "2");
+        headersToForward.add("test-3", "");
+
+        HttpHeaderUtil.mergeHeaders(headers, headersToForward, "test");
+
+        headers.forEach(new Consumer<Map.Entry<String, String>>() {
+            @Override
+            public void accept(Map.Entry<String, String> stringStringEntry) {
+                //System.console().printf(stringStringEntry.getKey() + ": " +stringStringEntry.getValue());
+                String value= stringStringEntry.getKey() + ": " +stringStringEntry.getValue();
+            }
+        });
+
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-1: ")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-2: 2")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-3: ")));
+
+        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-1: 1")));
+        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-2: ")));
     }
 }
