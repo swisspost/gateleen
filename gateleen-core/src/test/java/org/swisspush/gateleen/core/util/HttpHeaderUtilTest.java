@@ -85,55 +85,66 @@ public class HttpHeaderUtilTest {
     }
 
     @Test
-    public void mergeHeaders(TestContext testContext) {
-        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-        headers.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "123");
-        headers.add("host", "host:1234");
-        headers.add("test-1", "1");
-        headers.add("test-2", "");
-        headers.add("test-3", "");
+    public void mergeHeadersNoConflict(TestContext testContext) {
+        MultiMap destination = MultiMap.caseInsensitiveMultiMap();
+        destination.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "123");
+        destination.add("host", "host:1234");
 
-        MultiMap headersToForward = MultiMap.caseInsensitiveMultiMap();
-        headersToForward.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "123");
-        headersToForward.add("dummy-header", "123");
+        MultiMap source1 = MultiMap.caseInsensitiveMultiMap();
+        source1.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "123");
+        source1.add("dummy-header", "123");
 
-        HttpHeaderUtil.mergeHeaders(headers, headersToForward, "test");
+        HttpHeaderUtil.mergeHeaders(destination, source1, "test");
+        testContext.assertEquals(3, destination.size());
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("Content-Length: 123")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("host: host:1234")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("dummy-header: 123")));
+    }
 
-        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("Content-Length: 123")));
-        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("host: host:1234")));
-        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: 123")));
+    @Test
+    public void mergeHeadersWithConflictingContentLength(TestContext testContext) {
+        MultiMap destination = MultiMap.caseInsensitiveMultiMap();
+        destination.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "123");
+        destination.add("host", "host:1234");
 
-        headersToForward = MultiMap.caseInsensitiveMultiMap();
+        MultiMap source2 = MultiMap.caseInsensitiveMultiMap();
         // here we add a conflicting value
-        headersToForward.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "126");
-        headersToForward.add("dummy-header", "123");
-        HttpHeaderUtil.mergeHeaders(headers, headersToForward, "test");
+        source2.add(HttpRequestHeader.CONTENT_LENGTH.getName(), "126");
+        source2.add("dummy-header", "123");
+        HttpHeaderUtil.mergeHeaders(destination, source2, "test");
+        testContext.assertEquals(3, destination.size());
 
         // the implementation takes the value passed in through parameter "source"
-        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("Content-Length: 126")));
-        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("host: host:1234")));
-        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("dummy-header: 123")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("Content-Length: 126")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("host: host:1234")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("dummy-header: 123")));
 
-        headersToForward = MultiMap.caseInsensitiveMultiMap();
-        headersToForward.add("test-1", "");
-        headersToForward.add("test-2", "2");
-        headersToForward.add("test-3", "");
+    }
 
-        HttpHeaderUtil.mergeHeaders(headers, headersToForward, "test");
+    @Test
+    public void mergeHeadersWithConflictingBlah(TestContext testContext) {
+        MultiMap destination = MultiMap.caseInsensitiveMultiMap();
+        destination.add("test-1", "1");
+        destination.add("test-2", "");
+        destination.add("test-3", "");
+        destination.add("test-4", "4");
 
-        headers.forEach(new Consumer<Map.Entry<String, String>>() {
-            @Override
-            public void accept(Map.Entry<String, String> stringStringEntry) {
-                //System.console().printf(stringStringEntry.getKey() + ": " +stringStringEntry.getValue());
-                String value= stringStringEntry.getKey() + ": " +stringStringEntry.getValue();
-            }
-        });
+        MultiMap source3 = MultiMap.caseInsensitiveMultiMap();
+        source3.add("test-1", "");
+        source3.add("test-2", "2");
+        source3.add("test-3", "");
+        source3.add("test-4", "4");
+        source3.add("host", "host:1234");
 
-        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-1: ")));
-        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-2: 2")));
-        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-3: ")));
+        HttpHeaderUtil.mergeHeaders(destination, source3, "test");
 
-        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-1: 1")));
-        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(headers, Pattern.compile("test-2: ")));
+        testContext.assertEquals(5, destination.size());
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("test-1: ")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("test-2: 2")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("test-3: ")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("test-4: 4")));
+        testContext.assertTrue(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("host: host:1234")));
+        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("test-1: 1")));
+        testContext.assertFalse(HttpHeaderUtil.hasMatchingHeader(destination, Pattern.compile("test-2: ")));
     }
 }
