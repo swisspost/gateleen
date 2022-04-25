@@ -1,19 +1,14 @@
 package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
-import io.vertx.core.http.HttpServerResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.regex.Pattern;
 
 
 public class HttpHeaderUtil {
@@ -83,30 +78,28 @@ public class HttpHeaderUtil {
     }
 
     /**
-     * Merges headers, makes sure that only one value of header {@link HttpRequestHeader#CONTENT_LENGTH} ends up in the result.
+     * Merges headers, makes sure that only one value of all headers ends up in the destination MultiMap.
+     *
+     * Note: This is not 100% in line with https://www.rfc-editor.org/rfc/rfc7230#section-3.2.2 to be further looked into.
      *
      * @param context optional context information to be used for logging purposes, not used for the actual merge
+     *
      */
     public static void mergeHeaders(@Nonnull MultiMap destination, @Nonnull MultiMap source, @Nullable String context) {
-        String destinationContentLength = "";
-        String sourceContentLength = "";
-
-        if (HttpRequestHeader.containsHeader(destination, HttpRequestHeader.CONTENT_LENGTH)) {
-            destinationContentLength = destination.get(HttpRequestHeader.CONTENT_LENGTH.getName());
-        }
-        if (HttpRequestHeader.containsHeader(source, HttpRequestHeader.CONTENT_LENGTH)) {
-            sourceContentLength = source.get(HttpRequestHeader.CONTENT_LENGTH.getName());
-        }
-        if (destinationContentLength.isEmpty() || sourceContentLength.isEmpty()) {
-            destination.addAll(source);
-        } else {
-            if (!destinationContentLength.equals(sourceContentLength)) {
-                LOG.error("Content-Length values do not match {} != {} for request {}",
-                        destinationContentLength, sourceContentLength, context);
+        source.forEach(sourceHeader -> {
+            if (destination.contains(sourceHeader.getKey())) {
+                // we already have such a header
+                String destinationValue = destination.get(sourceHeader.getKey());
+                String sourceValue = source.get(sourceHeader.getKey());
+                if (!destinationValue.equals(sourceValue)) {
+                    LOG.error("{}} values do not match {} != {} for request {}",
+                            sourceHeader.getKey(), destinationValue, sourceValue, context);
+                }
+                // remove it from the destination
+                destination.remove(sourceHeader.getKey());
             }
-            destination.remove(HttpRequestHeader.CONTENT_LENGTH.getName());
-            destination.addAll(source);
-        }
+        });
+        destination.addAll(source);
     }
 }
 
