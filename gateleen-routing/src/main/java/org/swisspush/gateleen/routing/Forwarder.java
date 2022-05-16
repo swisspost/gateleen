@@ -10,7 +10,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
 import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.web.RoutingContext;
-import org.apache.commons.lang3.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
@@ -312,7 +311,6 @@ public class Forwarder extends AbstractForwarder {
                                 // avoid multiple calls due to a 'syncronized' block in HttpClient's implementation
                                 firstBuffer = false;
                                 cReq.setChunked(true);
-                                log.warn("----------  writefirstBuffer ");
                             }
                             return cReq.write(data);
                         }
@@ -324,7 +322,6 @@ public class Forwarder extends AbstractForwarder {
 
                         @Override
                         public Future<Void> end() {
-                            log.warn("----------  end");
                             Promise<Void> promise = Promise.promise();
                             cReq.send(asyncResult -> {
                                         cResHandler.handle(asyncResult);
@@ -336,7 +333,6 @@ public class Forwarder extends AbstractForwarder {
 
                         @Override
                         public void end(Handler<AsyncResult<Void>> handler) {
-                            log.warn("----------  end(Handler<AsyncResult<Void>> handler)");
                             this.end().onComplete(handler);
                         }
 
@@ -353,7 +349,6 @@ public class Forwarder extends AbstractForwarder {
 
                         @Override
                         public WriteStream<Buffer> drainHandler(@Nullable Handler<Void> handler) {
-                            log.warn("----------  drainHandler");
                             cReq.drainHandler(handler);
                             return this;
                         }
@@ -476,7 +471,6 @@ public class Forwarder extends AbstractForwarder {
             final Pump pump = Pump.pump(cRes, loggingWriteStream);
             cRes.endHandler(v -> {
                 try {
-                    log.warn("----------  rep end");
                     req.response().end();
                     ResponseStatusCodeLogUtil.debug(req, StatusCode.fromCode(req.response().getStatusCode()), Forwarder.class);
                 } catch (IllegalStateException e) {

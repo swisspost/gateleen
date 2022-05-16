@@ -21,7 +21,7 @@ public class BufferBridge {
     private Handler<Buffer> bodyHandler;
     private Handler<Throwable> exceptionHandler;
     private Queue<Buffer> queue = new LinkedList<>();
-    private Buffer body;
+    private Buffer body = Buffer.buffer();
     private boolean ended = false;
     private Vertx vertx;
     private final Logger log = LoggerFactory.getLogger(BufferBridge.class);
@@ -52,16 +52,12 @@ public class BufferBridge {
     }
 
     protected void doWrite(Buffer chunk) {
-        if (body == null) {
-            body = Buffer.buffer();
-        }
         body.appendBuffer(chunk);
         if (dataHandler != null && queue.isEmpty()) {
             log.trace("Writing directly to handler");
             try {
                 dataHandler.handle(chunk);
             } catch (Exception e) {
-                log.error("--------- ", e);
                 if (exceptionHandler != null) {
                     exceptionHandler.handle(e);
                 }
