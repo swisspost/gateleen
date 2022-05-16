@@ -13,6 +13,8 @@ import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.SocketAddressImpl;
 import io.vertx.ext.auth.User;
 import io.vertx.ext.web.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
@@ -27,13 +29,14 @@ import java.util.Set;
  * @author https://github.com/lbovet [Laurent Bovet]
  */
 public class LocalHttpClientRequest extends BufferBridge implements FastFailHttpClientRequest {
-
+    private static final Logger logger = LoggerFactory.getLogger(LocalHttpClientRequest.class);
     private MultiMap headers = new HeadersMultiMap();
     private MultiMap params;
     private HttpMethod method;
     private String uri;
     private String path;
     private String query;
+    private Promise<Buffer> bodyPromise;
     private HttpServerResponse serverResponse;
     private final HttpConnection connection;
     private Handler<RoutingContext> routingContextHandler;
@@ -200,7 +203,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         @Override
         public Future<Buffer> body() {
             Promise<Buffer> promise = Promise.promise();
-            this.handler(promise::complete);
+            setBodyHandler(promise::complete);
             return promise.future();
         }
     };
@@ -721,6 +724,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
     @Override
     public Future<Void> end() {
+        logger.warn("---------- end...");
         ensureBound();
         return doEnd();
     }
