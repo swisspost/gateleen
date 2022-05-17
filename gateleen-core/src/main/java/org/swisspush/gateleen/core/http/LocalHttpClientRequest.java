@@ -27,7 +27,6 @@ import java.util.Set;
  * @author https://github.com/lbovet [Laurent Bovet]
  */
 public class LocalHttpClientRequest extends BufferBridge implements FastFailHttpClientRequest {
-
     private MultiMap headers = new HeadersMultiMap();
     private MultiMap params;
     private HttpMethod method;
@@ -200,7 +199,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         @Override
         public Future<Buffer> body() {
             Promise<Buffer> promise = Promise.promise();
-            this.handler(promise::complete);
+            setBodyHandler(promise::complete);
             return promise.future();
         }
     };

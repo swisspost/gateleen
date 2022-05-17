@@ -43,9 +43,16 @@ public class DeferCloseHttpClient implements HttpClient {
         countOfRequestsInProgress += 1;
         logger.debug("Pending request count: {}", countOfRequestsInProgress);
         delegate.request(method, port, host, requestURI).onComplete(asyncRequestResult -> {
+            if (asyncRequestResult.failed()) {
+                logger.debug("({}:{}).request({}, \"{}\") failed in request() with {}", host, port, method, requestURI, asyncRequestResult.cause());
+                // do the same as further down
+                onEndOfRequestResponseCycle();
+                return;
+            }
             HttpClientRequest request = asyncRequestResult.result();
             request.response(asyncResponseResult -> {
                 if (asyncResponseResult.failed()) {
+                    logger.debug("({}:{}).request({}, \"{}\") failed in response() with {}", host, port, method, requestURI, asyncResponseResult.cause());
                     // Does not make sense to install any handlers. Just make sure we decrement
                     // our counter then pass-through the exception.
                     onEndOfRequestResponseCycle();
