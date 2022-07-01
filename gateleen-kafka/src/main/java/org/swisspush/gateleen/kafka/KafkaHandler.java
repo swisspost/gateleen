@@ -103,6 +103,9 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     private Future<Void> initializeKafkaConfiguration(Buffer configuration) {
         Promise<Void> promise = Promise.promise();
         final List<KafkaConfiguration> kafkaConfigurations = KafkaConfigurationParser.parse(configuration, properties);
+
+
+
         repository.closeAll().future().onComplete((event -> {
             for (KafkaConfiguration kafkaConfiguration : kafkaConfigurations) {
                 repository.addKafkaProducer(kafkaConfiguration);

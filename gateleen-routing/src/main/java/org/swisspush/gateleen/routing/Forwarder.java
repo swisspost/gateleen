@@ -312,8 +312,7 @@ public class Forwarder extends AbstractForwarder {
                                 firstBuffer = false;
                                 cReq.setChunked(true);
                             }
-                            cReq.write(data);
-                            return Future.succeededFuture();
+                            return cReq.write(data);
                         }
 
                         @Override

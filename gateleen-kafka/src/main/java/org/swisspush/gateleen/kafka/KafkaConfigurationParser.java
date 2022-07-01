@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -23,6 +24,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 class KafkaConfigurationParser {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaConfigurationParser.class);
+
+    private static final AtomicInteger instanceIndexCounter = new AtomicInteger(0);
 
     /**
      * Parses the provided kafka topic configuration resource and returns a list of {@link KafkaConfiguration} objects.
@@ -52,6 +55,7 @@ class KafkaConfigurationParser {
             try {
                 Pattern pattern = Pattern.compile(topicPattern);
                 final Map<String, String> additionalConfig = extractAdditionalConfig(config.getJsonObject(topicPattern));
+                setUniqueClientId(additionalConfig);
                 configurations.add(new KafkaConfiguration(pattern, additionalConfig));
                 log.info("Topic '{}' successfully parsed and added to kafka configuration list", topicPattern);
             } catch (PatternSyntaxException patternException) {
@@ -60,6 +64,19 @@ class KafkaConfigurationParser {
         }
 
         return configurations;
+    }
+
+    /**
+     * Adds a postfix that is unique on a per vert.x cluster node to the client.id if actually configured. This is relevant in a case 
+     * where we have multiple {@link KafkaHandler} instances.
+     * 
+     * See https://stackoverflow.com/questions/40880832/instancealreadyexistsexception-coming-from-kafka-consumer
+     */
+    private static void setUniqueClientId(Map<String, String> config) {
+        String clientId = config.get("client.id");
+        if (StringUtils.isNotEmpty(clientId)) {
+            config.put("client.id", clientId + "-" + instanceIndexCounter.incrementAndGet());
+        }
     }
 
     private static Map<String, String> extractAdditionalConfig(JsonObject topicObject){

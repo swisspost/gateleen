@@ -23,7 +23,6 @@ public class RedisMonitor {
     private int period;
     private long timer;
     private Logger log = LoggerFactory.getLogger(RedisMonitor.class);
-    private String prefix;
 
     private String metricName;
     private String elementCountKey;
@@ -48,7 +47,6 @@ public class RedisMonitor {
         this.vertx = vertx;
         this.redisAPI = redisAPI;
         this.period = period * 1000;
-        this.prefix = "redis." + name + ".";
         this.publisher = publisher;
     }
 
@@ -66,7 +64,7 @@ public class RedisMonitor {
                 redisAPI.zcard(elementCountKey, reply -> {
                     if (reply.succeeded()) {
                         long value = reply.result().toLong();
-                        publisher.publishMetric(prefix + metricName, value);
+                        publisher.publishMetric(metricName, value);
                     } else {
                         log.warn("Cannot collect zcard from redis for key {}", elementCountKey);
                     }
