@@ -160,7 +160,7 @@ public class RedisBasedLockTest {
             context.assertTrue(event.result());
             context.assertTrue(jedis.exists(lockKey(lock_1)));
             context.assertEquals(token_1, jedis.get(lockKey(lock_1)));
-            waitMaxUntilExpired(lockKey(lock_1), 550);
+            waitMaxUntilExpired(lockKey(lock_1), 600);
             redisBasedLock.releaseLock(lock_1, token_1).onComplete(event1 -> {
                 context.assertTrue(event1.succeeded());
                 context.assertFalse(event1.result());
@@ -216,7 +216,7 @@ public class RedisBasedLockTest {
             context.assertTrue(event.result());
             context.assertTrue(jedis.exists(lockKey(lock_1)));
             context.assertEquals(token_1, jedis.get(lockKey(lock_1)));
-            waitMaxUntilExpired(lockKey(lock_1), 550);
+            waitMaxUntilExpired(lockKey(lock_1), 600);
             context.assertFalse(jedis.exists(lockKey(lock_1)));
             redisBasedLock.acquireLock(lock_1, "token_X", 350).onComplete(event1 -> {
                 context.assertTrue(event1.succeeded());

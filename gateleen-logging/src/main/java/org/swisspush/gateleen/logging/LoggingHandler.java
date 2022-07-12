@@ -3,15 +3,16 @@ package org.swisspush.gateleen.logging;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
-import org.apache.log4j.Appender;
-import org.apache.log4j.PatternLayout;
-
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.appender.RollingFileAppender;
+import org.apache.logging.log4j.core.appender.rolling.TimeBasedTriggeringPolicy;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.event.EventBusWriter;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -61,7 +62,7 @@ public class LoggingHandler {
     private static final String ADDRESS = "address";
     private static final String DEFAULT = "default";
 
-    private Map<String, org.apache.log4j.Logger> loggers = new HashMap<>();
+    private Map<String, org.apache.logging.log4j.Logger> loggers = new HashMap<>();
     private Map<String, Appender> appenders = new HashMap<>();
 
     private Logger log;
@@ -152,14 +153,14 @@ public class LoggingHandler {
 
             if (appender != null) {
                 if (!loggers.containsKey(filterDestination)) {
-                    org.apache.log4j.Logger filterLogger = org.apache.log4j.Logger.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
-                    filterLogger.removeAllAppenders();
-                    filterLogger.addAppender(appender);
-                    filterLogger.setAdditivity(false);
+                    org.apache.logging.log4j.Logger filterLogger = LogManager.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
+                    removeAllAppenders((org.apache.logging.log4j.core.Logger) filterLogger);
+                    ((org.apache.logging.log4j.core.Logger) filterLogger).addAppender(appender);
+//                    filterLogger.setAdditivity(false);
                     loggers.put(filterDestination, filterLogger);
                 }
             } else {
-                loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
+                loggers.put(filterDestination, LogManager.getLogger(DEFAULT_LOGGER));
             }
         }
         // ... or use the default logger
@@ -169,10 +170,19 @@ public class LoggingHandler {
             }
 
             // use default logger!
-            loggers.put(filterDestination, org.apache.log4j.Logger.getLogger(DEFAULT_LOGGER));
+            loggers.put(filterDestination, LogManager.getLogger(DEFAULT_LOGGER));
         }
 
         return filterDestination;
+    }
+
+    protected void removeAllAppenders(org.apache.logging.log4j.core.Logger logger) {
+        Map<String, Appender> appenders = logger.getAppenders();
+        if (appenders != null) {
+            for (Appender appender : appenders.values()) {
+                logger.removeAppender(appender);
+            }
+        }
     }
 
     /**
@@ -196,16 +206,13 @@ public class LoggingHandler {
              * </layout>
              * </appender>
              */
-
-            EventBusAppender appender = new EventBusAppender();
-            EventBusAppender.setEventBus(eventBus);
-            appender.setName(filterDestination);
-            appender.setAddress(destinationOptions.get(ADDRESS));
-            appender.setDeliveryOptionsHeaders(MultiMap.caseInsensitiveMultiMap().add(META_DATA, destinationOptions.get(META_DATA)));
-            appender.setTransmissionMode(EventBusWriter.TransmissionMode.fromString(destinationOptions.get(TRANSMISSION)));
-            PatternLayout layout = new PatternLayout();
-            layout.setConversionPattern("%m%n");
-            appender.setLayout(layout);
+            EventBusAppender.Builder.setEventBus(eventBus);
+            EventBusAppender appender = EventBusAppender.newBuilder().setName(filterDestination)
+                    .setAddress(destinationOptions.get(ADDRESS))
+                    .setDeliveryOptionsHeaders(MultiMap.caseInsensitiveMultiMap()
+                            .add(META_DATA, destinationOptions.get(META_DATA)))
+                    .setTransmissionMode(EventBusWriter.TransmissionMode.fromString(destinationOptions.get(TRANSMISSION)))
+                    .setLayout(PatternLayout.createDefaultLayout()).build();
             appenders.put(filterDestination, appender);
         }
         return appenders.get(filterDestination);
@@ -237,18 +244,17 @@ public class LoggingHandler {
 
             log.debug("file path: {}", System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
 
-            DailyRollingFileAppender appender = new DailyRollingFileAppender();
+            RollingFileAppender.Builder builder = RollingFileAppender.newBuilder().withPolicy(new TimeBasedTriggeringPolicy.Builder().withInterval(1).build());
 
-            appender.setName(filterDestination);
-            appender.setFile(System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
-            appender.setEncoding("UTF-8");
-            appender.setAppend(true);
-            PatternLayout layout = new PatternLayout();
-            layout.setConversionPattern("%m%n");
-            appender.setLayout(layout);
-            appender.activateOptions();
-
-            appenders.put(filterDestination, appender);
+            builder.setName(filterDestination);
+            builder.withFileName(System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
+            //  builder.setEncoding("UTF-8");
+            builder.withAppend(true);
+            PatternLayout layout = PatternLayout.createDefaultLayout();
+            // layout.setConversionPattern("%m%n");
+            builder.setLayout(layout);
+            // builder.activateOptions();
+            appenders.put(filterDestination, builder.build());
         }
 
         return appenders.get(filterDestination);

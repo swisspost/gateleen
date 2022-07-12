@@ -23,9 +23,9 @@ public class EventBusWriter extends Writer {
     public enum TransmissionMode {
         publish, send;
 
-        public static TransmissionMode fromString(String mode){
+        public static TransmissionMode fromString(String mode) {
             for (TransmissionMode transmissionMode : values()) {
-                if(transmissionMode.name().equalsIgnoreCase(mode)){
+                if (transmissionMode.name().equalsIgnoreCase(mode)) {
                     return transmissionMode;
                 }
             }
@@ -50,7 +50,7 @@ public class EventBusWriter extends Writer {
 
     @Override
     public void write(char[] cbuf, int off, int len) throws IOException {
-        if(buffer == null) {
+        if (buffer == null) {
             buffer = new StringBuffer();
         }
         buffer.append(cbuf, off, len);
@@ -58,22 +58,23 @@ public class EventBusWriter extends Writer {
 
     @Override
     public void flush() throws IOException {
-        if(buffer != null) {
+        if (buffer != null) {
             DeliveryOptions options = new DeliveryOptions();
-            if(deliveryOptionsHeaders != null){
+            if (deliveryOptionsHeaders != null) {
                 options.setHeaders(deliveryOptionsHeaders);
             }
-
-            if(TransmissionMode.send == transmissionMode){
-                eventBus.request(address, buffer.toString(), options, (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
-                    if (reply.succeeded() && "ok".equals(reply.result().body().getString("status"))) {
-                        log.debug("Successfully sent to (and got reply from) eventBus address {}", address);
-                    } else {
-                        log.error("Failed to send (not publish) to the eventBus", reply.cause());
-                    }
-                });
-            } else {
-                eventBus.publish(address, buffer.toString(), options);
+            if (eventBus != null) {
+                if (TransmissionMode.send == transmissionMode) {
+                    eventBus.request(address, buffer.toString(), options, (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                        if (reply.succeeded() && "ok".equals(reply.result().body().getString("status"))) {
+                            log.debug("Successfully sent to (and got reply from) eventBus address {}", address);
+                        } else {
+                            log.error("Failed to send (not publish) to the eventBus", reply.cause());
+                        }
+                    });
+                } else {
+                    eventBus.publish(address, buffer.toString(), options);
+                }
             }
             buffer = null;
         }

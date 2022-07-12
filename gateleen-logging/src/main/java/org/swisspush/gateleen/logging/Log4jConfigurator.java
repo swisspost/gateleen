@@ -1,9 +1,11 @@
 package org.swisspush.gateleen.logging;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configurator;
 
 import java.util.*;
 
@@ -17,16 +19,24 @@ import java.util.*;
  * @see #SYS_PROP_SHOW_ALL
  */
 public class Log4jConfigurator {
-    /** The logger. */
-    private static final Logger logging = Logger.getLogger(Log4jConfigurator.class);
+    /**
+     * The logger.
+     */
+    private static final Logger logging = LogManager.getLogger(Log4jConfigurator.class);
 
-    /** The root logger name. */
+    /**
+     * The root logger name.
+     */
     private static final String ROOT = "root";
 
-    /** Reference to the one-and-only instance of this class. */
+    /**
+     * Reference to the one-and-only instance of this class.
+     */
     private static Log4jConfigurator instance;
 
-    /** Name of the "show all loggers" system property. */
+    /**
+     * Name of the "show all loggers" system property.
+     */
     public static final String SYS_PROP_SHOW_ALL = "org.swisspush.gateleen.logging.log4j.showall";
 
     /**
@@ -65,13 +75,12 @@ public class Log4jConfigurator {
         // Get all logger
         List<String> list = new ArrayList<>();
         list.add(getLoggerName(LogManager.getRootLogger()));
-        Enumeration<Logger> enumer = LogManager.getCurrentLoggers();
-        while (enumer.hasMoreElements()) {
-            Logger logger = enumer.nextElement();
+        Collection<org.apache.logging.log4j.core.Logger> loggerCollection = ((LoggerContext) LogManager.getContext()).getLoggers();
+        loggerCollection.forEach(logger -> {
             if (logger.getLevel() != null) {
                 list.add(getLoggerName(logger));
             }
-        }
+        });
         if (logging.isDebugEnabled()) {
             logging.debug("getLoggers() returns totally " + list.size() + " loggers");
         }
@@ -97,20 +106,18 @@ public class Log4jConfigurator {
     /**
      * Gets the appenders to a specific logger.
      *
-     * @param logger
-     *            A logger's name.
+     * @param logger A logger's name.
      * @return List of <code>java.lang.String</code> containing all appender names.
-     * @exception IllegalArgumentException
-     *                In case the logger isn't known.
+     * @throws IllegalArgumentException In case the logger isn't known.
      */
     @SuppressWarnings("unchecked")
     public synchronized List<String> getAppenders(String logger) throws IllegalArgumentException {
+
         Logger logobj = getLoggerFromName(logger);
         List<String> list = new ArrayList<>();
-        Enumeration<Appender> e = logobj.getAllAppenders();
-        while (e.hasMoreElements()) {
-            list.add(e.nextElement().getName());
-        }
+        Map<String, Appender> appenderMap =
+                ((org.apache.logging.log4j.core.Logger) logobj).getAppenders();
+        appenderMap.forEach((s, appender) -> list.add(appender.getName()));
         if (logging.isDebugEnabled()) {
             logging.debug("getAppenders(" + logger + ") found " + list.size() + " appenders");
         }
@@ -120,11 +127,9 @@ public class Log4jConfigurator {
     /**
      * Gets a logger's actual level.
      *
-     * @param logger
-     *            The logger.
+     * @param logger The logger.
      * @return The logger's level or <code>null</code> if no level was directly set on the logger.
-     * @exception IllegalArgumentException
-     *                In case the logger isn't known.
+     * @throws IllegalArgumentException In case the logger isn't known.
      */
     public synchronized Level getLevel(String logger) throws IllegalArgumentException {
         Logger logobj = getLoggerFromName(logger);
@@ -137,48 +142,42 @@ public class Log4jConfigurator {
     /**
      * Gets a logger's effective level thus either the direct level or the inherited level from it's parent logger.
      *
-     * @param logger
-     *            The logger.
+     * @param logger The logger.
      * @return The logger's effective level.
-     * @exception IllegalArgumentException
-     *                In case the logger isn't known.
+     * @throws IllegalArgumentException In case the logger isn't known.
      */
     public synchronized Level getEffectiveLevel(String logger) throws IllegalArgumentException {
         Logger logobj = getLoggerFromName(logger);
         if (logging.isTraceEnabled()) {
-            logging.trace("getEffectiveLevel(" + logger + ") returns " + logobj.getEffectiveLevel());
+            logging.trace("getEffectiveLevel(" + logger + ") returns " + logobj.getLevel());
         }
-        return logobj.getEffectiveLevel();
+        return logobj.getLevel();
     }
 
     /**
      * Sets or deletes a logger's new level.
      *
-     * @param logger
-     *            Name of the logger to set.
-     * @param level
-     *            Level to set the logger to.
-     * @exception IllegalArgumentException
-     *                In case the logger isn't known.
+     * @param logger Name of the logger to set.
+     * @param level  Level to set the logger to.
+     * @throws IllegalArgumentException In case the logger isn't known.
      */
     public synchronized void setLoggerLevel(String logger, String level) throws IllegalArgumentException {
         Logger logobj = getLoggerFromName(logger);
-        logobj.setLevel(Level.toLevel(level));
+        Configurator.setLevel(logobj.getName(), Level.toLevel(level));
         logging.info("New level for looger '" + logger + "': " + level);
     }
 
     /**
      * Returns a logger's name. Hint: The special cases root logger ist handled correctly.
      *
-     * @param logger
-     *            The logger to examine.
+     * @param logger The logger to examine.
      * @return The logger's name.
      */
     private String getLoggerName(Logger logger) {
-        if (logger == null) {
+        if (!(logger instanceof org.apache.logging.log4j.core.Logger)) {
             return null;
         }
-        if (logger.getParent() == null) {
+        if (((org.apache.logging.log4j.core.Logger) logger).getParent() == null) {
             return ROOT;
         }
         return logger.getName();
@@ -187,18 +186,16 @@ public class Log4jConfigurator {
     /**
      * Resolves a logger name to the appropriate logger Hint: The special cases root logger ist handled correctly.
      *
-     * @param name
-     *            The logger's name
+     * @param name The logger's name
      * @return Logger
-     * @exception IllegalArgumentException
-     *                In case the logger isn't known.
+     * @throws IllegalArgumentException In case the logger isn't known.
      */
     private Logger getLoggerFromName(String name) throws IllegalArgumentException {
         Logger logger = null;
         if (name.equals(ROOT)) {
-            logger = Logger.getRootLogger();
+            logger = LogManager.getRootLogger();
         } else {
-            logger = Logger.getLogger(name);
+            logger = LogManager.getLogger(name);
         }
         if (logger == null) {
             throw new IllegalArgumentException("Unknown logger 'null'");
@@ -213,10 +210,8 @@ public class Log4jConfigurator {
         /**
          * Compare the names of two <code>Logger</code>s.
          *
-         * @param l1
-         *            an <code>Object</code> value
-         * @param l2
-         *            an <code>Object</code> value
+         * @param l1 an <code>Object</code> value
+         * @param l2 an <code>Object</code> value
          * @return an <code>int</code> value
          */
         public int compare(String l1, String l2) {
@@ -244,8 +239,7 @@ public class Log4jConfigurator {
         /**
          * Return <code>true</code> if the <code>Object</code> is a <code>LoggerComparator</code> instance.
          *
-         * @param o
-         *            an <code>Object</code> value
+         * @param o an <code>Object</code> value
          * @return a <code>boolean</code> value
          */
         public boolean equals(Object o) {
