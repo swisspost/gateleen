@@ -157,14 +157,13 @@ public class Log4jConfigurator {
     /**
      * Sets or deletes a logger's new level.
      *
-     * @param logger Name of the logger to set.
+     * @param name Name of the logger to set.
      * @param level  Level to set the logger to.
      * @throws IllegalArgumentException In case the logger isn't known.
      */
-    public synchronized void setLoggerLevel(String logger, String level) throws IllegalArgumentException {
-        Logger logobj = getLoggerFromName(logger);
-        Configurator.setLevel(logobj.getName(), Level.toLevel(level));
-        logging.info("New level for looger '" + logger + "': " + level);
+    public synchronized void setLoggerLevel(String name, String level) throws IllegalArgumentException {
+        Configurator.setLevel(name, Level.toLevel(level));
+        logging.info("New level for looger '" + name + "': " + level);
     }
 
     /**
