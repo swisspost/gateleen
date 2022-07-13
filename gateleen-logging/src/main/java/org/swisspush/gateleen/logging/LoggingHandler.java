@@ -156,7 +156,7 @@ public class LoggingHandler {
                     org.apache.logging.log4j.Logger filterLogger = LogManager.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
                     removeAllAppenders((org.apache.logging.log4j.core.Logger) filterLogger);
                     ((org.apache.logging.log4j.core.Logger) filterLogger).addAppender(appender);
-//                    filterLogger.setAdditivity(false);
+                    ((org.apache.logging.log4j.core.Logger) filterLogger).setAdditive(false);
                     loggers.put(filterDestination, filterLogger);
                 }
             } else {
@@ -248,12 +248,9 @@ public class LoggingHandler {
 
             builder.setName(filterDestination);
             builder.withFileName(System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
-            //  builder.setEncoding("UTF-8");
             builder.withAppend(true);
             PatternLayout layout = PatternLayout.createDefaultLayout();
-            // layout.setConversionPattern("%m%n");
             builder.setLayout(layout);
-            // builder.activateOptions();
             appenders.put(filterDestination, builder.build());
         }
 
