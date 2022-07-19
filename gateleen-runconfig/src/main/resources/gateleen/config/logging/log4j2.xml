@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="warn">
+    <Appenders>
+        <Console name="consoleAppender" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{ISO8601} gateleen %p %c{1} - %m%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Logger name="org.vertx" level="WARN"/>
+        <Logger name="org.springframework" level="INFO"/>
+        <Logger name="org.jmxtrans" level="WARN"/>
+        <Logger name="org.jgroups" level="WARN"/>
+        <Logger name="org.apache" level="WARN"/>
+        <Logger name="org.swisspush" level="INFO"/>
+        <Logger name="common.jmx" level="INFO"/>
+        <Logger name="org.jminix" level="WARN"/>
+        <Logger name="io.netty.handler.codec.http.websocketx" level="INFO"/>
+        <Logger name="io.vertx.ext.web.handler.sockjs" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.security.authorization" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.core.cors" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.core.delta" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.expansion" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.core.http" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.core.event" level="INFO"/>
+        <Logger name="org.swisspush.gateleen.scheduler" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.core.monitoring" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.queue" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.queue.queuing.circuitbreaker" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.routing" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.core.storage" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.user" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.validation" level="INFO"/>
+        <Logger name="org.swisspush.gateleen.logging" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.integrationtest" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.delegate" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.merge" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.hook" level="DEBUG"/>
+        <Logger name="org.swisspush.reststorage" level="DEBUG"/>
+        <Logger name="org.swisspush.redisques" level="DEBUG"/>
+        <Logger name="org.swisspush.gateleen.logging.Log4jConfiguratorMBean" level="FATAL"/>
+        <Logger name="Request" level="INFO"/>
+        <Logger name="Metrics" level="WARN"/>
+        <Root level="TRACE">
+            <AppenderRef ref="consoleAppender"/>
+        </Root>
+    </Loggers>
+</Configuration>

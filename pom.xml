@@ -54,7 +54,7 @@
         </sel_chrome_driver>
         <vertx.version>4.2.1</vertx.version>
         <jackson.version>2.13.0</jackson.version>
-        <springframework.version>4.3.30.RELEASE</springframework.version>
+        <springframework.version>5.3.21</springframework.version>
     </properties>
 
     <repositories>
@@ -278,12 +278,7 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.7.32</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-log4j12</artifactId>
-                <version>1.7.32</version>
+                <version>1.7.36</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -306,9 +301,19 @@
                 <version>7.0.0</version>
             </dependency>
             <dependency>
-                <groupId>log4j</groupId>
-                <artifactId>log4j</artifactId>
-                <version>1.2.17</version>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>2.17.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>2.17.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j-impl</artifactId>
+                <version>2.17.2</version>
             </dependency>
             <dependency>
                 <groupId>org.swisspush</groupId>
@@ -376,6 +381,11 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-websocket</artifactId>
+                <version>${springframework.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-jcl</artifactId>
                 <version>${springframework.version}</version>
             </dependency>
             <dependency>
@@ -447,7 +457,7 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-simple</artifactId>
-                <version>1.7.6</version>
+                <version>1.7.36</version>
             </dependency>
             <dependency>
                 <groupId>org.swisspush</groupId>
@@ -462,7 +472,7 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-log4j</artifactId>
-                <version>1.7.6</version>
+                <version>1.7.36</version>
             </dependency>
 
             <dependency>
