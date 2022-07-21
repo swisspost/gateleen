@@ -274,7 +274,7 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
      * @param level
      *            New level.
      * @return The total number of modified loggers.
-     * @see org.apache.log4j.Level
+     * @see "org.apache.log4j.Level"
      * @see #invoke(String, Object[], String[])
      * @see #getOperationInfo()
      */
