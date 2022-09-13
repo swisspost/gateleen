@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.queue.duplicate;
 
+import com.google.common.collect.ImmutableList;
 import io.vertx.redis.client.RedisAPI;
 import org.swisspush.gateleen.core.util.HashCodeGenerator;
 import io.vertx.core.AsyncResult;
@@ -77,7 +78,7 @@ public final class DuplicateCheckHandler {
                     }
 
                     // set expire
-                    redisAPI.expire(redisKey, String.valueOf(ttl), expireReply -> {
+                    redisAPI.expire(ImmutableList.of(redisKey, String.valueOf(ttl)), expireReply -> {
                         if (expireReply.failed()) {
                             log.error("expire command for redisKey '{}' resulted in cause {}", redisKey, logCause(expireReply));
                         }
