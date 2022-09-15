@@ -53,6 +53,7 @@
         <sel_chrome_driver>${session.executionRootDirectory}/gateleen-test/src/test/resources/chromedriver
         </sel_chrome_driver>
         <vertx.version>4.2.1</vertx.version>
+        <vertx-redis-client.version>4.3.3</vertx-redis-client.version>
         <jackson.version>2.13.0</jackson.version>
         <springframework.version>5.3.21</springframework.version>
     </properties>
@@ -258,7 +259,7 @@
             <dependency>
                 <groupId>io.vertx</groupId>
                 <artifactId>vertx-redis-client</artifactId>
-                <version>${vertx.version}</version>
+                <version>${vertx-redis-client.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.vertx</groupId>
@@ -318,12 +319,12 @@
             <dependency>
                 <groupId>org.swisspush</groupId>
                 <artifactId>redisques</artifactId>
-                <version>3.0.4</version>
+                <version>3.0.7</version>
             </dependency>
             <dependency>
                 <groupId>org.swisspush</groupId>
                 <artifactId>rest-storage</artifactId>
-                <version>3.0.3</version>
+                <version>3.0.5</version>
             </dependency>
             <dependency>
                 <groupId>org.quartz-scheduler</groupId>
