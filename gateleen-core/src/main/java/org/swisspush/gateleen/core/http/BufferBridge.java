@@ -18,8 +18,10 @@ import java.util.Queue;
 public class BufferBridge {
     private Handler<Buffer> dataHandler;
     private Handler<Void> endHandler;
+    private Handler<Buffer> bodyHandler;
     private Handler<Throwable> exceptionHandler;
     private Queue<Buffer> queue = new LinkedList<>();
+    private Buffer body = Buffer.buffer();
     private boolean ended = false;
     private Vertx vertx;
     private final Logger log = LoggerFactory.getLogger(BufferBridge.class);
@@ -50,15 +52,16 @@ public class BufferBridge {
     }
 
     protected void doWrite(Buffer chunk) {
-        if(dataHandler != null && queue.isEmpty()) {
+        body.appendBuffer(chunk);
+        if (dataHandler != null && queue.isEmpty()) {
             log.trace("Writing directly to handler");
             try {
                 dataHandler.handle(chunk);
-            } catch(Exception e) {
-                if(exceptionHandler != null) {
+            } catch (Exception e) {
+                if (exceptionHandler != null) {
                     exceptionHandler.handle(e);
+                }
             }
-        }
         } else {
             log.trace("Writing to queue");
             queue.offer(chunk);
@@ -67,11 +70,14 @@ public class BufferBridge {
 
     protected Future<Void> doEnd() {
         ended = true;
-        if(endHandler != null && queue.isEmpty()) {
+        if (bodyHandler != null) {
+            bodyHandler.handle(body);
+        }
+        if (endHandler != null && queue.isEmpty()) {
             log.trace("Ending handler directly");
             try {
                 endHandler.handle(null);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 if (exceptionHandler != null) {
                     exceptionHandler.handle(e);
                 }
@@ -92,5 +98,9 @@ public class BufferBridge {
 
     public void setEndHandler(Handler<Void> endHandler) {
         this.endHandler = endHandler;
+    }
+
+    public void setBodyHandler(Handler<Buffer> bodyHandler) {
+        this.bodyHandler = bodyHandler;
     }
 }

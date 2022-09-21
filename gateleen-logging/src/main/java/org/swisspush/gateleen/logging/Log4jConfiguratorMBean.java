@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.logging;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.management.*;
 import java.lang.reflect.Constructor;
@@ -20,7 +21,7 @@ import java.util.regex.PatternSyntaxException;
  */
 public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
     /** The logger (this logger won't be cloned!). */
-    private final Logger logging = Logger.getLogger(Log4jConfiguratorMBean.class);
+    private final Logger logging = LogManager.getLogger(Log4jConfiguratorMBean.class);
 
     /** Asterisk used as trailing string for inherited logging levels. */
     public static final String ASTERISK = "*";
@@ -273,7 +274,7 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
      * @param level
      *            New level.
      * @return The total number of modified loggers.
-     * @see org.apache.log4j.Level
+     * @see "org.apache.log4j.Level"
      * @see #invoke(String, Object[], String[])
      * @see #getOperationInfo()
      */

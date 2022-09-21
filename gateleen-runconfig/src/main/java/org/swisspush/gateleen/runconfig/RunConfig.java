@@ -8,13 +8,13 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.redis.client.RedisAPI;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.Log4jConfigurer;
 import org.swisspush.gateleen.cache.CacheHandler;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
@@ -199,15 +199,11 @@ public class RunConfig {
         String conf = System.getProperty("log4jConfigFile");
         if (conf == null) {
             // use default
-            conf = "classpath:" + SERVER_NAME + "/config/logging/log4j.xml";
+            conf = "classpath:" + SERVER_NAME + "/config/logging/log4j2.xml";
         }
 
         log.info(SERVER_NAME + " starting with log configuration " + conf);
-        try {
-            Log4jConfigurer.initLogging(conf);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
+        Configurator.initialize("",conf);
     }
 
     public static RunConfigBuilder with() {
