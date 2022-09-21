@@ -10,13 +10,8 @@ import org.apache.logging.log4j.core.config.Configurator;
 import java.util.*;
 
 /**
- * Configurator used to configure a log4j repository dynamically. Wheter all known loggers or only the explicitly
- * configured loggers are configured is defined by the system property "org.swisspush.gateleen.logging.log4j.showall" which
- * defaults to false. Thus per default only the loggers are modified that have been explicitly configured to the log4j
- * system (typically via a log4j configuration file such as log4j.properties).
- *
+ * Configurator used to configure a log4j repository dynamically.
  * @author schwabmar
- * @see #SYS_PROP_SHOW_ALL
  */
 public class Log4jConfigurator {
     /**
@@ -34,19 +29,7 @@ public class Log4jConfigurator {
      */
     private static Log4jConfigurator instance;
 
-    /**
-     * Name of the "show all loggers" system property.
-     */
-    public static final String SYS_PROP_SHOW_ALL = "org.swisspush.gateleen.logging.log4j.showall";
-
-    /**
-     * Constructor of the object. This constructors retrieves the value of the showAll flag from the showall system
-     * property.
-     *
-     * @see #SYS_PROP_SHOW_ALL
-     */
     private Log4jConfigurator() {
-        // Check if all loggers have to be shown (via system property)
         super();
     }
 
@@ -64,18 +47,16 @@ public class Log4jConfigurator {
     }
 
     /**
-     * Retrieves all loggers from the log4j repository. Dependent on the flag showAll, this method either returns only
-     * the direct configured loggers or all known loggers.
+     * Retrieves all loggers from the log4j repository.
      *
      * @return List of <code>java.lang.String</code> containing all logger names.
-     * @see #SYS_PROP_SHOW_ALL
      */
     @SuppressWarnings("unchecked")
     public synchronized List<String> getLoggers() {
-        // Get all logger
+        // Get all loggers
         List<String> list = new ArrayList<>();
         list.add(getLoggerName(LogManager.getRootLogger()));
-        Collection<org.apache.logging.log4j.core.Logger> loggerCollection = ((LoggerContext) LogManager.getContext()).getLoggers();
+        Collection<org.apache.logging.log4j.core.Logger> loggerCollection = ((LoggerContext) LogManager.getContext(false)).getLoggers();
         loggerCollection.forEach(logger -> {
             if (logger.getLevel() != null) {
                 list.add(getLoggerName(logger));
@@ -88,11 +69,9 @@ public class Log4jConfigurator {
     }
 
     /**
-     * Retrieves all loggers from the log4j repository. Dependent on the flag showAll, this method either returns only
-     * the direct configured loggers or all known loggers.
+     * Retrieves all loggers from the log4j repository.
      *
      * @return Sorted list of <code>java.lang.String</code> containing all logger names.
-     * @see #SYS_PROP_SHOW_ALL
      */
     @SuppressWarnings("unchecked")
     public synchronized List<String> getLoggersSorted() {
