@@ -72,10 +72,10 @@ public class Log4jConfigurator {
      */
     @SuppressWarnings("unchecked")
     public synchronized List<String> getLoggers() {
-        // Get all logger
+        // Get all loggers
         List<String> list = new ArrayList<>();
         list.add(getLoggerName(LogManager.getRootLogger()));
-        Collection<org.apache.logging.log4j.core.Logger> loggerCollection = ((LoggerContext) LogManager.getContext()).getLoggers();
+        Collection<org.apache.logging.log4j.core.Logger> loggerCollection = ((LoggerContext) LogManager.getContext(false)).getLoggers();
         loggerCollection.forEach(logger -> {
             if (logger.getLevel() != null) {
                 list.add(getLoggerName(logger));
