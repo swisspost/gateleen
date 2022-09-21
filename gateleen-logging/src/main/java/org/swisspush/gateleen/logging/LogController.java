@@ -9,7 +9,6 @@ public class LogController {
 
 
     public void registerLogConfiguratorMBean(String domain) {
-        System.setProperty("org.swisspush.gateleen.logging.log4j.showall", "true");
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
 
         ObjectName name;
