@@ -1501,6 +1501,11 @@ public class HookHandler implements LoggableResource {
         hook.setConnectionPoolSize(jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME));
 
         hook.setMaxWaitQueueSize(jsonHook.getInteger(HttpHook.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME));
+        // Configure request timeout
+        Integer timeout = jsonHook.getInteger(HttpHook.CONNECTION_TIMEOUT_SEC_PROPERTY_NAME);
+        if (timeout != null) {
+            hook.setTimeout(1000 * timeout);
+        }
 
         boolean mustCreateNewRoute = true;
         Route existingRoute = routeRepository.getRoutes().get(routedUrl);
@@ -1536,7 +1541,8 @@ public class HookHandler implements LoggableResource {
         same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
         same &=                oldHook.isCollection         () ==     newHook.isCollection         () ;
         same &= Objects.equals(oldHook.getConnectionPoolSize() ,      newHook.getConnectionPoolSize());
-        same &= Objects.equals(oldHook.getMaxWaitQueueSize() ,        newHook.getMaxWaitQueueSize());
+        same &= Objects.equals(oldHook.getMaxWaitQueueSize() ,        newHook.getMaxWaitQueueSize  ());
+        same &= Objects.equals(oldHook.getTimeout(),                  newHook.getTimeout           ());
         same &= headersFilterPatternEquals(oldHook.getHeadersFilterPattern(), newHook.getHeadersFilterPattern());
 
         // queueingStrategy, filter, queueExpireAfter and hookTriggerType are not relevant for Route-Hooks

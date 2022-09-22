@@ -138,6 +138,16 @@ public class Route {
                 rule.setMaxWaitQueueSize(maxWaitQueueSize);
             }
         }
+        { // Evaluate timeout
+            Integer timeout = httpHook.getTimeout();
+            if (timeout == null) {
+                LOG.trace("No timeout specified for route '{}' using default of {}.", rule.getRuleIdentifier(), HttpHook.CONNECTION_TIMEOUT_SEC_DEFAULT_VALUE);
+                rule.setTimeout(1000 * HttpHook.CONNECTION_TIMEOUT_SEC_DEFAULT_VALUE);
+            } else {
+                LOG.trace("Using timeout {} for route '{}'.", timeout, rule.getRuleIdentifier());
+                rule.setTimeout(timeout);
+            }
+        }
 
         if (!httpHook.getMethods().isEmpty()) {
             rule.setMethods(httpHook.getMethods().toArray(new String[httpHook.getMethods().size()]));
@@ -250,7 +260,7 @@ public class Route {
     /**
      * Returns the hook associated
      * with this route.
-     * 
+     *
      * @return the hook
      */
     public HttpHook getHook() {
