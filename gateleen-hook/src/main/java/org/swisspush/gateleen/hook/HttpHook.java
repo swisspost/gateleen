@@ -320,8 +320,8 @@ public class HttpHook {
      * See {@link #getTimeout()}.
      */
     public void setTimeout(Integer timeout) {
-        if (timeout != null && timeout < -1){
-            throw new IllegalArgumentException("Values below -1 not valid.");
+        if (timeout != null && timeout <= 0){
+            throw new IllegalArgumentException("Values <= 0 are not valid.");
         }
         this.timeout = timeout;
     }
