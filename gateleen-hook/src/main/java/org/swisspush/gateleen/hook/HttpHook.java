@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.hook;
 
 import io.vertx.core.net.ProxyOptions;
+import javax.annotation.Nullable;
 import org.joda.time.DateTime;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
@@ -305,9 +306,12 @@ public class HttpHook {
     }
 
     /**
-     * @return Timeout for request. This may returning null in case there's no value
+     * @return Timeout for request in milliseconds. Defines the time up until
+     *         an ongoing request will be aborted if there was no reply given before.
+     *         This may returning null in case there's no value
      *         specified. Callers may catch that by fall back to a default.
      */
+    @Nullable
     public Integer getTimeout() {
         return this.timeout;
     }
