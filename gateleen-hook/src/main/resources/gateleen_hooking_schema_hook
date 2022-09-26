@@ -94,7 +94,12 @@
         	"description": "The maximum number of requests allowed in the wait queue.",
         	"type": "integer",
         	"default": -1
-        },
+    },
+		"timeout": {
+			"description": "The request timeout applied in seconds.",
+			"type": "integer",
+			"default": 30
+		},
 		"collection": {
 			"description": "only used for route hook",
 			"type": "boolean"

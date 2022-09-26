@@ -39,7 +39,8 @@ public class HookSchemaTest {
                 "  'queueingStrategy':{'type':'reducedPropagation','intervalMs':1000}," +
                 "  'collection':false," +
                 "  'listable':true," +
-                "  'proxyOptions':{'type':'HTTP', 'host':'someHost', 'port':1234, 'username':'johndoe', 'password':'secret'}" +
+                "  'proxyOptions':{'type':'HTTP', 'host':'someHost', 'port':1234, 'username':'johndoe', 'password':'secret'}," +
+                "  'timeout':60" +
                 "}");
 
         Set<ValidationMessage> valMsgs = schema.validate(json);
