@@ -379,6 +379,41 @@ public class HookHandlerTest {
     }
 
     @Test
+    public void hookRegistration_RouteWithTimeout(TestContext testContext) {
+        // Initialize mock
+        final int[] statusCodePtr = new int[]{0};
+        final String[] statusMessagePtr = new String[]{null};
+        final HttpServerRequest request;
+        {  // Mock request
+            final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
+            final Buffer requestBody = new BufferImpl();
+            requestBody.setBytes(0, ("{" +
+                "    \"methods\": [ \"PUT\" , \"DELETE\" ]," +
+                "    \"destination\": \"/an/example/destination/\"," +
+                "    \"timeout\": 42" +
+                "}").getBytes());
+
+            request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/route/http/my-service/my-hook",
+                requestHeaders, requestBody, statusCodePtr, statusMessagePtr
+            );
+        }
+
+        // Trigger work
+        hookHandler.handle(request);
+
+        // Assert request was ok
+        testContext.assertEquals(200, statusCodePtr[0]);
+
+        { // Assert expiration time has same length as a valid date (including time zone)
+            final String storedHook = storage.getMockData().get(HOOK_ROOT_URI + "registrations/routes/+gateleen+example+_hooks+route+http+my-service+my-hook");
+            testContext.assertNotNull(storedHook);
+            final Integer timeout = new JsonObject(storedHook).getJsonObject("hook").getInteger("timeout");
+            testContext.assertNotNull(timeout);
+            testContext.assertEquals(42, timeout);
+        }
+    }
+
+    @Test
     public void hookRegistration_usesDefaultExpiryWhenHeaderContainsCorruptValue(TestContext testContext) {
         // In my opinion gateleen should answer with 400 in this case. But that's another topic.
 

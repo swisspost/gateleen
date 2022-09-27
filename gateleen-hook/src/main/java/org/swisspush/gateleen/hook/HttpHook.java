@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.hook;
 
 import io.vertx.core.net.ProxyOptions;
+import javax.annotation.Nullable;
 import org.joda.time.DateTime;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
@@ -13,7 +14,7 @@ import java.util.regex.Pattern;
 
 /**
  * Represents a hook.
- * 
+ *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 public class HttpHook {
@@ -21,6 +22,8 @@ public class HttpHook {
     public static final String CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME = Rule.MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME;
     public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE;
     public static final int CONNECTION_MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE = Rule.MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE;
+    public static final String CONNECTION_TIMEOUT_SEC_PROPERTY_NAME = Rule.CONNECTION_TIMEOUT_SEC_PROPERTY_NAME;
+    public static final int CONNECTION_TIMEOUT_SEC_DEFAULT_VALUE = Rule.CONNECTION_TIMEOUT_SEC_DEFAULT_VALUE;
     private String destination;
     private List<String> methods;
     private Pattern headersFilterPattern;
@@ -37,10 +40,10 @@ public class HttpHook {
     private Integer connectionPoolSize = null;
     private Integer maxWaitQueueSize = null;
     private ProxyOptions proxyOptions = null;
-
+    private Integer timeout = null;
     /**
      * Creates a new hook.
-     * 
+     *
      * @param destination destination
      */
     public HttpHook(String destination) {
@@ -53,7 +56,7 @@ public class HttpHook {
 
     /**
      * The destination of the hook.
-     * 
+     *
      * @return String
      */
     public String getDestination() {
@@ -62,7 +65,7 @@ public class HttpHook {
 
     /**
      * Sets the destination of the hook.
-     * 
+     *
      * @param destination destination
      */
     public void setDestination(String destination) {
@@ -71,7 +74,7 @@ public class HttpHook {
 
     /**
      * Returns the methods which should pass the hook.
-     * 
+     *
      * @return a list of HTTP methods or empty, if all methods do pass.
      */
     public List<String> getMethods() {
@@ -80,7 +83,7 @@ public class HttpHook {
 
     /**
      * Sets the methods which should pass the hook.
-     * 
+     *
      * @param methods a list of HTTP methods or empty, if all methods do pass.
      */
     public void setMethods(List<String> methods) {
@@ -114,7 +117,7 @@ public class HttpHook {
 
     /**
      * Sets the expiration time of this hook.
-     * 
+     *
      * @param expirationTime expirationTime
      */
     public void setExpirationTime(DateTime expirationTime) {
@@ -123,7 +126,7 @@ public class HttpHook {
 
     /**
      * Returns whether the hook forwards using the full initial url or only the appendix.
-     * 
+     *
      * @return fullUrl
      */
     public boolean isFullUrl() {
@@ -132,7 +135,7 @@ public class HttpHook {
 
     /**
      * Sets whether the hook forwards using the full initial url or only the appendix.
-     * 
+     *
      * @param fullUrl fullUrl
      */
     public void setFullUrl(boolean fullUrl) {
@@ -156,7 +159,7 @@ public class HttpHook {
     /**
      * Returns the precompiled pattern, to match
      * a given url.
-     * 
+     *
      * @return - a precompiled pattern
      */
     public Pattern getFilter() {
@@ -165,7 +168,7 @@ public class HttpHook {
 
     /**
      * Set a regexp to filter the hook. <br >
-     * 
+     *
      * @param regex - a regular expression
      */
     public void setFilter(String regex) {
@@ -300,6 +303,27 @@ public class HttpHook {
             throw new IllegalArgumentException("Values below -1 not valid.");
         }
         this.maxWaitQueueSize = maxWaitQueueSize;
+    }
+
+    /**
+     * @return Timeout for request in milliseconds. Defines the time up until
+     *         an ongoing request will be aborted if there was no reply given before.
+     *         This may returning null in case there's no value
+     *         specified. Callers may catch that by fall back to a default.
+     */
+    @Nullable
+    public Integer getTimeout() {
+        return this.timeout;
+    }
+
+    /**
+     * See {@link #getTimeout()}.
+     */
+    public void setTimeout(Integer timeout) {
+        if (timeout != null && timeout <= 0){
+            throw new IllegalArgumentException("Values <= 0 are not valid.");
+        }
+        this.timeout = timeout;
     }
 
     /**
