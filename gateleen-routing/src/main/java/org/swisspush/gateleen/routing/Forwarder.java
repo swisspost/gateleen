@@ -426,6 +426,9 @@ public class Forwarder extends AbstractForwarder {
             HttpClientResponse cRes = asyncResult.result();
             if (asyncResult.failed()) {
                 error(asyncResult.cause().getMessage(), req, targetUri);
+                req.response().setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
+                req.response().setStatusMessage(asyncResult.cause().getMessage());
+                req.response().end();
                 return;
             }
             monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
