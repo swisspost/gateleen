@@ -1,6 +1,6 @@
 # [\_] Gateleen
 
-[![Build Status](https://travis-ci.org/swisspush/gateleen.svg?branch=master)](https://travis-ci.org/swisspush/gateleen)
+[![Build Status](https://travis-ci.com/swisspush/gateleen.svg?branch=master)](https://travis-ci.com/swisspush/gateleen)
 [![codecov](https://codecov.io/gh/swisspush/gateleen/branch/master/graph/badge.svg)](https://codecov.io/gh/swisspush/gateleen)
 [![](https://img.shields.io/github/issues-raw/swisspush/gateleen.svg)](https://github.com/swisspush/gateleen/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aopen%20)
 [![GitHub contributors](https://img.shields.io/github/contributors/swisspush/gateleen.svg)](https://github.com/swisspush/gateleen/graphs/contributors)
