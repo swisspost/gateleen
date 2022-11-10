@@ -42,7 +42,7 @@ public class KafkaMessageSender {
 
     private Future<Void> sendMessage(KafkaProducer<String, String> kafkaProducer, KafkaProducerRecord<String, String> message) {
         return kafkaProducer.send(message).compose((Function<RecordMetadata, Future<Void>>) metadata -> {
-            log.debug("Message successfully sent to kafka topic {} on partition {} with offset {}. Timestamp: {}",
+            log.debug("Message successfully sent to kafka topic '{}' on partition {} with offset {}. Timestamp: {}",
                     metadata.getTopic(), metadata.getPartition(), metadata.getOffset(), metadata.getTimestamp());
             return Future.succeededFuture();
         }).onFailure(event -> log.warn("Failed to send message with key '{}' to kafka. Cause: {}", message.key(), event));
