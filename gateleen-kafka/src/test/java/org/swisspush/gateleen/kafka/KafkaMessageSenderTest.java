@@ -21,8 +21,7 @@ import java.util.*;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.kafka.KafkaProducerRecordBuilder.buildRecords;
 
 /**
@@ -50,18 +49,14 @@ public class KafkaMessageSenderTest {
         final List<KafkaProducerRecord<String, String>> records =
                 buildRecords(topic, Buffer.buffer(buildSingleRecordPayload("someKey").encode()));
 
-        doAnswer(invocation -> {
-            Handler<AsyncResult<RecordMetadata>> handler = (Handler<AsyncResult<RecordMetadata>>) invocation.getArguments()[1];
-            handler.handle(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
-            return null;
-        }).when(producer).write(any(KafkaProducerRecord.class), any());
+        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
 
-        Mockito.verify(producer, times(1)).write(eq(records.get(0)), any());
+        Mockito.verify(producer, times(1)).send(eq(records.get(0)));
     }
 
     @Test
@@ -71,18 +66,14 @@ public class KafkaMessageSenderTest {
         final List<KafkaProducerRecord<String, String>> records =
                 buildRecords(topic, Buffer.buffer(buildSingleRecordPayload(null).encode()));
 
-        doAnswer(invocation -> {
-            Handler<AsyncResult<RecordMetadata>> handler = (Handler<AsyncResult<RecordMetadata>>) invocation.getArguments()[1];
-            handler.handle(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
-            return null;
-        }).when(producer).write(any(KafkaProducerRecord.class), any());
+        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
             async.complete();
         });
 
-        Mockito.verify(producer, times(1)).write(eq(records.get(0)), any());
+        Mockito.verify(producer, times(1)).send(eq(records.get(0)));
     }
 
     @Test
@@ -92,11 +83,7 @@ public class KafkaMessageSenderTest {
         final List<KafkaProducerRecord<String, String>> records =
                 buildRecords(topic, Buffer.buffer(buildThreeRecordsPayload("key_1", "key_2", "key_3").encode()));
 
-        doAnswer(invocation -> {
-            Handler<AsyncResult<RecordMetadata>> handler = (Handler<AsyncResult<RecordMetadata>>) invocation.getArguments()[1];
-            handler.handle(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
-            return null;
-        }).when(producer).write(any(KafkaProducerRecord.class), any());
+        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
@@ -104,7 +91,7 @@ public class KafkaMessageSenderTest {
         });
 
         ArgumentCaptor<KafkaProducerRecord> recordCaptor = ArgumentCaptor.forClass(KafkaProducerRecord.class);
-        Mockito.verify(producer, times(3)).write(recordCaptor.capture(), any());
+        Mockito.verify(producer, times(3)).send(recordCaptor.capture());
 
         // verify the correct order of the message transmission
         context.assertEquals(3, recordCaptor.getAllValues().size());
@@ -114,22 +101,14 @@ public class KafkaMessageSenderTest {
     }
 
     @Test
-    public void sendMultipleMessagesWithFailingMessageWrite(TestContext context) throws ValidationException {
+    public void sendMultipleMessagesWithFailingMessage(TestContext context) throws ValidationException {
         Async async = context.async();
         String topic = "myTopic";
         final List<KafkaProducerRecord<String, String>> records =
                 buildRecords(topic, Buffer.buffer(buildThreeRecordsPayload("key_1", "key_2", "key_3").encode()));
 
-        doAnswer(invocation -> {
-            Handler<AsyncResult<RecordMetadata>> handler = (Handler<AsyncResult<RecordMetadata>>) invocation.getArguments()[1];
-            handler.handle(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
-            return null;
-        }).when(producer).write(any(), any());
-        doAnswer(invocation -> {
-            Handler<AsyncResult<RecordMetadata>> handler = (Handler<AsyncResult<RecordMetadata>>) invocation.getArguments()[1];
-            handler.handle(Future.failedFuture("Message with key '" + records.get(1).key() + "' failed."));
-            return null;
-        }).when(producer).write(eq(records.get(1)), any());
+        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
+        when(producer.send(eq(records.get(1)))).thenReturn(Future.failedFuture("Message with key '" + records.get(1).key() + "' failed."));
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertFalse(event.succeeded());
@@ -138,7 +117,7 @@ public class KafkaMessageSenderTest {
         });
 
         ArgumentCaptor<KafkaProducerRecord> recordCaptor = ArgumentCaptor.forClass(KafkaProducerRecord.class);
-        Mockito.verify(producer, times(3)).write(recordCaptor.capture(), any());
+        Mockito.verify(producer, times(3)).send(recordCaptor.capture());
 
         // verify only the first two messages was sent
         context.assertEquals(3, recordCaptor.getAllValues().size());
