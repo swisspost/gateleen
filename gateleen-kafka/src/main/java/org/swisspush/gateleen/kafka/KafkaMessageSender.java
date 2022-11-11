@@ -5,10 +5,12 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
+import io.vertx.kafka.client.producer.RecordMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.function.Function;
 
 import static java.util.stream.Collectors.toList;
 
@@ -39,20 +41,10 @@ public class KafkaMessageSender {
     }
 
     private Future<Void> sendMessage(KafkaProducer<String, String> kafkaProducer, KafkaProducerRecord<String, String> message) {
-        Promise<Void> promise = Promise.promise();
-        kafkaProducer.write(message, event -> {
-            if (event.succeeded()) {
-                if (message.key() != null) {
-                    log.debug("Message with key '{}' successfully sent to kafka. Result: {}", message.key(), event);
-                } else {
-                    log.debug("Message without key successfully sent to kafka. Result: {}", event);
-                }
-                promise.complete();
-            } else {
-                log.warn("Failed to send message with key '{}' to kafka. Cause: {}", message.key(), event.cause());
-                promise.fail(event.cause());
-            }
-        });
-        return promise.future();
+        return kafkaProducer.send(message).compose((Function<RecordMetadata, Future<Void>>) metadata -> {
+            log.debug("Message successfully sent to kafka topic '{}' on partition {} with offset {}. Timestamp: {}",
+                    metadata.getTopic(), metadata.getPartition(), metadata.getOffset(), metadata.getTimestamp());
+            return Future.succeededFuture();
+        }).onFailure(event -> log.warn("Failed to send message with key '{}' to kafka. Cause: {}", message.key(), event));
     }
 }
