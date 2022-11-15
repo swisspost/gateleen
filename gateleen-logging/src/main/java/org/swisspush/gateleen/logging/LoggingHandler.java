@@ -72,7 +72,7 @@ public class LoggingHandler {
         this.eventBus = eventBus;
         this.loggingResource = loggingResourceManager.getLoggingResource();
         this.log = RequestLoggerFactory.getLogger(LoggingHandler.class, request);
-
+        ((org.apache.logging.log4j.core.Logger) LogManager.getLogger(DEFAULT_LOGGER)).setAdditive(false);
         boolean stopValidation = false;
         for (Map<String, String> payloadFilter : loggingResource.getPayloadFilters()) {
             if (active || stopValidation) {
