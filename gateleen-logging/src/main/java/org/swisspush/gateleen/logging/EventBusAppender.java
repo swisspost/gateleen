@@ -38,8 +38,10 @@ public class EventBusAppender extends AbstractWriterAppender {
             }
             final StringLayout stringLayout = (StringLayout) layout;
             Writer target = new EventBusWriter(eventBus, address, deliveryOptionsHeaders, transmissionMode);
-            return new EventBusAppender(getName(), stringLayout, getFilter(), getManager(target, false, stringLayout),
+            EventBusAppender appender = new EventBusAppender(getName(), stringLayout, getFilter(), getManager(target, false, stringLayout),
                     isIgnoreExceptions(), getPropertyArray());
+            appender.start();
+            return appender;
         }
 
         public static void setEventBus(EventBus eventBus) {
@@ -114,7 +116,9 @@ public class EventBusAppender extends AbstractWriterAppender {
             layout = PatternLayout.createDefaultLayout();
         }
         Writer target = new EventBusWriter(eventBus, address, deliveryOptionsHeaders, transmissionMode);
-        return new EventBusAppender(name, layout, filter, getManager(target, follow, layout), ignore, null);
+        EventBusAppender appender = new EventBusAppender(name, layout, filter, getManager(target, follow, layout), ignore, null);
+        appender.start();
+        return appender;
     }
 
     private static WriterManager getManager(final Writer target, final boolean follow, final StringLayout layout) {
