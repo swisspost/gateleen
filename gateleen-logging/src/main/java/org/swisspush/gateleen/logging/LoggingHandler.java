@@ -154,7 +154,6 @@ public class LoggingHandler {
             if (appender != null) {
                 if (!loggers.containsKey(filterDestination)) {
                     org.apache.logging.log4j.Logger filterLogger = LogManager.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
-                    removeAllAppenders((org.apache.logging.log4j.core.Logger) filterLogger);
                     ((org.apache.logging.log4j.core.Logger) filterLogger).addAppender(appender);
                     ((org.apache.logging.log4j.core.Logger) filterLogger).setAdditive(false);
                     loggers.put(filterDestination, filterLogger);
@@ -174,15 +173,6 @@ public class LoggingHandler {
         }
 
         return filterDestination;
-    }
-
-    protected void removeAllAppenders(org.apache.logging.log4j.core.Logger logger) {
-        Map<String, Appender> appenders = logger.getAppenders();
-        if (appenders != null) {
-            for (Appender appender : appenders.values()) {
-                logger.removeAppender(appender);
-            }
-        }
     }
 
     /**
