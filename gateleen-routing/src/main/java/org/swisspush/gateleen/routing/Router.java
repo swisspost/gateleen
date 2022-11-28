@@ -47,7 +47,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     public static final String ROUTER_STATE_MAP = "router_state_map";
     public static final String ROUTER_BROKEN_KEY = "router_broken";
     public static final String REQUEST_HOPS_LIMIT_PROPERTY = "request.hops.limit";
-    public static final String ROUTE_MULTIPLIER_ADRESS = "gateleen.route-multiplier";
+    public static final String ROUTE_MULTIPLIER_ADDRESS = "gateleen.route-multiplier";
     private final String rulesUri;
     private final String userProfileUri;
     private final String serverUri;
@@ -263,7 +263,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             }
         }));
 
-        vertx.eventBus().consumer(ROUTE_MULTIPLIER_ADRESS, (Handler<Message<String>>) event -> {
+        vertx.eventBus().consumer(ROUTE_MULTIPLIER_ADDRESS, (Handler<Message<String>>) event -> {
             log.debug("Updating router's pool size multiplier: {}", (event.body() == null ? "<null>" : event.body()));
             this.routeMultiplier = Integer.parseInt(event.body());
             vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);

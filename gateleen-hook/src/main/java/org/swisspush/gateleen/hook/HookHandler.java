@@ -445,9 +445,13 @@ public class HookHandler implements LoggableResource {
      * @param readyHandler - the ready handler
      */
     private void registerRouteMultiplierChangeHandler(Handler<Void> readyHandler) {
-        vertx.eventBus().consumer(Router.ROUTE_MULTIPLIER_ADRESS, (Handler<Message<String>>) event -> {
-            log.warn("Update router's pool size multiplier: {}", (event.body() == null ? "<null>" : event.body()));
-            routeMultiplier = Integer.parseInt(event.body());
+        vertx.eventBus().consumer(Router.ROUTE_MULTIPLIER_ADDRESS, (Handler<Message<String>>) event -> {
+            log.info("Updating route multiplier: {}", (event.body() == null ? "<null>" : event.body()));
+            try {
+                routeMultiplier = Integer.parseInt(event.body());
+            } catch (NumberFormatException e) {
+                log.info("failed to parse route multiplier: {}", event.body(), e);
+            }
         });
         // method done / no async processing pending
         readyHandler.handle(null);

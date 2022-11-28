@@ -599,7 +599,7 @@ public class HookHandlerTest {
         }
 
         // Update multiplier
-        vertx.eventBus().publish(Router.ROUTE_MULTIPLIER_ADRESS, "2");
+        vertx.eventBus().publish(Router.ROUTE_MULTIPLIER_ADDRESS, "2");
         Thread.sleep(2000);
         // Old on should be expired
 
