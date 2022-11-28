@@ -43,9 +43,11 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
      * How long to let the http clients live before closing them after a re-configuration
      */
     private static final int GRACE_PERIOD = 30000;
+    public static final int DEFAULT_ROUTER_MULTIPLIER = 1;
     public static final String ROUTER_STATE_MAP = "router_state_map";
     public static final String ROUTER_BROKEN_KEY = "router_broken";
     public static final String REQUEST_HOPS_LIMIT_PROPERTY = "request.hops.limit";
+    public static final String ROUTE_MULTIPLIER_ADRESS = "gateleen.route-multiplier";
     private final String rulesUri;
     private final String userProfileUri;
     private final String serverUri;
@@ -72,6 +74,11 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private ConfigurationResourceManager configurationResourceManager;
     private Integer requestHopsLimit = null;
     private final Set<DefaultRouteType> defaultRouteTypes;
+
+    /**
+     * The multiplier applied to routes, typically the number of {@link Router} instances in a cluster.
+     */
+    private int routeMultiplier;
 
     /**
      * @return
@@ -127,6 +134,40 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                   String userProfilePath,
                   JsonObject info,
                   int storagePort,
+                  int routeMultiplier,
+                  Handler<Void>... doneHandlers) {
+        this(vertx,
+                storage,
+                properties,
+                loggingResourceManager,
+                monitoringHandler,
+                selfClient,
+                serverPath,
+                rulesPath,
+                userProfilePath,
+                info,
+                storagePort,
+                all(),
+                HttpClientFactory.of(vertx),
+                routeMultiplier,
+                doneHandlers);
+    }
+
+    /**
+     * In some cases using {@link #builder()} is more convenient than messing
+     * around with such an amount of arguments.
+     */
+    public Router(Vertx vertx,
+                  final ResourceStorage storage,
+                  final Map<String, Object> properties,
+                  LoggingResourceManager loggingResourceManager,
+                  MonitoringHandler monitoringHandler,
+                  HttpClient selfClient,
+                  String serverPath,
+                  String rulesPath,
+                  String userProfilePath,
+                  JsonObject info,
+                  int storagePort,
                   Set<DefaultRouteType> defaultRouteTypes,
                   Handler<Void>... doneHandlers) {
         this(vertx,
@@ -142,6 +183,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 storagePort,
                 defaultRouteTypes,
                 HttpClientFactory.of(vertx),
+                DEFAULT_ROUTER_MULTIPLIER,
                 doneHandlers);
     }
 
@@ -162,6 +204,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
            int storagePort,
            Set<DefaultRouteType> defaultRouteTypes,
            HttpClientFactory httpClientFactory,
+           int routeMultiplier,
            Handler<Void>... doneHandlers) {
         this.storage = storage;
         this.properties = properties;
@@ -177,7 +220,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.defaultRouteTypes = defaultRouteTypes;
         this.httpClientFactory = httpClientFactory;
         this.doneHandlers = doneHandlers;
-
+        this.routeMultiplier = routeMultiplier;
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
 
         final JsonObject initialRules = new JsonObject()
@@ -190,15 +233,15 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 if (buffer != null) {
                     try {
                         log.info("Applying rules");
-                        updateRouting(buffer);
+                        updateRouting(buffer, this.routeMultiplier);
                     } catch (ValidationException e) {
                         log.error("Could not reconfigure routing", e);
-                        updateRouting(initialRules);
+                        updateRouting(initialRules, this.routeMultiplier);
                         setRoutingBrokenMessage(e);
                     }
                 } else {
                     log.warn("No rules in storage, using initial routing");
-                    updateRouting(initialRules);
+                    updateRouting(initialRules, this.routeMultiplier);
                 }
             } catch (ValidationException e) {
                 log.error("Could not reconfigure routing", e);
@@ -211,7 +254,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             if (buffer != null) {
                 try {
                     log.info("Applying rules");
-                    updateRouting(buffer);
+                    updateRouting(buffer, this.routeMultiplier);
                 } catch (ValidationException e) {
                     log.error("Could not reconfigure routing", e);
                 }
@@ -219,6 +262,12 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 log.warn("Could not get URL '{}' (getting rules).", (rulesUri == null ? "<null>" : rulesUri));
             }
         }));
+
+        vertx.eventBus().consumer(ROUTE_MULTIPLIER_ADRESS, (Handler<Message<String>>) event -> {
+            log.debug("Updating router's pool size multiplier: {}", (event.body() == null ? "<null>" : event.body()));
+            this.routeMultiplier = Integer.parseInt(event.body());
+            vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        });
     }
 
     public enum DefaultRouteType {
@@ -234,7 +283,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         if (request.uri().equals(rulesUri) && HttpMethod.PUT == request.method()) {
             request.bodyHandler(buffer -> {
                 try {
-                    new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
+                    new RuleFactory(properties, routingRulesSchema).parseRules(buffer, routeMultiplier);
                 } catch (ValidationException validationException) {
                     log.error("Could not parse rules: {}", validationException.toString());
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, Router.class);
@@ -401,12 +450,12 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         });
     }
 
-    private void updateRouting(JsonObject rules) throws ValidationException {
-        updateRouting(new RuleFactory(properties, routingRulesSchema).createRules(rules));
+    private void updateRouting(JsonObject rules, int routeMultiplier) throws ValidationException {
+        updateRouting(new RuleFactory(properties, routingRulesSchema).createRules(rules, routeMultiplier));
     }
 
-    private void updateRouting(Buffer buffer) throws ValidationException {
-        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
+    private void updateRouting(Buffer buffer, int routeMultiplier) throws ValidationException {
+        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(buffer, routeMultiplier);
         updateRouting(rules);
     }
 

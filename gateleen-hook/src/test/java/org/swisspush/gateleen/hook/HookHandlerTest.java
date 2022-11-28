@@ -9,6 +9,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,6 +24,7 @@ import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
+import org.swisspush.gateleen.routing.Router;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -567,6 +569,66 @@ public class HookHandlerTest {
                 testContext.assertEquals(400, statusCodePtr[0]);
             }
         }
+    }
+
+    @Test
+    public void hookRegistration_RouteWithRouteMultiplier(TestContext testContext) throws InterruptedException {
+        // Initialize mock, expires in 2s
+        String expirationTime = DateTime.now().plusSeconds(2).toString();
+        storage.putMockData("pathToRouterResource", ("{\n" +
+                "   \"requesturl\":\"/server/services/api/_hooks/route\",\n" +
+                "   \"expirationTime\":\"" + expirationTime + "\",\n" +
+                "   \"hook\":{\n" +
+                "      \"destination\":\"http://localhost/aservice/v1/events\",\n" +
+                "      \"methods\":[\n" +
+                "         \"PUT\"\n" +
+                "      ],\n" +
+                "      \"connectionPoolSize\":10\n" +
+                "   }\n" +
+                "}"));
+        vertx.eventBus().request("gateleen.hook-route-insert", "pathToRouterResource");
+        // wait a moment to let the router be registered
+        Thread.sleep(1000);
+
+        testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
+        { // Assert connectionPoolSize, should be unchanged : 10
+            Route route = hookHandler.routeRepository.getRoutes().get(hookHandler.routeRepository.getRoutes().keySet().toArray()[0].toString());
+            final Integer connectionPoolSize = route.getHook().getConnectionPoolSize();
+            testContext.assertNotNull(connectionPoolSize);
+            testContext.assertEquals(10, connectionPoolSize);
+        }
+
+        // Update multiplier
+        vertx.eventBus().publish(Router.ROUTE_MULTIPLIER_ADRESS, "2");
+        Thread.sleep(2000);
+        // Old on should be expired
+
+        expirationTime = DateTime.now().plusSeconds(2).toString();
+        storage.putMockData("pathToRouterResource", ("{\n" +
+                "   \"requesturl\":\"/server/services/api/_hooks/route\",\n" +
+                "   \"expirationTime\":\"" + expirationTime + "\",\n" +
+                "   \"hook\":{\n" +
+                "      \"destination\":\"http://localhost/aservice/v1/events\",\n" +
+                "      \"methods\":[\n" +
+                "         \"PUT\"\n" +
+                "      ],\n" +
+                "      \"connectionPoolSize\":10\n" +
+                "   }\n" +
+                "}"));
+        vertx.eventBus().request("gateleen.hook-route-insert", "pathToRouterResource");
+        // wait a moment to let the router be registered
+        Thread.sleep(1000);
+
+        testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
+        { // Assert connectionPoolSize, should be changed : 5
+            Route route = hookHandler.routeRepository.getRoutes().get(hookHandler.routeRepository.getRoutes().keySet().toArray()[0].toString());
+            final Integer connectionPoolSize = route.getHook().getConnectionPoolSize();
+            testContext.assertNotNull(connectionPoolSize);
+            testContext.assertEquals(5, connectionPoolSize);
+        }
+
+        //clean up
+        vertx.eventBus().request("gateleen.hook-route-remove", "pathToRouterResource");
     }
 
 
