@@ -6,7 +6,7 @@
 
     <groupId>org.swisspush.gateleen</groupId>
     <artifactId>gateleen</artifactId>
-    <version>1.3.22-SNAPSHOT</version>
+    <version>1.3.23-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>gateleen</name>
     <description>Middleware library based on Vert.x to build advanced JSON/REST communication servers</description>
