@@ -1533,15 +1533,16 @@ public class HookHandler implements LoggableResource {
 
         // Configure connection pool size
         Integer originalPoolSize = jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME);
-        int appliedPoolSize = 0;
+        int appliedPoolSize;
         if (originalPoolSize != null) {
             appliedPoolSize = Math.floorDiv(originalPoolSize, routeMultiplier);
             if (appliedPoolSize < 1) {
                 appliedPoolSize = originalPoolSize;
             }
+            log.debug("Original pool size is {}, applied size is {}", originalPoolSize, appliedPoolSize);
+            hook.setConnectionPoolSize(appliedPoolSize);
         }
-        log.debug("Original pool size is {}, applied size is {}", originalPoolSize, appliedPoolSize);
-        hook.setConnectionPoolSize(appliedPoolSize);
+
 
         hook.setMaxWaitQueueSize(jsonHook.getInteger(HttpHook.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME));
         // Configure request timeout
