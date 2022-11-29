@@ -53,7 +53,7 @@ public class RuleFactoryTest {
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         properties.put("gateleen.test.prop.2", "http://someserver2/");
 
-        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertTrue(rules.size() == 2);
         context.assertEquals("someserver1", rules.get(0).getHost());
@@ -72,7 +72,7 @@ public class RuleFactoryTest {
                 + "  }"
                 + "}";
 
-        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
         context.assertTrue(rules.size() == 1);
         context.assertEquals(28, rules.get(0).getKeepAliveTimeout());
     }
@@ -96,7 +96,7 @@ public class RuleFactoryTest {
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         properties.put("gateleen.test.prop.2", "http://someserver2/");
 
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -116,7 +116,7 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         properties.put("gateleen.test.prop.2", "http://someserver2/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -134,7 +134,7 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         properties.put("gateleen.test.prop.2", "http://someserver2/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -153,7 +153,7 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         properties.put("gateleen.test.prop.2", "http://someserver2/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -181,7 +181,7 @@ public class RuleFactoryTest {
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         properties.put("gateleen.test.prop.2", "http://someserver2/");
         properties.put("gateleen.test.prop.3", "http://someserver3/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -204,7 +204,7 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         properties.put("gateleen.test.prop.2", "http://someserver2/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -227,7 +227,7 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
         properties.put("gateleen.test.prop.2", "http://someserver2/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -242,7 +242,7 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
 
-        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(expandOnBackendRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(expandOnBackendRule), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertTrue(rules.size() == 1);
         context.assertEquals(true, rules.get(0).isExpandOnBackend());
@@ -260,7 +260,7 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
 
-        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(deltaOnBackendRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(deltaOnBackendRule), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertTrue(rules.size() == 1);
         context.assertEquals(true, rules.get(0).isDeltaOnBackend());
@@ -290,7 +290,7 @@ public class RuleFactoryTest {
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
 
-        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(storageExpandRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(storageExpandRule), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertEquals(3, rules.size());
         context.assertTrue(rules.get(0).isStorageExpand(), "Rule has property 'storageExpand' with value true. So isStorageExpand() should return true");
@@ -325,7 +325,7 @@ public class RuleFactoryTest {
                 "}";
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -343,7 +343,7 @@ public class RuleFactoryTest {
                 "}";
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -359,7 +359,7 @@ public class RuleFactoryTest {
                 "}";
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -377,7 +377,7 @@ public class RuleFactoryTest {
                 "}";
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -393,7 +393,7 @@ public class RuleFactoryTest {
                 "}";
 
         properties.put("gateleen.test.prop.1", "http://someserver1:1234:1234/"); // port information is not valid
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -410,7 +410,7 @@ public class RuleFactoryTest {
                 "}";
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -428,7 +428,7 @@ public class RuleFactoryTest {
                 "}";
 
         properties.put("gateleen.test.prop.1", "http://someserver1/");
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -447,7 +447,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -464,7 +464,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -501,7 +501,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        List<Rule> rulesList = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        List<Rule> rulesList = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertEquals(4, rulesList.size());
 
@@ -542,7 +542,7 @@ public class RuleFactoryTest {
                 + "  }"
                 + "}";
 
-        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertTrue(rules.size() == 2);
         context.assertEquals("someserver1", rules.get(0).getHost());
@@ -561,7 +561,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertTrue(rules.size() == 1);
         context.assertEquals("someserver1", rules.get(0).getHost());
@@ -580,7 +580,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -594,7 +594,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(simpleExampleRule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -611,7 +611,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -625,7 +625,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(validRule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(validRule), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertTrue(rules.size() == 1);
 
@@ -645,7 +645,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertTrue(rules.size() == 1);
         context.assertTrue(rules.get(0).getMethods().length == 2);
@@ -663,7 +663,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -678,7 +678,7 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
     @Test
@@ -690,9 +690,35 @@ public class RuleFactoryTest {
                 "  }\n" +
                 "}";
 
-        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule));
+        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
 
         context.assertTrue(rules.size() == 1);
         context.assertEquals(Pattern.compile("x-foobar: true").pattern(), rules.get(0).getHeadersFilterPattern().pattern());
+    }
+
+    @Test
+    public void testConnectionPool(TestContext context) throws ValidationException {
+        String rule = "{\n" +
+                "  \"/gateleen/rule/1\":  {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"headersFilter\": \"x-foobar: true\",\n" +
+                "    \"connectionPoolSize\": 10\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals(10, rules.get(0).getPoolSize());
+
+        rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), 2);
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals(5, rules.get(0).getPoolSize());
+
+        rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), 3);
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals(3, rules.get(0).getPoolSize());
     }
 }
