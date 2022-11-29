@@ -34,7 +34,7 @@ public class RuleFactory {
         this.routingRulesSchema = routingRulesSchema;
     }
 
-    public List<Rule> parseRules(Buffer buffer) throws ValidationException {
+    public List<Rule> parseRules(Buffer buffer, int routeMultiplier) throws ValidationException {
         String replacedConfig;
         try {
             replacedConfig = StringUtils.replaceWildcardConfigs(buffer.toString("UTF-8"), properties);
@@ -43,13 +43,13 @@ public class RuleFactory {
         }
         ValidationResult validationResult = Validator.validateStatic(Buffer.buffer(replacedConfig), routingRulesSchema, log);
         if (validationResult.isSuccess()) {
-            return createRules(new JsonObject(replacedConfig));
+            return createRules(new JsonObject(replacedConfig), routeMultiplier);
         } else {
             throw new ValidationException(validationResult);
         }
     }
 
-    public List<Rule> createRules(JsonObject rules) throws ValidationException {
+    public List<Rule> createRules(JsonObject rules, int routeMultiplier) throws ValidationException {
         Set<String> metricNames = new HashSet<>();
         List<Rule> result = new ArrayList<>();
         for (String urlPattern : rules.fieldNames()) {
@@ -89,6 +89,15 @@ public class RuleFactory {
             ruleObj.setTimeout(1000 * rule.getInteger(Rule.CONNECTION_TIMEOUT_SEC_PROPERTY_NAME, Rule.CONNECTION_TIMEOUT_SEC_DEFAULT_VALUE));
             ruleObj.setKeepAliveTimeout(rule.getInteger("keepAliveTimeout", HttpClientOptions.DEFAULT_KEEP_ALIVE_TIMEOUT));
             ruleObj.setPoolSize(rule.getInteger(Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME, Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE));
+
+            int originalPoolSize = ruleObj.getPoolSize();
+            int appliedPoolSize = Math.floorDiv(originalPoolSize, routeMultiplier);
+            if (appliedPoolSize < 1) {
+                appliedPoolSize = originalPoolSize;
+            }
+            ruleObj.setPoolSize(appliedPoolSize);
+            log.debug("Original pool size is {}, applied size is {}", originalPoolSize, appliedPoolSize);
+
             ruleObj.setMaxWaitQueueSize(rule.getInteger(Rule.MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME, Rule.MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE));
             ruleObj.setKeepAlive(rule.getBoolean("keepAlive", true));
             ruleObj.setExpandOnBackend(rule.getBoolean("expandOnBackend", false));

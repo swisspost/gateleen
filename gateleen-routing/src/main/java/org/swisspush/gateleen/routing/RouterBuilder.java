@@ -46,6 +46,7 @@ public class RouterBuilder {
     private String configurationResourcePath;
     private ArrayList<Handler<Void>> doneHandlers;
     private HttpClientFactory httpClientFactory;
+    private int routeMultiplier = Router.DEFAULT_ROUTER_MULTIPLIER;
 
     RouterBuilder() {
         // PackagePrivate, as clients should use "Router.builder()" and not this class here directly.
@@ -93,6 +94,7 @@ public class RouterBuilder {
                 storagePort,
                 defaultRouteTypes,
                 httpClientFactory,
+                routeMultiplier,
                 doneHandlersArray
         );
         if (resourceLoggingEnabled) {
@@ -247,4 +249,9 @@ public class RouterBuilder {
         return this;
     }
 
+    public RouterBuilder withRouteMultiplier(int routeMultiplier) {
+        ensureNotBuilt();
+        this.routeMultiplier = routeMultiplier;
+        return this;
+    }
 }
