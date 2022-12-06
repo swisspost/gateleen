@@ -49,9 +49,8 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <targetHost>localhost</targetHost>
-        <targetPort>8989</targetPort>
-        <sel_chrome_driver>${session.executionRootDirectory}/gateleen-test/src/test/resources/chromedriver
-        </sel_chrome_driver>
+        <targetPort>7012</targetPort>
+        <sel_chrome_driver>/usr/local/bin/chromedriver</sel_chrome_driver>
         <vertx.version>4.2.1</vertx.version>
         <vertx-redis-client.version>4.3.3</vertx-redis-client.version>
         <jackson.version>2.13.0</jackson.version>
@@ -232,9 +231,11 @@
                                     <goal>sign</goal>
                                 </goals>
                                 <configuration>
-                                    <homedir>${session.executionRootDirectory}</homedir>
-                                    <keyname>230584D7</keyname>
-                                    <!--<executable>C:\Program Files (x86)\GnuPG\bin\gpg.exe</executable>-->
+                                    <!-- Prevent gpg from using pinentry programs -->
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
                                 </configuration>
                             </execution>
                         </executions>
@@ -560,9 +561,11 @@
                                 <goal>sign</goal>
                             </goals>
                             <configuration>
-                                <homedir>${session.executionRootDirectory}</homedir>
-                                <keyname>230584D7</keyname>
-                                <!--<executable>C:\Program Files (x86)\GnuPG\bin\gpg.exe</executable>-->
+                                <!-- Prevent gpg from using pinentry programs -->
+                                <gpgArguments>
+                                    <arg>--pinentry-mode</arg>
+                                    <arg>loopback</arg>
+                                </gpgArguments>
                             </configuration>
                         </execution>
                     </executions>
