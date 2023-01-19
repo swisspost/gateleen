@@ -3,6 +3,7 @@ package org.swisspush.gateleen.logging;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import javax.management.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -31,6 +32,9 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
 
     /** Name of the method setLoggerLevel. */
     private static final String SET_LOGGER_LEVEL_METHOD = "setLoggerLevel";
+
+    @Nullable
+    private Vertx vertx;
 
     /**
      * Default constructor for Log4jConfiguratorMBean.
