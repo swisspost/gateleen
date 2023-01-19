@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.logging;
 
+import io.vertx.core.Vertx;
+import io.vertx.core.json.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,20 +19,38 @@ import java.util.regex.PatternSyntaxException;
  * exposed as attributes of this MBean. The attribute's values represent the current level of the appropriate logger.
  * Hint: This component itself uses log4j as the logging framework.
  *
- * @see Log4jConfigurator
  * @author schwabmar
+ * @see Log4jConfigurator
  */
 public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
-    /** The logger (this logger won't be cloned!). */
+    /**
+     * The logger (this logger won't be cloned!).
+     */
     private final Logger logging = LogManager.getLogger(Log4jConfiguratorMBean.class);
 
-    /** Asterisk used as trailing string for inherited logging levels. */
+    /**
+     * Event to broadcast logger LEVEL change of a single logger
+     */
+    public static final String LOGGER_LEVEL_CHANGED = "LOGGER_LEVEL_CHANGED";
+
+    /**
+     * Event to broadcast logger LEVEL changes using a wildcard pattern
+     */
+    public static final String MULTIPLE_LOGGER_LEVELS_CHANGED = "MULTIPLE_LOGGER_LEVELS_CHANGED";
+
+    /**
+     * Asterisk used as trailing string for inherited logging levels.
+     */
     public static final String ASTERISK = "*";
 
-    /** Default name. This is the value of the name part of this MBean's JMX object name. */
+    /**
+     * Default name. This is the value of the name part of this MBean's JMX object name.
+     */
     public static final String DEFAULT_JMX_NAME = "Log4jConfigurator";
 
-    /** Name of the method setLoggerLevel. */
+    /**
+     * Name of the method setLoggerLevel.
+     */
     private static final String SET_LOGGER_LEVEL_METHOD = "setLoggerLevel";
 
     @Nullable
@@ -41,6 +61,22 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
      */
     public Log4jConfiguratorMBean() {
         super();
+    }
+
+    public Log4jConfiguratorMBean(Vertx vertx) {
+        super();
+        this.vertx = vertx;
+        this.vertx.eventBus().<JsonObject>consumer(LOGGER_LEVEL_CHANGED, event -> {
+            if (event.body() != null) {
+                setAttributeInternal(event.body().getString("loggerName"), event.body().getString("loggerLevel"));
+            }
+        });
+
+        this.vertx.eventBus().<JsonObject>consumer(MULTIPLE_LOGGER_LEVELS_CHANGED, event -> {
+            if (event.body() != null) {
+                setLoggerLevelInternal(event.body().getString("pattern"), event.body().getString("loggerLevel"));
+            }
+        });
     }
 
     /**
@@ -74,13 +110,16 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
      *
      * @see DynamicMBean#setAttribute(Attribute)
      */
-    public void setAttribute(Attribute attribute) throws AttributeNotFoundException, InvalidAttributeValueException,
-            MBeanException, ReflectionException {
-        // Set a logger's new level
+    public void setAttribute(Attribute attribute) throws AttributeNotFoundException, MBeanException {
         logging.trace("setAttribute(" + attribute + ")");
-        Log4jConfigurator cnf = Log4jConfigurator.getInstance();
         try {
-            cnf.setLoggerLevel(attribute.getName(), (String) attribute.getValue());
+            setAttributeInternal(attribute.getName(), (String) attribute.getValue());
+            if (vertx != null) {
+                JsonObject jsonData = new JsonObject();
+                jsonData.put("loggerName", attribute.getName());
+                jsonData.put("loggerLevel", attribute.getValue());
+                vertx.eventBus().publish(LOGGER_LEVEL_CHANGED, jsonData);
+            }
         } catch (IllegalArgumentException e) {
             String msg = "Unknown attribute '" + attribute + "'";
             logging.warn(msg, e);
@@ -91,6 +130,12 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
             logging.warn(msg, e);
             throw new MBeanException(e, msg);
         }
+    }
+
+    private void setAttributeInternal(String loggerName, String level) {
+        // Set a logger's new level
+        Log4jConfigurator cnf = Log4jConfigurator.getInstance();
+        cnf.setLoggerLevel(loggerName, level);
     }
 
     /**
@@ -138,8 +183,7 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
      *
      * @see DynamicMBean#invoke(String, Object[], String[])
      */
-    public Object invoke(String actionName, Object[] params, String[] signature) throws MBeanException,
-            ReflectionException {
+    public Object invoke(String actionName, Object[] params, String[] signature) throws ReflectionException {
         logging.trace("invoke(" + actionName + "," + params + "," + signature + ")");
         // Get the method to invoke
         Method action = null;
@@ -245,11 +289,11 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
                     "Regexp used to select the loggers, e.g. ^org.swisspush.*");
             MBeanParameterInfo p2 = new MBeanParameterInfo("Level", String.class.getName(),
                     "New level (one of trace, debug, info, warn, error, fatal)");
-            MBeanParameterInfo[] signature = { p1, p2 };
+            MBeanParameterInfo[] signature = {p1, p2};
             String returnType = String.class.getName();
             MBeanOperationInfo anySetOp = new MBeanOperationInfo(SET_LOGGER_LEVEL_METHOD, description, signature,
                     returnType, MBeanOperationInfo.ACTION);
-            return new MBeanOperationInfo[] { anySetOp };
+            return new MBeanOperationInfo[]{anySetOp};
         } catch (Exception e) {
             logging.error("Unable to expose method " + SET_LOGGER_LEVEL_METHOD, e);
         }
@@ -273,16 +317,25 @@ public class Log4jConfiguratorMBean implements CloneableDynamicMBean {
      * This method is only invoked by the <code>invoke</code> method of this class and has to be public (since it is
      * called via reflection API).
      *
-     * @param pattern
-     *            Regular expression used to select the loggers.
-     * @param level
-     *            New level.
+     * @param pattern Regular expression used to select the loggers.
+     * @param level   New level.
      * @return The total number of modified loggers.
      * @see "org.apache.log4j.Level"
      * @see #invoke(String, Object[], String[])
      * @see #getOperationInfo()
      */
     public String setLoggerLevel(String pattern, String level) {
+        String msg = setLoggerLevelInternal(pattern, level);
+        if (vertx != null) {
+            JsonObject jsonData = new JsonObject();
+            jsonData.put("pattern", pattern);
+            jsonData.put("loggerLevel", level);
+            vertx.eventBus().publish(MULTIPLE_LOGGER_LEVELS_CHANGED, jsonData);
+        }
+        return msg;
+    }
+
+    private String setLoggerLevelInternal(String pattern, String level) {
         int modcount = 0;
         try {
             // Set the level on all loggers with a matching name
