@@ -114,32 +114,32 @@ mvn install -PnonUiIntegrationTests
 ## Headers
 This is a list of the custom headers used by Gateleen.
 
-| Header               | Description                              | Link to documentation |
-|:-------------------- | :--------------------------------------- | :---------------------:|
-| x-rp-unique-id       | unique id | |
-| x-request-id         | id of the request (unique?) | |
-| x-self-request       | indicates if the request is triggered by a communication server and the target is the communication server itself | |
-| x-rp-grp             | group header | [gateleen-user](gateleen-user/README_user.md) |
-| x-roles              | role header | |
-| x-delta              | used by the delta parameter to mark a delta request | [gateleen-delta](gateleen-delta/README_delta.md) |
-| x-delta-backend      | used by the delta parameter as a marker header to know that we should let the request continue to the router | [gateleen-delta](gateleen-delta/README_delta.md) |
-| x-expire-After       | indicates how long (in seconds) a request is 'valid' before it expires | |
-| x-hooked             | used by the HookHandler to indicate the original hook request as hooked | [gateleen-hook](gateleen-hook/README_hook.md) |
-| x-pack-size          | indicates if a request is packed | [gateleen-packing](gateleen-packing/README_packing.md) |
-| x-client-timestamp   | timestamp of the client while sending the request | |
-| x-server-timestamp   | timestamp of the server while sending the request | |
-| x-queue              | indicates a queued request | [gateleen-queue](gateleen-queue/README_queue.md) |
-| x-duplicate-check    | indicates if a request is a duplicate or not | |
+| Header               | Description                                                                                                                                                                        | Link to documentation |
+|:---------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :---------------------:|
+| x-rp-unique_id       | unique id of the request. Normally provided by a proxy server                                                                                                                      | |
+| x-request-id         | unique id of the request when no x-rp-unique_id request header was provided                                                                                                        | |
+| x-self-request       | indicates if the request is triggered by a communication server and the target is the communication server itself                                                                  | |
+| x-rp-grp             | group header                                                                                                                                                                       | [gateleen-user](gateleen-user/README_user.md) |
+| x-roles              | role header                                                                                                                                                                        | |
+| x-delta              | used by the delta parameter to mark a delta request                                                                                                                                | [gateleen-delta](gateleen-delta/README_delta.md) |
+| x-delta-backend      | used by the delta parameter as a marker header to know that we should let the request continue to the router                                                                       | [gateleen-delta](gateleen-delta/README_delta.md) |
+| x-expire-After       | indicates how long (in seconds) a request is 'valid' before it expires                                                                                                             | |
+| x-hooked             | used by the HookHandler to indicate the original hook request as hooked                                                                                                            | [gateleen-hook](gateleen-hook/README_hook.md) |
+| x-pack-size          | indicates if a request is packed                                                                                                                                                   | [gateleen-packing](gateleen-packing/README_packing.md) |
+| x-client-timestamp   | timestamp of the client while sending the request                                                                                                                                  | |
+| x-server-timestamp   | timestamp of the server while sending the request                                                                                                                                  | |
+| x-queue              | indicates a queued request                                                                                                                                                         | [gateleen-queue](gateleen-queue/README_queue.md) |
+| x-duplicate-check    | indicates if a request is a duplicate or not                                                                                                                                       | |
 | x-on-behalf-of       | indicates the user the request originally was made from. This header is used when the request of a user is sent by another user because it couldn't be sent at that time (offline) | |
-| x-user-\<pattern\>   | used for the user profile | |
-| x-rp-deviceid        | used to check if device is authorized | |
-| x-rp-usr             | used to check if user is authorized | [gateleen-user](gateleen-user/README_user.md) |
-| x-rp-lang            | used to specify the language of the user profile | [gateleen-user](gateleen-user/README_user.md) |
-| x-valid              | indicates if a request is to be validated or not | [gateleen-validation](gateleen-validation/README_validation.md) |
-| x-sync               |  | |
-| x-log                |  | |
-| x-service            | contains the name of the service, which created the request | |
-| x-queue-expire-after | indicates how long (in seconds) a request is 'valid' in the queue before it expires | |
+| x-user-\<pattern\>   | used for the user profile                                                                                                                                                          | |
+| x-rp-deviceid        | used to check if device is authorized                                                                                                                                              | |
+| x-rp-usr             | used to check if user is authorized                                                                                                                                                | [gateleen-user](gateleen-user/README_user.md) |
+| x-rp-lang            | used to specify the language of the user profile                                                                                                                                   | [gateleen-user](gateleen-user/README_user.md) |
+| x-valid              | indicates if a request is to be validated or not                                                                                                                                   | [gateleen-validation](gateleen-validation/README_validation.md) |
+| x-sync               |                                                                                                                                                                                    | |
+| x-log                |                                                                                                                                                                                    | |
+| x-service            | contains the name of the service, which created the request                                                                                                                        | |
+| x-queue-expire-after | indicates how long (in seconds) a request is 'valid' in the queue before it expires                                                                                                | |
 
 ## Performance Tuning
 * The amount of max open files per process should be at least 16384. You can check your max open files per process with this command `cat /proc/<process id>/limits`.

@@ -679,12 +679,6 @@ public class RunConfig {
         if (uid != null) {
             sb.append(uid);
             sb.append(" ");
-        } else {
-            uid = request.headers().get("x-rp-unique-id");
-            if (uid != null) {
-                sb.append(uid);
-                sb.append(" ");
-            }
         }
 
         sb.append(request.method());
