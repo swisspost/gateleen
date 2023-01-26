@@ -30,14 +30,19 @@ public class RuleProvider {
     private String routingRulesSchema;
     private ResourceStorage storage;
     final Map<String, Object> properties;
+    private int routeMultiplier;
 
     private List<RuleChangesObserver> observers = new ArrayList<>();
 
     public RuleProvider(Vertx vertx, String rulesPath, ResourceStorage storage, Map<String, Object> properties) {
+        this(vertx, rulesPath, storage, properties, Router.DEFAULT_ROUTER_MULTIPLIER);
+    }
+
+    public RuleProvider(Vertx vertx, String rulesPath, ResourceStorage storage, Map<String, Object> properties, int routeMultiplier) {
         this.rulesPath = rulesPath;
         this.storage = storage;
         this.properties = properties;
-
+        this.routeMultiplier = routeMultiplier;
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
 
         notifyRuleChangesObservers();
@@ -73,7 +78,7 @@ public class RuleProvider {
         storage.get(rulesPath, buffer -> {
             if (buffer != null) {
                 try {
-                    List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(buffer);
+                    List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(buffer, routeMultiplier);
                     promise.complete(rules);
                 } catch (ValidationException e) {
                     log.error("Could parse routing rules", e);
