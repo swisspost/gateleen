@@ -859,7 +859,7 @@ public class HookHandler implements LoggableResource {
 
                     if (doMethodsMatch(route, request) && doHeadersMatch(route, request)) {
                         log.debug("Forward request (consumed) {}", request.uri());
-                        route.forward(request, buffer);
+                        route.forward(request, buffer, afterHandler);
                     } else {
                         // mark the original request as hooked
                         request.headers().set(HOOKED_HEADER, "true");
