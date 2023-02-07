@@ -1,0 +1,14 @@
+{
+	"request.hops.limit": 10,
+	"authConfigs": {
+		"config-1-valid": {
+		    "flowType": "CLIENT",
+			"clientId": "${client.id}",
+			"clientSecret": "20abaf4381beeb25c1cf811d339b3a6a",
+			"site": "https://api.swisspost.ch",
+			"tokenPath": "/OAuth/token",
+			"authPath": "/OAuth/authorization",
+			"scopes": ["APIM_SANDBOX_RESOURCE_SERVER_READ"]
+		}
+	}
+}
