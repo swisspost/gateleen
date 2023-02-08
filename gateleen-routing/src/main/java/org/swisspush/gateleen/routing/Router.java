@@ -25,6 +25,9 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.routing.auth.AuthStrategy;
+import org.swisspush.gateleen.routing.auth.BasicAuthStrategy;
+import org.swisspush.gateleen.routing.auth.OAuthStrategy;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import java.net.HttpCookie;
@@ -397,16 +400,17 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
              * the host field of the rule
              * is null.
              */
+            AuthStrategy authStrategy = selectAuthStrategy(rule);
             Handler<RoutingContext> forwarder;
             if (rule.getPath() == null) {
                 forwarder = new NullForwarder(rule, loggingResourceManager, monitoringHandler, vertx.eventBus());
             } else if (rule.getStorage() != null) {
                 forwarder = new StorageForwarder(vertx.eventBus(), rule, loggingResourceManager, monitoringHandler);
             } else if (rule.getScheme().equals("local")) {
-                forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
+                forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri, authStrategy);
             } else {
                 HttpClient client = httpClientFactory.createHttpClient(rule.buildHttpClientOptions());
-                forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
+                forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri, authStrategy);
                 newClients.add(client);
             }
 
@@ -417,6 +421,16 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 installMethodForwarder(newRouter, rule, forwarder);
             }
         }
+    }
+
+    private AuthStrategy selectAuthStrategy(Rule rule) {
+        AuthStrategy authStrategy = null;
+        if (StringUtils.isNotEmpty(rule.getBasicAuthUsername())) {
+            authStrategy = new BasicAuthStrategy();
+        } else if(StringUtils.isNotEmpty(rule.getOAuthId())){
+            authStrategy = new OAuthStrategy();
+        }
+        return authStrategy;
     }
 
     private void installMethodForwarder(io.vertx.ext.web.Router newRouter, Rule rule, Handler<RoutingContext> forwarder) {

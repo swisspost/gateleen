@@ -80,6 +80,9 @@ public class StringUtilsTest {
         context.assertEquals(def, StringUtils.getStringOrDefault(" ", def));
         context.assertEquals(text, StringUtils.getStringOrDefault(text, def));
         context.assertEquals(text, StringUtils.getStringOrDefault(" " + text + " ", def));
+        context.assertEquals(null, StringUtils.getStringOrDefault(null, null));
+        context.assertEquals(null, StringUtils.getStringOrDefault("", null));
+        context.assertEquals(null, StringUtils.getStringOrDefault(" ", null));
     }
 
     @Test

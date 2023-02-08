@@ -2,7 +2,6 @@ package org.swisspush.gateleen.routing;
 
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
@@ -23,8 +22,9 @@ import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.logging.LoggingWriteStream;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.routing.auth.AuthStrategy;
 
-import java.util.Base64;
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -43,10 +43,11 @@ public class Forwarder extends AbstractForwarder {
     private String target;
     private int port;
     private Rule rule;
-    private String base64UsernamePassword;
     private LoggingResourceManager loggingResourceManager;
     private MonitoringHandler monitoringHandler;
     private ResourceStorage storage;
+    @Nullable
+    private AuthStrategy authStrategy;
     private Vertx vertx;
 
     private static final String ON_BEHALF_OF_HEADER = "x-on-behalf-of";
@@ -61,7 +62,7 @@ public class Forwarder extends AbstractForwarder {
 
     public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage,
                      LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
-                     String userProfilePath) {
+                     String userProfilePath, @Nullable AuthStrategy authStrategy) {
         super(rule, loggingResourceManager, monitoringHandler);
         this.vertx = vertx;
         this.client = client;
@@ -72,10 +73,7 @@ public class Forwarder extends AbstractForwarder {
         this.urlPattern = Pattern.compile(rule.getUrlPattern());
         this.target = rule.getHost() + ":" + rule.getPort();
         this.userProfilePath = userProfilePath;
-        if (rule.getBasicAuthUsername() != null && !rule.getBasicAuthUsername().isEmpty()) {
-            String password = rule.getBasicAuthPassword() == null ? null : rule.getBasicAuthPassword().trim();
-            base64UsernamePassword = Base64.getEncoder().encodeToString((rule.getBasicAuthUsername().trim() + ":" + password).getBytes());
-        }
+        this.authStrategy = authStrategy;
     }
 
     private Map<String, String> createProfileHeaderValues(JsonObject profile, Logger log) {
@@ -260,8 +258,8 @@ public class Forwarder extends AbstractForwarder {
                 }
                 setProfileHeaders(log, profileHeaderMap, cReq);
 
-                if (base64UsernamePassword != null) {
-                    cReq.headers().set("Authorization", "Basic " + base64UsernamePassword);
+                if (authStrategy != null) {
+                    authStrategy.authenticate(cReq, rule);
                 }
 
                 final String errorMessage = applyHeaderFunctions(log, cReq.headers());
