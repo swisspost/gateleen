@@ -72,6 +72,7 @@ public class HookHandler implements LoggableResource {
     private static final String REMOVE_LISTENER_ADDRESS = "gateleen.hook-listener-remove";
     private static final String SAVE_ROUTE_ADDRESS = "gateleen.hook-route-insert";
     private static final String REMOVE_ROUTE_ADDRESS = "gateleen.hook-route-remove";
+    private static final int STATUS_CODE_2XX = 2;
 
     private static final int DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME = 60 * 60; // 1h in seconds
 
@@ -1201,7 +1202,7 @@ public class HookHandler implements LoggableResource {
                 response.endHandler(v -> request.response().end());
 
                 // if everything is fine, we call the after handler
-                if (response.statusCode() == StatusCode.OK.getStatusCode()) {
+                if ((response.statusCode() / 100) == STATUS_CODE_2XX) {
                     afterHandler.handle(null);
                 }
             };
