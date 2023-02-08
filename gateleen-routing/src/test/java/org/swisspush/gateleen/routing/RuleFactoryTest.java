@@ -721,4 +721,62 @@ public class RuleFactoryTest {
         context.assertTrue(rules.size() == 1);
         context.assertEquals(3, rules.get(0).getPoolSize());
     }
+
+    @Test
+    public void testOAuthIdAndBasicAuthProperty() throws ValidationException {
+        thrown.expect( ValidationException.class );
+
+        String rules = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test Rule 1\",\n" +
+                "    \"path\": \"/some/other/path\",\n" +
+                "    \"oAuthId\": \"some-oauth-id\",\n" +
+                "    \"basicAuth\": {\n" +
+                "      \"username\": \"foo\",\n" +
+                "      \"password\": \"bar\"\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
+    }
+
+    @Test
+    public void testOAuthIdProperty(TestContext context) throws ValidationException {
+        String rule = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test Rule 1\",\n" +
+                "    \"path\": \"/some/other/path\",\n" +
+                "    \"oAuthId\": \"some-oauth-id\"\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals("some-oauth-id", rules.get(0).getOAuthId());
+        context.assertNull(rules.get(0).getBasicAuthUsername());
+        context.assertNull(rules.get(0).getBasicAuthPassword());
+    }
+
+    @Test
+    public void testBasicAuthProperty(TestContext context) throws ValidationException {
+        String rule = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test Rule 1\",\n" +
+                "    \"path\": \"/some/other/path\",\n" +
+                "    \"basicAuth\": {\n" +
+                "      \"username\": \"foo\",\n" +
+                "      \"password\": \"bar\"\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals("foo", rules.get(0).getBasicAuthUsername());
+        context.assertEquals("bar", rules.get(0).getBasicAuthPassword());
+        context.assertNull(rules.get(0).getOAuthId());
+    }
 }

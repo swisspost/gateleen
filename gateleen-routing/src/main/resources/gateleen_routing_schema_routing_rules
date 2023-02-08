@@ -41,6 +41,10 @@
 					"description": "To authenticate against the backend.",
 					"$ref": "#/definitions/BasicAuth"
 				},
+				"oAuthId": {
+					"description": "The id of the OAuth configuration to use to authenticate against the backend",
+					"type": "string"
+				},
 				"proxyOptions": {
 					"description": "Custom proxy options for this rule (forwarding)",
 					"$ref": "#/definitions/ProxyOptions"
@@ -128,13 +132,19 @@
 			},
 			"additionalProperties": false,
 			"not": {
-				"title": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time",
-				"description": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time",
+				"title": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time. Also either one of 'basicAuth' or 'oAuthId' is allowed",
+				"description": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time. Also either one of 'basicAuth' or 'oAuthId' is allowed",
 				"anyOf": [
 					{
 						"required": [
 							"staticHeaders",
 							"headers"
+						]
+					},
+					{
+						"required": [
+							"basicAuth",
+							"oAuthId"
 						]
 					}
 				]

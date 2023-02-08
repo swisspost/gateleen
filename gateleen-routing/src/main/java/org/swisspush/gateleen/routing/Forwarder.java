@@ -72,9 +72,9 @@ public class Forwarder extends AbstractForwarder {
         this.urlPattern = Pattern.compile(rule.getUrlPattern());
         this.target = rule.getHost() + ":" + rule.getPort();
         this.userProfilePath = userProfilePath;
-        if (rule.getUsername() != null && !rule.getUsername().isEmpty()) {
-            String password = rule.getPassword() == null ? null : rule.getPassword().trim();
-            base64UsernamePassword = Base64.getEncoder().encodeToString((rule.getUsername().trim() + ":" + password).getBytes());
+        if (rule.getBasicAuthUsername() != null && !rule.getBasicAuthUsername().isEmpty()) {
+            String password = rule.getBasicAuthPassword() == null ? null : rule.getBasicAuthPassword().trim();
+            base64UsernamePassword = Base64.getEncoder().encodeToString((rule.getBasicAuthUsername().trim() + ":" + password).getBytes());
         }
     }
 
