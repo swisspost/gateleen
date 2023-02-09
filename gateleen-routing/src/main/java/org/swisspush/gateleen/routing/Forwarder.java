@@ -56,6 +56,7 @@ public class Forwarder extends AbstractForwarder {
     private static final String IF_NONE_MATCH_HEADER = "if-none-match";
     private static final String SELF_REQUEST_HEADER = "x-self-request";
     private static final String HOST_HEADER = "Host";
+    private static final int STATUS_CODE_2XX = 2;
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
 
@@ -477,7 +478,7 @@ public class Forwarder extends AbstractForwarder {
                     req.response().end();
 
                     // if everything is fine, we call the after handler
-                    if (afterHandler != null && cRes.statusCode() == StatusCode.OK.getStatusCode()) {
+                    if (afterHandler != null && (cRes.statusCode() / 100) == STATUS_CODE_2XX) {
                         afterHandler.handle(null);
                     }
                     ResponseStatusCodeLogUtil.debug(req, StatusCode.fromCode(req.response().getStatusCode()), Forwarder.class);
