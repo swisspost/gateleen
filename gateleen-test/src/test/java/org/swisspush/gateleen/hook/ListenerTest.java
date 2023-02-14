@@ -2,6 +2,7 @@ package org.swisspush.gateleen.hook;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.google.common.collect.ImmutableMap;
 import com.jayway.awaitility.Awaitility;
 import com.jayway.awaitility.Duration;
 import io.restassured.RestAssured;
@@ -499,6 +500,75 @@ public class ListenerTest extends AbstractTest {
         checkGETStatusCodeWithAwait(targetUrlListener1, 404);
 
         TestUtils.unregisterListener(registerUrlListener1);
+
+        async.complete();
+    }
+
+    @Test
+    public void testAfterTriggerTypeWithRoute(TestContext context) {
+        Async async = context.async();
+        delete();
+        JsonObject rules = new JsonObject();
+
+        // Settings
+        String subresource = "afterListener";
+        String listenerName = "listenerName";
+        String routeName = "routePathTest";
+        String resourceBase = requestUrlBase + "/" + subresource;
+
+        String registerUrlListener = resourceBase + TestUtils.getHookListenersUrlSuffix() + listenerName;
+        String targetListener = targetUrlBase + "/" + listenerName;
+        String[] methods = new String[]{"GET", "PUT", "DELETE", "POST"};
+        final String hookAfterTarget = targetListener + "/" + "test";
+
+        // -------
+        final String requestUrl = resourceBase + TestUtils.getHookRouteUrlSuffix();
+        final String body = "{ \"name\" : \"" + subresource + "\"}";
+        final String target = SERVER_ROOT + "/tests/gateleen/targetresource/" + routeName;
+
+        final String routedResource = resourceBase + "/test";
+        final String routeTarget = targetUrlBase + "/" + routeName + "/test";
+
+        JsonObject rule = TestUtils.createRoutingRule(ImmutableMap.of(
+                "description",
+                "Respond the request with status code 503",
+                "path",
+                SERVER_ROOT + "/return-with-status-code/503"));
+
+        rules = TestUtils.addRoutingRuleMainStorage(rules);
+        rules = TestUtils.addRoutingRule(rules, SERVER_ROOT + routedResource, rule);
+        rules = TestUtils.addRoutingRuleHooks(rules);
+
+        TestUtils.putRoutingRules(rules);
+
+        delete(requestUrl);
+        delete(hookAfterTarget);
+        delete(routeTarget);
+
+        /*
+         * Sending request, listener hooked
+         */
+        TestUtils.registerListener(registerUrlListener, targetListener, methods, null, null, null, HookTriggerType.AFTER, null);
+
+        checkPUTStatusCode(routedResource, body, 503);
+        checkGETStatusCodeWithAwait(routedResource, 503);
+        checkGETStatusCodeWithAwait(routeTarget, 404);
+        checkGETStatusCodeWithAwait(hookAfterTarget, 404);
+
+        // add a routing
+        TestUtils.registerRoute(requestUrl, target, methods);
+
+        checkPUTStatusCode(routedResource, body, 200);
+        checkGETStatusCodeWithAwait(routedResource, 200);
+        checkGETBodyWithAwait(routeTarget, body);
+        checkGETBodyWithAwait(hookAfterTarget, body);
+
+        checkDELETEStatusCode(routedResource, 200);
+        checkGETStatusCodeWithAwait(routedResource, 404);
+        checkGETStatusCodeWithAwait(routeTarget, 404);
+        checkGETStatusCodeWithAwait(hookAfterTarget, 404);
+
+        TestUtils.unregisterListener(registerUrlListener);
 
         async.complete();
     }
