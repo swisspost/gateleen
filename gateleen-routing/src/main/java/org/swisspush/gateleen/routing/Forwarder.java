@@ -413,7 +413,7 @@ public class Forwarder extends AbstractForwarder {
                 }
                 error(exception.getMessage(), req, targetUri);
                 if (req.response().ended() || req.response().headWritten()) {
-                    error("Response already written. Not sure about the state. Closing server connection for stability reason", req, targetUri);
+                    LOG.info("{}: Response already written. Not sure about the state. Closing server connection for stability reason", targetUri);
                     req.response().close();
                     return;
                 }

@@ -36,6 +36,7 @@ import org.swisspush.gateleen.queue.queuing.QueueProcessor;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.Rule;
+import org.swisspush.gateleen.routing.RuleFactory;
 import org.swisspush.gateleen.validation.RegexpValidator;
 import org.swisspush.gateleen.validation.ValidationException;
 
@@ -1536,14 +1537,10 @@ public class HookHandler implements LoggableResource {
         Integer originalPoolSize = jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME);
         int appliedPoolSize;
         if (originalPoolSize != null) {
-            appliedPoolSize = Math.floorDiv(originalPoolSize, routeMultiplier);
-            if (appliedPoolSize < 1) {
-                appliedPoolSize = originalPoolSize;
-            }
+            appliedPoolSize = RuleFactory.evaluatePoolSize(originalPoolSize, routeMultiplier);
             log.debug("Original pool size is {}, applied size is {}", originalPoolSize, appliedPoolSize);
             hook.setConnectionPoolSize(appliedPoolSize);
         }
-
 
         hook.setMaxWaitQueueSize(jsonHook.getInteger(HttpHook.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME));
         // Configure request timeout
