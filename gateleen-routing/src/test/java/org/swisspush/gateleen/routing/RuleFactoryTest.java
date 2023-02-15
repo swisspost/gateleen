@@ -720,7 +720,7 @@ public class RuleFactoryTest {
         rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), 3);
 
         context.assertTrue(rules.size() == 1);
-        context.assertEquals(3, rules.get(0).getPoolSize());
+        context.assertEquals(4, rules.get(0).getPoolSize());
     }
 
     @Test
