@@ -91,10 +91,8 @@ public class RuleFactory {
             ruleObj.setPoolSize(rule.getInteger(Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME, Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE));
 
             int originalPoolSize = ruleObj.getPoolSize();
-            int appliedPoolSize = Math.floorDiv(originalPoolSize, routeMultiplier);
-            if (appliedPoolSize < 1) {
-                appliedPoolSize = originalPoolSize;
-            }
+            int appliedPoolSize = evaluatePoolSize(originalPoolSize, routeMultiplier);
+
             ruleObj.setPoolSize(appliedPoolSize);
             log.debug("Original pool size is {}, applied size is {}", originalPoolSize, appliedPoolSize);
 
@@ -134,6 +132,14 @@ public class RuleFactory {
             result.add(ruleObj);
         }
         return result;
+    }
+
+    public static int evaluatePoolSize(int originalPoolSize, int routeMultiplier) {
+        return ceilDiv(originalPoolSize, routeMultiplier);
+    }
+
+    private static int ceilDiv(int x, int y){
+        return -Math.floorDiv(-x,y);
     }
 
     private void setStorage(Rule ruleObj, JsonObject rule, String path) throws ValidationException {
