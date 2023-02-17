@@ -3,29 +3,60 @@
 ## Schema validation
 Updating the routing rules requires a validation against a schema to be positive. Check the schema [gateleen_routing_schema_routing_rules](src/main/resources/gateleen_routing_schema_routing_rules)
 
-## Request hop validation
+## Routing configuration
+To configure the routing, the _ConfigurationResourceManager_ and the path to the configuration resource have to be configured in the _Router_ by calling:
+
+```java
+router.enableRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config")
+```
+The routing configuration is a json resource defining the limit for the maximum request routings (hops) called **_request.hops.limit_** and OAuth configuration called **_authConfigs_**.
+Check the schema [gateleen_routing_schema_config](src/main/resources/gateleen_routing_schema_config)
+
+Example:
+
+```json
+{
+  "request.hops.limit": 10,
+  "authConfigs": {
+    "demo-config-1": {
+      "flowType": "CLIENT",
+      "clientId": "543567344a5005",
+      "clientSecret": "212636219b3a5b",
+      "site": "https://api.swisspost.ch",
+      "tokenPath": "/OAuth/token",
+      "authPath": "/OAuth/authorization",
+      "scopes": [
+        "APIM_SANDBOX_RESOURCE_SERVER_READ"
+      ],
+      "supportedGrantTypes": [
+        "client_credentials"
+      ]
+    }
+  }
+}
+```
+
+### Request hop validation
 To protect gateleen from routing rules configured to result in an endless loop, the request hop validation feature has been introduced.
 
-### Description
 When the request hop validation is activated, a **_x-hops_** request header will be added to the request before routing. Initially, this header will receive the value 1.
 When the **_x-hops_** header already exists (in alredy routed requests for example), the value will be increased by 1.
 
 Before the request is routed, the **_x-hops_** header value will be checked against a configurable limit. When the limit is exceeded, the request will
 be answered with a http status code _500_ and a http status message: _Request hops limit exceeded_
 
-### Usage
-To use the request hop validation feature, the _ConfigurationResourceManager_ and the path to the configuration resource have to be configured in the _Router_ by calling:
-
-```java
-router.enableRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config")
-```
-The routing configuration is a json resource defining the limit for the maximum request routings (hops) called **_request.hops.limit_**.
+### OAuth2 authentication
+To activate OAuth2 authentication for forwarding requests, a configuration with the required properties like _flowType_, _clientId_, _clientSecret_, etc. can be provided. See [vertx-auth-oauth2 documentation](https://vertx.io/docs/vertx-auth-oauth2/java/) for more
+information. The name of the configuration (_demo-config-1_ in the example) is used in the routing rule.
 
 Example:
 
 ```json
 {
-  "request.hops.limit": 10
+  "/gateleen/server/rule/1/(.*)": {
+    "oAuthId": "demo-config-1",
+    "url": "http://localhost/some/backend/path/$1"
+  }
 }
 ```
 
