@@ -159,14 +159,20 @@ public class RuleFactory {
         }
     }
 
-    private void setAuthentication(Rule ruleObj, JsonObject rule) {
+    private void setAuthentication(Rule ruleObj, JsonObject rule) throws ValidationException {
         JsonObject basicAuth = rule.getJsonObject("basicAuth");
+        String oAuthId = rule.getString("oAuthId");
+
+        if (basicAuth != null && oAuthId != null) {
+            throw new ValidationException("Either 'basicAuth' or 'oAuthId' can be given, not both");
+        }
+
         if (basicAuth != null) {
             ruleObj.setBasicAuthUsername(basicAuth.getString("username"));
             ruleObj.setBasicAuthPassword(basicAuth.getString("password"));
+        } else if (oAuthId != null) {
+            ruleObj.setOAuthId(oAuthId);
         }
-
-        ruleObj.setOAuthId(rule.getString("oAuthId", null));
     }
 
     @Deprecated
