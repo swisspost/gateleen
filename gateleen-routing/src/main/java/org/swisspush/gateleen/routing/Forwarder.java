@@ -228,7 +228,9 @@ public class Forwarder extends AbstractForwarder {
         return evalScope.getErrorMessage();
     }
 
-    private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap, Optional<AuthHeader> authHeader, @Nullable final Handler<Void> afterHandler) {
+    private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri,
+                               final Logger log, final Map<String, String> profileHeaderMap,
+                               Optional<AuthHeader> authHeader, @Nullable final Handler<Void> afterHandler) {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req, vertx.eventBus());
 
         final String uniqueId = req.headers().get("x-rp-unique_id");
