@@ -59,6 +59,7 @@ public class Forwarder extends AbstractForwarder {
     private static final String IF_NONE_MATCH_HEADER = "if-none-match";
     private static final String SELF_REQUEST_HEADER = "x-self-request";
     private static final String HOST_HEADER = "Host";
+    private static final int STATUS_CODE_2XX = 2;
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
 
@@ -103,7 +104,7 @@ public class Forwarder extends AbstractForwarder {
 
     @Override
     public void handle(final RoutingContext ctx) {
-        handle(ctx.request(), null);
+        handle(ctx.request(), null, null);
     }
 
     /**
@@ -116,7 +117,7 @@ public class Forwarder extends AbstractForwarder {
      * @param bodyData - a buffer with the body data, null if the request
      *                 was not yet consumed
      */
-    public void handle(final HttpServerRequest req, final Buffer bodyData) {
+    public void handle(final HttpServerRequest req, final Buffer bodyData, @Nullable final Handler<Void> afterHandler) {
         final Logger log = RequestLoggerFactory.getLogger(Forwarder.class, req);
 
         if (handleHeadersFilter(req)) {
@@ -170,10 +171,10 @@ public class Forwarder extends AbstractForwarder {
                     } else {
                         log.debug("No profile information found in local storage for user '{}'", userId);
                     }
-                    handleRequest(req, bodyData, targetUri, log, profileHeaderMap, authHeader);
+                    handleRequest(req, bodyData, targetUri, log, profileHeaderMap, authHeader, afterHandler);
                 });
             } else {
-                handleRequest(req, bodyData, targetUri, log, null, authHeader);
+                handleRequest(req, bodyData, targetUri, log, null, authHeader, afterHandler);
             }
         });
     }
@@ -227,8 +228,7 @@ public class Forwarder extends AbstractForwarder {
         return evalScope.getErrorMessage();
     }
 
-    private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri,
-                               final Logger log, final Map<String, String> profileHeaderMap, Optional<AuthHeader> authHeader) {
+    private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap, Optional<AuthHeader> authHeader, @Nullable final Handler<Void> afterHandler) {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req, vertx.eventBus());
 
         final String uniqueId = req.headers().get("x-rp-unique_id");
@@ -249,7 +249,7 @@ public class Forwarder extends AbstractForwarder {
                     return;
                 }
                 HttpClientRequest cReq = event.result();
-                final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, startTime);
+                final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, startTime, afterHandler);
                 cReq.response(cResHandler);
 
                 if (timeout != null) {
@@ -430,7 +430,7 @@ public class Forwarder extends AbstractForwarder {
                 }
                 error(exception.getMessage(), req, targetUri);
                 if (req.response().ended() || req.response().headWritten()) {
-                    error("Response already written. Not sure about the state. Closing server connection for stability reason", req, targetUri);
+                    LOG.info("{}: Response already written. Not sure about the state. Closing server connection for stability reason", targetUri);
                     req.response().close();
                     return;
                 }
@@ -439,7 +439,7 @@ public class Forwarder extends AbstractForwarder {
         });
     }
 
-    private Handler<AsyncResult<HttpClientResponse>> getAsyncHttpClientResponseHandler(final HttpServerRequest req, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap, final LoggingHandler loggingHandler, final long startTime) {
+    private Handler<AsyncResult<HttpClientResponse>> getAsyncHttpClientResponseHandler(final HttpServerRequest req, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap, final LoggingHandler loggingHandler, final long startTime, @Nullable final Handler<Void> afterHandler) {
         return asyncResult -> {
             HttpClientResponse cRes = asyncResult.result();
             if (asyncResult.failed()) {
@@ -493,6 +493,11 @@ public class Forwarder extends AbstractForwarder {
             cRes.endHandler(v -> {
                 try {
                     req.response().end();
+
+                    // if everything is fine, we call the after handler
+                    if (afterHandler != null && (cRes.statusCode() / 100) == STATUS_CODE_2XX) {
+                        afterHandler.handle(null);
+                    }
                     ResponseStatusCodeLogUtil.debug(req, StatusCode.fromCode(req.response().getStatusCode()), Forwarder.class);
                 } catch (IllegalStateException e) {
                     // ignore because maybe already closed
@@ -516,6 +521,7 @@ public class Forwarder extends AbstractForwarder {
                 error("Problem with backend: " + exception.getMessage(), req, targetUri);
                 respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
             });
+
             req.connection().closeHandler((aVoid) -> unpump.run());
         };
     }

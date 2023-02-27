@@ -36,6 +36,7 @@ import org.swisspush.gateleen.queue.queuing.QueueProcessor;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.Rule;
+import org.swisspush.gateleen.routing.RuleFactory;
 import org.swisspush.gateleen.validation.RegexpValidator;
 import org.swisspush.gateleen.validation.ValidationException;
 
@@ -72,6 +73,7 @@ public class HookHandler implements LoggableResource {
     private static final String REMOVE_LISTENER_ADDRESS = "gateleen.hook-listener-remove";
     private static final String SAVE_ROUTE_ADDRESS = "gateleen.hook-route-insert";
     private static final String REMOVE_ROUTE_ADDRESS = "gateleen.hook-route-remove";
+    private static final int STATUS_CODE_2XX = 2;
 
     private static final int DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME = 60 * 60; // 1h in seconds
 
@@ -859,7 +861,7 @@ public class HookHandler implements LoggableResource {
 
                     if (doMethodsMatch(route, request) && doHeadersMatch(route, request)) {
                         log.debug("Forward request (consumed) {}", request.uri());
-                        route.forward(request, buffer);
+                        route.forward(request, buffer, afterHandler);
                     } else {
                         // mark the original request as hooked
                         request.headers().set(HOOKED_HEADER, "true");
@@ -1201,7 +1203,7 @@ public class HookHandler implements LoggableResource {
                 response.endHandler(v -> request.response().end());
 
                 // if everything is fine, we call the after handler
-                if (response.statusCode() == StatusCode.OK.getStatusCode()) {
+                if ((response.statusCode() / 100) == STATUS_CODE_2XX) {
                     afterHandler.handle(null);
                 }
             };
@@ -1535,14 +1537,10 @@ public class HookHandler implements LoggableResource {
         Integer originalPoolSize = jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME);
         int appliedPoolSize;
         if (originalPoolSize != null) {
-            appliedPoolSize = Math.floorDiv(originalPoolSize, routeMultiplier);
-            if (appliedPoolSize < 1) {
-                appliedPoolSize = originalPoolSize;
-            }
+            appliedPoolSize = RuleFactory.evaluatePoolSize(originalPoolSize, routeMultiplier);
             log.debug("Original pool size is {}, applied size is {}", originalPoolSize, appliedPoolSize);
             hook.setConnectionPoolSize(appliedPoolSize);
         }
-
 
         hook.setMaxWaitQueueSize(jsonHook.getInteger(HttpHook.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME));
         // Configure request timeout
