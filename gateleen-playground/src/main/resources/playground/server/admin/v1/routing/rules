@@ -1,4 +1,8 @@
 {
+  "/playground/auth/test": {
+    "oAuthId": "demo-config",
+    "url": "https://sandbox.apis-int.post.ch/resource-server/v1/users"
+  },
   "/playground/service/unavailable/(.*)": {
     "description": "Respond every request with status code 503",
     "path": "/playground/server/return-with-status-code/503"

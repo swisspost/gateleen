@@ -9,5 +9,5 @@ public interface OAuthProvider {
 
     void updateRouterConfiguration(Optional<RouterConfiguration> routerConfiguration);
 
-    Future<String> requestAccessToken(String oAuthId);
+    Future<String> requestAccessToken(OAuthId oAuthId);
 }

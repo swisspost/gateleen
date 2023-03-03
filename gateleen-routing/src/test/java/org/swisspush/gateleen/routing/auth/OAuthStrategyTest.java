@@ -31,7 +31,7 @@ public class OAuthStrategyTest {
     @Test
     public void testSuccessfulAuth(TestContext context) {
         Async async = context.async();
-        Mockito.when(oAuthProvider.requestAccessToken(Mockito.anyString())).thenReturn(Future.succeededFuture("zzz123"));
+        Mockito.when(oAuthProvider.requestAccessToken(Mockito.any(OAuthId.class))).thenReturn(Future.succeededFuture("zzz123"));
 
         rule.setOAuthId("some-oauth-id");
 
@@ -46,7 +46,7 @@ public class OAuthStrategyTest {
     @Test
     public void testAuthError(TestContext context) {
         Async async = context.async();
-        Mockito.when(oAuthProvider.requestAccessToken(Mockito.anyString())).thenReturn(Future.failedFuture("Boooom"));
+        Mockito.when(oAuthProvider.requestAccessToken(Mockito.any(OAuthId.class))).thenReturn(Future.failedFuture("Boooom"));
 
         rule.setOAuthId("some-oauth-id");
 

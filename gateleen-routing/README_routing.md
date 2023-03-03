@@ -47,7 +47,7 @@ be answered with a http status code _500_ and a http status message: _Request ho
 
 ### OAuth2 authentication
 To activate OAuth2 authentication for forwarding requests, a configuration with the required properties like _flowType_, _clientId_, _clientSecret_, etc. can be provided. See [vertx-auth-oauth2 documentation](https://vertx.io/docs/vertx-auth-oauth2/java/) for more
-information. The name of the configuration (_demo-config-1_ in the example) is used in the routing rule.
+information. The id of the configuration called _oAuthId_ (_demo-config-1_ in the example) is used in the routing rule.
 
 Example:
 

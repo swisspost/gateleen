@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.routing;
 
 import org.swisspush.gateleen.routing.auth.OAuthConfiguration;
+import org.swisspush.gateleen.routing.auth.OAuthId;
 
 import java.util.Map;
 import java.util.Optional;
@@ -13,9 +14,9 @@ import java.util.Optional;
 public class RouterConfiguration {
 
     private final Integer requestHopsLimit;
-    private final Map<String, OAuthConfiguration> oAuthConfigurations;
+    private final Map<OAuthId, OAuthConfiguration> oAuthConfigurations;
 
-    public RouterConfiguration(Integer requestHopsLimit, Map<String, OAuthConfiguration> oAuthConfigurations) {
+    public RouterConfiguration(Integer requestHopsLimit, Map<OAuthId, OAuthConfiguration> oAuthConfigurations) {
         this.requestHopsLimit = requestHopsLimit;
         this.oAuthConfigurations = oAuthConfigurations;
     }
@@ -24,11 +25,11 @@ public class RouterConfiguration {
         return requestHopsLimit;
     }
 
-    public Map<String, OAuthConfiguration> oAuthConfigurations() {
+    public Map<OAuthId, OAuthConfiguration> oAuthConfigurations() {
         return oAuthConfigurations;
     }
 
     public Optional<OAuthConfiguration> oAuthConfiguration(String id) {
-        return Optional.ofNullable(oAuthConfigurations.get(id));
+        return Optional.ofNullable(oAuthConfigurations.get(OAuthId.of(id)));
     }
 }

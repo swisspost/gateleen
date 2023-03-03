@@ -17,7 +17,8 @@ public class OAuthStrategy implements AuthStrategy {
             return Future.failedFuture("Unable to authenticate request because no oAuthId provided." +
                     " This should not happen!");
         }
-        return oAuthProvider.requestAccessToken(rule.getOAuthId()).compose(
+        OAuthId oAuthId = OAuthId.of(rule.getOAuthId());
+        return oAuthProvider.requestAccessToken(oAuthId).compose(
                 accessToken -> Future.succeededFuture(new AuthHeader("Bearer " + accessToken)));
     }
 }

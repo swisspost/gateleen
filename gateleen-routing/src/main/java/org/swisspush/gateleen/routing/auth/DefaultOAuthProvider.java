@@ -17,7 +17,7 @@ public class DefaultOAuthProvider implements OAuthProvider {
 
     private final Vertx vertx;
     
-    private Map<String, OAuthDelegate> oAuthConfigurationMap = new HashMap<>();
+    private Map<OAuthId, OAuthDelegate> oAuthConfigurationMap = new HashMap<>();
 
     public DefaultOAuthProvider(Vertx vertx) {
         this.vertx = vertx;
@@ -26,17 +26,17 @@ public class DefaultOAuthProvider implements OAuthProvider {
     public void updateRouterConfiguration(Optional<RouterConfiguration> routerConfigurationOptional) {
         oAuthConfigurationMap.clear();
         routerConfigurationOptional.ifPresent(routerConfiguration -> {
-            for (Map.Entry<String, OAuthConfiguration> entry : routerConfiguration.oAuthConfigurations().entrySet()) {
+            for (Map.Entry<OAuthId, OAuthConfiguration> entry : routerConfiguration.oAuthConfigurations().entrySet()) {
                 OAuthDelegate oAuthDelegate = buildOAuthDelegate(entry.getValue());
                 oAuthConfigurationMap.put(entry.getKey(), oAuthDelegate);
             }
         });
     }
 
-    public Future<String> requestAccessToken(String oAuthId) {
+    public Future<String> requestAccessToken(OAuthId oAuthId) {
         OAuthDelegate delegate = oAuthConfigurationMap.get(oAuthId);
         if(delegate == null) {
-            return Future.failedFuture("No OAuth configuration found for id " + oAuthId);
+            return Future.failedFuture("No OAuth configuration found for id " + oAuthId.oAuthId());
         }
 
         return delegate.authenticate().compose(user -> {
@@ -69,7 +69,7 @@ public class DefaultOAuthProvider implements OAuthProvider {
         return new OAuthDelegate(oauth2, oauth2Credentials);
     }
 
-    private class OAuthDelegate {
+    private static class OAuthDelegate {
         private final OAuth2Auth oAuth2Auth;
         private final Oauth2Credentials oauth2Credentials;
 

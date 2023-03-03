@@ -89,8 +89,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private int routeMultiplier;
 
     /**
-     * @return
-     *      A builder which assists to create a router instance.
+     * @return A builder which assists to create a router instance.
      */
     public static RouterBuilder builder() {
         return new RouterBuilder();
@@ -133,7 +132,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.routeMultiplier = routeMultiplier;
         this.oAuthProvider = oAuthProvider;
 
-        if(oAuthProvider != null) {
+        if (oAuthProvider != null) {
             this.oAuthStrategy = new OAuthStrategy(oAuthProvider);
         }
         this.basicAuthStrategy = new BasicAuthStrategy();
@@ -340,14 +339,14 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private AuthStrategy selectAuthStrategy(Rule rule) {
         if (StringUtils.isNotEmpty(rule.getBasicAuthUsername())) {
             return basicAuthStrategy;
-        } else if(StringUtils.isNotEmpty(rule.getOAuthId())){
+        } else if (StringUtils.isNotEmpty(rule.getOAuthId())) {
             return oAuthStrategy;
         }
         return null;
     }
 
     private void updateOAuthProviderConfiguration(Optional<RouterConfiguration> routerConfiguration) {
-        if(oAuthProvider != null) {
+        if (oAuthProvider != null) {
             oAuthProvider.updateRouterConfiguration(routerConfiguration);
         }
     }

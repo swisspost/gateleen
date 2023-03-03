@@ -154,7 +154,7 @@ public class Forwarder extends AbstractForwarder {
             if(event.failed()) {
                 req.resume();
                 log.error("Failed to authenticate request. Cause: {}", event.cause().getMessage());
-                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                respondError(req, StatusCode.UNAUTHORIZED);
                 return;
             }
             Optional<AuthHeader> authHeader = event.result();
