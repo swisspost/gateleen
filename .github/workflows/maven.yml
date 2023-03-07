@@ -55,9 +55,9 @@ jobs:
       - name: Release to maven central
         if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen'
         run: |
-          #curl -s get.sdkman.io | bash
-          #source "$HOME/.sdkman/bin/sdkman-init.sh"
-          #sdk install groovy 3.0.8
+          curl -s "https://get.sdkman.io" | bash
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          sdk install groovy 3.0.8
           
           chmod +x ./maybe-release.sh
           ./maybe-release.sh
