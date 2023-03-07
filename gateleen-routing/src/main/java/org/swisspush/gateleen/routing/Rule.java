@@ -33,8 +33,9 @@ public class Rule {
     private String urlPattern;
     private Pattern headersFilterPattern;
     private int timeout;
-    private String username;
-    private String password;
+    private String oAuthId;
+    private String basicAuthUsername;
+    private String basicAuthPassword;
     private Map<Pattern, Integer> translateStatus = new LinkedHashMap<>();
     private int logExpiry;
     private String[] methods;
@@ -181,20 +182,28 @@ public class Rule {
         this.timeout = timeout;
     }
 
-    public String getUsername() {
-        return username;
+    public String getOAuthId() {
+        return oAuthId;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setOAuthId(String oAuthId) {
+        this.oAuthId = oAuthId;
     }
 
-    public String getPassword() {
-        return password;
+    public String getBasicAuthUsername() {
+        return basicAuthUsername;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    public void setBasicAuthUsername(String basicAuthUsername) {
+        this.basicAuthUsername = basicAuthUsername;
+    }
+
+    public String getBasicAuthPassword() {
+        return basicAuthPassword;
+    }
+
+    public void setBasicAuthPassword(String basicAuthPassword) {
+        this.basicAuthPassword = basicAuthPassword;
     }
 
     public Map<Pattern, Integer> getTranslateStatus() {

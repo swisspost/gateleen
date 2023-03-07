@@ -71,6 +71,7 @@ import redis.clients.jedis.Jedis;
 import javax.management.*;
 import java.lang.management.ManagementFactory;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -195,16 +196,25 @@ public abstract class AbstractTest {
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
 
                 new CustomRedisMonitor(vertx, redisAPI, "main", "rest-storage", 10).start();
-                Router router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient,
-                        SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules",
-                        SERVER_ROOT + "/users/v1/%s/profile", info, STORAGE_PORT,
-                        (Handler<Void>) aVoid -> {
+                Router router = Router.builder()
+                        .withVertx(vertx)
+                        .withStorage(storage)
+                        .withProperties(props)
+                        .withLoggingResourceManager(loggingResourceManager)
+                        .withMonitoringHandler(monitoringHandler)
+                        .withSelfClient(selfClient)
+                        .withServerPath(SERVER_ROOT)
+                        .withRulesPath(SERVER_ROOT + "/admin/v1/routing/rules")
+                        .withUserProfilePath(SERVER_ROOT + "/users/v1/%s/profile")
+                        .withInfo(info)
+                        .withStoragePort(STORAGE_PORT)
+                        .withRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config")
+                        .withDoneHandlers(List.of(doneHandler -> {
                             System.out.println("Router initialized!");
                             hookHandler.init();
                             delegateHandler.init();
-                        }
-                );
-                router.enableRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config");
+                        }))
+                        .build();
 
                 System.setProperty("org.swisspush.gateleen.addcorsheaders", "true");
 

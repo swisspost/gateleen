@@ -87,7 +87,7 @@ public class ForwarderTest {
     public void testHeaderFunctionsGivenHostUpdatedByConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithHostHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
-                monitoringHandler, USER_PROFILE_PATH);
+                monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_OLD);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
@@ -99,7 +99,7 @@ public class ForwarderTest {
     public void testHeaderFunctionsDefaultHostHeaderUpdatedByConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithHostHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
-                monitoringHandler, USER_PROFILE_PATH);
+                monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_DEFAULT);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
@@ -120,7 +120,7 @@ public class ForwarderTest {
     public void testHeaderFunctionsGivenHostHeaderUpdatedToDefaultHostHeaderWhenEqualToConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithHostHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
-                monitoringHandler, USER_PROFILE_PATH);
+                monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_NEW);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
@@ -132,7 +132,7 @@ public class ForwarderTest {
     public void testHeaderFunctionsGivenHostHeaderUpdatedByDefaultHostHeaderWhenNoConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithoutHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
-                monitoringHandler, USER_PROFILE_PATH);
+                monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_OLD);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
@@ -144,7 +144,7 @@ public class ForwarderTest {
     public void testHeaderFunctionsGivenDefaultHostHeaderRemainsWhenNoConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithoutHeader");
         Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
-                monitoringHandler, USER_PROFILE_PATH);
+                monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_DEFAULT);
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
