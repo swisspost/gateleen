@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: sdkman/sdkman-action@master
       - name: SDKMAN-ACTION
+      - uses: sdkman/sdkman-action@master
         id: sdkman
         with:
           candidate: groovy
