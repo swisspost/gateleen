@@ -97,7 +97,7 @@ public class Route {
      * Creates the forwarder for this hook.
      */
     private void createForwarder() {
-        forwarder = new Forwarder(vertx, client, rule, storage, loggingResourceManager, monitoringHandler, userProfilePath);
+        forwarder = new Forwarder(vertx, client, rule, storage, loggingResourceManager, monitoringHandler, userProfilePath, null);
     }
 
     /**

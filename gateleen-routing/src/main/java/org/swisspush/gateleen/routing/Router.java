@@ -8,7 +8,6 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.RoutingContext;
@@ -25,8 +24,13 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.gateleen.routing.auth.AuthStrategy;
+import org.swisspush.gateleen.routing.auth.BasicAuthStrategy;
+import org.swisspush.gateleen.routing.auth.OAuthProvider;
+import org.swisspush.gateleen.routing.auth.OAuthStrategy;
 import org.swisspush.gateleen.validation.ValidationException;
 
+import javax.annotation.Nullable;
 import java.net.HttpCookie;
 import java.util.*;
 
@@ -72,8 +76,12 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
     private String configResourceUri;
     private ConfigurationResourceManager configurationResourceManager;
-    private Integer requestHopsLimit = null;
+    private Optional<RouterConfiguration> routerConfiguration = Optional.empty();
     private final Set<DefaultRouteType> defaultRouteTypes;
+
+    private OAuthProvider oAuthProvider;
+    private OAuthStrategy oAuthStrategy = null;
+    private BasicAuthStrategy basicAuthStrategy;
 
     /**
      * The multiplier applied to routes, typically the number of {@link Router} instances in a cluster.
@@ -81,110 +89,10 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private int routeMultiplier;
 
     /**
-     * @return
-     *      A builder which assists to create a router instance.
+     * @return A builder which assists to create a router instance.
      */
     public static RouterBuilder builder() {
         return new RouterBuilder();
-    }
-
-    /**
-     * In some cases using {@link #builder()} is more convenient than messing
-     * around with such an amount of arguments.
-     */
-    public Router(Vertx vertx,
-                  final ResourceStorage storage,
-                  final Map<String, Object> properties,
-                  LoggingResourceManager loggingResourceManager,
-                  MonitoringHandler monitoringHandler,
-                  HttpClient selfClient,
-                  String serverPath,
-                  String rulesPath,
-                  String userProfilePath,
-                  JsonObject info,
-                  int storagePort,
-                  Handler<Void>... doneHandlers) {
-        this(vertx,
-                storage,
-                properties,
-                loggingResourceManager,
-                monitoringHandler,
-                selfClient,
-                serverPath,
-                rulesPath,
-                userProfilePath,
-                info,
-                storagePort,
-                all(),
-                doneHandlers);
-    }
-
-    /**
-     * In some cases using {@link #builder()} is more convenient than messing
-     * around with such an amount of arguments.
-     */
-    public Router(Vertx vertx,
-                  final ResourceStorage storage,
-                  final Map<String, Object> properties,
-                  LoggingResourceManager loggingResourceManager,
-                  MonitoringHandler monitoringHandler,
-                  HttpClient selfClient,
-                  String serverPath,
-                  String rulesPath,
-                  String userProfilePath,
-                  JsonObject info,
-                  int storagePort,
-                  int routeMultiplier,
-                  Handler<Void>... doneHandlers) {
-        this(vertx,
-                storage,
-                properties,
-                loggingResourceManager,
-                monitoringHandler,
-                selfClient,
-                serverPath,
-                rulesPath,
-                userProfilePath,
-                info,
-                storagePort,
-                all(),
-                HttpClientFactory.of(vertx),
-                routeMultiplier,
-                doneHandlers);
-    }
-
-    /**
-     * In some cases using {@link #builder()} is more convenient than messing
-     * around with such an amount of arguments.
-     */
-    public Router(Vertx vertx,
-                  final ResourceStorage storage,
-                  final Map<String, Object> properties,
-                  LoggingResourceManager loggingResourceManager,
-                  MonitoringHandler monitoringHandler,
-                  HttpClient selfClient,
-                  String serverPath,
-                  String rulesPath,
-                  String userProfilePath,
-                  JsonObject info,
-                  int storagePort,
-                  Set<DefaultRouteType> defaultRouteTypes,
-                  Handler<Void>... doneHandlers) {
-        this(vertx,
-                storage,
-                properties,
-                loggingResourceManager,
-                monitoringHandler,
-                selfClient,
-                serverPath,
-                rulesPath,
-                userProfilePath,
-                info,
-                storagePort,
-                defaultRouteTypes,
-                HttpClientFactory.of(vertx),
-                DEFAULT_ROUTER_MULTIPLIER,
-                doneHandlers);
     }
 
     /**
@@ -205,6 +113,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
            Set<DefaultRouteType> defaultRouteTypes,
            HttpClientFactory httpClientFactory,
            int routeMultiplier,
+           @Nullable OAuthProvider oAuthProvider,
            Handler<Void>... doneHandlers) {
         this.storage = storage;
         this.properties = properties;
@@ -221,6 +130,13 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.httpClientFactory = httpClientFactory;
         this.doneHandlers = doneHandlers;
         this.routeMultiplier = routeMultiplier;
+        this.oAuthProvider = oAuthProvider;
+
+        if (oAuthProvider != null) {
+            this.oAuthStrategy = new OAuthStrategy(oAuthProvider);
+        }
+        this.basicAuthStrategy = new BasicAuthStrategy();
+
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
 
         final JsonObject initialRules = new JsonObject()
@@ -336,15 +252,15 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                     request.response().end(request.response().getStatusMessage());
                     return;
                 }
-                if (requestHopsLimit == null) {
+                if (routerConfiguration.isEmpty()) {
                     router.handle(request);
                     return;
                 }
                 increaseRequestHops(request);
-                if (!isRequestHopsLimitExceeded(request, requestHopsLimit)) {
+                if (!isRequestHopsLimitExceeded(request, routerConfiguration.get().requestHopsLimit())) {
                     router.handle(request);
                 } else {
-                    String errorMessage = "Request hops limit of '" + requestHopsLimit + "' has been exceeded. " +
+                    String errorMessage = "Request hops limit of '" + routerConfiguration.get().requestHopsLimit() + "' has been exceeded. " +
                             "Check the routing rules for looping configurations";
                     RequestLoggerFactory.getLogger(Router.class, request).error(errorMessage);
                     ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, Router.class);
@@ -397,16 +313,17 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
              * the host field of the rule
              * is null.
              */
+            AuthStrategy authStrategy = selectAuthStrategy(rule);
             Handler<RoutingContext> forwarder;
             if (rule.getPath() == null) {
                 forwarder = new NullForwarder(rule, loggingResourceManager, monitoringHandler, vertx.eventBus());
             } else if (rule.getStorage() != null) {
                 forwarder = new StorageForwarder(vertx.eventBus(), rule, loggingResourceManager, monitoringHandler);
             } else if (rule.getScheme().equals("local")) {
-                forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
+                forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri, authStrategy);
             } else {
                 HttpClient client = httpClientFactory.createHttpClient(rule.buildHttpClientOptions());
-                forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri);
+                forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri, authStrategy);
                 newClients.add(client);
             }
 
@@ -416,6 +333,21 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             } else {
                 installMethodForwarder(newRouter, rule, forwarder);
             }
+        }
+    }
+
+    private AuthStrategy selectAuthStrategy(Rule rule) {
+        if (StringUtils.isNotEmpty(rule.getBasicAuthUsername())) {
+            return basicAuthStrategy;
+        } else if (StringUtils.isNotEmpty(rule.getOAuthId())) {
+            return oAuthStrategy;
+        }
+        return null;
+    }
+
+    private void updateOAuthProviderConfiguration(Optional<RouterConfiguration> routerConfiguration) {
+        if (oAuthProvider != null) {
+            oAuthProvider.updateRouterConfiguration(routerConfiguration);
         }
     }
 
@@ -565,29 +497,17 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     public void resourceChanged(String resourceUri, Buffer resource) {
         if (configResourceUri != null && configResourceUri.equals(resourceUri)) {
             log.info("Got notified about configuration resource update for {}", resourceUri);
-            try {
-                JsonObject obj = new JsonObject(resource);
-                Integer requestHopsLimitValue = obj.getInteger(REQUEST_HOPS_LIMIT_PROPERTY);
-                if (requestHopsLimitValue != null) {
-                    log.info("Got value '{}' for property '{}'. Request hop validation is now activated",
-                            requestHopsLimitValue, REQUEST_HOPS_LIMIT_PROPERTY);
-                    requestHopsLimit = requestHopsLimitValue;
-                } else {
-                    log.warn("No value for property '{}' found. Request hop validation will not be activated", REQUEST_HOPS_LIMIT_PROPERTY);
-                    requestHopsLimit = null;
-                }
-            } catch (DecodeException ex) {
-                log.warn("Unable to decode configuration resource for {}. Reason: {}", resourceUri, ex.getMessage());
-                requestHopsLimit = null;
-            }
+            routerConfiguration = RouterConfigurationParser.parse(resource, properties);
+            updateOAuthProviderConfiguration(routerConfiguration);
         }
     }
 
     @Override
     public void resourceRemoved(String resourceUri) {
         if (configResourceUri != null && configResourceUri.equals(resourceUri)) {
-            log.info("Configuration resource {} was removed. Request hop validation is disabled", resourceUri);
-            requestHopsLimit = null;
+            log.info("Configuration resource {} was removed.", resourceUri);
+            routerConfiguration = Optional.empty();
+            updateOAuthProviderConfiguration(routerConfiguration);
         }
     }
 

@@ -64,6 +64,7 @@ import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
 import org.swisspush.gateleen.routing.DeferCloseHttpClient;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.RuleProvider;
+import org.swisspush.gateleen.routing.auth.DefaultOAuthProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.security.PatternHolder;
@@ -286,6 +287,7 @@ public class Server extends AbstractVerticle {
                         .withResourceLogging(true)
                         .withRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config")
                         .withHttpClientFactory(this::createHttpClientForRouter)
+                        .withOAuthProvider(new DefaultOAuthProvider(vertx))
                         .addDoneHandler(aVoid -> {
                             hookHandler.init();
                             delegateHandler.init();

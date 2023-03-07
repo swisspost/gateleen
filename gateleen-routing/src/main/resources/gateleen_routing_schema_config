@@ -1,11 +1,76 @@
 {
-	"$schema": "http://json-schema.org/draft-04/schema#",
-	"properties": {
-		"request.hops.limit": {
-			"description": "The limit for request hops",
-			"type": "integer"
-		}
-	},
-	"additionalProperties": false,
-    "required": ["request.hops.limit"]
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "request.hops.limit": {
+      "description": "The limit for request hops",
+      "type": "integer"
+    },
+    "authConfigs": {
+      "description": "OAuth 2.0 configuration objects",
+      "$ref": "#/definitions/AuthConfigs"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "request.hops.limit"
+  ],
+  "definitions": {
+    "AuthConfigs": {
+      "additionalProperties": {
+        "$ref": "#/definitions/AuthConfig"
+      }
+    },
+    "AuthConfig": {
+      "properties": {
+        "flowType": {
+            "type": "string",
+            "enum": [
+                "AUTH_CODE",
+                "IMPLICIT",
+                "PASSWORD",
+                "CLIENT",
+                "AUTH_JWT",
+                "AAD_OBO"
+            ]
+        },
+        "clientId": {
+          "type": "string"
+        },
+        "clientSecret": {
+          "type": "string"
+        },
+        "site": {
+          "type": "string"
+        },
+        "tokenPath": {
+          "type": "string"
+        },
+        "authPath": {
+          "type": "string"
+        },
+        "scopes": {
+		  "type": "array",
+		  "items": {
+		    "type": "string"
+		  }
+        },
+        "supportedGrantTypes": {
+		  "type": "array",
+		  "items": {
+		    "type": "string"
+		  }
+        }
+      },
+      "required": [
+        "flowType",
+        "clientId",
+        "clientSecret",
+        "site",
+        "tokenPath",
+        "authPath"
+      ],
+      "additionalProperties": false
+    }
+  }
 }

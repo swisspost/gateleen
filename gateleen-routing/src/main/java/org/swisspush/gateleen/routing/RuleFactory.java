@@ -80,12 +80,6 @@ public class RuleFactory {
                 }
             }
 
-            JsonObject basicAuth = rule.getJsonObject("basicAuth");
-            if (basicAuth != null) {
-                ruleObj.setUsername(basicAuth.getString("username"));
-                ruleObj.setPassword(basicAuth.getString("password"));
-            }
-
             ruleObj.setTimeout(1000 * rule.getInteger(Rule.CONNECTION_TIMEOUT_SEC_PROPERTY_NAME, Rule.CONNECTION_TIMEOUT_SEC_DEFAULT_VALUE));
             ruleObj.setKeepAliveTimeout(rule.getInteger("keepAliveTimeout", HttpClientOptions.DEFAULT_KEEP_ALIVE_TIMEOUT));
             ruleObj.setPoolSize(rule.getInteger(Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME, Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE));
@@ -128,6 +122,7 @@ public class RuleFactory {
             setTranslateStatus(ruleObj, rule);
             setStaticHeaders(ruleObj, rule);
             setProxyOptions(ruleObj, rule);
+            setAuthentication(ruleObj, rule);
 
             result.add(ruleObj);
         }
@@ -167,6 +162,22 @@ public class RuleFactory {
         JsonObject proxyOptions = rule.getJsonObject("proxyOptions");
         if(proxyOptions != null){
             ruleObj.setProxyOptions(new ProxyOptions(proxyOptions));
+        }
+    }
+
+    private void setAuthentication(Rule ruleObj, JsonObject rule) throws ValidationException {
+        JsonObject basicAuth = rule.getJsonObject("basicAuth");
+        String oAuthId = rule.getString("oAuthId");
+
+        if (basicAuth != null && oAuthId != null) {
+            throw new ValidationException("Either 'basicAuth' or 'oAuthId' can be given, not both");
+        }
+
+        if (basicAuth != null) {
+            ruleObj.setBasicAuthUsername(basicAuth.getString("username"));
+            ruleObj.setBasicAuthPassword(basicAuth.getString("password"));
+        } else if (oAuthId != null) {
+            ruleObj.setOAuthId(oAuthId);
         }
     }
 
