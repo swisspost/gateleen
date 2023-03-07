@@ -3,6 +3,10 @@
 
 name: Java CI with Maven
 
+defaults:
+  run:
+    shell: bash -ieo pipefail {0}
+
 on:
   workflow_dispatch:
   push:
