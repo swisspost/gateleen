@@ -6,6 +6,8 @@ import io.vertx.ext.auth.User;
 import io.vertx.ext.auth.oauth2.OAuth2Auth;
 import io.vertx.ext.auth.oauth2.OAuth2Options;
 import io.vertx.ext.auth.oauth2.Oauth2Credentials;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.routing.RouterConfiguration;
 
 import java.util.HashMap;
@@ -16,8 +18,10 @@ import java.util.Optional;
 public class DefaultOAuthProvider implements OAuthProvider {
 
     private final Vertx vertx;
-    
+    private static final Logger log = LoggerFactory.getLogger(DefaultOAuthProvider.class);
+
     private Map<OAuthId, OAuthDelegate> oAuthConfigurationMap = new HashMap<>();
+    private Map<OAuthId, User> userMap = new HashMap<>();
 
     public DefaultOAuthProvider(Vertx vertx) {
         this.vertx = vertx;
@@ -25,6 +29,7 @@ public class DefaultOAuthProvider implements OAuthProvider {
 
     public void updateRouterConfiguration(Optional<RouterConfiguration> routerConfigurationOptional) {
         oAuthConfigurationMap.clear();
+        userMap.clear();
         routerConfigurationOptional.ifPresent(routerConfiguration -> {
             for (Map.Entry<OAuthId, OAuthConfiguration> entry : routerConfiguration.oAuthConfigurations().entrySet()) {
                 OAuthDelegate oAuthDelegate = buildOAuthDelegate(entry.getValue());
@@ -35,20 +40,41 @@ public class DefaultOAuthProvider implements OAuthProvider {
 
     public Future<String> requestAccessToken(OAuthId oAuthId) {
         OAuthDelegate delegate = oAuthConfigurationMap.get(oAuthId);
-        if(delegate == null) {
+        if (delegate == null) {
             return Future.failedFuture("No OAuth configuration found for id " + oAuthId.oAuthId());
         }
 
+        String cachedToken = cachedToken(oAuthId);
+        if (cachedToken != null) {
+            return Future.succeededFuture(cachedToken);
+        }
+
+        log.info("About to request new access token for oAuthId '{}'", oAuthId.oAuthId());
         return delegate.authenticate().compose(user -> {
-            String token = user.principal().getString("access_token");
+            userMap.put(oAuthId, user);
+            String token = cachedToken(oAuthId);
             if (token == null) {
-                return Future.failedFuture("No access_token received from user object");
+                return Future.failedFuture("No access token received from user from oAuthId '"+oAuthId.oAuthId()+"' object");
             }
             return Future.succeededFuture(token);
         });
     }
 
-    private OAuthDelegate buildOAuthDelegate(OAuthConfiguration oAuthConfiguration){
+    private String cachedToken(OAuthId oAuthId) {
+        User user = userMap.get(oAuthId);
+        if (user != null) {
+            if (log.isTraceEnabled()) {
+                log.trace("User attributes for oAuthId '{}': {}", oAuthId.oAuthId(), user.attributes().encode());
+            }
+            if(!user.expired()) {
+                return user.principal().getString("access_token");
+            }
+            log.debug("User for oAuthId '{}' is expired", oAuthId.oAuthId());
+        }
+        return null;
+    }
+
+    private OAuthDelegate buildOAuthDelegate(OAuthConfiguration oAuthConfiguration) {
         OAuth2Options credentials = new OAuth2Options()
                 .setFlow(oAuthConfiguration.flowType())
                 .setClientId(oAuthConfiguration.clientId())
@@ -60,8 +86,8 @@ public class DefaultOAuthProvider implements OAuthProvider {
 
         OAuth2Auth oauth2 = OAuth2Auth.create(vertx, credentials);
         Oauth2Credentials oauth2Credentials = new Oauth2Credentials();
-        
-        if(oAuthConfiguration.scopes() != null) {
+
+        if (oAuthConfiguration.scopes() != null) {
             for (String scope : Objects.requireNonNull(oAuthConfiguration.scopes())) {
                 oauth2Credentials.addScope(scope);
             }
