@@ -54,7 +54,7 @@ public class DefaultOAuthProvider implements OAuthProvider {
             userMap.put(oAuthId, user);
             String token = cachedToken(oAuthId);
             if (token == null) {
-                return Future.failedFuture("No access token received from user from oAuthId '"+oAuthId.oAuthId()+"' object");
+                return Future.failedFuture("No access token received from user from oAuthId '" + oAuthId.oAuthId() + "' object");
             }
             return Future.succeededFuture(token);
         });
@@ -66,10 +66,12 @@ public class DefaultOAuthProvider implements OAuthProvider {
             if (log.isTraceEnabled()) {
                 log.trace("User attributes for oAuthId '{}': {}", oAuthId.oAuthId(), user.attributes().encode());
             }
-            if(!user.expired()) {
+            if (user.expired()) {
+                log.debug("User for oAuthId '{}' is expired", oAuthId.oAuthId());
+                userMap.remove(oAuthId);
+            } else {
                 return user.principal().getString("access_token");
             }
-            log.debug("User for oAuthId '{}' is expired", oAuthId.oAuthId());
         }
         return null;
     }
