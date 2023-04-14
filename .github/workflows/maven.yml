@@ -26,6 +26,9 @@ jobs:
           gpg-private-key: ${{ secrets.CI_GPG_PRIVATE_KEY }} # Value of the GPG private key to import
           gpg-passphrase: CI_GPG_PASSPHRASE # env variable for GPG private key passphrase
 
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+
       - name: Start Redis
         uses: supercharge/redis-github-action@1.4.0
         with:
