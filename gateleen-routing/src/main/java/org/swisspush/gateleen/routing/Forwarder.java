@@ -104,23 +104,25 @@ public class Forwarder extends AbstractForwarder {
 
     @Override
     public void handle(final RoutingContext ctx) {
-        handle(ctx.request(), null, null);
+        handle(ctx, null, null);
     }
 
     /**
      * Allows to handle a request which was already consumed.
      * If the parameter <code>bodyData</code> is not null, the
-     * request was consumed and you can't read the body of the
+     * request was consumed, and you can't read the body of the
      * request again.
      *
-     * @param req      - the original request
+     * @param ctx      - the original request context
      * @param bodyData - a buffer with the body data, null if the request
      *                 was not yet consumed
      */
-    public void handle(final HttpServerRequest req, final Buffer bodyData, @Nullable final Handler<Void> afterHandler) {
+    public void handle(final RoutingContext ctx, final Buffer bodyData, @Nullable final Handler<Void> afterHandler) {
+        HttpServerRequest req = ctx.request();
         final Logger log = RequestLoggerFactory.getLogger(Forwarder.class, req);
 
-        if (handleHeadersFilter(req)) {
+        if (rule.hasHeadersFilterPattern() && !doHeadersFilterMatch(ctx.request())) {
+            ctx.next();
             return;
         }
 

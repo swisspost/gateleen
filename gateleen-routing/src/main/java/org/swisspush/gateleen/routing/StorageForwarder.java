@@ -9,7 +9,6 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerResponse;
-
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -55,7 +54,8 @@ public class StorageForwarder extends AbstractForwarder {
         final String targetUri = urlPattern.matcher(ctx.request().uri()).replaceAll(rule.getPath()).replaceAll("\\/\\/", "/");
         final Logger log = RequestLoggerFactory.getLogger(StorageForwarder.class, ctx.request());
 
-        if (handleHeadersFilter(ctx.request())) {
+        if (rule.hasHeadersFilterPattern() && !doHeadersFilterMatch(ctx.request())) {
+            ctx.next();
             return;
         }
 
@@ -89,65 +89,65 @@ public class StorageForwarder extends AbstractForwarder {
         ctx.request().endHandler(event ->
                 eventBus.request(address, requestBuffer, new DeliveryOptions().setSendTimeout(10000),
                         (Handler<AsyncResult<Message<Buffer>>>) result -> {
-                            HttpServerResponse response = ctx.response();
-                            monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, ctx.request().uri());
-                            if (result.failed()) {
-                                String statusMessage = "Storage request for " + ctx.request().uri() + " failed with message: " + result.cause().getMessage();
-                                response.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-                                response.setStatusMessage(statusMessage);
-                                response.end();
-                                log.error("Storage request failed", result.cause());
-                            } else {
-                                Buffer buffer = result.result().body();
-                                int headerLength = buffer.getInt(0);
-                                JsonObject responseJson = new JsonObject(buffer.getString(4, headerLength + 4));
-                                JsonArray headers = responseJson.getJsonArray("headers");
-                                MultiMap responseHeaders = null;
-                                if (headers != null && headers.size() > 0) {
-                                    responseHeaders = JsonMultiMap.fromJson(headers);
+                HttpServerResponse response = ctx.response();
+                monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, ctx.request().uri());
+                if (result.failed()) {
+                    String statusMessage = "Storage request for " + ctx.request().uri() + " failed with message: " + result.cause().getMessage();
+                    response.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                    response.setStatusMessage(statusMessage);
+                    response.end();
+                    log.error("Storage request failed", result.cause());
+                } else {
+                    Buffer buffer = result.result().body();
+                    int headerLength = buffer.getInt(0);
+                    JsonObject responseJson = new JsonObject(buffer.getString(4, headerLength + 4));
+                    JsonArray headers = responseJson.getJsonArray("headers");
+                    MultiMap responseHeaders = null;
+                    if (headers != null && headers.size() > 0) {
+                        responseHeaders = JsonMultiMap.fromJson(headers);
 
-                                    setUniqueIdHeader(responseHeaders);
+                        setUniqueIdHeader(responseHeaders);
 
-                                    ctx.response().headers().setAll(responseHeaders);
-                                }
-                                corsHandler.handle(ctx.request());
-                                int statusCode = responseJson.getInteger("statusCode");
+                        ctx.response().headers().setAll(responseHeaders);
+                    }
+                    corsHandler.handle(ctx.request());
+                    int statusCode = responseJson.getInteger("statusCode");
 
-                                // translate with header info
-                                int translatedStatus = Translator.translateStatusCode(statusCode, ctx.request().headers());
+                    // translate with header info
+                    int translatedStatus = Translator.translateStatusCode(statusCode, ctx.request().headers());
 
-                                // nothing changed?
-                                if (statusCode == translatedStatus) {
-                                    translatedStatus = Translator.translateStatusCode(statusCode, rule, log);
-                                }
+                    // nothing changed?
+                    if (statusCode == translatedStatus) {
+                        translatedStatus = Translator.translateStatusCode(statusCode, rule, log);
+                    }
 
-                                boolean translated = statusCode != translatedStatus;
+                    boolean translated = statusCode != translatedStatus;
 
-                                // set the statusCode (if nothing hapend, it will remain the same)
-                                statusCode = translatedStatus;
+                    // set the statusCode (if nothing hapend, it will remain the same)
+                    statusCode = translatedStatus;
 
-                                response.setStatusCode(statusCode);
-                                String statusMessage;
-                                if (translated) {
-                                    statusMessage = HttpResponseStatus.valueOf(statusCode).reasonPhrase();
-                                    response.setStatusMessage(statusMessage);
-                                } else {
-                                    statusMessage = responseJson.getString("statusMessage");
-                                    if (statusMessage != null) {
-                                        response.setStatusMessage(statusMessage);
-                                    }
-                                }
-                                Buffer data = buffer.getBuffer(4 + headerLength, buffer.length());
-                                response.headers().set("content-length", "" + data.length());
-                                response.write(data);
-                                response.end();
-                                ResponseStatusCodeLogUtil.debug(ctx.request(), StatusCode.fromCode(statusCode), StorageForwarder.class);
-                                if (responseHeaders != null) {
-                                    loggingHandler.appendResponsePayload(data, responseHeaders);
-                                }
-                                loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage,
-                                        requestHeaders, responseHeaders != null ? responseHeaders : new HeadersMultiMap());
-                            }
+                    response.setStatusCode(statusCode);
+                    String statusMessage;
+                    if (translated) {
+                        statusMessage = HttpResponseStatus.valueOf(statusCode).reasonPhrase();
+                        response.setStatusMessage(statusMessage);
+                    } else {
+                        statusMessage = responseJson.getString("statusMessage");
+                        if (statusMessage != null) {
+                            response.setStatusMessage(statusMessage);
+                        }
+                    }
+                    Buffer data = buffer.getBuffer(4 + headerLength, buffer.length());
+                    response.headers().set("content-length", "" + data.length());
+                    response.write(data);
+                    response.end();
+                    ResponseStatusCodeLogUtil.debug(ctx.request(), StatusCode.fromCode(statusCode), StorageForwarder.class);
+                    if (responseHeaders != null) {
+                        loggingHandler.appendResponsePayload(data, responseHeaders);
+                    }
+                    loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage,
+                            requestHeaders, responseHeaders != null ? responseHeaders : new HeadersMultiMap());
+                }
 
                         }));
     }

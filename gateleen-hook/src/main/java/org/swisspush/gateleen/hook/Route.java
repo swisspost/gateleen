@@ -6,7 +6,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpServerRequest;
+import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -221,18 +221,18 @@ public class Route {
      * Handles the request (consumed) and forwards it
      * to the hook specific destination.
      *
-     * @param request - the original but already consumed request
+     * @param ctx - the original but already consumed request
      * @param requestBody - saved buffer with the data of body from the original request
      */
-    public void forward(HttpServerRequest request, final Buffer requestBody, @Nullable final Handler<Void> afterHandler) {
+    public void forward(RoutingContext ctx, final Buffer requestBody, @Nullable final Handler<Void> afterHandler) {
 
         // checking if the forwarder is for all methods
         if (httpHook.getMethods().isEmpty()) {
-            forwarder.handle(request, requestBody, afterHandler);
+            forwarder.handle(ctx, requestBody, afterHandler);
         } else {
             // checking if the method from the request is handled by this forwarder
-            if (httpHook.getMethods().contains(request.method().name())) {
-                forwarder.handle(request, requestBody, afterHandler);
+            if (httpHook.getMethods().contains(ctx.request().method().name())) {
+                forwarder.handle(ctx, requestBody, afterHandler);
             }
         }
     }
@@ -241,10 +241,10 @@ public class Route {
      * Handles the request and forwards it
      * to the hook specific destination.
      *
-     * @param request request
+     * @param ctx request context
      */
-    public void forward(HttpServerRequest request) {
-        forward(request, null, null);
+    public void forward(RoutingContext ctx) {
+        forward(ctx, null, null);
     }
 
     /**

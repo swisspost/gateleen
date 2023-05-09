@@ -556,7 +556,7 @@ public class RunConfig {
                 if (authorizer != null) {
                     authorizer.authorize(request).onComplete(event -> {
                         if (event.succeeded() && event.result()) {
-                            handleRequest(request);
+                            handleRequest(ctx);
                         } else if (event.failed()) {
                             ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, RunConfig.class);
                             request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -565,11 +565,12 @@ public class RunConfig {
                         }
                     });
                 } else {
-                    handleRequest(request);
+                    handleRequest(ctx);
                 }
             }
 
-            private void handleRequest(final HttpServerRequest request) {
+            private void handleRequest(final RoutingContext ctx) {
+                HttpServerRequest request = ctx.request();
                 if (request.path().equals(SERVER_ROOT + "/cleanup")) {
                     QueuingHandler.cleanup(vertx);
                     request.response().end();
@@ -592,7 +593,7 @@ public class RunConfig {
                             queueBrowser.handle(request);
                             return;
                         }
-                        if (hookHandler != null && hookHandler.handle(request)) {
+                        if (hookHandler != null && hookHandler.handle(ctx)) {
                             return;
                         }
                         if (eventBusHandler != null && eventBusHandler.handle(request)) {

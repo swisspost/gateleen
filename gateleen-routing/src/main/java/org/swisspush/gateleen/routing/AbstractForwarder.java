@@ -23,17 +23,18 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
         this.monitoringHandler = monitoringHandler;
     }
 
-    protected boolean handleHeadersFilter(final HttpServerRequest request) {
+    protected boolean doHeadersFilterMatch(final HttpServerRequest request) {
         final Logger log = RequestLoggerFactory.getLogger(getClass(), request);
 
         if(rule.getHeadersFilterPattern() != null){
             log.debug("Looking for request headers with pattern {}", rule.getHeadersFilterPattern().pattern());
             boolean matchFound = HttpHeaderUtil.hasMatchingHeader(request.headers(), rule.getHeadersFilterPattern());
-            if(!matchFound){
-                log.info("No request headers found. Request will not be forwarded but responded with {}", StatusCode.BAD_REQUEST);
-                respondError(request, StatusCode.BAD_REQUEST);
-                return true;
+            if(matchFound) {
+                log.debug("No matching request headers found. Looking for the next routing rule");
+            } else {
+                log.debug("Matching request headers found");
             }
+            return matchFound;
         }
 
         return false;
