@@ -268,9 +268,6 @@ public class Forwarder extends AbstractForwarder {
                     cReq.headers().set(SELF_REQUEST_HEADER, "true");
                 }
 
-                if (uniqueId != null) {
-                    cReq.headers().set("x-rp-unique-id", uniqueId);
-                }
                 setProfileHeaders(log, profileHeaderMap, cReq);
 
                 authHeader.ifPresent(authHeaderValue -> {
