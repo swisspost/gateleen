@@ -54,7 +54,7 @@
         <vertx.version>4.2.1</vertx.version>
         <vertx-redis-client.version>4.3.3</vertx-redis-client.version>
         <jackson.version>2.13.0</jackson.version>
-        <springframework.version>5.3.21</springframework.version>
+        <springframework.version>6.0.0</springframework.version>
     </properties>
 
     <repositories>
