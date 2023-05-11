@@ -492,7 +492,7 @@ public class HookHandler implements LoggableResource {
      * <li>creating a self request for the original request (if necessary)</li>
      * </ul>
      *
-     * @param ctx request context
+     * @param ctx routing context
      * @return true if a request is processed by the handler, otherwise false
      */
     public boolean handle(final RoutingContext ctx) {

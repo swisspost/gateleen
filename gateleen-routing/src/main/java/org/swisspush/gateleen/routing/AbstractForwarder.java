@@ -30,9 +30,9 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
             log.debug("Looking for request headers with pattern {}", rule.getHeadersFilterPattern().pattern());
             boolean matchFound = HttpHeaderUtil.hasMatchingHeader(request.headers(), rule.getHeadersFilterPattern());
             if(matchFound) {
-                log.debug("No matching request headers found. Looking for the next routing rule");
-            } else {
                 log.debug("Matching request headers found");
+            } else {
+                log.debug("No matching request headers found. Looking for the next routing rule");
             }
             return matchFound;
         }
