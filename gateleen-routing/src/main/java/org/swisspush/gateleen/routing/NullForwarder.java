@@ -34,7 +34,8 @@ public class NullForwarder extends AbstractForwarder {
     public void handle(final RoutingContext ctx) {
         final Logger log = RequestLoggerFactory.getLogger(NullForwarder.class, ctx.request());
 
-        if (handleHeadersFilter(ctx.request())) {
+        if (rule.hasHeadersFilterPattern() && !doHeadersFilterMatch(ctx.request())) {
+            ctx.next();
             return;
         }
 

@@ -60,10 +60,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCi
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
-import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
-import org.swisspush.gateleen.routing.DeferCloseHttpClient;
-import org.swisspush.gateleen.routing.Router;
-import org.swisspush.gateleen.routing.RuleProvider;
+import org.swisspush.gateleen.routing.*;
 import org.swisspush.gateleen.routing.auth.DefaultOAuthProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
