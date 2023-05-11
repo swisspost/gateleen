@@ -174,6 +174,10 @@ public class Rule {
         this.headersFilterPattern = headersFilterPattern;
     }
 
+    public boolean hasHeadersFilterPattern() {
+        return headersFilterPattern != null;
+    }
+
     public int getTimeout() {
         return timeout;
     }
