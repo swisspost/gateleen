@@ -53,7 +53,7 @@
         <sel_chrome_driver>/usr/local/bin/chromedriver</sel_chrome_driver>
         <vertx.version>4.2.1</vertx.version>
         <vertx-redis-client.version>4.3.3</vertx-redis-client.version>
-        <jackson.version>2.13.0</jackson.version>
+        <jackson.version>2.15.0</jackson.version>
         <springframework.version>5.3.21</springframework.version>
     </properties>
 
@@ -398,7 +398,7 @@
             <dependency>
                 <groupId>org.json</groupId>
                 <artifactId>json</artifactId>
-                <version>20210307</version>
+                <version>20230227</version>
             </dependency>
             <dependency>
                 <groupId>joda-time</groupId>
