@@ -17,8 +17,6 @@
     </dependencies>
 
     <properties>
-        <nodeDownloadRoot>http://artifactory.pnet.ch/artifactory/list/ext-binaries-local/node/</nodeDownloadRoot>
-        <npmDownloadRoot>http://artifactory.pnet.ch/artifactory/list/ext-binaries-local/node/</npmDownloadRoot>
         <npmrcFile>.npmrc-post</npmrcFile>
     </properties>
     <build>
