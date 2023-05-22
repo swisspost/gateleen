@@ -17,7 +17,7 @@
     </dependencies>
 
     <properties>
-        <npmrcFile>.npmrc-post</npmrcFile>
+        <npmrcFile>.npmrc-public</npmrcFile>
     </properties>
     <build>
         <plugins>
