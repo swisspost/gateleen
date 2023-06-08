@@ -1,9 +1,9 @@
 package org.swisspush.gateleen.core.lua;
 
-import io.vertx.redis.client.RedisAPI;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -28,13 +28,13 @@ public class LuaScriptState {
      */
     private String sha;
 
-    private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
 
     private Logger log = LoggerFactory.getLogger(LuaScriptState.class);
 
-    public LuaScriptState(LuaScript luaScriptType, RedisAPI redisAPI, boolean logoutput) {
+    public LuaScriptState(LuaScript luaScriptType, RedisProvider redisProvider, boolean logoutput) {
         this.luaScriptType = luaScriptType;
-        this.redisAPI = redisAPI;
+        this.redisProvider = redisProvider;
         this.logoutput = logoutput;
         this.composeLuaScript(luaScriptType);
         this.loadLuaScript(new RedisCommandDoNothing(), 0);
@@ -86,7 +86,7 @@ public class LuaScriptState {
     public void loadLuaScript(final RedisCommand redisCommand, int executionCounter) {
         final int executionCounterIncr = ++executionCounter;
         // check first if the lua script already exists in the store
-        redisAPI.script(Arrays.asList("exists", this.sha),resultArray -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.script(Arrays.asList("exists", sha), resultArray -> {
             if (resultArray.failed()) {
                 log.error("Error checking whether lua script exists", resultArray.cause());
                 return;
@@ -100,7 +100,7 @@ public class LuaScriptState {
                 log.info("load lua script for script type: {} logutput: {}", luaScriptType, logoutput);
                 redisAPI.script(Arrays.asList("load",script), stringAsyncResult -> {
                     String newSha = stringAsyncResult.result().toString();
-                            log.info("got sha from redis for lua script: {}: {}", luaScriptType, newSha);
+                    log.info("got sha from redis for lua script: {}: {}", luaScriptType, newSha);
                     if (!newSha.equals(sha)) {
                         log.warn("the sha calculated by myself: {} doesn't match with the sha from redis: {}. " +
                                 "We use the sha from redis", sha, newSha);
@@ -110,7 +110,7 @@ public class LuaScriptState {
                     redisCommand.exec(executionCounterIncr);
                 });
             }
-        });
+        })).onFailure(throwable -> log.error("Redis: Error checking whether lua script exists", throwable));
     }
 
     public String getScript() {

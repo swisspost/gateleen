@@ -59,7 +59,9 @@ public class RedisCacheStorageTest {
         Mockito.when(lock.acquireLock(anyString(), anyString(), anyLong())).thenReturn(Future.succeededFuture(Boolean.TRUE));
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.TRUE));
 
-        redisCacheStorage = new RedisCacheStorage(vertx, lock, RedisAPI.api(new RedisClient(vertx, new RedisOptions())), 2000);
+        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new RedisOptions()));
+
+        redisCacheStorage = new RedisCacheStorage(vertx, lock, () -> Future.succeededFuture(redisAPI), 2000);
         jedis = new Jedis(new HostAndPort("localhost", 6379));
         try {
             jedis.flushAll();

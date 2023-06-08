@@ -3,9 +3,9 @@ package org.swisspush.gateleen.monitoring;
 import com.google.common.base.Splitter;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.Address;
 
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ import java.util.Map;
 public class RedisMonitor {
 
     private Vertx vertx;
-    private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
     private int period;
     private long timer;
     private Logger log = LoggerFactory.getLogger(RedisMonitor.class);
@@ -32,44 +32,46 @@ public class RedisMonitor {
     private final MetricsPublisher publisher;
 
     /**
-     * @param vertx    vertx
-     * @param redisAPI redisAPI
-     * @param name     name
-     * @param period   in seconds.
+     * @param vertx         vertx
+     * @param redisProvider RedisProvider
+     * @param name          name
+     * @param period        in seconds.
      */
-    public RedisMonitor(Vertx vertx, RedisAPI redisAPI, String name, int period) {
-        this(vertx, redisAPI, name, period,
+    public RedisMonitor(Vertx vertx, RedisProvider redisProvider, String name, int period) {
+        this(vertx, redisProvider, name, period,
                 new EventBusMetricsPublisher(vertx, Address.monitoringAddress(), "redis." + name + ".")
         );
     }
 
-    public RedisMonitor(Vertx vertx, RedisAPI redisAPI, String name, int period, MetricsPublisher publisher) {
+    public RedisMonitor(Vertx vertx, RedisProvider redisProvider, String name, int period, MetricsPublisher publisher) {
         this.vertx = vertx;
-        this.redisAPI = redisAPI;
+        this.redisProvider = redisProvider;
         this.period = period * 1000;
         this.publisher = publisher;
     }
 
     public void start() {
         timer = vertx.setPeriodic(period, timer -> {
-            redisAPI.info(new ArrayList<>()).onComplete(event -> {
-                if (event.succeeded()) {
-                    collectMetrics(event.result().toBuffer());
-                } else {
-                    log.warn("Cannot collect INFO from redis");
-                }
-            });
-
-            if (metricName != null && elementCountKey != null) {
-                redisAPI.zcard(elementCountKey, reply -> {
-                    if (reply.succeeded()) {
-                        long value = reply.result().toLong();
-                        publisher.publishMetric(metricName, value);
+            redisProvider.redis().onSuccess(redisAPI -> {
+                redisAPI.info(new ArrayList<>()).onComplete(event -> {
+                    if (event.succeeded()) {
+                        collectMetrics(event.result().toBuffer());
                     } else {
-                        log.warn("Cannot collect zcard from redis for key {}", elementCountKey);
+                        log.warn("Cannot collect INFO from redis");
                     }
                 });
-            }
+
+                if (metricName != null && elementCountKey != null) {
+                    redisAPI.zcard(elementCountKey, reply -> {
+                        if (reply.succeeded()) {
+                            long value = reply.result().toLong();
+                            publisher.publishMetric(metricName, value);
+                        } else {
+                            log.warn("Cannot collect zcard from redis for key {}", elementCountKey);
+                        }
+                    });
+                }
+            }).onFailure(throwable -> log.warn("Cannot collect INFO from redis", throwable));
         });
     }
 
@@ -102,11 +104,11 @@ public class RedisMonitor {
                 .filter(input -> input != null && input.contains(DELIMITER)
                         && !input.contains("executable")
                         && !input.contains("config_file")).forEach(entry -> {
-            List<String> keyValue = Splitter.on(DELIMITER).omitEmptyStrings().trimResults().splitToList(entry);
-            if (keyValue.size() == 2) {
-                map.put(keyValue.get(0), keyValue.get(1));
-            }
-        });
+                    List<String> keyValue = Splitter.on(DELIMITER).omitEmptyStrings().trimResults().splitToList(entry);
+                    if (keyValue.size() == 2) {
+                        map.put(keyValue.get(0), keyValue.get(1));
+                    }
+                });
 
         log.debug("got redis metrics {}", map);
 

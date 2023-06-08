@@ -49,7 +49,8 @@ public class RedisQueueCircuitBreakerStorageTest {
     @BeforeClass
     public static void setupStorage(){
         vertx = Vertx.vertx();
-        storage = new RedisQueueCircuitBreakerStorage(RedisAPI.api(new RedisClient(vertx, new RedisOptions())));
+        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new RedisOptions()));
+        storage = new RedisQueueCircuitBreakerStorage(() -> Future.succeededFuture(redisAPI));
     }
 
     @Before

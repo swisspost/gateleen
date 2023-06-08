@@ -5,11 +5,11 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.json.JsonObject;
-import io.vertx.redis.client.RedisAPI;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
@@ -31,7 +31,7 @@ import static org.swisspush.redisques.util.RedisquesAPI.*;
 public class Scheduler {
 
     private Vertx vertx;
-    private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
     private String redisquesAddress;
     private String name;
     private CronExpression cronExpression;
@@ -45,10 +45,12 @@ public class Scheduler {
 
     private Logger log;
 
-    public Scheduler(Vertx vertx, String redisquesAddress, RedisAPI redisAPI, String name, String cronExpression, List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset, boolean executeOnStartup, boolean executeOnReload) throws ParseException {
+    public Scheduler(Vertx vertx, String redisquesAddress, RedisProvider redisProvider, String name, String cronExpression,
+                     List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset,
+                     boolean executeOnStartup, boolean executeOnReload) throws ParseException {
         this.vertx = vertx;
         this.redisquesAddress = redisquesAddress;
-        this.redisAPI = redisAPI;
+        this.redisProvider = redisProvider;
         this.name = name;
         this.cronExpression = new CronExpression(cronExpression);
         this.requests = requests;
@@ -77,30 +79,33 @@ public class Scheduler {
 
     public void start() {
         log.info("Starting scheduler [ " + cronExpression.getCronExpression() + " ]");
-        timer = vertx.setPeriodic(5000, timer -> redisAPI.get("schedulers:" + name, reply -> {
-            final String stringValue = reply.result() == null ? null : reply.result().toString();
 
-            /*
-                To guarantee that a scheduler is always triggered after the same interval,
-                we have to subtract the randomOffset from the current time. This way we don’t
-                change the behavior of the scheduler, because we simply “adjust” the current time.
-             */
-            if (stringValue == null || Long.parseLong(stringValue) <= (System.currentTimeMillis() - randomOffset)) {
-                // Either first use of the scheduler or run time reached.
-                // We need to set the next run time
-                final long nextRunTime = nextRunTime();
-                if (log.isTraceEnabled()) {
-                    log.trace("Setting next run time to " + SimpleDateFormat.getDateTimeInstance().format(new Date(nextRunTime)));
-                }
-                redisAPI.getset("schedulers:" + name, "" + nextRunTime, event -> {
-                    String previousValue = event.result() == null ? null : event.result().toString();
-                    if (stringValue != null && stringValue.equals(previousValue)) {
-                        // a run time was set and we were the first instance to update it
-                        trigger();
+        timer = vertx.setPeriodic(5000, timer -> redisProvider.redis()
+                .onSuccess(redisAPI -> redisAPI.get("schedulers:" + name, reply -> {
+                    final String stringValue = reply.result() == null ? null : reply.result().toString();
+
+                    /*
+                        To guarantee that a scheduler is always triggered after the same interval,
+                        we have to subtract the randomOffset from the current time. This way we don’t
+                        change the behavior of the scheduler, because we simply “adjust” the current time.
+                     */
+                    if (stringValue == null || Long.parseLong(stringValue) <= (System.currentTimeMillis() - randomOffset)) {
+                        // Either first use of the scheduler or run time reached.
+                        // We need to set the next run time
+                        final long nextRunTime = Scheduler.this.nextRunTime();
+                        if (log.isTraceEnabled()) {
+                            log.trace("Setting next run time to " + SimpleDateFormat.getDateTimeInstance().format(new Date(nextRunTime)));
+                        }
+                        redisAPI.getset("schedulers:" + name, "" + nextRunTime, event -> {
+                            String previousValue = event.result() == null ? null : event.result().toString();
+                            if (stringValue != null && stringValue.equals(previousValue)) {
+                                // a run time was set and we were the first instance to update it
+                                Scheduler.this.trigger();
+                            }
+                        });
                     }
-                });
-            }
-        }));
+                })).onFailure(throwable -> log.error("Redis: Unable to trigger scheduler", throwable)));
+
         if ((!executed && executeOnStartup) || executeOnReload) {
             executed = true;
             trigger();
@@ -111,11 +116,11 @@ public class Scheduler {
         log.info("Stopping scheduler [ " + cronExpression.getCronExpression() + " ] ");
         vertx.cancelTimer(timer);
         String key = "schedulers:" + name;
-        redisAPI.del(Collections.singletonList(key), reply -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.del(Collections.singletonList(key), reply -> {
             if (reply.failed()) {
                 log.error("Could not reset scheduler '" + key + "'");
             }
-        });
+        })).onFailure(throwable -> log.error("Redis: Could not reset scheduler '" + key + "'"));
     }
 
     private void trigger() {
@@ -143,9 +148,8 @@ public class Scheduler {
 
     private long nextRunTime() {
         /*
-            To not increase the interval, we also have to adapt the
-            current time, by subtracting the randomOffset. Otherwise
-            the interval will be increased by the randomOffset.
+            To not increase the interval, we also have to adapt the current time, by subtracting the randomOffset.
+            Otherwise, the interval will be increased by the randomOffset.
          */
         return cronExpression.getNextValidTimeAfter(new Date(System.currentTimeMillis() - randomOffset)).getTime();
     }

@@ -203,7 +203,7 @@ public class RunConfig {
         }
 
         log.info(SERVER_NAME + " starting with log configuration " + conf);
-        Configurator.initialize("",conf);
+        Configurator.initialize("", conf);
     }
 
     public static RunConfigBuilder with() {
@@ -490,22 +490,22 @@ public class RunConfig {
                 handler.handle(false);
                 return;
             }
-            // rest storage module
-            vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
-                if (event1.failed()) {
-                    log.error("Could not load rest storage redis module", event1.cause());
+        // rest storage module
+        vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
+            if (event1.failed()) {
+                log.error("Could not load rest storage redis module", event1.cause());
+                handler.handle(false);
+                return;
+            }
+
+            // metrics module
+            vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
+                if (event2.failed()) {
+                    log.error("Could not load metrics module", event2.cause());
                     handler.handle(false);
                     return;
                 }
-
-                // metrics module
-                vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
-                    if (event2.failed()) {
-                        log.error("Could not load metrics module", event2.cause());
-                        handler.handle(false);
-                        return;
-                    }
-                    handler.handle(true);
+                handler.handle(true);
                 });
             });
         });
