@@ -6,7 +6,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.client.RedisAPI;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.joda.time.DateTime;
@@ -20,6 +19,7 @@ import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.property.PropertyHandler;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
@@ -51,7 +51,6 @@ import org.swisspush.gateleen.validation.ValidationResourceManager;
 import org.swisspush.redisques.util.RedisquesConfiguration;
 import org.swisspush.reststorage.util.ModuleConfiguration;
 
-import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -82,7 +81,7 @@ public class RunConfig {
     private final Class verticleClass;
 
     private Vertx vertx;
-    private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
     private Router router;
     private CacheHandler cacheHandler;
     private CORSHandler corsHandler;
@@ -111,7 +110,7 @@ public class RunConfig {
     private KafkaHandler kafkaHandler;
     private CustomHttpResponseHandler customHttpResponseHandler;
 
-    public RunConfig(Vertx vertx, RedisAPI redisAPI, Class verticleClass, Router router, MonitoringHandler monitoringHandler,
+    public RunConfig(Vertx vertx, RedisProvider redisProvider, Class verticleClass, Router router, MonitoringHandler monitoringHandler,
                      QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
                      ConfigurationResourceManager configurationResourceManager,
@@ -124,7 +123,7 @@ public class RunConfig {
                      CustomHttpResponseHandler customHttpResponseHandler, ContentTypeConstraintHandler contentTypeConstraintHandler,
                      CacheHandler cacheHandler) {
         this.vertx = vertx;
-        this.redisAPI = redisAPI;
+        this.redisProvider = redisProvider;
         this.verticleClass = verticleClass;
         this.router = router;
         this.monitoringHandler = monitoringHandler;
@@ -158,7 +157,7 @@ public class RunConfig {
 
     private RunConfig(RunConfigBuilder builder) {
         this(builder.vertx,
-                builder.redisAPI,
+                builder.redisProvider,
                 builder.verticleClass,
                 builder.router,
                 builder.monitoringHandler,
@@ -215,7 +214,7 @@ public class RunConfig {
      */
     public static class RunConfigBuilder {
         private Vertx vertx;
-        private RedisAPI redisAPI;
+        private RedisProvider redisProvider;
         private Class verticleClass;
         private Router router;
         private MonitoringHandler monitoringHandler;
@@ -368,9 +367,9 @@ public class RunConfig {
             return this;
         }
 
-        public RunConfig build(Vertx vertx, RedisAPI redisAPI, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser) {
+        public RunConfig build(Vertx vertx, RedisProvider redisProvider, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser) {
             this.vertx = vertx;
-            this.redisAPI = redisAPI;
+            this.redisProvider = redisProvider;
             this.verticleClass = verticleClass;
             this.router = router;
             this.monitoringHandler = monitoringHandler;
@@ -577,11 +576,11 @@ public class RunConfig {
                     return;
                 }
                 if (PackingHandler.isPacked(request)) {
-                    request.bodyHandler(new PackingHandler(request, new QueuingHandler(vertx, redisAPI, request, monitoringHandler)));
+                    request.bodyHandler(new PackingHandler(request, new QueuingHandler(vertx, redisProvider, request, monitoringHandler)));
                 } else {
                     if (QueuingHandler.isQueued(request)) {
                         setISO8601Timestamps(request);
-                        request.bodyHandler(new QueuingHandler(vertx, redisAPI, request, monitoringHandler));
+                        request.bodyHandler(new QueuingHandler(vertx, redisProvider, request, monitoringHandler));
                     } else {
                         if (cacheHandler != null && cacheHandler.handle(request)) {
                             return;

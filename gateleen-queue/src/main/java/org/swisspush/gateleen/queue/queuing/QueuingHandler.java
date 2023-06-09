@@ -6,7 +6,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.redis.client.RedisAPI;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -33,16 +33,16 @@ public class QueuingHandler implements Handler<Buffer> {
 
     private HttpServerRequest request;
     private Vertx vertx;
-    private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
 
-    public QueuingHandler(Vertx vertx, RedisAPI redisAPI, HttpServerRequest request, MonitoringHandler monitoringHandler) {
-        this(vertx, redisAPI, request, new QueueClient(vertx, monitoringHandler));
+    public QueuingHandler(Vertx vertx, RedisProvider redisProvider, HttpServerRequest request, MonitoringHandler monitoringHandler) {
+        this(vertx, redisProvider, request, new QueueClient(vertx, monitoringHandler));
     }
 
-    public QueuingHandler(Vertx vertx, RedisAPI redisAPI, HttpServerRequest request, RequestQueue requestQueue) {
+    public QueuingHandler(Vertx vertx, RedisProvider redisProvider, HttpServerRequest request, RequestQueue requestQueue) {
         this.request = request;
         this.vertx = vertx;
-        this.redisAPI = redisAPI;
+        this.redisProvider = redisProvider;
         this.requestQueue = requestQueue;
     }
 
@@ -54,7 +54,7 @@ public class QueuingHandler implements Handler<Buffer> {
         headers.remove(QUEUE_HEADER);
 
         if (headers.names().contains(DUPLICATE_CHECK_HEADER)) {
-            DuplicateCheckHandler.checkDuplicateRequest(redisAPI, request.uri(), buffer, headers.get(DUPLICATE_CHECK_HEADER), requestIsDuplicate -> {
+            DuplicateCheckHandler.checkDuplicateRequest(redisProvider, request.uri(), buffer, headers.get(DUPLICATE_CHECK_HEADER), requestIsDuplicate -> {
                 if (requestIsDuplicate) {
                     // don't handle this request since it's a duplicate
                     request.response().setStatusCode(StatusCode.ACCEPTED.getStatusCode());

@@ -243,7 +243,7 @@ public abstract class AbstractTest {
                                 .delegateHandler(delegateHandler)
                                 .mergeHandler(mergeHandler)
                                 .customHttpResponseHandler(customHttpResponseHandler)
-                                .build(vertx, redisAPI, AbstractTest.class, router, monitoringHandler, queueBrowser);
+                                .build(vertx, redisProvider, AbstractTest.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
                 mainServer = vertx.createHttpServer();

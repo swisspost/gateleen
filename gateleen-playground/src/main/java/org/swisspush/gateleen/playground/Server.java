@@ -341,7 +341,7 @@ public class Server extends AbstractVerticle {
                         .delegateHandler(delegateHandler)
                         .customHttpResponseHandler(customHttpResponseHandler)
                         .contentTypeConstraintHandler(contentTypeConstraintHandler)
-                        .build(vertx, redisApi, Server.class, router, monitoringHandler, queueBrowser);
+                        .build(vertx, redisProvider, Server.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
 
