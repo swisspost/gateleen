@@ -46,7 +46,7 @@ public final class DuplicateCheckHandler {
     }
 
     private static Integer parseTimeToLive(String ttl) {
-        Integer timeToLive;
+        int timeToLive;
         try {
             timeToLive = Integer.parseInt(ttl);
         } catch (NumberFormatException e) {

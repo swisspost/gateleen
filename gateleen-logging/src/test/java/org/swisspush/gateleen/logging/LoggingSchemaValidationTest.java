@@ -46,10 +46,6 @@ public class LoggingSchemaValidationTest {
         return validationResult.getValidationDetails().getJsonObject(0).getString("message");
     }
 
-    private String extractErrorValue(ValidationResult validationResult){
-        return validationResult.getValidationDetails().getJsonObject(0).getString("value");
-    }
-
     private ValidationResult validate(String loggingResource){
         return Validator.validateStatic(Buffer.buffer(loggingResource), LOGGING_SCHEMA, logger);
     }

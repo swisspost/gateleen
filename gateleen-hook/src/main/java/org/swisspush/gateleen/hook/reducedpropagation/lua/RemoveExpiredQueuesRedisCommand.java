@@ -16,12 +16,12 @@ import java.util.List;
  */
 public class RemoveExpiredQueuesRedisCommand implements RedisCommand {
 
-    private LuaScriptState luaScriptState;
-    private List<String> keys;
-    private List<String> arguments;
-    private Promise<Response> promise;
-    private RedisProvider redisProvider;
-    private Logger log;
+    private final LuaScriptState luaScriptState;
+    private final List<String> keys;
+    private final List<String> arguments;
+    private final Promise<Response> promise;
+    private final RedisProvider redisProvider;
+    private final Logger log;
 
     public RemoveExpiredQueuesRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
                                            RedisProvider redisProvider, Logger log, final Promise<Response> promise) {
@@ -48,7 +48,7 @@ public class RemoveExpiredQueuesRedisCommand implements RedisCommand {
                 String message = event.cause().getMessage();
                 if (message != null && message.startsWith("NOSCRIPT")) {
                     log.warn("RemoveExpiredQueuesRedisCommand script couldn't be found, reload it");
-                    log.warn("amount the script got loaded: " + String.valueOf(executionCounter));
+                    log.warn("amount the script got loaded: " + executionCounter);
                     if (executionCounter > 10) {
                         promise.fail("amount the script got loaded is higher than 10, we abort");
                     } else {

@@ -14,12 +14,12 @@ import java.util.List;
  */
 public class StartQueueTimerRedisCommand implements RedisCommand {
 
-    private LuaScriptState luaScriptState;
-    private List<String> keys;
-    private List<String> arguments;
-    private Promise<Boolean> promise;
-    private RedisProvider redisProvider;
-    private Logger log;
+    private final LuaScriptState luaScriptState;
+    private final List<String> keys;
+    private final List<String> arguments;
+    private final Promise<Boolean> promise;
+    private final RedisProvider redisProvider;
+    private final Logger log;
 
     public StartQueueTimerRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
                                        RedisProvider redisProvider, Logger log, final Promise<Boolean> promise) {
@@ -43,7 +43,7 @@ public class StartQueueTimerRedisCommand implements RedisCommand {
                 String message = event.cause().getMessage();
                 if (message != null && message.startsWith("NOSCRIPT")) {
                     log.warn("StartQueueTimerRedisCommand script couldn't be found, reload it");
-                    log.warn("amount the script got loaded: " + String.valueOf(executionCounter));
+                    log.warn("amount the script got loaded: " + executionCounter);
                     if (executionCounter > 10) {
                         promise.fail("amount the script got loaded is higher than 10, we abort");
                     } else {

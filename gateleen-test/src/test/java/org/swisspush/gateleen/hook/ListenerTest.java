@@ -791,7 +791,6 @@ public class ListenerTest extends AbstractTest {
 
         String registerUrl = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/" + listenerNo;
         String target = SERVER_ROOT + requestUrlBase + "/" + subresource + "/anySubResource";
-        String[] methods = null;
 
         // register a listener - expect not accepted by Gateleen (expect http 400)
         String body = "{ \"destination\":\"" + target + "\"}";

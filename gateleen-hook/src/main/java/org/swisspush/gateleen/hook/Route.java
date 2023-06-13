@@ -152,7 +152,7 @@ public class Route {
         }
 
         if (!httpHook.getMethods().isEmpty()) {
-            rule.setMethods(httpHook.getMethods().toArray(new String[httpHook.getMethods().size()]));
+            rule.setMethods(httpHook.getMethods().toArray(new String[0]));
         }
 
         if(!httpHook.getTranslateStatus().isEmpty()){

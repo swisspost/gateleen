@@ -186,7 +186,7 @@ public class QoSHandlerTest {
         verify(response, times(1)).setStatusMessage(eq("Bad Request ValidationException: QoS settings contain rules without sentinels"));
     }
 
-    private class CustomHttpServerRequest extends DummyHttpServerRequest {
+    private static class CustomHttpServerRequest extends DummyHttpServerRequest {
 
         private String uri;
         private HttpMethod method;
@@ -219,7 +219,7 @@ public class QoSHandlerTest {
         @Override public HttpServerResponse response() { return response; }
     }
 
-    class CustomHttpServerResponse extends DummyHttpServerResponse {
+    static class CustomHttpServerResponse extends DummyHttpServerResponse {
 
         private MultiMap headers;
 

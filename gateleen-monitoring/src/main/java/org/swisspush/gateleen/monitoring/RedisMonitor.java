@@ -51,28 +51,26 @@ public class RedisMonitor {
     }
 
     public void start() {
-        timer = vertx.setPeriodic(period, timer -> {
-            redisProvider.redis().onSuccess(redisAPI -> {
-                redisAPI.info(new ArrayList<>()).onComplete(event -> {
-                    if (event.succeeded()) {
-                        collectMetrics(event.result().toBuffer());
+        timer = vertx.setPeriodic(period, timer -> redisProvider.redis().onSuccess(redisAPI -> {
+            redisAPI.info(new ArrayList<>()).onComplete(event -> {
+                if (event.succeeded()) {
+                    collectMetrics(event.result().toBuffer());
+                } else {
+                    log.warn("Cannot collect INFO from redis");
+                }
+            });
+
+            if (metricName != null && elementCountKey != null) {
+                redisAPI.zcard(elementCountKey, reply -> {
+                    if (reply.succeeded()) {
+                        long value = reply.result().toLong();
+                        publisher.publishMetric(metricName, value);
                     } else {
-                        log.warn("Cannot collect INFO from redis");
+                        log.warn("Cannot collect zcard from redis for key {}", elementCountKey);
                     }
                 });
-
-                if (metricName != null && elementCountKey != null) {
-                    redisAPI.zcard(elementCountKey, reply -> {
-                        if (reply.succeeded()) {
-                            long value = reply.result().toLong();
-                            publisher.publishMetric(metricName, value);
-                        } else {
-                            log.warn("Cannot collect zcard from redis for key {}", elementCountKey);
-                        }
-                    });
-                }
-            }).onFailure(throwable -> log.warn("Cannot collect INFO from redis", throwable));
-        });
+            }
+        }).onFailure(throwable -> log.warn("Cannot collect INFO from redis", throwable)));
     }
 
     public void stop() {

@@ -143,7 +143,7 @@ public class MonitoringHandlerTest {
         };
     }
 
-    class PUTRequest extends DummyHttpServerRequest {
+    static class PUTRequest extends DummyHttpServerRequest {
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
         @Override public HttpMethod method() {
