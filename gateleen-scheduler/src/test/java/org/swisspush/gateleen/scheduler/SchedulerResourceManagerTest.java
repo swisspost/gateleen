@@ -69,6 +69,9 @@ public class SchedulerResourceManagerTest {
         // on initialization, the schedulers must be read from storage
         verify(storage, timeout(100).times(1)).get(eq(schedulersUri), any());
 
+        // reset the mock to start new count after eventbus message
+        reset(storage);
+
         vertx.eventBus().publish("gateleen.schedulers-updated", true);
 
         // after eventbus message, the schedulers must be read from storage again
