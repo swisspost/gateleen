@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.hook.reducedpropagation.impl;
 
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -43,7 +44,9 @@ public class RedisReducedPropagationStorageRemoveExpiredQueuesEmptyTest {
     @BeforeClass
     public static void setupStorage() {
         vertx = Vertx.vertx();
-        storage = new RedisReducedPropagationStorage(RedisAPI.api(new RedisClient(vertx, new RedisOptions())));
+
+        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new RedisOptions()));
+        storage = new RedisReducedPropagationStorage(() -> Future.succeededFuture(redisAPI));
     }
 
     @Before

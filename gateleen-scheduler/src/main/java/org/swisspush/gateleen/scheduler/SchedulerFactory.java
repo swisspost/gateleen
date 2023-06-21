@@ -2,13 +2,12 @@ package org.swisspush.gateleen.scheduler;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -39,20 +38,21 @@ public class SchedulerFactory {
 
     private final Map<String, Object> properties;
     private final JsonArray defaultRequestHeaders;
-    private Vertx vertx;
-    private RedisAPI redisAPI;
-    private MonitoringHandler monitoringHandler;
-    private String schedulersSchema;
-    private String redisquesAddress;
+    private final Vertx vertx;
+    private final RedisProvider redisProvider;
+    private final MonitoringHandler monitoringHandler;
+    private final String schedulersSchema;
+    private final String redisquesAddress;
 
-    private Logger log = LoggerFactory.getLogger(SchedulerFactory.class);
+    private final Logger log = LoggerFactory.getLogger(SchedulerFactory.class);
 
-    public SchedulerFactory(Map<String, Object> properties, Map<String, String> defaultRequestHeaders, Vertx vertx, RedisAPI redisAPI,
-                            MonitoringHandler monitoringHandler, String schedulersSchema, String redisquesAddress) {
+    public SchedulerFactory(Map<String, Object> properties, Map<String, String> defaultRequestHeaders, Vertx vertx,
+                            RedisProvider redisProvider, MonitoringHandler monitoringHandler, String schedulersSchema,
+                            String redisquesAddress) {
         this.properties = properties;
         this.defaultRequestHeaders = defaultRequestHeadersAsJsonArray(defaultRequestHeaders);
         this.vertx = vertx;
-        this.redisAPI = redisAPI;
+        this.redisProvider = redisProvider;
         this.monitoringHandler = monitoringHandler;
         this.schedulersSchema = schedulersSchema;
         this.redisquesAddress = redisquesAddress;
@@ -114,13 +114,17 @@ public class SchedulerFactory {
             List<HttpRequest> requests = new ArrayList<>();
             for (int i = 0; i < ((ArrayList<Object>) schedulerJson.get(REQUESTS)).size(); i++) {
                 try {
-                    requests.add(new HttpRequest(prepare((JsonObject) mainObject.getJsonObject(SCHEDULERS).getJsonObject(entry.getKey()).getJsonArray(REQUESTS).getValue(i))));
+                    requests.add(new HttpRequest(prepare((JsonObject) mainObject.getJsonObject(SCHEDULERS)
+                            .getJsonObject(entry.getKey()).getJsonArray(REQUESTS).getValue(i)))
+                    );
                 } catch (Exception e) {
                     throw new ValidationException("Could not parse request [" + i + "] of scheduler " + entry.getKey(), e);
                 }
             }
             try {
-                result.add(new Scheduler(vertx, redisquesAddress, redisAPI, entry.getKey(), (String) schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset, executeOnStartup, executeOnReload));
+                result.add(new Scheduler(vertx, redisquesAddress, redisProvider, entry.getKey(),
+                        (String) schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset, executeOnStartup, executeOnReload)
+                );
             } catch (ParseException e) {
                 throw new ValidationException("Could not parse cron expression of scheduler '" + entry.getKey() + "'", e);
             }

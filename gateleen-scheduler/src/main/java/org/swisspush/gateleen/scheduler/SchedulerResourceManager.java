@@ -6,11 +6,11 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
@@ -30,33 +30,33 @@ import java.util.Map;
 public class SchedulerResourceManager implements Refreshable, LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.schedulers-updated";
-    private String schedulersUri;
-    private ResourceStorage storage;
-    private Logger log = LoggerFactory.getLogger(SchedulerResourceManager.class);
-    private Vertx vertx;
+    private final String schedulersUri;
+    private final ResourceStorage storage;
+    private final Logger log = LoggerFactory.getLogger(SchedulerResourceManager.class);
+    private final Vertx vertx;
     private List<Scheduler> schedulers;
-    private Map<String, Object> properties;
-    private SchedulerFactory schedulerFactory;
-    private String schedulersSchema;
+    private final Map<String, Object> properties;
+    private final SchedulerFactory schedulerFactory;
+    private final String schedulersSchema;
     private boolean logConfigurationResourceChanges = false;
 
-    public SchedulerResourceManager(Vertx vertx, RedisAPI redisAPI, final ResourceStorage storage,
+    public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
                                     MonitoringHandler monitoringHandler, String schedulersUri) {
-        this(vertx, redisAPI, storage, monitoringHandler, schedulersUri, null);
+        this(vertx, redisProvider, storage, monitoringHandler, schedulersUri, null);
     }
 
-    public SchedulerResourceManager(Vertx vertx,RedisAPI redisAPI, final ResourceStorage storage,
+    public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
                                     MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props) {
-        this(vertx, redisAPI, storage, monitoringHandler, schedulersUri, props, Address.redisquesAddress());
+        this(vertx, redisProvider, storage, monitoringHandler, schedulersUri, props, Address.redisquesAddress());
     }
 
-    public SchedulerResourceManager(Vertx vertx, RedisAPI redisAPI, final ResourceStorage storage,
+    public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
                                     MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props,
                                     String redisquesAddress) {
-        this(vertx, redisAPI, storage, monitoringHandler, schedulersUri, props, redisquesAddress, Collections.emptyMap());
+        this(vertx, redisProvider, storage, monitoringHandler, schedulersUri, props, redisquesAddress, Collections.emptyMap());
     }
 
-    public SchedulerResourceManager(Vertx vertx, RedisAPI redisAPI, final ResourceStorage storage,
+    public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
                                     MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props,
                                     String redisquesAddress, Map<String, String> defaultRequestHeaders) {
         this.vertx = vertx;
@@ -65,7 +65,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         this.properties = props;
 
         this.schedulersSchema = ResourcesUtils.loadResource("gateleen_scheduler_schema_schedulers", true);
-        this.schedulerFactory = new SchedulerFactory(properties, defaultRequestHeaders, vertx, redisAPI,
+        this.schedulerFactory = new SchedulerFactory(properties, defaultRequestHeaders, vertx, redisProvider,
                 monitoringHandler, schedulersSchema, redisquesAddress);
 
         updateSchedulers();

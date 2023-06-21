@@ -301,7 +301,7 @@ public class CacheHandlerTest {
         context.assertEquals(CONTENT_TYPE_JSON, response.headers().get(CONTENT_TYPE_HEADER));
     }
 
-    private class Request extends DummyHttpServerRequest {
+    private static class Request extends DummyHttpServerRequest {
         private MultiMap headers;
         private HttpMethod httpMethod;
         private String uri;
@@ -332,7 +332,7 @@ public class CacheHandlerTest {
         public HttpServerRequest resume() { return this; }
     }
 
-    private class Response extends DummyHttpServerResponse {
+    private static class Response extends DummyHttpServerResponse {
         private MultiMap headers;
 
         public Response() {

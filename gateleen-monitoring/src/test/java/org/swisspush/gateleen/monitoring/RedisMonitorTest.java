@@ -12,13 +12,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 
 import java.util.List;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 /**
  * Tests for the {@link RedisMonitor} class
@@ -30,6 +30,7 @@ public class RedisMonitorTest {
 
     private Vertx vertx;
     private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
     private RedisMonitor redisMonitor;
     private MetricsPublisher publisher;
 
@@ -38,9 +39,13 @@ public class RedisMonitorTest {
     @Before
     public void setUp() {
         vertx = Vertx.vertx();
+
         redisAPI = Mockito.mock(RedisAPI.class);
+        redisProvider = Mockito.mock(RedisProvider.class);
+        when(redisProvider.redis()).thenReturn(Future.succeededFuture(redisAPI));
+
         publisher = Mockito.mock(MetricsPublisher.class);
-        redisMonitor = new RedisMonitor(vertx, redisAPI, "main", 1, publisher);
+        redisMonitor = new RedisMonitor(vertx, redisProvider, "main", 1, publisher);
     }
 
     @Test

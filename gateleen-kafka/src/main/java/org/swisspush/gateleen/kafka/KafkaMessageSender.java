@@ -45,6 +45,6 @@ public class KafkaMessageSender {
             log.debug("Message successfully sent to kafka topic '{}' on partition {} with offset {}. Timestamp: {}",
                     metadata.getTopic(), metadata.getPartition(), metadata.getOffset(), metadata.getTimestamp());
             return Future.succeededFuture();
-        }).onFailure(event -> log.warn("Failed to send message with key '{}' to kafka. Cause: {}", message.key(), event));
+        }).onFailure(throwable -> log.warn("Failed to send message with key '{}' to kafka. Cause: {}", message.key(), throwable));
     }
 }

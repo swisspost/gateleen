@@ -4,11 +4,11 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
-import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.lua.*;
@@ -26,8 +26,8 @@ import java.util.*;
  */
 public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStorage {
 
-    private RedisAPI redisAPI;
-    private Logger log = LoggerFactory.getLogger(RedisQueueCircuitBreakerStorage.class);
+    private final RedisProvider redisProvider;
+    private final Logger log = LoggerFactory.getLogger(RedisQueueCircuitBreakerStorage.class);
 
     public static final String STORAGE_PREFIX = "gateleen.queue-circuit-breaker:";
     public static final String STORAGE_INFOS_SUFFIX = ":infos";
@@ -40,46 +40,47 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public static final String FIELD_FAILRATIO = "failRatio";
     public static final String FIELD_CIRCUIT = "circuit";
 
-    private LuaScriptState openCircuitLuaScriptState;
-    private LuaScriptState closeCircuitLuaScriptState;
-    private LuaScriptState reOpenCircuitLuaScriptState;
-    private LuaScriptState halfOpenCircuitLuaScriptState;
-    private LuaScriptState unlockSampleQueuesLuaScriptState;
-    private LuaScriptState getAllCircuitsLuaScriptState;
+    private final LuaScriptState openCircuitLuaScriptState;
+    private final LuaScriptState closeCircuitLuaScriptState;
+    private final LuaScriptState reOpenCircuitLuaScriptState;
+    private final LuaScriptState halfOpenCircuitLuaScriptState;
+    private final LuaScriptState unlockSampleQueuesLuaScriptState;
+    private final LuaScriptState getAllCircuitsLuaScriptState;
 
-    public RedisQueueCircuitBreakerStorage(RedisAPI redisAPI) {
-        this.redisAPI = redisAPI;
+    public RedisQueueCircuitBreakerStorage(RedisProvider redisProvider) {
+        this.redisProvider = redisProvider;
 
-        openCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT, redisAPI, false);
-        closeCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.CLOSE_CIRCUIT, redisAPI, false);
-        reOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.REOPEN_CIRCUIT, redisAPI, false);
-        halfOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.HALFOPEN_CIRCUITS, redisAPI, false);
-        unlockSampleQueuesLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UNLOCK_SAMPLES, redisAPI, false);
-        getAllCircuitsLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.ALL_CIRCUITS, redisAPI, false);
+        openCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT, redisProvider, false);
+        closeCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.CLOSE_CIRCUIT, redisProvider, false);
+        reOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.REOPEN_CIRCUIT, redisProvider, false);
+        halfOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.HALFOPEN_CIRCUITS, redisProvider, false);
+        unlockSampleQueuesLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UNLOCK_SAMPLES, redisProvider, false);
+        getAllCircuitsLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.ALL_CIRCUITS, redisProvider, false);
     }
 
     @Override
     public Future<QueueCircuitState> getQueueCircuitState(PatternAndCircuitHash patternAndCircuitHash) {
         Promise<QueueCircuitState> promise = Promise.promise();
-        redisAPI.hget(buildInfosKey(patternAndCircuitHash.getCircuitHash()), FIELD_STATE, event -> {
-            if (event.failed()) {
-                promise.fail(event.cause());
-            } else {
-                String stateAsString = Objects.toString(event.result(), "");
-                if (StringUtils.isEmpty(stateAsString)) {
-                    log.info("No status information found for circuit {}. Using default value {}",
-                            patternAndCircuitHash.getPattern().pattern(), QueueCircuitState.CLOSED);
-                }
-                promise.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
-            }
-        });
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.hget(buildInfosKey(patternAndCircuitHash.getCircuitHash()),
+                FIELD_STATE, event -> {
+                    if (event.failed()) {
+                        promise.fail(event.cause());
+                    } else {
+                        String stateAsString = Objects.toString(event.result(), "");
+                        if (StringUtils.isEmpty(stateAsString)) {
+                            log.info("No status information found for circuit {}. Using default value {}",
+                                    patternAndCircuitHash.getPattern().pattern(), QueueCircuitState.CLOSED);
+                        }
+                        promise.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
+                    }
+                })).onFailure(promise::fail);
         return promise.future();
     }
 
     @Override
     public Future<QueueCircuitState> getQueueCircuitState(String circuitHash) {
         Promise<QueueCircuitState> promise = Promise.promise();
-        redisAPI.hget(buildInfosKey(circuitHash), FIELD_STATE, event -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.hget(buildInfosKey(circuitHash), FIELD_STATE, event -> {
             if (event.failed()) {
                 promise.fail(event.cause());
             } else {
@@ -89,19 +90,21 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 }
                 promise.complete(QueueCircuitState.fromString(stateAsString, QueueCircuitState.CLOSED));
             }
-        });
+        })).onFailure(promise::fail);
         return promise.future();
     }
 
     @Override
     public Future<JsonObject> getQueueCircuitInformation(String circuitHash) {
         Promise<JsonObject> promise = Promise.promise();
-        redisAPI.hmget(Arrays.asList(buildInfosKey(circuitHash), FIELD_STATE, FIELD_FAILRATIO, FIELD_CIRCUIT), event -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.hmget(Arrays.asList(buildInfosKey(circuitHash), FIELD_STATE,
+                FIELD_FAILRATIO, FIELD_CIRCUIT), event -> {
             if (event.failed()) {
                 promise.fail(event.cause());
             } else {
                 try {
-                    QueueCircuitState state = QueueCircuitState.fromString(Objects.toString(event.result().get(0), null), QueueCircuitState.CLOSED);
+                    QueueCircuitState state = QueueCircuitState.fromString(Objects.toString(event.result().get(0), null),
+                            QueueCircuitState.CLOSED);
                     String failRatioStr = Objects.toString(event.result().get(1), null);
                     String circuit = Objects.toString(event.result().get(2), null);
                     JsonObject result = new JsonObject();
@@ -119,7 +122,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                     promise.fail(e);
                 }
             }
-        });
+        })).onFailure(promise::fail);
         return promise.future();
     }
 
@@ -129,7 +132,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         List<String> keys = Collections.singletonList(STORAGE_ALL_CIRCUITS);
         List<String> arguments = Arrays.asList(STORAGE_PREFIX, STORAGE_INFOS_SUFFIX);
         GetAllCircuitsRedisCommand cmd = new GetAllCircuitsRedisCommand(getAllCircuitsLuaScriptState,
-                keys, arguments, redisAPI, log, promise);
+                keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
         return promise.future();
     }
@@ -161,7 +164,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         );
 
         UpdateStatsRedisCommand cmd = new UpdateStatsRedisCommand(openCircuitLuaScriptState,
-                keys, arguments, redisAPI, log, promise);
+                keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
         return promise.future();
     }
@@ -169,26 +172,28 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     @Override
     public Future<Void> lockQueue(String queueName, PatternAndCircuitHash patternAndCircuitHash) {
         Promise<Void> promise = Promise.promise();
-        redisAPI.zadd(Arrays.asList(buildQueuesKey(patternAndCircuitHash.getCircuitHash()), String.valueOf(System.currentTimeMillis()), queueName), event -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.zadd(Arrays.asList(buildQueuesKey(patternAndCircuitHash.getCircuitHash()),
+                String.valueOf(System.currentTimeMillis()), queueName), event -> {
             if (event.failed()) {
                 promise.fail(event.cause().getMessage());
                 return;
             }
             promise.complete();
-        });
+        })).onFailure(throwable -> promise.fail(throwable.getMessage()));
         return promise.future();
     }
 
     @Override
     public Future<String> popQueueToUnlock() {
         Promise<String> promise = Promise.promise();
-        redisAPI.lpop(Collections.singletonList(STORAGE_QUEUES_TO_UNLOCK), event -> {
-            if (event.failed()) {
-                promise.fail(event.cause().getMessage());
-                return;
-            }
-            promise.complete(Objects.toString(event.result(), null));
-        });
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.lpop(Collections.singletonList(STORAGE_QUEUES_TO_UNLOCK),
+                event -> {
+                    if (event.failed()) {
+                        promise.fail(event.cause().getMessage());
+                        return;
+                    }
+                    promise.complete(Objects.toString(event.result(), null));
+                })).onFailure(throwable -> promise.fail(throwable.getMessage()));
         return promise.future();
     }
 
@@ -222,7 +227,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         );
 
         CloseCircuitRedisCommand cmd = new CloseCircuitRedisCommand(closeCircuitLuaScriptState,
-                keys, arguments, redisAPI, log, promise);
+                keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
         return promise.future();
     }
@@ -247,7 +252,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
 
     private Future<Void> closeCircuitsByKey(String key) {
         Promise<Void> promise = Promise.promise();
-        redisAPI.smembers(key, event -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.smembers(key, event -> {
             if (event.succeeded()) {
                 List<Future> promises = new ArrayList<>();
                 for (Response circuit : event.result()) {
@@ -267,7 +272,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
             } else {
                 promise.fail(event.cause().getMessage());
             }
-        });
+        })).onFailure(throwable -> promise.fail(throwable.getMessage()));
         return promise.future();
     }
 
@@ -285,7 +290,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         List<String> arguments = Collections.singletonList(circuitHash);
 
         ReOpenCircuitRedisCommand cmd = new ReOpenCircuitRedisCommand(reOpenCircuitLuaScriptState,
-                keys, arguments, redisAPI, log, promise);
+                keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
 
         return promise.future();
@@ -297,7 +302,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         List<String> keys = Arrays.asList(STORAGE_HALFOPEN_CIRCUITS, STORAGE_OPEN_CIRCUITS);
         List<String> arguments = Arrays.asList(STORAGE_PREFIX, STORAGE_INFOS_SUFFIX);
         HalfOpenCircuitRedisCommand cmd = new HalfOpenCircuitRedisCommand(halfOpenCircuitLuaScriptState,
-                keys, arguments, redisAPI, log, promise);
+                keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
         return promise.future();
     }
@@ -314,7 +319,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 String.valueOf(System.currentTimeMillis()));
 
         UnlockSampleQueuesRedisCommand cmd = new UnlockSampleQueuesRedisCommand(unlockSampleQueuesLuaScriptState,
-                keys, arguments, redisAPI, log, promise);
+                keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
 
         return promise.future();

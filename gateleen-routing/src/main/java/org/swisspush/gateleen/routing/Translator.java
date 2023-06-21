@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.swisspush.gateleen.core.util.StatusCodeTranslator;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -50,13 +51,7 @@ public class Translator extends StatusCodeTranslator {
             }
         }
 
-        // if something is found, return found value
-        if (translatedStatus != null) {
-            return translatedStatus;
-        }
-        // else return original value
-        else {
-            return statusCode;
-        }
+        // if something is found, return found value else return original value
+        return Objects.requireNonNullElse(translatedStatus, statusCode);
     }
 }

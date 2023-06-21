@@ -65,11 +65,7 @@ public class RoleAuthorizer implements ConfigurationResource {
         this.roleExtractor = new RoleExtractor(rolePattern);
         this.aclFactory = new AclFactory();
         // keep empty string if there is no prefix given. This way we could just use it later on without having to care about further.
-        if (rolePrefix != null) {
-            this.rolePrefix = rolePrefix;
-        } else {
-            this.rolePrefix = "";
-        }
+        this.rolePrefix = Objects.requireNonNullElse(rolePrefix, "");
 
         initialGrantedRoles = new HashMap<>();
         initialGrantedRoles.put(aclUriPattern, new HashMap<>());

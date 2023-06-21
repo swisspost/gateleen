@@ -6,7 +6,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonArray;
 import io.vertx.redis.client.Command;
-import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +13,8 @@ import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lock.lua.LockLuaScripts;
 import org.swisspush.gateleen.core.lock.lua.ReleaseLockRedisCommand;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
+import org.swisspush.gateleen.core.redis.RedisProvider;
+import org.swisspush.gateleen.core.util.FailedAsyncResult;
 import org.swisspush.gateleen.core.util.RedisUtils;
 
 import java.util.Collections;
@@ -31,11 +32,11 @@ public class RedisBasedLock implements Lock {
     public static final String STORAGE_PREFIX = "gateleen.core-lock:";
 
     private LuaScriptState releaseLockLuaScriptState;
-    private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
 
-    public RedisBasedLock(RedisAPI redisAPI) {
-        this.redisAPI = redisAPI;
-        this.releaseLockLuaScriptState = new LuaScriptState(LockLuaScripts.LOCK_RELEASE, redisAPI, false);
+    public RedisBasedLock(RedisProvider redisProvider) {
+        this.redisProvider = redisProvider;
+        this.releaseLockLuaScriptState = new LuaScriptState(LockLuaScripts.LOCK_RELEASE, redisProvider, false);
     }
 
     private void redisSetWithOptions(String key, String value, boolean nx, long px, Handler<AsyncResult<Response>> handler) {
@@ -44,7 +45,8 @@ public class RedisBasedLock implements Lock {
         if (nx) {
             options.add("NX");
         }
-        redisAPI.send(Command.SET, RedisUtils.toPayload(key, value, options).toArray(new String[0])).onComplete(handler);
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.send(Command.SET, RedisUtils.toPayload(key, value, options).toArray(new String[0]))
+                .onComplete(handler)).onFailure(throwable -> handler.handle(new FailedAsyncResult<>(throwable)));
     }
 
     @Override
@@ -70,7 +72,7 @@ public class RedisBasedLock implements Lock {
         List<String> keys = Collections.singletonList(buildLockKey(lock));
         List<String> arguments = Collections.singletonList(token);
         ReleaseLockRedisCommand cmd = new ReleaseLockRedisCommand(releaseLockLuaScriptState,
-                keys, arguments, redisAPI, log, promise);
+                keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
         return promise.future();
     }

@@ -853,7 +853,7 @@ public class HookHandlerTest {
         return buffer;
     }
 
-    class PUTRequest extends DummyHttpServerRequest {
+    static class PUTRequest extends DummyHttpServerRequest {
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
         private String uri;

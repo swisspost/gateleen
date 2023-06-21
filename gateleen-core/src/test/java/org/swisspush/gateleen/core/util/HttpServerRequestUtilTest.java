@@ -73,7 +73,7 @@ public class HttpServerRequestUtilTest {
         context.assertFalse(HttpServerRequestUtil.isRequestHopsLimitExceeded(request, 10));
     }
 
-    class IncreaseHopsRequest extends DummyHttpServerRequest {
+    static class IncreaseHopsRequest extends DummyHttpServerRequest {
 
         private MultiMap headers;
 
@@ -84,7 +84,7 @@ public class HttpServerRequestUtilTest {
         @Override public MultiMap headers() { return headers; }
     }
 
-    class RemoteAddressRequest extends DummyHttpServerRequest {
+    static class RemoteAddressRequest extends DummyHttpServerRequest {
 
         private String host;
 

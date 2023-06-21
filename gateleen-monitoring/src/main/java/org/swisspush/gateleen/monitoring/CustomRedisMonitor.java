@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.monitoring;
 
 import io.vertx.core.Vertx;
-import io.vertx.redis.client.RedisAPI;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 
 /**
  * @deprecated Extend the {@link RedisMonitor} in your client source code
@@ -9,8 +9,8 @@ import io.vertx.redis.client.RedisAPI;
  */
 public class CustomRedisMonitor extends RedisMonitor {
 
-    public CustomRedisMonitor(Vertx vertx, RedisAPI redisAPI, String name, String restStoragePrefix, int period) {
-        super(vertx, redisAPI, name, period);
+    public CustomRedisMonitor(Vertx vertx, RedisProvider redisProvider, String name, String restStoragePrefix, int period) {
+        super(vertx, redisProvider, name, period);
         enableElementCount("expirable", restStoragePrefix + ":expirable");
     }
 }
