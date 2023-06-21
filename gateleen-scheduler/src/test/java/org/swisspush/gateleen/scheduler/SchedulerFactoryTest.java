@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.scheduler;
 
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
@@ -14,6 +15,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.HttpRequest;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -21,6 +23,8 @@ import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.Collections;
 import java.util.List;
+
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link SchedulerFactory} class
@@ -34,6 +38,7 @@ public class SchedulerFactoryTest {
     private MonitoringHandler monitoringHandler;
 
     private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
     private SchedulerFactory schedulerFactory;
 
     @Rule
@@ -52,10 +57,13 @@ public class SchedulerFactoryTest {
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
 
         redisAPI = Mockito.mock(RedisAPI.class);
+        redisProvider = Mockito.mock(RedisProvider.class);
+        when(redisProvider.redis()).thenReturn(Future.succeededFuture(redisAPI));
 
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
 
-        schedulerFactory = new SchedulerFactory(null, Collections.emptyMap(), vertx, redisAPI, monitoringHandler, schedulersSchema, Address.redisquesAddress());
+        schedulerFactory = new SchedulerFactory(null, Collections.emptyMap(), vertx, redisProvider, monitoringHandler,
+                schedulersSchema, Address.redisquesAddress());
     }
 
     @Test
@@ -96,7 +104,7 @@ public class SchedulerFactoryTest {
 
     @Test
     public void testValidSchedulerConfigWithDefaultHeaders(TestContext context) throws ValidationException {
-        schedulerFactory = new SchedulerFactory(null, Collections.singletonMap("x-foo", "zzz"), vertx, redisAPI,
+        schedulerFactory = new SchedulerFactory(null, Collections.singletonMap("x-foo", "zzz"), vertx, redisProvider,
                 monitoringHandler, schedulersSchema, Address.redisquesAddress());
         List<Scheduler> schedulers = schedulerFactory.parseSchedulers(Buffer.buffer(VALID_SCHEDULER_RESOURCE));
         context.assertNotNull(schedulers);

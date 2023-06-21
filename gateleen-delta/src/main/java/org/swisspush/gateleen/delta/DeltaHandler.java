@@ -9,11 +9,11 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
@@ -49,19 +49,19 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     private static final String ETAG_KEY_PREFIX = "delta:etags";
 
     private HttpClient httpClient;
-    private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
 
     private boolean rejectLimitOffsetRequests;
 
     private RuleProvider ruleProvider;
     private RuleFeaturesProvider ruleFeaturesProvider = new RuleFeaturesProvider(new ArrayList<>());
 
-    public DeltaHandler(RedisAPI redisAPI, HttpClient httpClient, RuleProvider ruleProvider) {
-        this(redisAPI, httpClient, ruleProvider, false);
+    public DeltaHandler(RedisProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider) {
+        this(redisProvider, httpClient, ruleProvider, false);
     }
 
-    public DeltaHandler(RedisAPI redisAPI, HttpClient httpClient, RuleProvider ruleProvider, boolean rejectLimitOffsetRequests) {
-        this.redisAPI = redisAPI;
+    public DeltaHandler(RedisProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider, boolean rejectLimitOffsetRequests) {
+        this.redisProvider = redisProvider;
         this.httpClient = httpClient;
         this.rejectLimitOffsetRequests = rejectLimitOffsetRequests;
 
@@ -126,7 +126,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         handleDeltaEtag(request, log, updateDelta -> {
             if (updateDelta) {
                 // increment and get update-id
-                redisAPI.incr(SEQUENCE_KEY, reply -> {
+                redisProvider.redis().onSuccess(redisAPI -> redisAPI.incr(SEQUENCE_KEY, reply -> {
                     if (reply.failed()) {
                         log.error("incr command for redisKey {} failed with cause: {}", SEQUENCE_KEY, logCause(reply));
                         handleError(request, "error incrementing/accessing sequence for update-id");
@@ -148,8 +148,10 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                             router.route(request);
                         }
                     });
+                })).onFailure(throwable -> {
+                    log.error("Redis: handleResourcePUT failed", throwable);
+                    handleError(request, "handleResourcePUT: error incrementing/accessing sequence for update-id ");
                 });
-
             } else {
                 log.debug("skip updating delta, resume request");
                 request.resume();
@@ -172,7 +174,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
          */
         final String requestEtag = request.headers().get(IF_NONE_MATCH_HEADER);
         final String etagResourceKey = getResourceKey(request.path(), true);
-        redisAPI.get(etagResourceKey, event -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.get(etagResourceKey, event -> {
             if (event.failed()) {
                 log.error("get command for redisKey {} failed with cause: {}", etagResourceKey, logCause(event));
                 callback.handle(Boolean.TRUE);
@@ -196,6 +198,9 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                     saveOrUpdateDeltaEtag(etagResourceKey, request, log, aBoolean -> callback.handle(Boolean.TRUE));
                 }
             }
+        })).onFailure(throwable -> {
+            log.error("Redis: handleDeltaEtag failed for redisKey {}", etagResourceKey, throwable);
+            callback.handle(Boolean.TRUE);
         });
     }
 
@@ -211,11 +216,13 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     }
 
     private void saveDelta(String deltaKey, String deltaValue, Long expireAfter, Handler<AsyncResult<Object>> handler) {
-        if (expireAfter == null) {
-            redisAPI.set(Arrays.asList(deltaKey, deltaValue), (Handler) handler);
-        } else {
-            redisAPI.setex(deltaKey, String.valueOf(expireAfter), deltaValue, (Handler) handler);
-        }
+        redisProvider.redis().onSuccess(redisAPI -> {
+            if (expireAfter == null) {
+                redisAPI.set(Arrays.asList(deltaKey, deltaValue), (Handler) handler);
+            } else {
+                redisAPI.setex(deltaKey, String.valueOf(expireAfter), deltaValue, (Handler) handler);
+            }
+        }).onFailure(throwable -> handler.handle(new FailedAsyncResult<>(throwable)));
     }
 
     private String extractStringDeltaParameter(HttpServerRequest request, Logger log) {
@@ -326,20 +333,25 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                                     }
 
                                     // read update-ids
-                                    redisAPI.mget(deltaResourceKeys, event -> {
+                                    redisProvider.redis().onSuccess(redisAPI -> redisAPI.mget(deltaResourceKeys, event -> {
                                         if (event.failed()) {
-                                            log.error("mget command failed with cuase: {}", logCause(event));
+                                            log.error("mget command failed with cause: {}", logCause(event));
                                             handleError(request, "error reading delta information");
                                             return;
                                         }
                                         Response mgetValues = event.result();
-                                        DeltaResourcesContainer deltaResourcesContainer = getDeltaResourceNames(subResourceNames, mgetValues, updateIdNumber);
+                                        DeltaResourcesContainer deltaResourcesContainer = getDeltaResourceNames(subResourceNames,
+                                                mgetValues, updateIdNumber);
 
-                                        JsonObject result = buildResultJsonObject(deltaResourcesContainer.getResourceNames(), dataContainer.getCollectionName());
-                                        request.response().putHeader(DELTA_HEADER, "" + deltaResourcesContainer.getMaxUpdateId());
+                                        JsonObject result = buildResultJsonObject(deltaResourcesContainer.getResourceNames(),
+                                                dataContainer.getCollectionName());
+                                        request.response().putHeader(DELTA_HEADER,
+                                                "" + deltaResourcesContainer.getMaxUpdateId());
                                         request.response().end(result.toString());
+                                    })).onFailure(event -> {
+                                        log.error("Redis: handleCollectionGET failed", event);
+                                        handleError(request, "error reading delta information");
                                     });
-
                                 } else {
                                     if (log.isTraceEnabled()) {
                                         log.trace("DeltaHandler: targetUri ({}) NOT using database", targetUri);
@@ -438,7 +450,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         }
     }
 
-    private class DeltaResourcesContainer {
+    private static class DeltaResourcesContainer {
         private final long maxUpdateId;
         private final List<String> resourceNames;
 

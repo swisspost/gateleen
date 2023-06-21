@@ -38,7 +38,7 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // put property to pros
         props.put(property, propertyValue);
-        Assert.assertTrue(props.get(property).equals(propertyValue));
+        Assert.assertEquals(props.get(property), propertyValue);
 
         // register something for the handler
         propertyHandler.addProperty("/myprop/v1/id", "myPropId", "notmyprop.id");
@@ -47,7 +47,7 @@ public class PropertyHandlerTest extends AbstractTest {
         with().body(getBody("myPropId", "test")).put("/myprop/v1/id").then().assertThat().statusCode(200);
 
         // check property
-        Assert.assertTrue(props.get(property).equals(propertyValue));
+        Assert.assertEquals(props.get(property), propertyValue);
 
         context.async().complete();
     }
@@ -64,7 +64,7 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // put property to pros
         props.put(property, propertyValue);
-        Assert.assertTrue(props.get(property).equals(propertyValue));
+        Assert.assertEquals(props.get(property), propertyValue);
 
         // register something for the handler
         propertyHandler.addProperty("/myprop/v1/id", "myPropId", "myprop.id");
@@ -89,7 +89,7 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // put property to pros
         props.put(property, propertyValue);
-        Assert.assertTrue(props.get(property).equals(propertyValue));
+        Assert.assertEquals(props.get(property), propertyValue);
 
         // register something for the handler
         propertyHandler.addProperty("/myprop/v1/id", "myPropId", "myprop.id");
@@ -113,7 +113,7 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // put property to pros
         props.put(property, propertyValue);
-        Assert.assertTrue(props.get(property).equals(propertyValue));
+        Assert.assertEquals(props.get(property), propertyValue);
 
         // register something for the handler
         propertyHandler.addProperty("/myprop/v1/id", "myPropId", "myprop.id");
@@ -148,7 +148,7 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // put property to pros
         props.put(property, propertyValue);
-        Assert.assertTrue(props.get(property).equals(propertyValue));
+        Assert.assertEquals(props.get(property), propertyValue);
 
         // register something for the handler
         propertyHandler.addProperty("/myprop/v1/id", "notMyPropId", "myprop.id");
@@ -162,7 +162,7 @@ public class PropertyHandlerTest extends AbstractTest {
         with().body(getBody("myPropIdOther", "test")).put("/myprop/v1/id").then().assertThat().statusCode(200);
 
         // check property
-        Assert.assertTrue(props.get(property).equals(propertyValue));
+        Assert.assertEquals(props.get(property), propertyValue);
 
         // wait 3 sec
         TestUtils.waitSomeTime(3);
@@ -183,7 +183,7 @@ public class PropertyHandlerTest extends AbstractTest {
 
         // put property to pros
         props.put(property, propertyValue);
-        Assert.assertTrue(props.get(property).equals(propertyValue));
+        Assert.assertEquals(props.get(property), propertyValue);
 
         // register something for the handler
         propertyHandler.addProperty("/myprop/v1/id", "myPropId", "myprop.id");
@@ -224,7 +224,7 @@ public class PropertyHandlerTest extends AbstractTest {
      * 
      * @author ljucam
      */
-    private class MyRefreshable implements Refreshable {
+    private static class MyRefreshable implements Refreshable {
         private boolean refreshed = false;
 
         @Override

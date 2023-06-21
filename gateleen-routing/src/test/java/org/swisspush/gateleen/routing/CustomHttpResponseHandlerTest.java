@@ -99,7 +99,7 @@ public class CustomHttpResponseHandlerTest {
         verify(response, times(1)).end(eq("400 Bad Request: missing, wrong or non-numeric status-code in request URL"));
     }
 
-    private class HttpServerRequest extends DummyHttpServerRequest {
+    private static class HttpServerRequest extends DummyHttpServerRequest {
 
         private String uri;
         private HttpServerResponse response;

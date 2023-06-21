@@ -22,10 +22,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.UpdateStatistics
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage.*;
@@ -49,7 +46,8 @@ public class RedisQueueCircuitBreakerStorageTest {
     @BeforeClass
     public static void setupStorage(){
         vertx = Vertx.vertx();
-        storage = new RedisQueueCircuitBreakerStorage(RedisAPI.api(new RedisClient(vertx, new RedisOptions())));
+        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new RedisOptions()));
+        storage = new RedisQueueCircuitBreakerStorage(() -> Future.succeededFuture(redisAPI));
     }
 
     @Before
@@ -723,9 +721,12 @@ public class RedisQueueCircuitBreakerStorageTest {
         storage.unlockSampleQueues().onComplete(event -> {
             context.assertTrue(event.succeeded());
 
-            context.assertTrue(event.result().get(0).toString().contains("c1_1"));
-            context.assertTrue(event.result().get(1).toString().contains("c2_1"));
-            context.assertTrue(event.result().get(2).toString().contains("c3_1"));
+            context.assertEquals(3, event.result().size());
+            Set<String> results = new HashSet<>();
+            results.add(event.result().get(0).toString());
+            results.add(event.result().get(1).toString());
+            results.add(event.result().get(2).toString());
+            context.assertTrue(results.containsAll(Arrays.asList("c1_1", "c2_1", "c3_1")));
 
             context.assertEquals(3L, jedis.scard(STORAGE_ALL_CIRCUITS));
             context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));

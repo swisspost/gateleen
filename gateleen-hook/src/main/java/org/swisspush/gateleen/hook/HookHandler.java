@@ -293,7 +293,7 @@ public class HookHandler implements LoggableResource {
             for (Listener listener : listenerRepository.getListeners()) {
 
                 final Optional<DateTime> expirationTime = listener.getHook().getExpirationTime();
-                if (!expirationTime.isPresent()) {
+                if (expirationTime.isEmpty()) {
                     if (log.isTraceEnabled()) {
                         log.trace("Listener {} will never expire.", listener.getListenerId());
                     }
@@ -309,7 +309,7 @@ public class HookHandler implements LoggableResource {
             for (String key : routes.keySet()) {
                 Route route = routes.get(key);
                 final Optional<DateTime> expirationTime = route.getHook().getExpirationTime();
-                if (!expirationTime.isPresent()) {
+                if (expirationTime.isEmpty()) {
                     if (log.isTraceEnabled()) {
                         log.trace("Route {} will never expire.", key);
                     }

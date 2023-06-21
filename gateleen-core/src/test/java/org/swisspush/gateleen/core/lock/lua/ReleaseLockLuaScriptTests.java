@@ -136,17 +136,17 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
     @Test
     public void testReleaseLockRespectingOwnership(){
 
-        String lock1 = buildLockKey("lock_1");
-        String lock2 = buildLockKey("lock_2");
-        String lock3 = buildLockKey("lock_3");
+        String lock1 = buildLockKey("lock_4");
+        String lock2 = buildLockKey("lock_5");
+        String lock3 = buildLockKey("lock_6");
 
         assertThat(jedis.exists(lock1), is(false));
         assertThat(jedis.exists(lock2), is(false));
         assertThat(jedis.exists(lock3), is(false));
 
-        acquireLock(lock1, "token_1", 200);
-        acquireLock(lock2, "token_2", 500);
-        acquireLock(lock3, "token_3", 1000);
+        acquireLock(lock1, "token_4", 200);
+        acquireLock(lock2, "token_5", 500);
+        acquireLock(lock3, "token_6", 1000);
 
         assertThat(jedis.exists(lock1), is(true));
         assertThat(jedis.exists(lock2), is(true));
@@ -168,9 +168,9 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(jedis.exists(lock2), is(true));
         assertThat(jedis.exists(lock3), is(true));
 
-        assertThat(0L, equalTo(evalScriptReleaseLock(lock1, "token_1")));
-        assertThat(0L, equalTo(evalScriptReleaseLock(lock2, "token_2")));
-        assertThat(0L, equalTo(evalScriptReleaseLock(lock3, "token_3")));
+        assertThat(0L, equalTo(evalScriptReleaseLock(lock1, "token_4")));
+        assertThat(0L, equalTo(evalScriptReleaseLock(lock2, "token_5")));
+        assertThat(0L, equalTo(evalScriptReleaseLock(lock3, "token_6")));
 
         assertThat(jedis.exists(lock1), is(true));
         assertThat(jedis.exists(lock2), is(true));

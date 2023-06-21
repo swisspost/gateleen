@@ -28,12 +28,6 @@ import java.util.Map;
 @RunWith(VertxUnitRunner.class)
 public class LoggingHandlerTest {
 
-    private static final String TYPE = "type";
-    private static final String FILE = "file";
-    private static final String METADATA = "metadata";
-    private static final String TRANSMISSION = "transmission";
-    private static final String ADDRESS = "address";
-    private static final String EVENT_BUS = "eventBus";
     private Vertx vertx;
     private ResourceStorage storage;
 

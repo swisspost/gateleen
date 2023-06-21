@@ -275,9 +275,7 @@ public class Forwarder extends AbstractForwarder {
                 }
                 setProfileHeaders(log, profileHeaderMap, cReq);
 
-                authHeader.ifPresent(authHeaderValue -> {
-                    cReq.headers().set(authHeaderValue.key(), authHeaderValue.value());
-                });
+                authHeader.ifPresent(authHeaderValue -> cReq.headers().set(authHeaderValue.key(), authHeaderValue.value()));
 
                 final String errorMessage = applyHeaderFunctions(log, cReq.headers());
                 if (errorMessage != null) {

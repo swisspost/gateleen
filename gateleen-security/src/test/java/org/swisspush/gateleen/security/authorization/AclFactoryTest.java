@@ -27,7 +27,6 @@ import java.util.Set;
 public class AclFactoryTest {
 
     private AclFactory aclFactory;
-    private RoleMapperFactory roleMapperFactory;
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();

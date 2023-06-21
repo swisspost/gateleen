@@ -274,7 +274,7 @@ public class ExpansionHandlerTest {
         verifyZeroInteractions(httpClient);
     }
 
-    private class Request extends DummyHttpServerRequest {
+    private static class Request extends DummyHttpServerRequest {
         private MultiMap params;
         private HttpMethod httpMethod;
         private String uri;

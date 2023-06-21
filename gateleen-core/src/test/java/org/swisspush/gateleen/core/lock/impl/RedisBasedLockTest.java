@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.core.lock.impl;
 
 import com.jayway.awaitility.Duration;
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -9,7 +10,10 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.redis.client.RedisAPI;
 import io.vertx.redis.client.RedisOptions;
 import io.vertx.redis.client.impl.RedisClient;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
@@ -38,7 +42,8 @@ public class RedisBasedLockTest {
     @BeforeClass
     public static void setupLock(){
         vertx = Vertx.vertx();
-        redisBasedLock = new RedisBasedLock(RedisAPI.api(new RedisClient(vertx, new RedisOptions())));
+        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new RedisOptions()));
+        redisBasedLock = new RedisBasedLock(() -> Future.succeededFuture(redisAPI));
     }
 
     @Before

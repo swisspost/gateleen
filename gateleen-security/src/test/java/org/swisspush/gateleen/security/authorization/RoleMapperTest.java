@@ -63,8 +63,8 @@ public class RoleMapperTest {
         Map<String, RoleMapper.MappedRole> mappedRoles = roleMapper.mapRoles(roles);
         context.assertNotNull(mappedRoles);
         context.assertTrue(mappedRoles.size() == 2);
-        context.assertTrue(mappedRoles.get("domain1").forward == true);
-        context.assertTrue(mappedRoles.get("domain1-user").forward == false);
+        context.assertTrue(mappedRoles.get("domain1").forward);
+        context.assertFalse(mappedRoles.get("domain1-user").forward);
     }
 
     @Test
@@ -86,8 +86,8 @@ public class RoleMapperTest {
         Map<String, RoleMapper.MappedRole> mappedRoles = roleMapper.mapRoles(roles);
         context.assertNotNull(mappedRoles);
         context.assertTrue(mappedRoles.size() == 2);
-        context.assertTrue(mappedRoles.get("domain-user-stage-prod").forward == false);
-        context.assertTrue(mappedRoles.get("domain-user").forward == true);
+        context.assertFalse(mappedRoles.get("domain-user-stage-prod").forward);
+        context.assertTrue(mappedRoles.get("domain-user").forward);
     }
 
     @Test
@@ -97,9 +97,9 @@ public class RoleMapperTest {
         Map<String, RoleMapper.MappedRole> mappedRoles = roleMapper.mapRoles(roles);
         context.assertNotNull(mappedRoles);
         context.assertTrue(mappedRoles.size() == 3);
-        context.assertTrue(mappedRoles.get("domain-admin-stage-prod").forward == false);
-        context.assertTrue(mappedRoles.get("domain-admin").forward == true);
-        context.assertTrue(mappedRoles.get("domain").forward == false);
+        context.assertFalse(mappedRoles.get("domain-admin-stage-prod").forward);
+        context.assertTrue(mappedRoles.get("domain-admin").forward);
+        context.assertFalse(mappedRoles.get("domain").forward);
     }
 
     @Test
@@ -109,9 +109,9 @@ public class RoleMapperTest {
         Map<String, RoleMapper.MappedRole> mappedRoles = roleMapper.mapRoles(roles);
         context.assertNotNull(mappedRoles);
         context.assertTrue(mappedRoles.size() == 3);
-        context.assertTrue(mappedRoles.get("domain1-user-stage-prod").forward == false);
-        context.assertTrue(mappedRoles.get("domain1-user").forward == false);
-        context.assertTrue(mappedRoles.get("domain1").forward == true);
+        context.assertFalse(mappedRoles.get("domain1-user-stage-prod").forward);
+        context.assertFalse(mappedRoles.get("domain1-user").forward);
+        context.assertTrue(mappedRoles.get("domain1").forward);
     }
 
     @Test
@@ -121,9 +121,9 @@ public class RoleMapperTest {
         Map<String, RoleMapper.MappedRole> mappedRoles = roleMapper.mapRoles(roles);
         context.assertNotNull(mappedRoles);
         context.assertTrue(mappedRoles.size() == 3);
-        context.assertTrue(mappedRoles.get("domain2-user-stage-prod").forward == false);
-        context.assertTrue(mappedRoles.get("domain2-user").forward == true);
-        context.assertTrue(mappedRoles.get("domain2").forward == true);
+        context.assertFalse(mappedRoles.get("domain2-user-stage-prod").forward);
+        context.assertTrue(mappedRoles.get("domain2-user").forward);
+        context.assertTrue(mappedRoles.get("domain2").forward);
     }
 
 
@@ -134,9 +134,9 @@ public class RoleMapperTest {
         Map<String, RoleMapper.MappedRole> mappedRoles = roleMapper.mapRoles(roles);
         context.assertNotNull(mappedRoles);
         context.assertTrue(mappedRoles.size() == 3);
-        context.assertTrue(mappedRoles.get("domain1-user-stage-int").forward == true);
-        context.assertTrue(mappedRoles.get("domain1-user-int").forward == false);
-        context.assertTrue(mappedRoles.get("domain1").forward == true);
+        context.assertTrue(mappedRoles.get("domain1-user-stage-int").forward);
+        context.assertFalse(mappedRoles.get("domain1-user-int").forward);
+        context.assertTrue(mappedRoles.get("domain1").forward);
     }
 
     @Test
@@ -166,9 +166,9 @@ public class RoleMapperTest {
             if (i == 0) {  // only necessary to be executed once
                 context.assertNotNull(mappedRoles);
                 context.assertTrue(mappedRoles.size() == 3);
-                context.assertTrue(mappedRoles.get("domain1-user-stage-prod").forward == false);
-                context.assertTrue(mappedRoles.get("domain1-user").forward == false);
-                context.assertTrue(mappedRoles.get("domain1").forward == true);
+                context.assertFalse(mappedRoles.get("domain1-user-stage-prod").forward);
+                context.assertFalse(mappedRoles.get("domain1-user").forward);
+                context.assertTrue(mappedRoles.get("domain1").forward);
             }
         }
         long endTime = System.currentTimeMillis();

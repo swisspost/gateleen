@@ -86,7 +86,7 @@ public abstract class ConfigurationResourceTestBase {
         log = LoggerFactory.getLogger(ConfigurationResourceValidatorTest.class);
     }
 
-    protected class PersonResourceRequest extends DummyHttpServerRequest {
+    protected static class PersonResourceRequest extends DummyHttpServerRequest {
 
         private HttpMethod method;
         private String uri;
@@ -127,7 +127,7 @@ public abstract class ConfigurationResourceTestBase {
         }
     }
 
-    protected class TestConfigurationResourceObserver implements ConfigurationResourceObserver {
+    protected static class TestConfigurationResourceObserver implements ConfigurationResourceObserver {
 
         @Override
         public void resourceChanged(String resourceUri, Buffer resource) { }
