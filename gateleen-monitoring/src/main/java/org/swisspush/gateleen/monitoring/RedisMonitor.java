@@ -18,11 +18,11 @@ import java.util.Map;
  */
 public class RedisMonitor {
 
-    private Vertx vertx;
-    private RedisProvider redisProvider;
-    private int period;
+    private final Vertx vertx;
+    private final RedisProvider redisProvider;
+    private final int period;
     private long timer;
-    private Logger log = LoggerFactory.getLogger(RedisMonitor.class);
+    private final Logger log = LoggerFactory.getLogger(RedisMonitor.class);
 
     private String metricName;
     private String elementCountKey;

@@ -26,8 +26,8 @@ import java.util.*;
  */
 public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStorage {
 
-    private RedisProvider redisProvider;
-    private Logger log = LoggerFactory.getLogger(RedisQueueCircuitBreakerStorage.class);
+    private final RedisProvider redisProvider;
+    private final Logger log = LoggerFactory.getLogger(RedisQueueCircuitBreakerStorage.class);
 
     public static final String STORAGE_PREFIX = "gateleen.queue-circuit-breaker:";
     public static final String STORAGE_INFOS_SUFFIX = ":infos";
@@ -40,12 +40,12 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public static final String FIELD_FAILRATIO = "failRatio";
     public static final String FIELD_CIRCUIT = "circuit";
 
-    private LuaScriptState openCircuitLuaScriptState;
-    private LuaScriptState closeCircuitLuaScriptState;
-    private LuaScriptState reOpenCircuitLuaScriptState;
-    private LuaScriptState halfOpenCircuitLuaScriptState;
-    private LuaScriptState unlockSampleQueuesLuaScriptState;
-    private LuaScriptState getAllCircuitsLuaScriptState;
+    private final LuaScriptState openCircuitLuaScriptState;
+    private final LuaScriptState closeCircuitLuaScriptState;
+    private final LuaScriptState reOpenCircuitLuaScriptState;
+    private final LuaScriptState halfOpenCircuitLuaScriptState;
+    private final LuaScriptState unlockSampleQueuesLuaScriptState;
+    private final LuaScriptState getAllCircuitsLuaScriptState;
 
     public RedisQueueCircuitBreakerStorage(RedisProvider redisProvider) {
         this.redisProvider = redisProvider;

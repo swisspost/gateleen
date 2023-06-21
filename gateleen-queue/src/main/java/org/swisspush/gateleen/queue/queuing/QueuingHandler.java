@@ -24,16 +24,16 @@ public class QueuingHandler implements Handler<Buffer> {
     public static final String QUEUE_HEADER = "x-queue";
     public static final String DUPLICATE_CHECK_HEADER = "x-duplicate-check";
 
-    private RequestQueue requestQueue;
+    private final RequestQueue requestQueue;
 
     public static boolean isQueued(HttpServerRequest request) {
         String queue = request.headers().get(QUEUE_HEADER);
         return HttpMethod.GET != request.method() && queue != null && !queue.trim().isEmpty();
     }
 
-    private HttpServerRequest request;
-    private Vertx vertx;
-    private RedisProvider redisProvider;
+    private final HttpServerRequest request;
+    private final Vertx vertx;
+    private final RedisProvider redisProvider;
 
     public QueuingHandler(Vertx vertx, RedisProvider redisProvider, HttpServerRequest request, MonitoringHandler monitoringHandler) {
         this(vertx, redisProvider, request, new QueueClient(vertx, monitoringHandler));

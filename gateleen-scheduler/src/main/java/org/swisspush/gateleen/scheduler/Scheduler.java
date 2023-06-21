@@ -30,10 +30,10 @@ import static org.swisspush.redisques.util.RedisquesAPI.*;
  */
 public class Scheduler {
 
-    private Vertx vertx;
-    private RedisProvider redisProvider;
-    private String redisquesAddress;
-    private String name;
+    private final Vertx vertx;
+    private final RedisProvider redisProvider;
+    private final String redisquesAddress;
+    private final String name;
     private CronExpression cronExpression;
     private List<HttpRequest> requests;
     private long timer;

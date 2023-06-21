@@ -450,7 +450,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         }
     }
 
-    private class DeltaResourcesContainer {
+    private static class DeltaResourcesContainer {
         private final long maxUpdateId;
         private final List<String> resourceNames;
 

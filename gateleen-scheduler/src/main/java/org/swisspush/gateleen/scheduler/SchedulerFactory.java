@@ -38,13 +38,13 @@ public class SchedulerFactory {
 
     private final Map<String, Object> properties;
     private final JsonArray defaultRequestHeaders;
-    private Vertx vertx;
-    private RedisProvider redisProvider;
-    private MonitoringHandler monitoringHandler;
-    private String schedulersSchema;
-    private String redisquesAddress;
+    private final Vertx vertx;
+    private final RedisProvider redisProvider;
+    private final MonitoringHandler monitoringHandler;
+    private final String schedulersSchema;
+    private final String redisquesAddress;
 
-    private Logger log = LoggerFactory.getLogger(SchedulerFactory.class);
+    private final Logger log = LoggerFactory.getLogger(SchedulerFactory.class);
 
     public SchedulerFactory(Map<String, Object> properties, Map<String, String> defaultRequestHeaders, Vertx vertx,
                             RedisProvider redisProvider, MonitoringHandler monitoringHandler, String schedulersSchema,

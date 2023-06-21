@@ -6,7 +6,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
@@ -31,14 +30,14 @@ import java.util.Map;
 public class SchedulerResourceManager implements Refreshable, LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.schedulers-updated";
-    private String schedulersUri;
-    private ResourceStorage storage;
-    private Logger log = LoggerFactory.getLogger(SchedulerResourceManager.class);
-    private Vertx vertx;
+    private final String schedulersUri;
+    private final ResourceStorage storage;
+    private final Logger log = LoggerFactory.getLogger(SchedulerResourceManager.class);
+    private final Vertx vertx;
     private List<Scheduler> schedulers;
-    private Map<String, Object> properties;
-    private SchedulerFactory schedulerFactory;
-    private String schedulersSchema;
+    private final Map<String, Object> properties;
+    private final SchedulerFactory schedulerFactory;
+    private final String schedulersSchema;
     private boolean logConfigurationResourceChanges = false;
 
     public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
