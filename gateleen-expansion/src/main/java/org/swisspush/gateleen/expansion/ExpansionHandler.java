@@ -502,7 +502,7 @@ public class ExpansionHandler implements RuleChangesObserver {
         Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
         HttpMethod reqMethod = HttpMethod.POST;
         String reqUri = targetUri + "?storageExpand=true";
-        httpClient.request(reqMethod, reqUri, asyncResult -> {
+        httpClient.request(reqMethod, reqUri).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
                 log.warn("Failed request to {}: {}", targetUri + "?storageExpand=true", asyncResult.cause());
                 return;

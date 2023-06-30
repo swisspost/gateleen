@@ -504,22 +504,25 @@ public class HookHandler implements LoggableResource {
         /*
          * 1) Un- / Register Listener / Routes
          */
-        if (request.method() == PUT) {
-            if (request.uri().contains(HOOKS_LISTENERS_URI_PART)) {
+        var requestMethod = request.method();
+        if (requestMethod == PUT) {
+            var requestUri = request.uri();
+            if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
                 handleListenerRegistration(request);
                 return true;
             }
-            if (request.uri().contains(HOOKS_ROUTE_URI_PART)) {
+            if (requestUri.contains(HOOKS_ROUTE_URI_PART)) {
                 handleRouteRegistration(request);
                 return true;
             }
         }
-        if (request.method() == DELETE) {
-            if (request.uri().contains(HOOKS_LISTENERS_URI_PART)) {
+        if (requestMethod == DELETE) {
+            var requestUri = request.uri();
+            if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
                 handleListenerUnregistration(request);
                 return true;
             }
-            if (request.uri().contains(HOOKS_ROUTE_URI_PART)) {
+            if (requestUri.contains(HOOKS_ROUTE_URI_PART)) {
                 handleRouteUnregistration(request);
                 return true;
             }
