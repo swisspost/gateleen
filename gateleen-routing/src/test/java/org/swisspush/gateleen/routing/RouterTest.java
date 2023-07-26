@@ -153,11 +153,25 @@ public class RouterTest {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_MISSING_PROPS, randomResourcePath, RANDOM_RESOURCE));
     }
 
+    private RouterBuilder routerBuilder() {
+        return Router.builder()
+                .withVertx(vertx)
+                .withStorage(storage)
+                .withProperties(properties)
+                .withLoggingResourceManager(loggingResourceManager)
+                .withMonitoringHandler(monitoringHandler)
+                .withSelfClient(httpClient)
+                .withServerPath(serverUrl)
+                .withRulesPath(rulesPath)
+                .withUserProfilePath(userProfilePath)
+                .withInfo(info)
+                .withStoragePort(storagePort);
+    }
+
     @Test
     public void testRequestHopValidationLimitNotYetReached(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().withStorage(storage).build();
 
         ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
         router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
@@ -234,8 +248,7 @@ public class RouterTest {
     @Test
     public void testRequestHopValidationWithLimitZero(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().withStorage(storage).build();
 
         ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
         router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
@@ -312,8 +325,7 @@ public class RouterTest {
     @Test
     public void testRequestHopValidationWithLimit5(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().withStorage(storage).build();
 
         ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
         router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
@@ -397,8 +409,7 @@ public class RouterTest {
     @Test
     public void testRequestHopValidationNoLimitConfiguration(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS, serverUrl + "/loop/4/resource", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().withStorage(storage).build();
 
         context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
@@ -474,16 +485,14 @@ public class RouterTest {
     public void testRouterConstructionValidConfiguration(TestContext context) {
         properties.put("gateleen.test.prop.1", "http://someserver/");
         properties.put("gateleen.test.prop.2", "http://someserver/");
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().withProperties(properties).build();
         context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
     }
 
     @Test
     public void testRouterConstructionWithMissingProperty(TestContext context) {
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().build();
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -491,8 +500,7 @@ public class RouterTest {
 
     @Test
     public void testFixBrokenRouting(TestContext context) {
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().build();
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -534,8 +542,7 @@ public class RouterTest {
 
     @Test
     public void testGETRoutingRulesWithBrokenRouterShouldWork(TestContext context) {
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().build();
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -575,8 +582,7 @@ public class RouterTest {
 
     @Test
     public void testGETAnyResourceWithBrokenRouterShouldNotWork(TestContext context) {
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().build();
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -617,8 +623,7 @@ public class RouterTest {
 
     @Test
     public void testGETAnyResourceAfterFixingBrokenRouterShouldWorkAgain(TestContext context) {
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().build();
         context.assertTrue(router.isRoutingBroken(), "Routing should be broken because of missing properties entry");
         context.assertNotNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
         context.assertTrue(router.getRoutingBrokenMessage().contains("gateleen.test.prop.1"), "RoutingBrokenMessage should contain 'gateleen.test.prop.1' property");
@@ -744,8 +749,7 @@ public class RouterTest {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS));
         long ts = System.currentTimeMillis();
         JsonObject info = new JsonObject().put("ts", ts);
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().withInfo(info).withStorage(storage).build();
 
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         response.setStatusCode(StatusCode.OK.getStatusCode());
@@ -799,8 +803,10 @@ public class RouterTest {
         }};
 
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort, defaultRouteTypes);
+        Router router = routerBuilder()
+                .withDefaultRouteTypes(defaultRouteTypes)
+                .withStorage(storage)
+                .build();
 
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         response.setStatusCode(StatusCode.OK.getStatusCode());
@@ -847,9 +853,7 @@ public class RouterTest {
     @Test
     public void testStorageRequestWithHeadersFilterPresent(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/storage", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
-
+        Router router = routerBuilder().withStorage(storage).build();
         ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
         router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
 
@@ -872,9 +876,7 @@ public class RouterTest {
     @Test
     public void testStorageRequestWithHeadersFilterAbsent(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/storage", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
-
+        Router router = routerBuilder().withStorage(storage).build();
         ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
         router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
 
@@ -889,16 +891,13 @@ public class RouterTest {
         DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/storage", headers, Buffer.buffer(RANDOM_RESOURCE), response);
         router.route(request);
 
-        context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
-        context.assertEquals(StatusCode.BAD_REQUEST.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be Bad Request");
+        context.assertEquals(StatusCode.NOT_FOUND.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 404");
     }
 
     @Test
     public void testNullForwarderRequestWithHeadersFilterNotMatching(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/nowhere", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
-
+        Router router = routerBuilder().withStorage(storage).build();
         ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
         router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
 
@@ -914,15 +913,13 @@ public class RouterTest {
         DummyHttpServerRequest request = buildRequest(HttpMethod.PUT, "/gateleen/server/forward/to/nowhere", headers, Buffer.buffer(RANDOM_RESOURCE), response);
         router.route(request);
 
-        context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
-        context.assertEquals(StatusCode.BAD_REQUEST.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be Bad Request");
+        context.assertEquals(StatusCode.NOT_FOUND.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 404");
     }
 
     @Test
     public void testNullForwarderRequestWithHeadersFilterPresent(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/nowhere", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().withStorage(storage).build();
 
         ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
         router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
@@ -946,8 +943,7 @@ public class RouterTest {
     @Test
     public void testForwarderRequestWithHeadersFilterPresent(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/backend", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().withStorage(storage).build();
 
         ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
         router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
@@ -972,8 +968,7 @@ public class RouterTest {
     @Test
     public void testForwarderRequestWithHeadersFilterNotMatching(TestContext context) {
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HEADERSFILTER, serverUrl + "forward/to/backend", RANDOM_RESOURCE));
-        Router router = new Router(vertx, storage, properties, loggingResourceManager, monitoringHandler, httpClient,
-                serverUrl, rulesPath, userProfilePath, info, storagePort);
+        Router router = routerBuilder().withStorage(storage).build();
 
         ConfigurationResourceManager configurationResourceManager = Mockito.mock(ConfigurationResourceManager.class);
         router.enableRoutingConfiguration(configurationResourceManager, serverUrl + "/admin/v1/routing/config");
@@ -990,8 +985,7 @@ public class RouterTest {
         DummyHttpServerRequest request = buildRequest(HttpMethod.GET, "/gateleen/server/forward/to/backend", headers, Buffer.buffer(RANDOM_RESOURCE), response);
         router.route(request);
 
-        context.assertEquals(StatusCode.BAD_REQUEST.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 400");
-        context.assertEquals(StatusCode.BAD_REQUEST.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be Bad Request");
+        context.assertEquals(StatusCode.NOT_FOUND.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 404");
     }
 
     private DummyHttpServerRequest buildRequest(HttpMethod method, String uri, MultiMap headers, Buffer body, DummyHttpServerResponse response) {

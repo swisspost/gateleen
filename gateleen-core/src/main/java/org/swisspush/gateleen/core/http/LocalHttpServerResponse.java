@@ -295,11 +295,6 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     }
 
     @Override
-    public Future<Void> sendFile(String filename, long offset, long length) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void close() {
         // makes not really sense as we have no underlying TCP connection which can be closed
         // nevertheless we simulate the behaviour of a 'real' HttpServerResponse
@@ -322,31 +317,6 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 //        // --> headers can be manipulated even when we already have written body bytes
 //        // but when the last body bytes where written, then we 'simulate' that the headers are also written (and therefore should not be manipulated any more)
         return written;
-    }
-
-    @Override
-    public Future<HttpServerResponse> push(HttpMethod method, String host, String path, MultiMap headers) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public HttpServerResponse addCookie(Cookie cookie) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public @Nullable Cookie removeCookie(String name, boolean invalidate) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Set<Cookie> removeCookies(String name, boolean invalidate) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public @Nullable Cookie removeCookie(String name, String domain, String path, boolean invalidate) {
-        throw new UnsupportedOperationException();
     }
 
     @Override

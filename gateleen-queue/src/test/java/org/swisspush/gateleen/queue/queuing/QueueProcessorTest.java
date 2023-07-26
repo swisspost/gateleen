@@ -272,7 +272,7 @@ public class QueueProcessorTest {
         return message;
     }
 
-    class ConfigurableQueueCircuitBreaker implements QueueCircuitBreaker {
+    static class ConfigurableQueueCircuitBreaker implements QueueCircuitBreaker {
 
         private QueueCircuitState state;
         private boolean circuitCheckEnabled;

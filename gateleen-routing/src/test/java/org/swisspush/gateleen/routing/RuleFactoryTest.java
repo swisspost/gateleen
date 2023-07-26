@@ -4,6 +4,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.ProxyType;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -719,6 +720,72 @@ public class RuleFactoryTest {
         rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), 3);
 
         context.assertTrue(rules.size() == 1);
-        context.assertEquals(3, rules.get(0).getPoolSize());
+        context.assertEquals(4, rules.get(0).getPoolSize());
+    }
+
+    @Test
+    public void testPoolSizeEvaluation() {
+        Assert.assertEquals(20, RuleFactory.evaluatePoolSize(100, 5));
+        Assert.assertEquals(17, RuleFactory.evaluatePoolSize(33, 2));
+        Assert.assertEquals(1, RuleFactory.evaluatePoolSize(5, 5));
+        Assert.assertEquals(1, RuleFactory.evaluatePoolSize(4, 5));
+    }
+
+    @Test
+    public void testOAuthIdAndBasicAuthProperty() throws ValidationException {
+        thrown.expect( ValidationException.class );
+
+        String rules = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test Rule 1\",\n" +
+                "    \"path\": \"/some/other/path\",\n" +
+                "    \"oAuthId\": \"some-oauth-id\",\n" +
+                "    \"basicAuth\": {\n" +
+                "      \"username\": \"foo\",\n" +
+                "      \"password\": \"bar\"\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
+    }
+
+    @Test
+    public void testOAuthIdProperty(TestContext context) throws ValidationException {
+        String rule = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test Rule 1\",\n" +
+                "    \"path\": \"/some/other/path\",\n" +
+                "    \"oAuthId\": \"some-oauth-id\"\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals("some-oauth-id", rules.get(0).getOAuthId());
+        context.assertNull(rules.get(0).getBasicAuthUsername());
+        context.assertNull(rules.get(0).getBasicAuthPassword());
+    }
+
+    @Test
+    public void testBasicAuthProperty(TestContext context) throws ValidationException {
+        String rule = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test Rule 1\",\n" +
+                "    \"path\": \"/some/other/path\",\n" +
+                "    \"basicAuth\": {\n" +
+                "      \"username\": \"foo\",\n" +
+                "      \"password\": \"bar\"\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rule), Router.DEFAULT_ROUTER_MULTIPLIER);
+
+        context.assertTrue(rules.size() == 1);
+        context.assertEquals("foo", rules.get(0).getBasicAuthUsername());
+        context.assertEquals("bar", rules.get(0).getBasicAuthPassword());
+        context.assertNull(rules.get(0).getOAuthId());
     }
 }

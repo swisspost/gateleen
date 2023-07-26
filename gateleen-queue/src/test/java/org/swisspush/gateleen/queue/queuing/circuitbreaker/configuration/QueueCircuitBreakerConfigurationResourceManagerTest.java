@@ -234,7 +234,7 @@ public class QueueCircuitBreakerConfigurationResourceManagerTest {
         @Override public MultiMap headers() { return MultiMap.caseInsensitiveMultiMap(); }
     }
 
-    class MyRefreshable implements Refreshable {
+    static class MyRefreshable implements Refreshable {
         private boolean refreshed = false;
 
         private Async async;

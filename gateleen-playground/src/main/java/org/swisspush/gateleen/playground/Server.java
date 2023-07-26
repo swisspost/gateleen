@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.playground;
 
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
@@ -29,6 +30,7 @@ import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -60,10 +62,8 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCi
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
-import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
-import org.swisspush.gateleen.routing.DeferCloseHttpClient;
-import org.swisspush.gateleen.routing.Router;
-import org.swisspush.gateleen.routing.RuleProvider;
+import org.swisspush.gateleen.routing.*;
+import org.swisspush.gateleen.routing.auth.DefaultOAuthProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.security.PatternHolder;
@@ -189,20 +189,22 @@ public class Server extends AbstractVerticle {
             if (success) {
                 redisClient = new RedisClient(vertx, new RedisOptions().setConnectionString("redis://" + redisHost + ":" + redisPort));
                 redisApi = RedisAPI.api(redisClient);
-                new CustomRedisMonitor(vertx, redisApi, "main", "rest-storage", 10).start();
+                RedisProvider redisProvider = () -> Future.succeededFuture(redisApi);
+
+                new CustomRedisMonitor(vertx, redisProvider, "main", "rest-storage", 10).start();
                 storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
                 corsHandler = new CORSHandler();
 
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
 
-                deltaHandler = new DeltaHandler(redisApi, selfClient, ruleProvider, true);
+                deltaHandler = new DeltaHandler(redisProvider, selfClient, ruleProvider, true);
                 expansionHandler = new ExpansionHandler(ruleProvider, selfClient, props, ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
 
-                Lock lock = new RedisBasedLock(redisApi);
+                Lock lock = new RedisBasedLock(redisProvider);
 
-                cacheStorage = new RedisCacheStorage(vertx, lock, redisApi, 20 * 1000);
+                cacheStorage = new RedisCacheStorage(vertx, lock, redisProvider, 20 * 1000);
                 cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));
                 cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
 
@@ -236,7 +238,7 @@ public class Server extends AbstractVerticle {
                 roleProfileHandler.enableResourceLogging(true);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
-                reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisApi),
+                reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisProvider),
                         queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
 
@@ -261,7 +263,7 @@ public class Server extends AbstractVerticle {
                         SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
                 kafkaHandler.initialize();
 
-                schedulerResourceManager = new SchedulerResourceManager(vertx, redisApi, storage, monitoringHandler,
+                schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
                         SERVER_ROOT + "/admin/v1/schedulers");
                 schedulerResourceManager.enableResourceLogging(true);
 
@@ -286,6 +288,7 @@ public class Server extends AbstractVerticle {
                         .withResourceLogging(true)
                         .withRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config")
                         .withHttpClientFactory(this::createHttpClientForRouter)
+                        .withOAuthProvider(new DefaultOAuthProvider(vertx))
                         .addDoneHandler(aVoid -> {
                             hookHandler.init();
                             delegateHandler.init();
@@ -297,7 +300,7 @@ public class Server extends AbstractVerticle {
                 queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx,
                         storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
                 queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
-                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisApi);
+                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisProvider);
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
@@ -338,7 +341,7 @@ public class Server extends AbstractVerticle {
                         .delegateHandler(delegateHandler)
                         .customHttpResponseHandler(customHttpResponseHandler)
                         .contentTypeConstraintHandler(contentTypeConstraintHandler)
-                        .build(vertx, redisApi, Server.class, router, monitoringHandler, queueBrowser);
+                        .build(vertx, redisProvider, Server.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
 

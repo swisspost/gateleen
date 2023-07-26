@@ -1,2 +1,0 @@
-registry = https://artifactory.tools.post.ch/artifactory/api/npm/npm-virtual
-sass_binary_site = https://artifactory.tools.post.ch/artifactory/files-local/node-sass

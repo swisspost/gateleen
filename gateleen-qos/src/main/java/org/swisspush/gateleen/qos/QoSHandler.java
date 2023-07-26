@@ -616,7 +616,7 @@ public class QoSHandler implements LoggableResource {
         if (!qosSentinels.isEmpty() && !qosRules.isEmpty()) {
             log.debug("Start periodic timer every {}s", globalQoSConfig.getPeriod());
             // evaluation timer
-            timerId = vertx.setPeriodic(globalQoSConfig.getPeriod() * 1000, event -> {
+            timerId = vertx.setPeriodic(globalQoSConfig.getPeriod() * 1000L, event -> {
                 log.debug("Timer fired: executing evaluateQoSActions");
                 evaluateQoSActions();
             });

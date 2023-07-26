@@ -4,6 +4,7 @@ import io.restassured.RestAssured;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.parsing.Parser;
 import io.restassured.specification.RequestSpecification;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
@@ -31,6 +32,7 @@ import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
 import org.swisspush.gateleen.core.property.PropertyHandler;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -71,6 +73,7 @@ import redis.clients.jedis.Jedis;
 import javax.management.*;
 import java.lang.management.ManagementFactory;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -140,6 +143,8 @@ public abstract class AbstractTest {
             if (success) {
                 RedisClient redisClient = new RedisClient(vertx, new RedisOptions().setConnectionString("redis://" + redisHost + ":" + redisPort));
                 RedisAPI redisAPI = RedisAPI.api(redisClient);
+                RedisProvider redisProvider = () -> Future.succeededFuture(redisAPI);
+
                 ResourceStorage storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
                 MonitoringHandler monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX);
                 ConfigurationResourceManager configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
@@ -154,15 +159,15 @@ public abstract class AbstractTest {
                 RoleProfileHandler roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
 
-                Lock lock = new RedisBasedLock(redisAPI);
+                Lock lock = new RedisBasedLock(redisProvider);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
-                ReducedPropagationManager reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisAPI), queueClient, lock);
+                ReducedPropagationManager reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisProvider), queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(1000);
                 hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
                         SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/", queueClient, false, reducedPropagationManager);
                 propertyHandler = new PropertyHandler(ROOT, props);
-                schedulerResourceManager = new SchedulerResourceManager(vertx, redisAPI, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
+                schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
                 ResetMetricsController resetMetricsController = new ResetMetricsController(vertx);
                 resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
                 LogController logController = new LogController();
@@ -173,7 +178,7 @@ public abstract class AbstractTest {
 
                 cacheHandler = new CacheHandler(
                         new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient)),
-                        new RedisCacheStorage(vertx, lock, redisAPI, 60000),
+                        new RedisCacheStorage(vertx, lock, redisProvider, 60000),
                         SERVER_ROOT + "/cache");
 
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
@@ -183,7 +188,7 @@ public abstract class AbstractTest {
                 QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
 
                 QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
-                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisAPI);
+                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisProvider);
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
@@ -194,17 +199,26 @@ public abstract class AbstractTest {
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
 
-                new CustomRedisMonitor(vertx, redisAPI, "main", "rest-storage", 10).start();
-                Router router = new Router(vertx, storage, props, loggingResourceManager, monitoringHandler, selfClient,
-                        SERVER_ROOT, SERVER_ROOT + "/admin/v1/routing/rules",
-                        SERVER_ROOT + "/users/v1/%s/profile", info, STORAGE_PORT,
-                        (Handler<Void>) aVoid -> {
+                new CustomRedisMonitor(vertx, redisProvider, "main", "rest-storage", 10).start();
+                Router router = Router.builder()
+                        .withVertx(vertx)
+                        .withStorage(storage)
+                        .withProperties(props)
+                        .withLoggingResourceManager(loggingResourceManager)
+                        .withMonitoringHandler(monitoringHandler)
+                        .withSelfClient(selfClient)
+                        .withServerPath(SERVER_ROOT)
+                        .withRulesPath(SERVER_ROOT + "/admin/v1/routing/rules")
+                        .withUserProfilePath(SERVER_ROOT + "/users/v1/%s/profile")
+                        .withInfo(info)
+                        .withStoragePort(STORAGE_PORT)
+                        .withRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config")
+                        .withDoneHandlers(List.of(doneHandler -> {
                             System.out.println("Router initialized!");
                             hookHandler.init();
                             delegateHandler.init();
-                        }
-                );
-                router.enableRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config");
+                        }))
+                        .build();
 
                 System.setProperty("org.swisspush.gateleen.addcorsheaders", "true");
 
@@ -212,7 +226,7 @@ public abstract class AbstractTest {
                         RunConfig.with()
                                 .cacheHandler(cacheHandler)
                                 .corsHandler(new CORSHandler())
-                                .deltaHandler(new DeltaHandler(redisAPI, selfClient, ruleProvider))
+                                .deltaHandler(new DeltaHandler(redisProvider, selfClient, ruleProvider))
                                 .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))
                                 .hookHandler(hookHandler)
                                 .qosHandler(qosHandler)
@@ -229,7 +243,7 @@ public abstract class AbstractTest {
                                 .delegateHandler(delegateHandler)
                                 .mergeHandler(mergeHandler)
                                 .customHttpResponseHandler(customHttpResponseHandler)
-                                .build(vertx, redisAPI, AbstractTest.class, router, monitoringHandler, queueBrowser);
+                                .build(vertx, redisProvider, AbstractTest.class, router, monitoringHandler, queueBrowser);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
                 mainServer = vertx.createHttpServer();

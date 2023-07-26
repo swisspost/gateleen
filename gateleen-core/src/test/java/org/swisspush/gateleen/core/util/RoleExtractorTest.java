@@ -110,7 +110,7 @@ public class RoleExtractorTest {
         return headers;
     }
 
-    class TestHttpServerRequest extends DummyHttpServerRequest {
+    static class TestHttpServerRequest extends DummyHttpServerRequest {
         private MultiMap headers;
 
         public TestHttpServerRequest(MultiMap headers) {

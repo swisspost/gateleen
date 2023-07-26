@@ -432,7 +432,7 @@ public class ExpansionHandler implements RuleChangesObserver {
         log.debug("got expand parameter value " + expandValue);
 
         try {
-            Integer value = Integer.valueOf(expandValue);
+            int value = Integer.parseInt(expandValue);
             if (value < 0) {
                 log.warn("expand parameter value '{}' is not a positive number", expandValue);
                 return null;

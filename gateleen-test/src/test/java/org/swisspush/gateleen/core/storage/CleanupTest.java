@@ -4,9 +4,7 @@ import static io.restassured.RestAssured.delete;
 import static io.restassured.RestAssured.get;
 import static io.restassured.RestAssured.put;
 import static io.restassured.RestAssured.with;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -115,7 +113,7 @@ public class CleanupTest extends AbstractTest {
                 Integer cleanedResources = Integer.parseInt(cleanedResourcesStr);
                 assertTrue("After (at least) two cleanup tasks we should not have cleaned more than 50 resources", cleanedResources <= 50);
             } catch (NumberFormatException ex) {
-                assertFalse("cleanedResources does not contain a numerical value but '" + cleanedResourcesStr + "'", true);
+                fail("cleanedResources does not contain a numerical value but '" + cleanedResourcesStr + "'");
             }
 
         } finally {
@@ -152,7 +150,7 @@ public class CleanupTest extends AbstractTest {
                 Integer cleanedResources = Integer.parseInt(cleanedResourcesStr);
                 assertTrue("The cleanup task should not have cleaned more than 1000 resources", cleanedResources <= 1000);
             } catch (NumberFormatException ex) {
-                assertFalse("cleanedResources does not contain a numerical value but '" + cleanedResourcesStr + "'", true);
+                fail("cleanedResources does not contain a numerical value but '" + cleanedResourcesStr + "'");
             }
 
         } finally {

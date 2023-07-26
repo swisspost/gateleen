@@ -6,11 +6,11 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
-import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.Address;
 
 import java.time.Duration;
@@ -29,7 +29,7 @@ public class RedisCacheStorage implements CacheStorage {
     private Logger log = LoggerFactory.getLogger(RedisCacheStorage.class);
 
     private final Lock lock;
-    private final RedisAPI redisAPI;
+    private final RedisProvider redisProvider;
     private LuaScriptState clearCacheLuaScriptState;
     private LuaScriptState cacheRequestLuaScriptState;
 
@@ -37,11 +37,11 @@ public class RedisCacheStorage implements CacheStorage {
     public static final String CACHE_PREFIX = "gateleen.cache:";
     public static final String STORAGE_CLEANUP_TASK_LOCK = "cacheStorageCleanupTask";
 
-    public RedisCacheStorage(Vertx vertx, Lock lock, RedisAPI redisAPI, long storageCleanupIntervalMs) {
+    public RedisCacheStorage(Vertx vertx, Lock lock, RedisProvider redisProvider, long storageCleanupIntervalMs) {
         this.lock = lock;
-        this.redisAPI = redisAPI;
-        clearCacheLuaScriptState = new LuaScriptState(CacheLuaScripts.CLEAR_CACHE, redisAPI, false);
-        cacheRequestLuaScriptState = new LuaScriptState(CacheLuaScripts.CACHE_REQUEST, redisAPI, false);
+        this.redisProvider = redisProvider;
+        clearCacheLuaScriptState = new LuaScriptState(CacheLuaScripts.CLEAR_CACHE, redisProvider, false);
+        cacheRequestLuaScriptState = new LuaScriptState(CacheLuaScripts.CACHE_REQUEST, redisProvider, false);
 
         vertx.setPeriodic(storageCleanupIntervalMs, event -> {
             String token = token(STORAGE_CLEANUP_TASK_LOCK);
@@ -80,7 +80,7 @@ public class RedisCacheStorage implements CacheStorage {
         Promise<Void> promise = Promise.promise();
         List<String> keys = Collections.singletonList(CACHED_REQUESTS);
         List<String> arguments = List.of(CACHE_PREFIX, cacheIdentifier, cachedObject.toString(), String.valueOf(cacheExpiry.toMillis()));
-        CacheRequestRedisCommand cmd = new CacheRequestRedisCommand(cacheRequestLuaScriptState, keys, arguments, redisAPI, log, promise);
+        CacheRequestRedisCommand cmd = new CacheRequestRedisCommand(cacheRequestLuaScriptState, keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
         return promise.future();
     }
@@ -88,7 +88,7 @@ public class RedisCacheStorage implements CacheStorage {
     @Override
     public Future<Optional<Buffer>> cachedRequest(String cacheIdentifier) {
         Promise<Optional<Buffer>> promise = Promise.promise();
-        redisAPI.get(CACHE_PREFIX + cacheIdentifier, event -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.get(CACHE_PREFIX + cacheIdentifier, event -> {
             if (event.failed()) {
                 String message = "Failed to get cached request '" + cacheIdentifier + "'. Cause: " + logCause(event);
                 log.error(message);
@@ -100,6 +100,10 @@ public class RedisCacheStorage implements CacheStorage {
                     promise.complete(Optional.empty());
                 }
             }
+        })).onFailure(throwable -> {
+            String message = "Redis: Failed to get cached request '" + cacheIdentifier + "'. Cause: " + throwable.getMessage();
+            log.error(message);
+            promise.fail(message);
         });
         return promise.future();
     }
@@ -109,7 +113,7 @@ public class RedisCacheStorage implements CacheStorage {
         Promise<Long> promise = Promise.promise();
         List<String> keys = Collections.singletonList(CACHED_REQUESTS);
         List<String> arguments = List.of(CACHE_PREFIX, "true");
-        ClearCacheRedisCommand cmd = new ClearCacheRedisCommand(clearCacheLuaScriptState, keys, arguments, redisAPI, log, promise);
+        ClearCacheRedisCommand cmd = new ClearCacheRedisCommand(clearCacheLuaScriptState, keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
         return promise.future();
     }
@@ -117,7 +121,7 @@ public class RedisCacheStorage implements CacheStorage {
     @Override
     public Future<Long> cacheEntriesCount() {
         Promise<Long> promise = Promise.promise();
-        redisAPI.scard(CACHED_REQUESTS, reply -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.scard(CACHED_REQUESTS, reply -> {
             if (reply.failed()) {
                 String message = "Failed to get count of cached requests. Cause: " + logCause(reply);
                 log.error(message);
@@ -125,6 +129,10 @@ public class RedisCacheStorage implements CacheStorage {
             } else {
                 promise.complete(reply.result().toLong());
             }
+        })).onFailure(throwable -> {
+            String message = "Redis: Failed to get count of cached requests. Cause: " + throwable.getMessage();
+            log.error(message);
+            promise.fail(message);
         });
 
         return promise.future();
@@ -133,7 +141,7 @@ public class RedisCacheStorage implements CacheStorage {
     @Override
     public Future<Set<String>> cacheEntries() {
         Promise<Set<String>> promise = Promise.promise();
-        redisAPI.smembers(CACHED_REQUESTS, reply -> {
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.smembers(CACHED_REQUESTS, reply -> {
             if (reply.failed()) {
                 String message = "Failed to get cached requests. Cause: " + logCause(reply);
                 log.error(message);
@@ -147,6 +155,10 @@ public class RedisCacheStorage implements CacheStorage {
                         .collect(Collectors.toSet());
                 promise.complete(result);
             }
+        })).onFailure(throwable -> {
+            String message = "Redis: Failed to get cached requests. Cause: " + throwable.getMessage();
+            log.error(message);
+            promise.fail(message);
         });
 
         return promise.future();
@@ -156,7 +168,7 @@ public class RedisCacheStorage implements CacheStorage {
         Promise<Long> promise = Promise.promise();
         List<String> keys = Collections.singletonList(CACHED_REQUESTS);
         List<String> arguments = List.of(CACHE_PREFIX, "false");
-        ClearCacheRedisCommand cmd = new ClearCacheRedisCommand(clearCacheLuaScriptState, keys, arguments, redisAPI, log, promise);
+        ClearCacheRedisCommand cmd = new ClearCacheRedisCommand(clearCacheLuaScriptState, keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
         return promise.future();
     }

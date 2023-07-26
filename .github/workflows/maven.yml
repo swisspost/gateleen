@@ -37,6 +37,9 @@ jobs:
       - name: Install, unit test
         run: mvn install -Dmaven.javadoc.skip=true -PpublicRepos -B -V
 
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+
       - name: Non UI integration tests
         run: mvn install -PnonUiIntegrationTests
 
@@ -55,7 +58,7 @@ jobs:
       - name: Release to maven central
         if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen'
         run: |
-          curl -s get.sdkman.io | bash
+          curl -s https://get.sdkman.io | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           sdk install groovy 3.0.8
           

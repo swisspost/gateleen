@@ -144,11 +144,7 @@
                     })[0];
                     var uniqueId = uniqueIdHeader ? uniqueIdHeader[1] : undefined;
                     console.log(request)
-                    var link = uniqueId ?
-                            "&nbsp;<a title='Search in Splunk' target='_blank' href='https://splunkit01.pnet.ch/en-US/app/it_tomcat/flashtimeline?q="+
-                            uniqueId+"'><span style='opacity:0.6'><i class='glyphicon glyphicon-search'>&nbsp;</i></span></a>":
-                            "";
-                    row.find(".uri").html(request.uri + link);
+                    row.find(".uri").html(request.uri);
                     row.find(".edit").attr("href", "/playground/server/pages/editor.html#"+uri+"/"+index);
                     index++;
                     var headers = row.find(".headers");

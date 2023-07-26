@@ -1,0 +1,32 @@
+{
+	"request.hops.limit": 10,
+	"authConfigs": {
+		"config-1-valid": {
+		    "flowType": "CLIENT",
+			"clientId": "56zhgf34t6z7",
+			"clientSecret": "20abaf4381beeb25c1cf811d339b3a6a",
+			"site": "https://api.swisspost.ch",
+			"tokenPath": "/OAuth/token",
+			"authPath": "/OAuth/authorization",
+			"scopes": ["APIM_SANDBOX_RESOURCE_SERVER_READ"]
+		},
+		"config-2-invalid": {
+		    "flowType": "NOT_SUPPORTED_FLOW",
+			"clientId": "u75h6327",
+			"clientSecret": "2fhghfgh9b3a6a",
+			"site": "https://api.swisspost.ch",
+			"tokenPath": "/OAuth/token",
+			"authPath": "/OAuth/authorization",
+			"scopes": ["APIM_SANDBOX_RESOURCE_SERVER_READ"]
+		},
+		"config-3-valid": {
+		    "flowType": "PASSWORD",
+			"clientId": "h7b56453rth7",
+			"clientSecret": "76uuh5g4frdwe3a6a",
+			"site": "https://api.swisspost.ch",
+			"tokenPath": "/OAuth/token",
+			"authPath": "/OAuth/authorization",
+			"supportedGrantTypes": ["client_credentials"]
+		}
+	}
+}

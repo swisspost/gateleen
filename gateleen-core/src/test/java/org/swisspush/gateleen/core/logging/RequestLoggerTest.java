@@ -87,7 +87,7 @@ public class RequestLoggerTest {
                 .request(eq(Address.requestLoggingConsumerAddress()), eq(expected), any(Handler.class));
     }
 
-    class MockedRequest extends DummyHttpServerRequest {
+    static class MockedRequest extends DummyHttpServerRequest {
 
         private String uri;
         private HttpMethod method;
@@ -111,7 +111,7 @@ public class RequestLoggerTest {
         @Override public HttpServerResponse response() { return response; }
     }
 
-    class MockedResponse extends DummyHttpServerResponse {
+    static class MockedResponse extends DummyHttpServerResponse {
 
         private MultiMap headers;
 

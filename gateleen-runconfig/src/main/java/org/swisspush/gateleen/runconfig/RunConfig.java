@@ -6,7 +6,6 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.redis.client.RedisAPI;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.joda.time.DateTime;
@@ -20,6 +19,7 @@ import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
 import org.swisspush.gateleen.core.property.PropertyHandler;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
@@ -51,7 +51,6 @@ import org.swisspush.gateleen.validation.ValidationResourceManager;
 import org.swisspush.redisques.util.RedisquesConfiguration;
 import org.swisspush.reststorage.util.ModuleConfiguration;
 
-import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -81,37 +80,37 @@ public class RunConfig {
     private Random random;
     private final Class verticleClass;
 
-    private Vertx vertx;
-    private RedisAPI redisAPI;
-    private Router router;
-    private CacheHandler cacheHandler;
-    private CORSHandler corsHandler;
-    private ContentTypeConstraintHandler contentTypeConstraintHandler;
-    private SchedulerResourceManager schedulerResourceManager;
-    private ValidationResourceManager validationResourceManager;
-    private LoggingResourceManager loggingResourceManager;
-    private ConfigurationResourceManager configurationResourceManager;
-    private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
-    private EventBusHandler eventBusHandler;
-    private ValidationHandler validationHandler;
-    private HookHandler hookHandler;
-    private UserProfileHandler userProfileHandler;
-    private RoleProfileHandler roleProfileHandler;
-    private ExpansionHandler expansionHandler;
-    private DeltaHandler deltaHandler;
-    private MonitoringHandler monitoringHandler;
-    private QueueBrowser queueBrowser;
-    private Authorizer authorizer;
-    private CopyResourceHandler copyResourceHandler;
-    private QoSHandler qosHandler;
-    private PropertyHandler propertyHandler;
-    private ZipExtractHandler zipExtractHandler;
-    private DelegateHandler delegateHandler;
-    private MergeHandler mergeHandler;
-    private KafkaHandler kafkaHandler;
-    private CustomHttpResponseHandler customHttpResponseHandler;
+    private final Vertx vertx;
+    private final RedisProvider redisProvider;
+    private final Router router;
+    private final CacheHandler cacheHandler;
+    private final CORSHandler corsHandler;
+    private final ContentTypeConstraintHandler contentTypeConstraintHandler;
+    private final SchedulerResourceManager schedulerResourceManager;
+    private final ValidationResourceManager validationResourceManager;
+    private final LoggingResourceManager loggingResourceManager;
+    private final ConfigurationResourceManager configurationResourceManager;
+    private final QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
+    private final EventBusHandler eventBusHandler;
+    private final ValidationHandler validationHandler;
+    private final HookHandler hookHandler;
+    private final UserProfileHandler userProfileHandler;
+    private final RoleProfileHandler roleProfileHandler;
+    private final ExpansionHandler expansionHandler;
+    private final DeltaHandler deltaHandler;
+    private final MonitoringHandler monitoringHandler;
+    private final QueueBrowser queueBrowser;
+    private final Authorizer authorizer;
+    private final CopyResourceHandler copyResourceHandler;
+    private final QoSHandler qosHandler;
+    private final PropertyHandler propertyHandler;
+    private final ZipExtractHandler zipExtractHandler;
+    private final DelegateHandler delegateHandler;
+    private final MergeHandler mergeHandler;
+    private final KafkaHandler kafkaHandler;
+    private final CustomHttpResponseHandler customHttpResponseHandler;
 
-    public RunConfig(Vertx vertx, RedisAPI redisAPI, Class verticleClass, Router router, MonitoringHandler monitoringHandler,
+    public RunConfig(Vertx vertx, RedisProvider redisProvider, Class verticleClass, Router router, MonitoringHandler monitoringHandler,
                      QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
                      ConfigurationResourceManager configurationResourceManager,
@@ -124,7 +123,7 @@ public class RunConfig {
                      CustomHttpResponseHandler customHttpResponseHandler, ContentTypeConstraintHandler contentTypeConstraintHandler,
                      CacheHandler cacheHandler) {
         this.vertx = vertx;
-        this.redisAPI = redisAPI;
+        this.redisProvider = redisProvider;
         this.verticleClass = verticleClass;
         this.router = router;
         this.monitoringHandler = monitoringHandler;
@@ -158,7 +157,7 @@ public class RunConfig {
 
     private RunConfig(RunConfigBuilder builder) {
         this(builder.vertx,
-                builder.redisAPI,
+                builder.redisProvider,
                 builder.verticleClass,
                 builder.router,
                 builder.monitoringHandler,
@@ -203,7 +202,7 @@ public class RunConfig {
         }
 
         log.info(SERVER_NAME + " starting with log configuration " + conf);
-        Configurator.initialize("",conf);
+        Configurator.initialize("", conf);
     }
 
     public static RunConfigBuilder with() {
@@ -215,7 +214,7 @@ public class RunConfig {
      */
     public static class RunConfigBuilder {
         private Vertx vertx;
-        private RedisAPI redisAPI;
+        private RedisProvider redisProvider;
         private Class verticleClass;
         private Router router;
         private MonitoringHandler monitoringHandler;
@@ -368,9 +367,9 @@ public class RunConfig {
             return this;
         }
 
-        public RunConfig build(Vertx vertx, RedisAPI redisAPI, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser) {
+        public RunConfig build(Vertx vertx, RedisProvider redisProvider, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser) {
             this.vertx = vertx;
-            this.redisAPI = redisAPI;
+            this.redisProvider = redisProvider;
             this.verticleClass = verticleClass;
             this.router = router;
             this.monitoringHandler = monitoringHandler;
@@ -490,22 +489,22 @@ public class RunConfig {
                 handler.handle(false);
                 return;
             }
-            // rest storage module
-            vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
-                if (event1.failed()) {
-                    log.error("Could not load rest storage redis module", event1.cause());
+        // rest storage module
+        vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
+            if (event1.failed()) {
+                log.error("Could not load rest storage redis module", event1.cause());
+                handler.handle(false);
+                return;
+            }
+
+            // metrics module
+            vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
+                if (event2.failed()) {
+                    log.error("Could not load metrics module", event2.cause());
                     handler.handle(false);
                     return;
                 }
-
-                // metrics module
-                vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
-                    if (event2.failed()) {
-                        log.error("Could not load metrics module", event2.cause());
-                        handler.handle(false);
-                        return;
-                    }
-                    handler.handle(true);
+                handler.handle(true);
                 });
             });
         });
@@ -556,7 +555,7 @@ public class RunConfig {
                 if (authorizer != null) {
                     authorizer.authorize(request).onComplete(event -> {
                         if (event.succeeded() && event.result()) {
-                            handleRequest(request);
+                            handleRequest(ctx);
                         } else if (event.failed()) {
                             ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, RunConfig.class);
                             request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -565,22 +564,23 @@ public class RunConfig {
                         }
                     });
                 } else {
-                    handleRequest(request);
+                    handleRequest(ctx);
                 }
             }
 
-            private void handleRequest(final HttpServerRequest request) {
+            private void handleRequest(final RoutingContext ctx) {
+                HttpServerRequest request = ctx.request();
                 if (request.path().equals(SERVER_ROOT + "/cleanup")) {
                     QueuingHandler.cleanup(vertx);
                     request.response().end();
                     return;
                 }
                 if (PackingHandler.isPacked(request)) {
-                    request.bodyHandler(new PackingHandler(request, new QueuingHandler(vertx, redisAPI, request, monitoringHandler)));
+                    request.bodyHandler(new PackingHandler(request, new QueuingHandler(vertx, redisProvider, request, monitoringHandler)));
                 } else {
                     if (QueuingHandler.isQueued(request)) {
                         setISO8601Timestamps(request);
-                        request.bodyHandler(new QueuingHandler(vertx, redisAPI, request, monitoringHandler));
+                        request.bodyHandler(new QueuingHandler(vertx, redisProvider, request, monitoringHandler));
                     } else {
                         if (cacheHandler != null && cacheHandler.handle(request)) {
                             return;
@@ -592,7 +592,7 @@ public class RunConfig {
                             queueBrowser.handle(request);
                             return;
                         }
-                        if (hookHandler != null && hookHandler.handle(request)) {
+                        if (hookHandler != null && hookHandler.handle(ctx)) {
                             return;
                         }
                         if (eventBusHandler != null && eventBusHandler.handle(request)) {

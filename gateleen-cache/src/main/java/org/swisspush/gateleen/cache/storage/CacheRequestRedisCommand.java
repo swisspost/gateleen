@@ -1,10 +1,10 @@
 package org.swisspush.gateleen.cache.storage;
 
 import io.vertx.core.Promise;
-import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.RedisUtils;
 
 import java.util.List;
@@ -18,23 +18,23 @@ public class CacheRequestRedisCommand implements RedisCommand {
     private final List<String> keys;
     private final List<String> arguments;
     private final Promise<Void> promise;
-    private final RedisAPI redisAPI;
+    private final RedisProvider redisProvider;
     private final Logger log;
 
     public CacheRequestRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
-                                    RedisAPI redisAPI, Logger log, final Promise<Void> promise) {
+                                    RedisProvider redisProvider, Logger log, final Promise<Void> promise) {
         this.luaScriptState = luaScriptState;
         this.keys = keys;
         this.arguments = arguments;
-        this.redisAPI = redisAPI;
+        this.redisProvider = redisProvider;
         this.log = log;
         this.promise = promise;
     }
 
     @Override
     public void exec(int executionCounter) {
-        List<String> args= RedisUtils.toPayload(luaScriptState.getSha(), keys.size(), keys, arguments);
-        redisAPI.evalsha(args, event -> {
+        List<String> args = RedisUtils.toPayload(luaScriptState.getSha(), keys.size(), keys, arguments);
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.evalsha(args, event -> {
             if (event.succeeded()) {
                 String resultStr = event.result().toString();
                 if ("OK".equals(resultStr)) {
@@ -50,13 +50,13 @@ public class CacheRequestRedisCommand implements RedisCommand {
                     if (executionCounter > 10) {
                         promise.fail("amount the script got loaded is higher than 10, we abort");
                     } else {
-                        luaScriptState.loadLuaScript(new CacheRequestRedisCommand(luaScriptState, keys, arguments, redisAPI, log, promise), executionCounter);
+                        luaScriptState.loadLuaScript(new CacheRequestRedisCommand(luaScriptState, keys, arguments,
+                                redisProvider, log, promise), executionCounter);
                     }
                 } else {
                     promise.fail("CacheRequestRedisCommand request failed with message: " + message);
                 }
             }
-        });
-
+        })).onFailure(throwable -> promise.fail("Redis: CacheRequestRedisCommand request failed with message: " + throwable.getMessage()));
     }
 }

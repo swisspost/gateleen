@@ -6,6 +6,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -13,9 +14,11 @@ import io.vertx.redis.client.RedisAPI;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
+import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.Rule;
@@ -31,14 +34,20 @@ import static org.mockito.Mockito.*;
 public class DeltaHandlerTest {
 
     private RedisAPI redisAPI;
+    private RedisProvider redisProvider;
     private RuleProvider ruleProvider;
     private Router router = mock(Router.class);
     private HttpServerRequest request;
+    private HttpServerResponse response;
     private MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
 
     @Before
     public void before() {
         redisAPI = mock(RedisAPI.class);
+
+        redisProvider = mock(RedisProvider.class);
+        when(redisProvider.redis()).thenReturn(Future.succeededFuture(redisAPI));
+
         doAnswer(invocation -> {
             Handler<AsyncResult<Long>> handler = (Handler<AsyncResult<Long>>) invocation.getArguments()[1];
             handler.handle(Future.succeededFuture(555L));
@@ -51,6 +60,8 @@ public class DeltaHandlerTest {
         ruleProvider = mock(RuleProvider.class);
 
         request = mock(HttpServerRequest.class);
+        response = mock(HttpServerResponse.class);
+        when(request.response()).thenReturn(response);
         when(request.method()).thenReturn(HttpMethod.PUT);
         when(request.path()).thenReturn("/a/b/c");
         when(request.headers()).thenReturn(requestHeaders);
@@ -58,7 +69,7 @@ public class DeltaHandlerTest {
 
     @Test
     public void testIsDeltaRequest(TestContext context) {
-        DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider);
         deltaHandler.rulesChanged(List.of(
                 rule("/gateleen/server/res_1", false),
                 rule("/gateleen/server/res_2", true))
@@ -141,7 +152,7 @@ public class DeltaHandlerTest {
 
     @Test
     public void testDeltaNoExpiry() {
-        DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider);
         deltaHandler.handle(request, router);
 
         verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555")), Matchers.any());
@@ -152,7 +163,7 @@ public class DeltaHandlerTest {
     public void testDeltaWithExpiry() {
         requestHeaders.add("x-expire-after", "123");
 
-        DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider);
         deltaHandler.handle(request, router);
 
         verify(redisAPI, times(1)).setex(eq("delta:resources:a:b:c"), eq("123"), eq("555"), Matchers.any());
@@ -160,8 +171,27 @@ public class DeltaHandlerTest {
     }
 
     @Test
+    public void testFailingRedisProviderAccess(TestContext context) {
+        requestHeaders.add("x-expire-after", "123");
+
+        when(redisProvider.redis()).thenReturn(Future.failedFuture("Boooom"));
+
+        ArgumentCaptor<Integer> statusCodeCaptor = ArgumentCaptor.forClass(Integer.class);
+        when(request.response().setStatusCode(statusCodeCaptor.capture())).thenReturn(response);
+
+        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+        when(request.response().end(bodyCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider);
+        deltaHandler.handle(request, router);
+
+        context.assertEquals(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), statusCodeCaptor.getValue(), "StatusCode should be 500");
+        context.assertTrue(bodyCaptor.getValue().startsWith("handleResourcePUT"));
+    }
+
+    @Test
     public void testRejectLimitOffsetParameters(TestContext context) {
-        DeltaHandler deltaHandler = new DeltaHandler(redisAPI, null, ruleProvider, true);
+        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider, true);
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         DeltaRequest request = new DeltaRequest(MultiMap.caseInsensitiveMultiMap()
                 .add("delta", "0")

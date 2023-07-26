@@ -44,7 +44,7 @@
 		"requests": [{
 			"uri": "/playground/osb/scheduler",
 			"method": "PUT",
-			"payload": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:nem=\"http://post.ch/it.eai.osb/playgroundScheduler\"><soapenv:Header/><soapenv:Body><nem:PlaygroundSchedulerRequest xmlns:nem=\"http://post.ch/it.eai.osb/playgroundScheduler\"><eventName>dummy</eventName></nem:PlaygroundSchedulerRequest></soapenv:Body></soapenv:Envelope>",
+			"payload": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:nem=\"http://somehost.com/it.eai.osb/playgroundScheduler\"><soapenv:Header/><soapenv:Body><nem:PlaygroundSchedulerRequest xmlns:nem=\"http://somehost.com/it.eai.osb/playgroundScheduler\"><eventName>dummy</eventName></nem:PlaygroundSchedulerRequest></soapenv:Body></soapenv:Envelope>",
 			"headers": [
 				[
 					"Content-Type",

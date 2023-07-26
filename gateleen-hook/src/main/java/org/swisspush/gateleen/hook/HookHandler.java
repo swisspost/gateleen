@@ -16,6 +16,7 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.ProxyOptions;
+import io.vertx.ext.web.RoutingContext;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ import org.swisspush.gateleen.queue.queuing.QueueProcessor;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.Rule;
+import org.swisspush.gateleen.routing.RuleFactory;
 import org.swisspush.gateleen.validation.RegexpValidator;
 import org.swisspush.gateleen.validation.ValidationException;
 
@@ -72,6 +74,7 @@ public class HookHandler implements LoggableResource {
     private static final String REMOVE_LISTENER_ADDRESS = "gateleen.hook-listener-remove";
     private static final String SAVE_ROUTE_ADDRESS = "gateleen.hook-route-insert";
     private static final String REMOVE_ROUTE_ADDRESS = "gateleen.hook-route-remove";
+    private static final int STATUS_CODE_2XX = 2;
 
     private static final int DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME = 60 * 60; // 1h in seconds
 
@@ -290,7 +293,7 @@ public class HookHandler implements LoggableResource {
             for (Listener listener : listenerRepository.getListeners()) {
 
                 final Optional<DateTime> expirationTime = listener.getHook().getExpirationTime();
-                if (!expirationTime.isPresent()) {
+                if (expirationTime.isEmpty()) {
                     if (log.isTraceEnabled()) {
                         log.trace("Listener {} will never expire.", listener.getListenerId());
                     }
@@ -306,7 +309,7 @@ public class HookHandler implements LoggableResource {
             for (String key : routes.keySet()) {
                 Route route = routes.get(key);
                 final Optional<DateTime> expirationTime = route.getHook().getExpirationTime();
-                if (!expirationTime.isPresent()) {
+                if (expirationTime.isEmpty()) {
                     if (log.isTraceEnabled()) {
                         log.trace("Route {} will never expire.", key);
                     }
@@ -489,10 +492,11 @@ public class HookHandler implements LoggableResource {
      * <li>creating a self request for the original request (if necessary)</li>
      * </ul>
      *
-     * @param request request
+     * @param ctx routing context
      * @return true if a request is processed by the handler, otherwise false
      */
-    public boolean handle(final HttpServerRequest request) {
+    public boolean handle(final RoutingContext ctx) {
+        HttpServerRequest request = ctx.request();
         boolean consumed = false;
 
         /*
@@ -524,12 +528,12 @@ public class HookHandler implements LoggableResource {
         final List<Listener> listeners = listenerRepository.findListeners(request.uri(), request.method().name(), request.headers());
 
         if (!listeners.isEmpty() && !isRequestAlreadyHooked(request)) {
-            installBodyHandler(request, listeners);
+            installBodyHandler(ctx, listeners);
             consumed = true;
         }
 
         if (!consumed) {
-            consumed = routeRequestIfNeeded(request);
+            consumed = routeRequestIfNeeded(ctx);
 
             if (!consumed) {
                 return createListingIfRequested(request);
@@ -669,24 +673,24 @@ public class HookHandler implements LoggableResource {
         return url.substring(url.lastIndexOf("/") + 1, url.length());
     }
 
-    private boolean routeRequestIfNeeded(HttpServerRequest request) {
-        Route route = routeRepository.getRoute(request.uri());
+    private boolean routeRequestIfNeeded(RoutingContext ctx) {
+        Route route = routeRepository.getRoute(ctx.request().uri());
 
-        if (doMethodsMatch(route, request) && doHeadersMatch(route, request)) {
-            log.debug("Forward request {}", request.uri());
-            route.forward(request);
+        if (doMethodsMatch(route, ctx) && doHeadersMatch(route, ctx)) {
+            log.debug("Forward request {}", ctx.request().uri());
+            route.forward(ctx);
             return true;
         } else {
             return false;
         }
     }
 
-    private boolean doMethodsMatch(Route route, HttpServerRequest request) {
+    private boolean doMethodsMatch(Route route, RoutingContext ctx) {
         return route != null &&
-                (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(request.method().name()));
+                (route.getHook().getMethods().isEmpty() || route.getHook().getMethods().contains(ctx.request().method().name()));
     }
 
-    private boolean doHeadersMatch(Route route, HttpServerRequest request) {
+    private boolean doHeadersMatch(Route route, RoutingContext ctx) {
         if (route == null) {
             return false;
         }
@@ -696,34 +700,35 @@ public class HookHandler implements LoggableResource {
 
         Pattern headersFilterPattern = route.getHook().getHeadersFilterPattern();
         log.debug("Looking for request headers with pattern {}", headersFilterPattern.pattern());
-        return HttpHeaderUtil.hasMatchingHeader(request.headers(), headersFilterPattern);
+        return HttpHeaderUtil.hasMatchingHeader(ctx.request().headers(), headersFilterPattern);
     }
 
-    private void installBodyHandler(final HttpServerRequest request, final List<Listener> listeners) {
+    private void installBodyHandler(final RoutingContext ctx, final List<Listener> listeners) {
         // Read the original request and queue a new one for every listener
-        request.bodyHandler(buffer -> {
+        ctx.request().bodyHandler(buffer -> {
             // Create separate lists with filtered listeners
             List<Listener> beforeListener = getFilteredListeners(listeners, HookTriggerType.BEFORE);
             List<Listener> afterListener = getFilteredListeners(listeners, HookTriggerType.AFTER);
 
             // Create handlers for before/after - cases
-            Handler<Void> afterHandler = installAfterHandler(request, buffer, afterListener);
-            Handler<Void> beforeHandler = installBeforeHandler(request, buffer, beforeListener, afterHandler);
+            Handler<Void> afterHandler = installAfterHandler(ctx, buffer, afterListener);
+            Handler<Void> beforeHandler = installBeforeHandler(ctx, buffer, beforeListener, afterHandler);
 
             // call the listeners (before)
-            callListener(request, buffer, beforeListener, beforeHandler);
+            callListener(ctx, buffer, beforeListener, beforeHandler);
         });
     }
 
     /**
      * Calls the passed listeners and passes the given handler to the enqueued listener requests.
      *
-     * @param request           original request
+     * @param ctx           original request context
      * @param buffer            buffer
      * @param filteredListeners all listeners which should be called
      * @param handler           the handler, which should handle the requests
      */
-    private void callListener(final HttpServerRequest request, final Buffer buffer, final List<Listener> filteredListeners, final Handler<Void> handler) {
+    private void callListener(RoutingContext ctx, final Buffer buffer, final List<Listener> filteredListeners, final Handler<Void> handler) {
+        HttpServerRequest request = ctx.request();
         for (Listener listener : filteredListeners) {
             log.debug("Enqueue request matching {} {} with listener {}", request.method(), listener.getMonitoredUrl(), listener.getListener());
 
@@ -813,13 +818,13 @@ public class HookHandler implements LoggableResource {
      * The handler calls all listener (after), so this requests happen AFTER the original
      * request is performed.
      *
-     * @param request       original request
+     * @param ctx       original request context
      * @param buffer        buffer
      * @param afterListener list of listeners which should be called after the original request
      * @return the after handler
      */
-    private Handler<Void> installAfterHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> afterListener) {
-        return event -> callListener(request, buffer, afterListener, null);
+    private Handler<Void> installAfterHandler(final RoutingContext ctx, final Buffer buffer, final List<Listener> afterListener) {
+        return event -> callListener(ctx, buffer, afterListener, null);
     }
 
     /**
@@ -828,13 +833,13 @@ public class HookHandler implements LoggableResource {
      * The request  happens BEFORE the original request is
      * performed.
      *
-     * @param request        original request
+     * @param ctx        original request context
      * @param buffer         buffer
      * @param beforeListener list of listeners which should be called before the original request
      * @param afterHandler   the handler for listeners which have to be called after the original request
      * @return the before handler
      */
-    private Handler<Void> installBeforeHandler(final HttpServerRequest request, final Buffer buffer, final List<Listener> beforeListener, final Handler<Void> afterHandler) {
+    private Handler<Void> installBeforeHandler(final RoutingContext ctx, final Buffer buffer, final List<Listener> beforeListener, final Handler<Void> afterHandler) {
         return new Handler<>() {
             private AtomicInteger currentCount = new AtomicInteger(0);
             private boolean sent = false;
@@ -855,14 +860,14 @@ public class HookHandler implements LoggableResource {
                      * enqueueing through the listener and only for external
                      * requests.
                      */
-                    Route route = routeRepository.getRoute(request.uri());
+                    Route route = routeRepository.getRoute(ctx.request().uri());
 
-                    if (doMethodsMatch(route, request) && doHeadersMatch(route, request)) {
-                        log.debug("Forward request (consumed) {}", request.uri());
-                        route.forward(request, buffer);
+                    if (doMethodsMatch(route, ctx) && doHeadersMatch(route, ctx)) {
+                        log.debug("Forward request (consumed) {}", ctx.request().uri());
+                        route.forward(ctx, buffer, afterHandler);
                     } else {
                         // mark the original request as hooked
-                        request.headers().set(HOOKED_HEADER, "true");
+                        ctx.request().headers().set(HOOKED_HEADER, "true");
 
                         /*
                          * self requests are only made for original
@@ -872,7 +877,7 @@ public class HookHandler implements LoggableResource {
                          * before calling the handle method of
                          * this class!
                          */
-                        createSelfRequest(request, buffer, afterHandler);
+                        createSelfRequest(ctx.request(), buffer, afterHandler);
                     }
                 }
             }
@@ -1201,7 +1206,7 @@ public class HookHandler implements LoggableResource {
                 response.endHandler(v -> request.response().end());
 
                 // if everything is fine, we call the after handler
-                if (response.statusCode() == StatusCode.OK.getStatusCode()) {
+                if ((response.statusCode() / 100) == STATUS_CODE_2XX) {
                     afterHandler.handle(null);
                 }
             };
@@ -1535,14 +1540,10 @@ public class HookHandler implements LoggableResource {
         Integer originalPoolSize = jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME);
         int appliedPoolSize;
         if (originalPoolSize != null) {
-            appliedPoolSize = Math.floorDiv(originalPoolSize, routeMultiplier);
-            if (appliedPoolSize < 1) {
-                appliedPoolSize = originalPoolSize;
-            }
+            appliedPoolSize = RuleFactory.evaluatePoolSize(originalPoolSize, routeMultiplier);
             log.debug("Original pool size is {}, applied size is {}", originalPoolSize, appliedPoolSize);
             hook.setConnectionPoolSize(appliedPoolSize);
         }
-
 
         hook.setMaxWaitQueueSize(jsonHook.getInteger(HttpHook.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME));
         // Configure request timeout
