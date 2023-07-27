@@ -15,6 +15,7 @@ public class LocalHttpClient extends AbstractHttpClient {
     private Vertx vertx;
 
     public LocalHttpClient(Vertx vertx) {
+        super(vertx);
         this.vertx = vertx;
     }
 
