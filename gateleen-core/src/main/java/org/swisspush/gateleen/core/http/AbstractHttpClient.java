@@ -80,7 +80,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public void request(HttpMethod httpMethod, int i, String s, String s1, Handler<AsyncResult<HttpClientRequest>> handler) {
-        Future.succeededFuture(doRequest(httpMethod, s1)).onComplete(handler);
+        vertx.runOnContext(v -> succeededFuture(doRequest(httpMethod, s1)).onComplete(handler));
     }
 
     @Override
