@@ -181,13 +181,15 @@ public class Server extends AbstractVerticle {
 
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
+        Boolean redisEnableTls = (Boolean) props.get("redis.enableTls");
 
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_HARD_PROPERTY, "100");
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_SOFT_PROPERTY, "50");
 
         RunConfig.deployModules(vertx, Server.class, props, success -> {
             if (success) {
-                redisClient = new RedisClient(vertx, new RedisOptions().setConnectionString("redis://" + redisHost + ":" + redisPort));
+                String protocol = redisEnableTls ? "rediss://" : "redis://";
+                redisClient = new RedisClient(vertx, new RedisOptions().setConnectionString(protocol + redisHost + ":" + redisPort));
                 redisApi = RedisAPI.api(redisClient);
                 RedisProvider redisProvider = () -> Future.succeededFuture(redisApi);
 

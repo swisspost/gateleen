@@ -382,9 +382,17 @@ public class RunConfig {
      * Builds redis properties configuration.
      */
     public static Map<String, Object> buildRedisProps(String redisHost, int redisPort) {
+        return buildRedisProps(redisHost, redisPort, false);
+    }
+
+    /**
+     * Builds redis properties configuration.
+     */
+    public static Map<String, Object> buildRedisProps(String redisHost, int redisPort, boolean redisEnableTls) {
         final Map<String, Object> props = new HashMap<>();
         props.put("redis.host", redisHost);
         props.put("redis.port", redisPort);
+        props.put("redis.enableTls", redisEnableTls);
         props.put("redis.encoding", "UTF-8");
         return props;
     }
@@ -393,9 +401,17 @@ public class RunConfig {
      * Builds a standard mod redis configuration.
      */
     public static JsonObject buildModRedisConfig(String redisHost, int redisPort) {
+        return buildModRedisConfig(redisHost, redisPort, false);
+    }
+
+    /**
+     * Builds a standard mod redis configuration.
+     */
+    public static JsonObject buildModRedisConfig(String redisHost, int redisPort, boolean redisEnableTls) {
         JsonObject config = new JsonObject();
         config.put("host", redisHost);
         config.put("port", redisPort);
+        config.put("enableTls", redisEnableTls);
         config.put("encoding", "UTF-8");
         return config;
     }
@@ -480,7 +496,8 @@ public class RunConfig {
         final Logger log = LoggerFactory.getLogger(verticleClass);
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
-        log.info("deploying redis module with host:" + redisHost + " port:" + redisPort);
+        Boolean redisEnableTls = (Boolean) props.get("redis.enableTls");
+        log.info("deploying redis module with host:" + redisHost + " port:" + redisPort + " TLS: " + redisEnableTls);
 
         // redisques module
         vertx.deployVerticle("org.swisspush.redisques.RedisQues", new DeploymentOptions().setConfig(RunConfig.buildRedisquesConfig()).setInstances(4), event -> {
