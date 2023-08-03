@@ -496,8 +496,8 @@ public class RunConfig {
         final Logger log = LoggerFactory.getLogger(verticleClass);
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
-        Boolean redisEnableTls = (Boolean) props.get("redis.enableTls");
-        log.info("deploying redis module with host:" + redisHost + " port:" + redisPort + " TLS: " + redisEnableTls);
+        boolean redisEnableTls = props.get("redis.enableTls") != null ? (Boolean) props.get("redis.enableTls") : false;
+        log.info("deploying redis module with host: {}, port: {}, TLS: {}", redisHost, redisPort, redisEnableTls);
 
         // redisques module
         vertx.deployVerticle("org.swisspush.redisques.RedisQues", new DeploymentOptions().setConfig(RunConfig.buildRedisquesConfig()).setInstances(4), event -> {
