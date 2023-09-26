@@ -7,6 +7,7 @@ import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.DecodeException;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.Appender;
@@ -294,17 +295,29 @@ public class LoggingHandler {
             requestLog.put(HEADERS, headersAsJson(requestHeaders));
             responseLog.put(HEADERS, headersAsJson(responseHeaders));
             if (requestPayload != null) {
+                String requestPayloadString = requestPayload.toString("UTF-8");
                 try {
-                    requestLog.put(BODY, new JsonObject(requestPayload.toString("UTF-8")));
+                    requestLog.put(BODY, new JsonObject(requestPayloadString));
                 } catch (DecodeException e) {
-                    // ignore, bogus JSON
+                    // maybe payload was a JsonArray
+                    try {
+                        requestLog.put(BODY, new JsonArray(requestPayloadString));
+                    } catch (DecodeException ex) {
+                        log.info("request payload could not be parsed and will not be logged");
+                    }
                 }
             }
             if (responsePayload != null) {
+                String responsePayloadString = responsePayload.toString("UTF-8");
                 try {
-                    responseLog.put(BODY, new JsonObject(responsePayload.toString("UTF-8")));
+                    responseLog.put(BODY, new JsonObject(responsePayloadString));
                 } catch (DecodeException e) {
-                    // ignore, bogus JSON
+                    // maybe payload was a JsonArray
+                    try {
+                        responseLog.put(BODY, new JsonArray(responsePayloadString));
+                    } catch (DecodeException ex) {
+                        log.info("response payload could not be parsed and will not be logged");
+                    }
                 }
             }
 
