@@ -33,9 +33,6 @@ jobs:
 
       - name: Install chromedriver
         uses: nanasess/setup-chromedriver@v2
-        with:
-          # Optional: do not specify to match Chrome's version
-          chromedriver-version: '88.0.4324.96'
           
       - name: Install, unit test
         run: mvn install -Dmaven.javadoc.skip=true -PpublicRepos -B -V
