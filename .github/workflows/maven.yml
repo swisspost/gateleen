@@ -32,10 +32,7 @@ jobs:
           redis-version: 4
 
       - name: Install chromedriver
-        uses: nanasess/setup-chromedriver@v1.1.0
-        with:
-          # Optional: do not specify to match Chrome's version
-          chromedriver-version: '114.0.5735.90'
+        uses: nanasess/setup-chromedriver@v2
           
       - name: Install, unit test
         run: mvn install -Dmaven.javadoc.skip=true -PpublicRepos -B -V
