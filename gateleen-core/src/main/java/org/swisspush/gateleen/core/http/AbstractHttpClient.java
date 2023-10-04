@@ -4,10 +4,13 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
 import io.vertx.core.http.*;
 
 import java.util.List;
 import java.util.function.Function;
+
+import static io.vertx.core.Future.succeededFuture;
 
 /**
  * Base class with empty method implementations.
@@ -15,6 +18,12 @@ import java.util.function.Function;
  * @author https://github.com/lbovet [Laurent Bovet]
  */
 public abstract class AbstractHttpClient implements HttpClient {
+
+    private final Vertx vertx;
+
+    public AbstractHttpClient(Vertx vertx) {
+        this.vertx = vertx;
+    }
 
     protected abstract HttpClientRequest doRequest(HttpMethod method, String uri);
 
@@ -71,7 +80,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public void request(HttpMethod httpMethod, int i, String s, String s1, Handler<AsyncResult<HttpClientRequest>> handler) {
-        Future.succeededFuture(doRequest(httpMethod, s1)).onComplete(handler);
+        vertx.runOnContext(v -> succeededFuture(doRequest(httpMethod, s1)).onComplete(handler));
     }
 
     @Override
@@ -90,7 +99,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public void request(HttpMethod method, String requestURI, Handler<AsyncResult<HttpClientRequest>> handler) {
-        throw new UnsupportedOperationException();
+        vertx.runOnContext(v -> succeededFuture(doRequest(method, requestURI)).onComplete(handler));
     }
 
     @Override
