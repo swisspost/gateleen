@@ -11,6 +11,8 @@ import io.vertx.core.http.*;
 import java.util.List;
 import java.util.function.Function;
 
+import static io.vertx.core.Future.succeededFuture;
+
 /**
  * Base class with empty method implementations.
  *
@@ -81,7 +83,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public void request(HttpMethod httpMethod, int i, String s, String s1, Handler<AsyncResult<HttpClientRequest>> handler) {
-        Future.succeededFuture(doRequest(httpMethod, s1)).onComplete(handler);
+        vertx.runOnContext(v -> succeededFuture(doRequest(httpMethod, s1)).onComplete(handler));
     }
 
     @Override
@@ -101,7 +103,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public void request(HttpMethod method, String requestURI, Handler<AsyncResult<HttpClientRequest>> handler) {
-        throw new UnsupportedOperationException();
+        vertx.runOnContext(v -> succeededFuture(doRequest(method, requestURI)).onComplete(handler));
     }
 
     @Override
