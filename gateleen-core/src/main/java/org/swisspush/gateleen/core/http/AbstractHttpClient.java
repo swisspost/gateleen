@@ -4,6 +4,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.*;
 
@@ -60,12 +61,14 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public void close(Handler<AsyncResult<Void>> handler) {
-        throw new UnsupportedOperationException();
+        close().onComplete(handler);
     }
 
     @Override
     public Future<Void> close() {
-        throw new UnsupportedOperationException();
+        Promise<Void> promise = Promise.promise();
+        vertx.runOnContext(v -> promise.complete());
+        return promise.future();
     }
 
     @Override
@@ -90,6 +93,7 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public void request(HttpMethod httpMethod, String s, String s1, Handler<AsyncResult<HttpClientRequest>> handler) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

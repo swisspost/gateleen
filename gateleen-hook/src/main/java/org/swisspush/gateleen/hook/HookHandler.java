@@ -47,6 +47,8 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static io.vertx.core.http.HttpMethod.DELETE;
+import static io.vertx.core.http.HttpMethod.PUT;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 
 /**
@@ -502,24 +504,28 @@ public class HookHandler implements LoggableResource {
         /*
          * 1) Un- / Register Listener / Routes
          */
-        if (isHookListenerRegistration(request)) {
-            handleListenerRegistration(request);
-            return true;
+        var requestMethod = request.method();
+        if (requestMethod == PUT) {
+            var requestUri = request.uri();
+            if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
+                handleListenerRegistration(request);
+                return true;
+            }
+            if (requestUri.contains(HOOKS_ROUTE_URI_PART)) {
+                handleRouteRegistration(request);
+                return true;
+            }
         }
-
-        if (isHookListenerUnregistration(request)) {
-            handleListenerUnregistration(request);
-            return true;
-        }
-
-        if (isHookRouteRegistration(request)) {
-            handleRouteRegistration(request);
-            return true;
-        }
-
-        if (isHookRouteUnregistration(request)) {
-            handleRouteUnregistration(request);
-            return true;
+        if (requestMethod == DELETE) {
+            var requestUri = request.uri();
+            if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
+                handleListenerUnregistration(request);
+                return true;
+            }
+            if (requestUri.contains(HOOKS_ROUTE_URI_PART)) {
+                handleRouteUnregistration(request);
+                return true;
+            }
         }
 
         /*
@@ -1652,46 +1658,6 @@ public class HookHandler implements LoggableResource {
         int pos = requestUrl.indexOf(HOOKS_LISTENERS_URI_PART);
         // ... and use substring after it as segment
         return requestUrl.substring(pos + HOOKS_LISTENERS_URI_PART.length());
-    }
-
-    /**
-     * Checks if the given request is a listener unregistration instruction.
-     *
-     * @param request request
-     * @return boolean
-     */
-    private boolean isHookListenerUnregistration(HttpServerRequest request) {
-        return request.uri().contains(HOOKS_LISTENERS_URI_PART) && HttpMethod.DELETE == request.method();
-    }
-
-    /**
-     * Checks if the given request is a listener registration instruction.
-     *
-     * @param request request
-     * @return boolean
-     */
-    private boolean isHookListenerRegistration(HttpServerRequest request) {
-        return request.uri().contains(HOOKS_LISTENERS_URI_PART) && HttpMethod.PUT == request.method();
-    }
-
-    /**
-     * Checks if the given request is a route registration instruction.
-     *
-     * @param request request
-     * @return boolean
-     */
-    private boolean isHookRouteRegistration(HttpServerRequest request) {
-        return request.uri().contains(HOOKS_ROUTE_URI_PART) && HttpMethod.PUT == request.method();
-    }
-
-    /**
-     * Checks if the given request is a route registration instruction.
-     *
-     * @param request request
-     * @return boolean
-     */
-    private boolean isHookRouteUnregistration(HttpServerRequest request) {
-        return request.uri().contains(HOOKS_ROUTE_URI_PART) && HttpMethod.DELETE == request.method();
     }
 
     /**
