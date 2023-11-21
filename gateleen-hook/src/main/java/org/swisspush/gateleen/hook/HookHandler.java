@@ -29,6 +29,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.hook.queueingstrategy.*;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
@@ -107,6 +108,7 @@ public class HookHandler implements LoggableResource {
     private final ResourceStorage hookStorage;
     private final MonitoringHandler monitoringHandler;
     private final LoggingResourceManager loggingResourceManager;
+    private final LogAppenderRepository logAppenderRepository;
     private final HttpClient selfClient;
     private final String userProfilePath;
     private final String hookRootUri;
@@ -137,9 +139,9 @@ public class HookHandler implements LoggableResource {
      * @param hookRootUri            hookRootUri
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 new QueueClient(vertx, monitoringHandler));
     }
 
@@ -157,16 +159,16 @@ public class HookHandler implements LoggableResource {
      * @param requestQueue           requestQueue
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false);
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false, null);
     }
 
@@ -185,18 +187,18 @@ public class HookHandler implements LoggableResource {
      * @param reducedPropagationManager reducedPropagationManager
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, listableRoutes, reducedPropagationManager, null, storage);
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, Handler doneHandler, ResourceStorage hookStorage) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, listableRoutes, reducedPropagationManager, doneHandler, hookStorage, Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
@@ -220,7 +222,7 @@ public class HookHandler implements LoggableResource {
      *                                  the number of {@link Router} instances within a cluster
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, Handler doneHandler, ResourceStorage hookStorage,
                        int routeMultiplier) {
@@ -229,6 +231,7 @@ public class HookHandler implements LoggableResource {
         this.selfClient = selfClient;
         this.userProfileStorage = userProfileStorage;
         this.loggingResourceManager = loggingResourceManager;
+        this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;
         this.userProfilePath = userProfilePath;
         this.hookRootUri = hookRootUri;
@@ -1618,7 +1621,8 @@ public class HookHandler implements LoggableResource {
      * @return Route
      */
     private Route createRoute(String urlPattern, HttpHook hook) {
-        return new Route(vertx, userProfileStorage, loggingResourceManager, monitoringHandler, userProfilePath, hook, urlPattern, selfClient);
+        return new Route(vertx, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler,
+                userProfilePath, hook, urlPattern, selfClient);
     }
 
     /**

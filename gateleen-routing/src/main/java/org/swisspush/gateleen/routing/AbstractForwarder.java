@@ -8,6 +8,7 @@ import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
@@ -15,11 +16,13 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
 
     protected final Rule rule;
     protected final LoggingResourceManager loggingResourceManager;
+    protected final LogAppenderRepository logAppenderRepository;
     protected final MonitoringHandler monitoringHandler;
 
-    public AbstractForwarder(Rule rule, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler) {
+    public AbstractForwarder(Rule rule, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler) {
         this.rule = rule;
         this.loggingResourceManager = loggingResourceManager;
+        this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;
     }
 

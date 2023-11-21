@@ -46,6 +46,8 @@ import org.swisspush.gateleen.kafka.KafkaHandler;
 import org.swisspush.gateleen.kafka.KafkaMessageSender;
 import org.swisspush.gateleen.kafka.KafkaMessageValidator;
 import org.swisspush.gateleen.kafka.KafkaProducerRepository;
+import org.swisspush.gateleen.logging.DefaultLogAppenderRepository;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
@@ -119,6 +121,7 @@ public class Server extends AbstractVerticle {
      * Managers
      */
     private LoggingResourceManager loggingResourceManager;
+    private LogAppenderRepository logAppenderRepository;
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
     private ValidationSchemaProvider validationSchemaProvider;
@@ -221,8 +224,10 @@ public class Server extends AbstractVerticle {
                         "channels/([^/]+).*", configurationResourceManager, SERVER_ROOT + "/admin/v1/hookconfig");
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
 
+                logAppenderRepository = new DefaultLogAppenderRepository(vertx);
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
                 loggingResourceManager.enableResourceLogging(true);
+
 
                 ContentTypeConstraintRepository repository = new ContentTypeConstraintRepository();
                 contentTypeConstraintHandler = new ContentTypeConstraintHandler(configurationResourceManager, repository,
@@ -244,9 +249,9 @@ public class Server extends AbstractVerticle {
                         queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
 
-                hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
-                        SERVER_ROOT + "/users/v1/%s/profile", SERVER_ROOT + "/hooks/v1/", queueClient,
-                        false, reducedPropagationManager);
+                hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository,
+                        monitoringHandler,SERVER_ROOT + "/users/v1/%s/profile",
+                        SERVER_ROOT + "/hooks/v1/", queueClient,false, reducedPropagationManager);
                 hookHandler.enableResourceLogging(true);
 
                 authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN, ROLE_PREFIX, props);
@@ -287,6 +292,7 @@ public class Server extends AbstractVerticle {
                         .withInfo(info)
                         .withMonitoringHandler(monitoringHandler)
                         .withLoggingResourceManager(loggingResourceManager)
+                        .withLogAppenderRepository(logAppenderRepository)
                         .withResourceLogging(true)
                         .withRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config")
                         .withHttpClientFactory(this::createHttpClientForRouter)

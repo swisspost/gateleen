@@ -20,6 +20,9 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+
 /**
  * Tests for the {@link LoggingHandler} class
  *
@@ -30,21 +33,36 @@ public class LoggingHandlerTest {
 
     private Vertx vertx;
     private ResourceStorage storage;
-
+    private LogAppenderRepository logAppenderRepository;
     private final String LOGGING_URI = "/playground/server/admin/v1/logging";
     private final String GET_REQUEST_URI = "/playground/server/users/v1/test";
 
-    private final String TEST_LOGGING_RESOURCE = ResourcesUtils.loadResource("testresource_logging_handler_test", true);
+    private final String TEST_LOGGING_RESOURCE = ResourcesUtils
+            .loadResource("testresource_logging_handler_test", true);
+    private final String TEST_LOGGING_RESOURCE_WITH_DESTINATION = ResourcesUtils
+            .loadResource("testresource_with_destination_logging_handler_test", true);
 
     @Before
     public void setUp() {
         vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
-        storage = new MockResourceStorage(ImmutableMap.of(LOGGING_URI, TEST_LOGGING_RESOURCE));
+        logAppenderRepository = Mockito.spy(new DefaultLogAppenderRepository(vertx));
+    }
+
+    @Test
+    public void testLoggingWithDestination(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(LOGGING_URI, TEST_LOGGING_RESOURCE_WITH_DESTINATION));
+        LoggingResourceManager manager = new LoggingResourceManager(vertx, storage, LOGGING_URI);
+        GETRequest request = new GETRequest();
+        LoggingHandler loggingHandler = new LoggingHandler(manager, logAppenderRepository, request, vertx.eventBus());
+
+        context.assertTrue(loggingHandler.isActive());
+        Mockito.verify(logAppenderRepository, Mockito.times(1)).addAppender(eq("eventBusLog"), any(EventBusAppender.class));
     }
 
     @Test
     public void testCustomSorting(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(LOGGING_URI, TEST_LOGGING_RESOURCE));
         LoggingResourceManager manager = new LoggingResourceManager(vertx, storage, LOGGING_URI);
         LoggingResource loggingResource = manager.getLoggingResource();
 
@@ -58,7 +76,7 @@ public class LoggingHandlerTest {
 
         GETRequest request = new GETRequest();
 
-        LoggingHandler loggingHandler = new LoggingHandler(manager, request, vertx.eventBus());
+        LoggingHandler loggingHandler = new LoggingHandler(manager, logAppenderRepository, request, vertx.eventBus());
 
         // Check whether "active" is set to TRUE, which means the Logging for the GET Request
         // is happening and is not aborted (which was the case before the fix (NEMO-5551))

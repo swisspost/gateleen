@@ -22,6 +22,7 @@ import org.swisspush.gateleen.core.json.JsonMultiMap;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -40,8 +41,8 @@ public class StorageForwarder extends AbstractForwarder {
     private String address;
     private CORSHandler corsHandler;
 
-    public StorageForwarder(EventBus eventBus, Rule rule, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler) {
-        super(rule, loggingResourceManager, monitoringHandler);
+    public StorageForwarder(EventBus eventBus, Rule rule, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler) {
+        super(rule, loggingResourceManager, logAppenderRepository, monitoringHandler);
         this.eventBus = eventBus;
         this.address = Address.storageAddress() + "-" + rule.getStorage();
         urlPattern = Pattern.compile(rule.getUrlPattern());
@@ -50,7 +51,7 @@ public class StorageForwarder extends AbstractForwarder {
 
     @Override
     public void handle(final RoutingContext ctx) {
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), this.eventBus);
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, ctx.request(), this.eventBus);
         final String targetUri = urlPattern.matcher(ctx.request().uri()).replaceAll(rule.getPath()).replaceAll("\\/\\/", "/");
         final Logger log = RequestLoggerFactory.getLogger(StorageForwarder.class, ctx.request());
 
