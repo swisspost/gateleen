@@ -38,6 +38,7 @@ public class LoggingHandler {
     private Buffer responsePayload;
     private LoggingResource loggingResource;
     private EventBus eventBus;
+    private LogAppenderRepository logAppenderRepository;
 
     private String currentDestination;
 
@@ -64,11 +65,11 @@ public class LoggingHandler {
     private static final String DEFAULT = "default";
 
     private Map<String, org.apache.logging.log4j.Logger> loggers = new HashMap<>();
-    private Map<String, Appender> appenders = new HashMap<>();
 
     private Logger log;
 
-    public LoggingHandler(LoggingResourceManager loggingResourceManager, HttpServerRequest request, EventBus eventBus) {
+    public LoggingHandler(LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, HttpServerRequest request, EventBus eventBus) {
+        this.logAppenderRepository = logAppenderRepository;
         this.request = request;
         this.eventBus = eventBus;
         this.loggingResource = loggingResourceManager.getLoggingResource();
@@ -187,7 +188,7 @@ public class LoggingHandler {
      * @return
      */
     private Appender getEventBusAppender(String filterDestination, Map<String, String> destinationOptions) {
-        if (!appenders.containsKey(filterDestination)) {
+        if (!logAppenderRepository.hasAppender(filterDestination)) {
 
             /*
              * <appender name="requestLogEventBusAppender" class="EventBusAppender">
@@ -204,9 +205,9 @@ public class LoggingHandler {
                             .add(META_DATA, destinationOptions.get(META_DATA)))
                     .setTransmissionMode(EventBusWriter.TransmissionMode.fromString(destinationOptions.get(TRANSMISSION)))
                     .setLayout(PatternLayout.createDefaultLayout()).build();
-            appenders.put(filterDestination, appender);
+            logAppenderRepository.addAppender(filterDestination, appender);
         }
-        return appenders.get(filterDestination);
+        return logAppenderRepository.getAppender(filterDestination);
     }
 
     /**
@@ -220,7 +221,7 @@ public class LoggingHandler {
      * @return
      */
     private Appender getFileAppender(String filterDestination, String fileName) {
-        if (!appenders.containsKey(filterDestination)) {
+        if (!logAppenderRepository.hasAppender(filterDestination)) {
 
             /*
              * <appender name="requestLogFileAppender" class="org.apache.log4j.DailyRollingFileAppender">
@@ -242,10 +243,10 @@ public class LoggingHandler {
             builder.withAppend(true);
             PatternLayout layout = PatternLayout.createDefaultLayout();
             builder.setLayout(layout);
-            appenders.put(filterDestination, builder.build());
+            logAppenderRepository.addAppender(filterDestination, builder.build());
         }
 
-        return appenders.get(filterDestination);
+        return logAppenderRepository.getAppender(filterDestination);
     }
 
     public void setResponse(HttpClientResponse response) {

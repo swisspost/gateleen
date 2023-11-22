@@ -20,6 +20,7 @@ import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
@@ -31,6 +32,7 @@ public class ForwarderTest {
 
     private Vertx vertx;
     private LoggingResourceManager loggingResourceManager;
+    private LogAppenderRepository logAppenderRepository;
     private MonitoringHandler monitoringHandler;
     private HttpClient httpClient;
     private ResourceStorage storage;
@@ -77,6 +79,7 @@ public class ForwarderTest {
     public void setUp() {
         vertx = Mockito.mock(Vertx.class);
         loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
+        logAppenderRepository = Mockito.mock(LogAppenderRepository.class);
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
         httpClient = Mockito.mock(HttpClient.class);
         storage = new MockResourceStorage(ImmutableMap.of(RULES_PATH, RULES));
@@ -86,7 +89,7 @@ public class ForwarderTest {
     @Test
     public void testHeaderFunctionsGivenHostUpdatedByConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithHostHeader");
-        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
+        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager, logAppenderRepository,
                 monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_OLD);
@@ -98,7 +101,7 @@ public class ForwarderTest {
     @Test
     public void testHeaderFunctionsDefaultHostHeaderUpdatedByConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithHostHeader");
-        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
+        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager, logAppenderRepository,
                 monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_DEFAULT);
@@ -119,7 +122,7 @@ public class ForwarderTest {
     @Test
     public void testHeaderFunctionsGivenHostHeaderUpdatedToDefaultHostHeaderWhenEqualToConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithHostHeader");
-        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
+        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager, logAppenderRepository,
                 monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_NEW);
@@ -131,7 +134,7 @@ public class ForwarderTest {
     @Test
     public void testHeaderFunctionsGivenHostHeaderUpdatedByDefaultHostHeaderWhenNoConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithoutHeader");
-        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
+        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager, logAppenderRepository,
                 monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_OLD);
@@ -143,7 +146,7 @@ public class ForwarderTest {
     @Test
     public void testHeaderFunctionsGivenDefaultHostHeaderRemainsWhenNoConfiguredRuleHostHeader() {
         Rule rule = extractRule("/ruleWithoutHeader");
-        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager,
+        Forwarder forwarder = new Forwarder(vertx, httpClient, rule, storage, loggingResourceManager, logAppenderRepository,
                 monitoringHandler, USER_PROFILE_PATH, null);
         MultiMap reqHeaders = new HeadersMultiMap();
         reqHeaders.add(HOST_HEADER, HOST_DEFAULT);

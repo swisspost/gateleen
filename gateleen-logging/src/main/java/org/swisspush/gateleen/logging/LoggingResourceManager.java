@@ -32,7 +32,7 @@ import java.util.Map;
  */
 public class LoggingResourceManager implements LoggableResource {
 
-    private static final String UPDATE_ADDRESS = "gateleen.logging-updated";
+    static final String UPDATE_ADDRESS = "gateleen.logging-updated";
 
     private final String loggingUri;
     private final ResourceStorage storage;

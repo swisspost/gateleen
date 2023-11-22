@@ -29,6 +29,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.hook.queueingstrategy.*;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
@@ -47,6 +48,8 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static io.vertx.core.http.HttpMethod.DELETE;
+import static io.vertx.core.http.HttpMethod.PUT;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 
 /**
@@ -105,6 +108,7 @@ public class HookHandler implements LoggableResource {
     private final ResourceStorage hookStorage;
     private final MonitoringHandler monitoringHandler;
     private final LoggingResourceManager loggingResourceManager;
+    private final LogAppenderRepository logAppenderRepository;
     private final HttpClient selfClient;
     private final String userProfilePath;
     private final String hookRootUri;
@@ -135,9 +139,9 @@ public class HookHandler implements LoggableResource {
      * @param hookRootUri            hookRootUri
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 new QueueClient(vertx, monitoringHandler));
     }
 
@@ -155,16 +159,16 @@ public class HookHandler implements LoggableResource {
      * @param requestQueue           requestQueue
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false);
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false, null);
     }
 
@@ -183,18 +187,18 @@ public class HookHandler implements LoggableResource {
      * @param reducedPropagationManager reducedPropagationManager
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, listableRoutes, reducedPropagationManager, null, storage);
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, Handler doneHandler, ResourceStorage hookStorage) {
-        this(vertx, selfClient, storage, loggingResourceManager, monitoringHandler, userProfilePath, hookRootUri,
+        this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, listableRoutes, reducedPropagationManager, doneHandler, hookStorage, Router.DEFAULT_ROUTER_MULTIPLIER);
     }
 
@@ -218,7 +222,7 @@ public class HookHandler implements LoggableResource {
      *                                  the number of {@link Router} instances within a cluster
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
-                       LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, Handler doneHandler, ResourceStorage hookStorage,
                        int routeMultiplier) {
@@ -227,6 +231,7 @@ public class HookHandler implements LoggableResource {
         this.selfClient = selfClient;
         this.userProfileStorage = userProfileStorage;
         this.loggingResourceManager = loggingResourceManager;
+        this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;
         this.userProfilePath = userProfilePath;
         this.hookRootUri = hookRootUri;
@@ -502,24 +507,28 @@ public class HookHandler implements LoggableResource {
         /*
          * 1) Un- / Register Listener / Routes
          */
-        if (isHookListenerRegistration(request)) {
-            handleListenerRegistration(request);
-            return true;
+        var requestMethod = request.method();
+        if (requestMethod == PUT) {
+            var requestUri = request.uri();
+            if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
+                handleListenerRegistration(request);
+                return true;
+            }
+            if (requestUri.contains(HOOKS_ROUTE_URI_PART)) {
+                handleRouteRegistration(request);
+                return true;
+            }
         }
-
-        if (isHookListenerUnregistration(request)) {
-            handleListenerUnregistration(request);
-            return true;
-        }
-
-        if (isHookRouteRegistration(request)) {
-            handleRouteRegistration(request);
-            return true;
-        }
-
-        if (isHookRouteUnregistration(request)) {
-            handleRouteUnregistration(request);
-            return true;
+        if (requestMethod == DELETE) {
+            var requestUri = request.uri();
+            if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
+                handleListenerUnregistration(request);
+                return true;
+            }
+            if (requestUri.contains(HOOKS_ROUTE_URI_PART)) {
+                handleRouteUnregistration(request);
+                return true;
+            }
         }
 
         /*
@@ -1612,7 +1621,8 @@ public class HookHandler implements LoggableResource {
      * @return Route
      */
     private Route createRoute(String urlPattern, HttpHook hook) {
-        return new Route(vertx, userProfileStorage, loggingResourceManager, monitoringHandler, userProfilePath, hook, urlPattern, selfClient);
+        return new Route(vertx, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler,
+                userProfilePath, hook, urlPattern, selfClient);
     }
 
     /**
@@ -1652,46 +1662,6 @@ public class HookHandler implements LoggableResource {
         int pos = requestUrl.indexOf(HOOKS_LISTENERS_URI_PART);
         // ... and use substring after it as segment
         return requestUrl.substring(pos + HOOKS_LISTENERS_URI_PART.length());
-    }
-
-    /**
-     * Checks if the given request is a listener unregistration instruction.
-     *
-     * @param request request
-     * @return boolean
-     */
-    private boolean isHookListenerUnregistration(HttpServerRequest request) {
-        return request.uri().contains(HOOKS_LISTENERS_URI_PART) && HttpMethod.DELETE == request.method();
-    }
-
-    /**
-     * Checks if the given request is a listener registration instruction.
-     *
-     * @param request request
-     * @return boolean
-     */
-    private boolean isHookListenerRegistration(HttpServerRequest request) {
-        return request.uri().contains(HOOKS_LISTENERS_URI_PART) && HttpMethod.PUT == request.method();
-    }
-
-    /**
-     * Checks if the given request is a route registration instruction.
-     *
-     * @param request request
-     * @return boolean
-     */
-    private boolean isHookRouteRegistration(HttpServerRequest request) {
-        return request.uri().contains(HOOKS_ROUTE_URI_PART) && HttpMethod.PUT == request.method();
-    }
-
-    /**
-     * Checks if the given request is a route registration instruction.
-     *
-     * @param request request
-     * @return boolean
-     */
-    private boolean isHookRouteUnregistration(HttpServerRequest request) {
-        return request.uri().contains(HOOKS_ROUTE_URI_PART) && HttpMethod.DELETE == request.method();
     }
 
     /**

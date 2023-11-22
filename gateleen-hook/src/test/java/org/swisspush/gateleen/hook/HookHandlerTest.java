@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.*;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
@@ -49,6 +50,7 @@ public class HookHandlerTest {
     private HttpClient httpClient;
     private MockResourceStorage storage;
     private LoggingResourceManager loggingResourceManager;
+    private LogAppenderRepository logAppenderRepository;
     private MonitoringHandler monitoringHandler;
     private RequestQueue requestQueue;
     private ReducedPropagationManager reducedPropagationManager;
@@ -66,12 +68,13 @@ public class HookHandlerTest {
         Mockito.when(httpClient.request(any(HttpMethod.class), anyString())).thenReturn(Mockito.mock(Future.class));
         storage = new MockResourceStorage();
         loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
+        logAppenderRepository = Mockito.mock(LogAppenderRepository.class);
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
         requestQueue = Mockito.mock(RequestQueue.class);
         reducedPropagationManager = Mockito.mock(ReducedPropagationManager.class);
 
 
-        hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, monitoringHandler,
+        hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler,
                 "userProfilePath", HOOK_ROOT_URI, requestQueue, false, reducedPropagationManager);
         hookHandler.init();
     }
@@ -218,7 +221,7 @@ public class HookHandlerTest {
 
     @Test
     public void testListenerEnqueueWithReducedPropagationQueueingStrategyButNoManager(TestContext context) throws InterruptedException {
-        hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, monitoringHandler,
+        hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler,
                 "userProfilePath", HOOK_ROOT_URI, requestQueue, false, null);
         hookHandler.init();
 
