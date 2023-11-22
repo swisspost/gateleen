@@ -22,6 +22,7 @@ import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.*;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.routing.auth.AuthStrategy;
@@ -57,6 +58,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private final String serverUri;
     private io.vertx.ext.web.Router router;
     private final LoggingResourceManager loggingResourceManager;
+    private final LogAppenderRepository logAppenderRepository;
     private final MonitoringHandler monitoringHandler;
     private final Logger log = LoggerFactory.getLogger(Router.class);
     private final Logger cleanupLogger = LoggerFactory.getLogger(Router.class.getName() + "Cleanup");
@@ -103,6 +105,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
            final ResourceStorage storage,
            final Map<String, Object> properties,
            LoggingResourceManager loggingResourceManager,
+           LogAppenderRepository logAppenderRepository,
            MonitoringHandler monitoringHandler,
            HttpClient selfClient,
            String serverPath,
@@ -118,6 +121,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.storage = storage;
         this.properties = properties;
         this.loggingResourceManager = loggingResourceManager;
+        this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;
         this.selfClient = selfClient;
         this.vertx = vertx;
@@ -316,14 +320,18 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             AuthStrategy authStrategy = selectAuthStrategy(rule);
             Handler<RoutingContext> forwarder;
             if (rule.getPath() == null) {
-                forwarder = new NullForwarder(rule, loggingResourceManager, monitoringHandler, vertx.eventBus());
+                forwarder = new NullForwarder(rule, loggingResourceManager, logAppenderRepository, monitoringHandler,
+                        vertx.eventBus());
             } else if (rule.getStorage() != null) {
-                forwarder = new StorageForwarder(vertx.eventBus(), rule, loggingResourceManager, monitoringHandler);
+                forwarder = new StorageForwarder(vertx.eventBus(), rule, loggingResourceManager, logAppenderRepository,
+                        monitoringHandler);
             } else if (rule.getScheme().equals("local")) {
-                forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri, authStrategy);
+                forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, logAppenderRepository,
+                        monitoringHandler, userProfileUri, authStrategy);
             } else {
                 HttpClient client = httpClientFactory.createHttpClient(rule.buildHttpClientOptions());
-                forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, monitoringHandler, userProfileUri, authStrategy);
+                forwarder = new Forwarder(vertx, client, rule, this.storage, loggingResourceManager, logAppenderRepository,
+                        monitoringHandler, userProfileUri, authStrategy);
                 newClients.add(client);
             }
 

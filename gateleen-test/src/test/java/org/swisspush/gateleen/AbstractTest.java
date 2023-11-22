@@ -44,6 +44,8 @@ import org.swisspush.gateleen.expansion.ZipExtractHandler;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage;
+import org.swisspush.gateleen.logging.DefaultLogAppenderRepository;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.merge.MergeHandler;
@@ -152,11 +154,15 @@ public abstract class AbstractTest {
                 ConfigurationResourceManager configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
 
                 String eventBusConfigurationResource = SERVER_ROOT + "/admin/v1/hookconfig";
-                EventBusHandler eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/", SERVER_ROOT + "/event/v1/sock/", "event-", "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
+                EventBusHandler eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/",
+                        SERVER_ROOT + "/event/v1/sock/", "event-",
+                        "channels/([^/]+).*", configurationResourceManager, eventBusConfigurationResource);
 
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
 
-                LoggingResourceManager loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
+                LogAppenderRepository logAppenderRepository = new DefaultLogAppenderRepository(vertx);
+                LoggingResourceManager loggingResourceManager = new LoggingResourceManager(vertx, storage,
+                        SERVER_ROOT + "/admin/v1/logging");
                 UserProfileHandler userProfileHandler = new UserProfileHandler(vertx, storage, RunConfig.buildUserProfileConfiguration());
                 RoleProfileHandler roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
@@ -164,18 +170,22 @@ public abstract class AbstractTest {
                 Lock lock = new RedisBasedLock(redisProvider);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
-                ReducedPropagationManager reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisProvider), queueClient, lock);
+                ReducedPropagationManager reducedPropagationManager = new ReducedPropagationManager(vertx,
+                        new RedisReducedPropagationStorage(redisProvider), queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(1000);
-                hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
-                        SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/", queueClient, false, reducedPropagationManager);
+                hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler,
+                        SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/",
+                        queueClient, false, reducedPropagationManager);
                 propertyHandler = new PropertyHandler(ROOT, props);
-                schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler, SERVER_ROOT + "/admin/v1/schedulers");
+                schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
+                        SERVER_ROOT + "/admin/v1/schedulers");
                 ResetMetricsController resetMetricsController = new ResetMetricsController(vertx);
                 resetMetricsController.registerResetMetricsControlMBean(JMX_DOMAIN, PREFIX);
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);
                 ZipExtractHandler zipExtractHandler = new ZipExtractHandler(selfClient);
-                DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler, DELEGATE_ROOT, props, null);
+                DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler,
+                        DELEGATE_ROOT, props, null);
                 MergeHandler mergeHandler = new MergeHandler(selfClient);
 
                 cacheHandler = new CacheHandler(
@@ -187,19 +197,22 @@ public abstract class AbstractTest {
 
                 // ------
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
-                QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping = new QueueCircuitBreakerRulePatternToCircuitMapping();
+                QueueCircuitBreakerRulePatternToCircuitMapping rulePatternToCircuitMapping =
+                        new QueueCircuitBreakerRulePatternToCircuitMapping();
 
-                QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
+                QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager =
+                        new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
                 QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisProvider);
-                QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
-                        SERVER_ROOT + "/queuecircuitbreaker/circuit");
+                QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx,
+                        queueCircuitBreakerStorage,SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
                 QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, lock,
                         Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, rulePatternToCircuitMapping,
                         queueCircuitBreakerConfigurationResourceManager, requestHandler, CIRCUIT_BREAKER_REST_API_PORT);
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
-                final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(), monitoringHandler);
+                final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing",
+                        Address.redisquesAddress(), monitoringHandler);
 
                 new CustomRedisMonitor(vertx, redisProvider, "main", "rest-storage", 10).start();
                 Router router = Router.builder()

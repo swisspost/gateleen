@@ -1,0 +1,25 @@
+{
+  "headers": [],
+  "payload": {
+    "destinations": [
+      {
+        "name" : "eventBusLog",
+        "type" : "eventBus",
+        "address" : "some_eventbus_address",
+        "metadata" : "meta 1",
+        "transmission": "send"
+      }
+    ],
+    "filters": [
+      {
+        "url": "/playground/nsa/v1/acknowledgment/.*",
+        "method": "GET",
+        "reject": "true"
+      },
+      {
+        "url": "/playground/server/users/v1/.*",
+        "destination": "eventBusLog"
+      }
+    ]
+  }
+}

@@ -48,7 +48,6 @@ public class LoggingResourceManagerTest {
     private static final Logger logger = LoggerFactory.getLogger( LoggingResourceManagerTest.class );
     private Vertx vertx;
     private ResourceStorage storage;
-
     private final String LOGGING_URI = "/playground/server/admin/v1/logging";
 
     private final String INITIAL_LOGGING_RESOURCE = ResourcesUtils.loadResource("testresource_inital_logging_resource", true);
@@ -152,7 +151,7 @@ public class LoggingResourceManagerTest {
     public void invalidRegexGetsRejected( TestContext testContext ) {
         // Wire up victim instance
         final String loggingUrl = "/houston/server/admin/v1/logging";
-        final LoggingResourceManager loggingResourceManager = new LoggingResourceManager( vertx , storage , loggingUrl );
+        final LoggingResourceManager loggingResourceManager = new LoggingResourceManager(vertx, storage, loggingUrl);
 
         // Mock a request
         final Integer[] responseStatusCode = new Integer[]{ null };
