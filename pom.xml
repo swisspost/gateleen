@@ -51,7 +51,7 @@
         <targetHost>localhost</targetHost>
         <targetPort>7012</targetPort>
         <sel_chrome_driver>/usr/local/bin/chromedriver</sel_chrome_driver>
-        <vertx.version>4.2.1</vertx.version>
+        <vertx.version>4.3.8</vertx.version>
         <vertx-redis-client.version>4.3.3</vertx-redis-client.version>
         <jackson.version>2.15.0</jackson.version>
         <springframework.version>5.3.27</springframework.version>
