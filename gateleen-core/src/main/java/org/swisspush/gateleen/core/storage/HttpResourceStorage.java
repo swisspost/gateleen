@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 
+import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
+
 /**
  * Gives programmatic access to the resource storage.
  *
@@ -46,28 +48,29 @@ public class HttpResourceStorage implements ResourceStorage {
         log.debug("Reading {}", path);
         client.request(HttpMethod.GET, path).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
-                log.warn("Failed request to {}: {}", path, asyncResult.cause());
+                log.warn("Failed request to {}", path, new Exception("stacktrace", asyncResult.cause()));
+                log.error/*TODO*/("TODO why do we NOT report this error to bodyHandler?!? Is this"
+                        + " maybe the reason for all our mysterious timeouts everywhere? (ERR_jGQCALsBAgBJeA)");
                 return;
             }
             HttpClientRequest request = asyncResult.result();
 
             request.exceptionHandler(e -> {
-                log.error("Storage request error", e);
+                log.error("Storage request error", new Exception("stacktrace", e));
                 bodyHandler.handle(null);
             });
             request.setTimeout(TIMEOUT);
             request.send(event -> {
                 HttpClientResponse response = event.result();
                 response.exceptionHandler(exception -> {
-                    log.error("Reading {} failed: {}", path, exception.getMessage());
+                    log.error("Reading {} failed", path, new Exception("stacktrace", exception));
                     bodyHandler.handle(null);
                 });
                 if (response.statusCode() == StatusCode.OK.getStatusCode()) {
                     response.bodyHandler(bodyHandler);
                 } else {
                     log.debug("Got status code other than 200. Status code = {}, status message is '{}'.",
-                            (response == null ? "<null>" : response.statusCode()),
-                            ((response == null || response.statusMessage() == null) ? "<null>" : response.statusMessage()));
+                            response.statusCode(), response.statusMessage());
                     bodyHandler.handle(null);
                 }
             });
@@ -86,11 +89,13 @@ public class HttpResourceStorage implements ResourceStorage {
     public void put(final String uri, MultiMap headers, Buffer buffer, final Handler<Integer> doneHandler) {
         client.request(HttpMethod.PUT, uri).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
-                log.warn("Failed request to {}: {}", uri, asyncResult.cause());
+                log.warn("Failed request to {}", uri, new Exception("stacktrace", asyncResult.cause()));
+                log.error/*TODO*/("TODO why do we not report this error to our caller?!? Is this maybe"
+                        + " the explanation for all our unexplainable timeouts or lost messages we"
+                        + " seen in production? (search for _OnUCAHwKAgBBXQIAQhcCACI_)");
                 return;
             }
             HttpClientRequest request = asyncResult.result();
-
 
             request.exceptionHandler(exception -> {
                 log.error("Putting {} failed: {}", uri, exception.getMessage());
@@ -106,12 +111,17 @@ public class HttpResourceStorage implements ResourceStorage {
             request.putHeader("Content-Length", "" + buffer.length());
             request.write(buffer);
             request.send(asyncRespnose -> {
+                if( asyncRespnose.failed() ){
+                    log.error("stacktrace", new Exception("stacktrace", asyncRespnose.cause()));
+                    doneHandler.handle(INTERNAL_SERVER_ERROR.getStatusCode());
+                    return;
+                }
                 HttpClientResponse response = asyncRespnose.result();
-                response.exceptionHandler(exception -> {
-                    log.error("Exception on response to PUT from {}: {}", uri, exception.getMessage());
+                response.exceptionHandler( ex -> {
+                    log.error("Exception on response to PUT {}", uri, new Exception("stacktrace", ex));
                     doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                 });
-                response.endHandler(event -> doneHandler.handle(response.statusCode()));
+                response.endHandler(nothing -> doneHandler.handle(response.statusCode()));
             });
         });
     }
@@ -125,20 +135,25 @@ public class HttpResourceStorage implements ResourceStorage {
     public void delete(final String uri, final Handler<Integer> doneHandler) {
         client.request(HttpMethod.DELETE, uri).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
-                log.warn("Failed request to {}: {}", uri, asyncResult.cause());
+                log.warn("Failed request to {}", uri, new Exception("stacktrace", asyncResult.cause()));
                 return;
             }
             HttpClientRequest request = asyncResult.result();
 
-            request.exceptionHandler(exception -> {
-                log.error("Deleting {} failed: {}", uri, exception.getMessage());
+            request.exceptionHandler( ex -> {
+                log.warn("Deleting {} failed", uri, new Exception("stacktrace", ex));
                 doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
             });
             request.setTimeout(TIMEOUT);
             request.send(asyncRespnose -> {
+                if( asyncRespnose.failed() ){
+                    log.warn("stacktrace", new Exception("stacktrace", asyncRespnose.cause()));
+                    doneHandler.handle(INTERNAL_SERVER_ERROR.getStatusCode());
+                    return;
+                }
                 HttpClientResponse response = asyncRespnose.result();
                 response.exceptionHandler(exception -> {
-                    log.error("Exception on response to DELETE from {}: {}", uri, exception.getMessage());
+                    log.error("Exception on response to DELETE from {}", uri, new Exception("stacktrace", exception));
                     doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                 });
                 response.endHandler(event -> doneHandler.handle(response.statusCode()));
