@@ -5,6 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -159,26 +160,25 @@ public final class ExpansionDeltaUtil {
      */
     public static Handler<Throwable> createRequestExceptionHandler(final HttpServerRequest request, final String uri, final Class<?> caller) {
         return exception -> {
-            if (log.isTraceEnabled()) {
-                log.trace("end response with content");
-            }
+            log.trace("end response with content");
+            HttpServerResponse rsp = request.response();
             if (exception instanceof TimeoutException) {
                 error("Timeout", request, uri, caller);
-                request.response().setStatusCode(StatusCode.TIMEOUT.getStatusCode());
-                request.response().setStatusMessage(StatusCode.TIMEOUT.getStatusMessage());
+                rsp.setStatusCode(StatusCode.TIMEOUT.getStatusCode());
+                rsp.setStatusMessage(StatusCode.TIMEOUT.getStatusMessage());
                 try {
-                    request.response().end(request.response().getStatusMessage());
-                } catch (IllegalStateException e) {
-                    // ignore because maybe already closed
+                    rsp.end(rsp.getStatusMessage());
+                } catch (IllegalStateException ex) {
+                    log.debug("ignore because maybe already closed", ex);
                 }
             } else {
                 error(exception.getMessage(), request, uri, caller);
-                request.response().setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
-                request.response().setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
+                rsp.setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
+                rsp.setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
                 try {
-                    request.response().end(request.response().getStatusMessage());
-                } catch (IllegalStateException e) {
-                    // ignore because maybe already closed
+                    rsp.end(rsp.getStatusMessage());
+                } catch (IllegalStateException ex) {
+                    log.debug("ignore because maybe already closed", ex);
                 }
             }
         };
@@ -195,12 +195,13 @@ public final class ExpansionDeltaUtil {
     public static Handler<Throwable> createResponseExceptionHandler(final HttpServerRequest request, final String uri, final Class<?> caller) {
         return exception -> {
             error("Problem with backend: " + exception.getMessage(), request, uri, caller);
-            request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-            request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+            var rsp = request.response();
+            rsp.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            rsp.setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
             try {
-                request.response().end(request.response().getStatusMessage());
-            } catch (IllegalStateException e) {
-                // ignore because maybe already closed
+                rsp.end(rsp.getStatusMessage());
+            } catch (IllegalStateException ex) {
+                log.debug("ignore because maybe already closed", ex);
             }
         };
     }
