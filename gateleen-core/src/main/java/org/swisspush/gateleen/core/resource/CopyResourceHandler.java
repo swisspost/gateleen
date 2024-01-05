@@ -51,9 +51,10 @@ public class CopyResourceHandler {
                 if (task != null && validTask(request, task)) {
                     performGETRequest(request, task);
                 } else {
-                    request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                    request.response().end();
+                    HttpServerResponse rsp = request.response();
+                    rsp.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                    rsp.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+                    rsp.end();
                 }
             });
 
@@ -93,7 +94,7 @@ public class CopyResourceHandler {
 
         selfClient.request(HttpMethod.GET, task.getSourceUri()).onComplete(event -> {
             if (event.failed()) {
-                log.warn("Failed request to {}: {}", request.uri(), event.cause());
+                log.warn("Failed request to {}", request.uri(), new Exception("stacktrace", event.cause()));
                 return;
             }
             HttpClientRequest selfRequest = event.result();
@@ -104,10 +105,16 @@ public class CopyResourceHandler {
             selfRequest.setTimeout(DEFAULT_TIMEOUT);
 
             // add exception handler
-            selfRequest.exceptionHandler(exception -> log.warn("CopyResourceHandler: GET request failed: " + request.uri() + ": " + exception.getMessage()));
+            selfRequest.exceptionHandler( ex -> {
+                log.warn("CopyResourceHandler: GET request failed: {}", request.uri(), new Exception("stacktrace", ex));
+            });
 
             // fire
             selfRequest.send(asyncResult -> {
+                if( asyncResult.failed() ){
+                    log.warn("stacktrace", new Exception("stacktrace", asyncResult.cause()));
+                    return;
+                }
                 HttpClientResponse response = asyncResult.result();
                 // POST response is OK
                 if (response.statusCode() == StatusCode.OK.getStatusCode()) {
@@ -133,7 +140,7 @@ public class CopyResourceHandler {
 
                 selfClient.request(HttpMethod.PUT, task.getDestinationUri()).onComplete(event -> {
                     if (event.failed()) {
-                        log.warn("Failed request to {}: {}", request.uri(), event.cause());
+                        log.warn("Failed request to {}", request.uri(), new Exception("stacktrace", event.cause()));
                         return;
                     }
                     HttpClientRequest selfRequest = event.result();
@@ -149,6 +156,10 @@ public class CopyResourceHandler {
 
                     // fire
                     selfRequest.send(asyncResult -> {
+                        if( asyncResult.failed() ){
+                            log.warn("stacktrace", new Exception("stacktrace", asyncResult.cause()));
+                            return;
+                        }
                         HttpClientResponse response = asyncResult.result();
                         createResponse(request, response, task);
                     });
@@ -176,8 +187,9 @@ public class CopyResourceHandler {
         request.response().setStatusCode(StatusCodeTranslator.translateStatusCode(response.statusCode(), request.headers()));
         request.response().setStatusMessage(response.statusMessage());
         response.bodyHandler(buffer -> {
-            request.response().putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(buffer.length()));
-            request.response().end(buffer);
+            var rsp = request.response();
+            rsp.putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(buffer.length()));
+            rsp.end(buffer);
         });
     }
 
