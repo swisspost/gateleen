@@ -27,12 +27,12 @@ import java.util.List;
  */
 public class RedisBasedLock implements Lock {
 
-    private Logger log = LoggerFactory.getLogger(RedisBasedLock.class);
+    private static final Logger log = LoggerFactory.getLogger(RedisBasedLock.class);
 
     public static final String STORAGE_PREFIX = "gateleen.core-lock:";
 
-    private LuaScriptState releaseLockLuaScriptState;
-    private RedisProvider redisProvider;
+    private final LuaScriptState releaseLockLuaScriptState;
+    private final RedisProvider redisProvider;
 
     public RedisBasedLock(RedisProvider redisProvider) {
         this.redisProvider = redisProvider;
@@ -45,8 +45,18 @@ public class RedisBasedLock implements Lock {
         if (nx) {
             options.add("NX");
         }
-        redisProvider.redis().onSuccess(redisAPI -> redisAPI.send(Command.SET, RedisUtils.toPayload(key, value, options).toArray(new String[0]))
-                .onComplete(handler)).onFailure(throwable -> handler.handle(new FailedAsyncResult<>(throwable)));
+        redisProvider.redis().onComplete( redisEv -> {
+            if( redisEv.failed() ){
+                handler.handle(new FailedAsyncResult<>(redisEv.cause()));
+                return;
+            }
+            var redisAPI = redisEv.result();
+            redisAPI.send(Command.SET, RedisUtils.toPayload(key, value, options).toArray(new String[0]))
+                    .onComplete( ev -> {
+                        if( ev.failed() && log.isInfoEnabled() ) log.info("stacktrace", new Exception("stacktrace", ev.cause()));
+                        handler.handle(ev);
+                    });
+        });
     }
 
     @Override
@@ -60,6 +70,7 @@ public class RedisBasedLock implements Lock {
                     promise.complete(false);
                 }
             } else {
+                if( log.isInfoEnabled() ) log.info("stacktrace", new Exception("stacktrace", event.cause()));
                 promise.fail(event.cause().getMessage());
             }
         });

@@ -13,7 +13,6 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.core.validation.ValidationResult;
@@ -21,6 +20,8 @@ import org.swisspush.gateleen.core.validation.ValidationStatus;
 
 import java.io.IOException;
 import java.util.Set;
+
+import static org.slf4j.LoggerFactory.getLogger;
 
 /**
  * Validates the configuration resources
@@ -30,9 +31,9 @@ import java.util.Set;
 class ConfigurationResourceValidator {
 
     private static final String SCHEMA_DECLARATION = "http://json-schema.org/draft-04/schema#";
-    private Logger log = LoggerFactory.getLogger(ConfigurationResourceValidator.class);
+    private static final Logger log = getLogger(ConfigurationResourceValidator.class);
 
-    private Vertx vertx;
+    private final Vertx vertx;
 
     public ConfigurationResourceValidator(Vertx vertx) {
         this.vertx = vertx;
@@ -86,12 +87,12 @@ class ConfigurationResourceValidator {
                     }
                 } catch (IOException e) {
                     String message = "Cannot read JSON";
-                    log.warn(message, e.getMessage());
+                    log.warn("{}", message, e);
                     future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
                 }
             } else {
                 String message = "Invalid schema: Expected property '$schema' with content '"+SCHEMA_DECLARATION+"'";
-                log.warn(message);
+                log.warn("{}", message);
                 future.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message));
             }
         }, resultHandler);
@@ -99,10 +100,10 @@ class ConfigurationResourceValidator {
 
     private JsonArray extractMessagesAsJson(Set<ValidationMessage> valMsgs){
         JsonArray resultArray = new JsonArray();
-        valMsgs.forEach(msg -> {
-            log.warn(msg.toString());
+        for (ValidationMessage msg : valMsgs) {
+            log.warn("{}", msg);
             resultArray.add(JsonObject.mapFrom(msg));
-        });
+        }
         return resultArray;
     }
 }

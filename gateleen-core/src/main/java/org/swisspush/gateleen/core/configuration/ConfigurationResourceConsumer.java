@@ -12,7 +12,7 @@ import org.swisspush.gateleen.core.util.StringUtils;
  */
 public abstract class ConfigurationResourceConsumer implements ConfigurationResourceObserver {
 
-    private final Logger log = LoggerFactory.getLogger(ConfigurationResourceConsumer.class);
+    private static final Logger log = LoggerFactory.getLogger(ConfigurationResourceConsumer.class);
 
     private final ConfigurationResourceManager configurationResourceManager;
     private final String configResourceUri;
