@@ -49,8 +49,6 @@ public class HttpResourceStorage implements ResourceStorage {
         client.request(HttpMethod.GET, path).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
                 log.warn("Failed request to {}", path, new Exception("stacktrace", asyncResult.cause()));
-                log.error/*TODO*/("TODO why do we NOT report this error to bodyHandler?!? Is this"
-                        + " maybe the reason for all our mysterious timeouts everywhere? (ERR_jGQCALsBAgBJeA)");
                 return;
             }
             HttpClientRequest request = asyncResult.result();
@@ -90,9 +88,6 @@ public class HttpResourceStorage implements ResourceStorage {
         client.request(HttpMethod.PUT, uri).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
                 log.warn("Failed request to {}", uri, new Exception("stacktrace", asyncResult.cause()));
-                log.error/*TODO*/("TODO why do we not report this error to our caller?!? Is this maybe"
-                        + " the explanation for all our unexplainable timeouts or lost messages we"
-                        + " seen in production? (search for _OnUCAHwKAgBBXQIAQhcCACI_)");
                 return;
             }
             HttpClientRequest request = asyncResult.result();
@@ -112,8 +107,7 @@ public class HttpResourceStorage implements ResourceStorage {
             request.write(buffer);
             request.send(asyncRespnose -> {
                 if( asyncRespnose.failed() ){
-                    log.error("stacktrace", new Exception("stacktrace", asyncRespnose.cause()));
-                    doneHandler.handle(INTERNAL_SERVER_ERROR.getStatusCode());
+                    log.error("TODO error handling", new Exception(request.getURI(), asyncRespnose.cause()));
                     return;
                 }
                 HttpClientResponse response = asyncRespnose.result();
@@ -147,8 +141,7 @@ public class HttpResourceStorage implements ResourceStorage {
             request.setTimeout(TIMEOUT);
             request.send(asyncRespnose -> {
                 if( asyncRespnose.failed() ){
-                    log.warn("stacktrace", new Exception("stacktrace", asyncRespnose.cause()));
-                    doneHandler.handle(INTERNAL_SERVER_ERROR.getStatusCode());
+                    log.error("TODO error handling", new Exception(request.getURI(), asyncRespnose.cause()));
                     return;
                 }
                 HttpClientResponse response = asyncRespnose.result();
