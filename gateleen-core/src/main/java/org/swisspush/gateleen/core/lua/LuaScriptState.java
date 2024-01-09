@@ -88,7 +88,7 @@ public class LuaScriptState {
         final int executionCounterIncr = ++executionCounter;
         // check first if the lua script already exists in the store
         redisProvider.redis().onComplete( redisEv -> {
-            if( redisEv.failed() ){
+            if (redisEv.failed()) {
                 log.error("Redis: Error checking whether lua script exists",
                         new Exception("stacktrace", redisEv.cause()));
                 return;
