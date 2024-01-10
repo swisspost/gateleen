@@ -9,6 +9,7 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.bridge.BridgeEventType;
@@ -138,6 +139,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                             try {
                                 message.put(PAYLOAD, new JsonObject(buffer.toString()));
                             } catch (DecodeException e) {
+                                requestLog.info("{}", request.uri(), e);
                                 request.response().setStatusCode(BAD_REQUEST);
                                 request.response().end(e.getMessage());
                                 return;
@@ -152,6 +154,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                     if (HttpMethod.GET == request.method() || Boolean.TRUE.toString().equals(request.headers().get(SYNC))) {
                         requestLog.debug("This is a synchronous request");
                         vertx.eventBus().request(address, message, new DeliveryOptions().setSendTimeout(TIMEOUT), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                            HttpServerResponse rsp = request.response();
                             if (reply.succeeded()) {
                                 requestLog.debug("Got response");
                                 JsonObject response = reply.result().body();
@@ -159,7 +162,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                                 try {
                                     if (response.fieldNames().contains(HEADERS)) {
                                         headers = JsonMultiMap.fromJson(response.getJsonArray(HEADERS));
-                                        request.response().headers().setAll(headers);
+                                        rsp.headers().setAll(headers);
                                     }
                                 } catch (DecodeException e) {
                                     requestLog.warn("Wrong headers in reply", e);
@@ -173,28 +176,28 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                                     }
                                     requestLog.debug("Response content type is {}", responseContentType);
                                     try {
-                                        request.response().setChunked(true);
+                                        rsp.setChunked(true);
                                         if (responseContentType != null && responseContentType.contains(APPLICATION_JSON)) {
-                                            request.response().end(response.getJsonObject(PAYLOAD).encode());
+                                            rsp.end(response.getJsonObject(PAYLOAD).encode());
                                         } else if (responseContentType != null && responseContentType.contains(TEXT)) {
-                                            request.response().end(response.getString(PAYLOAD));
+                                            rsp.end(response.getString(PAYLOAD));
                                         } else {
-                                            request.response().end(Buffer.buffer(response.getBinary(PAYLOAD)));
+                                            rsp.end(Buffer.buffer(response.getBinary(PAYLOAD)));
                                         }
                                     } catch (DecodeException e) {
-                                        requestLog.warn("Wrong payload in reply for content-type " + responseContentType, e);
-                                        request.response().setStatusCode(500);
-                                        request.response().end("Wrong payload in reply for content-type " + responseContentType + ": ", e.getMessage());
+                                        requestLog.warn("Wrong payload in reply for content-type {}", responseContentType, e);
+                                        rsp.setStatusCode(500);
+                                        rsp.end("Wrong payload in reply for content-type " + responseContentType + ": "+ e.getMessage());
                                     }
                                 } else {
                                     requestLog.debug("No payload in response");
-                                    request.response().end();
+                                    rsp.end();
                                 }
                             } else {
-                                requestLog.debug("Timeout");
-                                request.response().setStatusCode(GATEWAY_TIMEOUT);
-                                request.response().setChunked(true);
-                                request.response().end("Gateway Timeout");
+                                requestLog.debug("Timeout", reply.cause());
+                                rsp.setStatusCode(GATEWAY_TIMEOUT);
+                                rsp.setChunked(true);
+                                rsp.end("Gateway Timeout");
                             }
                         });
                     } else {

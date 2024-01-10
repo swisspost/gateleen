@@ -9,6 +9,8 @@ import io.vertx.core.http.GoAway;
 import io.vertx.core.http.Http2Settings;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.net.SocketAddress;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
@@ -16,11 +18,16 @@ import javax.security.cert.X509Certificate;
 import java.security.cert.Certificate;
 import java.util.List;
 
+import static org.slf4j.LoggerFactory.getLogger;
+
 /**
  * this is a mock-connection object which silently ignores (nearly) HTTP/1.1 relevant method calls and never throws exceptions
  * we need this to be able to set appropriate exception- and close-handlers in e.g. Gateleen's Forwarder (gateleen-routing)
  */
 public class LocalHttpConnection implements HttpConnection {
+
+    private static final Logger log = getLogger(LocalHttpConnection.class);
+
     @Override
     public HttpConnection goAway(long errorCode, int lastStreamId, Buffer debugData) {
         throw new UnsupportedOperationException("LocalConnection don't support this");
@@ -48,6 +55,8 @@ public class LocalHttpConnection implements HttpConnection {
 
     @Override
     public HttpConnection closeHandler(Handler<Void> handler) {
+        log.warn("Happy debugging, as this impl is going to ignore your closeHandler anyway",
+                new Exception("may this stacktrace help you"));
         return this;
     }
 
@@ -99,6 +108,8 @@ public class LocalHttpConnection implements HttpConnection {
 
     @Override
     public HttpConnection exceptionHandler(Handler<Throwable> handler) {
+        log.warn("Happy debugging, as this impl just ignores your exceptionHandler anyway",
+                new Exception("stacktrace"));
         return this;
     }
 
