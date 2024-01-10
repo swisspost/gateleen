@@ -8,6 +8,7 @@ import io.vertx.core.http.*;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.HostAndPort;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.SocketAddressImpl;
@@ -17,9 +18,12 @@ import io.vertx.ext.web.*;
 import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Bridges a HttpClientRequest to a HttpServerRequest sent to a request handler.
@@ -28,6 +32,7 @@ import java.util.Set;
  */
 public class LocalHttpClientRequest extends BufferBridge implements FastFailHttpClientRequest {
     private MultiMap headers = new HeadersMultiMap();
+    private Charset paramsCharset = StandardCharsets.UTF_8;
     private MultiMap params;
     private HttpMethod method;
     private String uri;
@@ -78,9 +83,14 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
+        public @Nullable HostAndPort authority() {
+            return null;
+        }
+
+        @Override
         public MultiMap params() {
             if (params == null) {
-                QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri());
+                QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri(), paramsCharset);
                 Map<String, List<String>> prms = queryStringDecoder.parameters();
                 params = new HeadersMultiMap();
                 if (!prms.isEmpty()) {
@@ -110,6 +120,22 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         @Override
         public String getHeader(CharSequence headerName) {
             return headers().get(headerName);
+        }
+
+        @Override
+        public HttpServerRequest setParamsCharset(String charset) {
+            Objects.requireNonNull(charset, "Charset must not be null");
+            Charset current = paramsCharset;
+            paramsCharset = Charset.forName(charset);
+            if (!paramsCharset.equals(current)) {
+                params = null;
+            }
+            return this;
+        }
+
+        @Override
+        public String getParamsCharset() {
+            return paramsCharset.name();
         }
 
         @Override
@@ -352,7 +378,17 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
-        public Set<FileUpload> fileUploads() {
+        public RequestBody body() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<FileUpload> fileUploads() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void cancelAndCleanupFileUploads() {
             throw new UnsupportedOperationException();
         }
 
@@ -589,7 +625,22 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
+    public boolean isFollowRedirects() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public HttpClientRequest setMaxRedirects(int maxRedirects) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getMaxRedirects() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int numberOfRedirections() {
         throw new UnsupportedOperationException();
     }
 
@@ -624,6 +675,16 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
             headers().add(name, value);
         }
         return this;
+    }
+
+    @Override
+    public HttpClientRequest traceOperation(String op) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String traceOperation() {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -704,6 +765,16 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
+    public HttpClientRequest earlyHintsHandler(@Nullable Handler<MultiMap> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpClientRequest redirectHandler(@Nullable Function<HttpClientResponse, Future<HttpClientRequest>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Future<Void> end(String chunk) {
         return write(chunk).onComplete(event -> end());
     }
@@ -777,6 +848,11 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     @Override
     public HttpClientRequest drainHandler(Handler<Void> handler) {
         return this;
+    }
+
+    @Override
+    public HttpClientRequest authority(HostAndPort authority) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

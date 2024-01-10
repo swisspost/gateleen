@@ -5,6 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
+import io.vertx.core.net.HostAndPort;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import org.swisspush.gateleen.core.http.FastFailHttpServerRequest;
@@ -66,6 +67,11 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
     }
 
     @Override
+    public @Nullable HostAndPort authority() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public @Nullable String host() {
         throw new UnsupportedOperationException();
     }
@@ -87,6 +93,16 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
 
     @Override
     public String getHeader(CharSequence headerName) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpServerRequest setParamsCharset(String charset) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getParamsCharset() {
         throw new UnsupportedOperationException();
     }
 

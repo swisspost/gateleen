@@ -27,7 +27,7 @@ import java.util.Set;
  * methods you need to mock.
  *
  */
-public interface FastFailHttpServerRequest extends HttpServerRequestInternal {
+public interface FastFailHttpServerRequest extends HttpServerRequest {
 
     String msg = "Mock: Override this method to mock your expected behaviour.";
 
@@ -226,17 +226,6 @@ public interface FastFailHttpServerRequest extends HttpServerRequestInternal {
 
 
     default Set<Cookie> cookies() {
-        throw new UnsupportedOperationException( msg );
-    }
-
-
-    @Override
-    default Context context() {
-        throw new UnsupportedOperationException( msg );
-    }
-
-    @Override
-    default Object metric() {
         throw new UnsupportedOperationException( msg );
     }
 }

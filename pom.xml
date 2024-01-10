@@ -51,8 +51,8 @@
         <targetHost>localhost</targetHost>
         <targetPort>7012</targetPort>
         <sel_chrome_driver>/usr/local/bin/chromedriver</sel_chrome_driver>
-        <vertx.version>4.2.1</vertx.version>
-        <vertx-redis-client.version>4.3.3</vertx-redis-client.version>
+        <vertx.version>4.5.1</vertx.version>
+        <vertx-redis-client.version>4.5.1</vertx-redis-client.version>
         <jackson.version>2.15.0</jackson.version>
         <springframework.version>5.3.27</springframework.version>
     </properties>
@@ -325,12 +325,12 @@
             <dependency>
                 <groupId>org.swisspush</groupId>
                 <artifactId>redisques</artifactId>
-                <version>3.0.29</version>
+                <version>3.1.0-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>org.swisspush</groupId>
                 <artifactId>rest-storage</artifactId>
-                <version>3.0.15</version>
+                <version>3.1.0-SNAPSHOT</version>
             </dependency>
             <dependency>
                 <groupId>org.quartz-scheduler</groupId>

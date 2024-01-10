@@ -7,6 +7,7 @@ import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.HostAndPort;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.RoutingContext;
@@ -738,6 +739,16 @@ public class HookHandlerTest {
             }
 
             @Override
+            public Future<Void> writeEarlyHints(MultiMap headers) {
+                return null;
+            }
+
+            @Override
+            public void writeEarlyHints(MultiMap headers, Handler<AsyncResult<Void>> handler) {
+
+            }
+
+            @Override
             public Future<Void> end(String chunk) {/* ignore */
                 return Future.succeededFuture();
             }
@@ -769,6 +780,11 @@ public class HookHandlerTest {
 
             @Override
             public Future<Void> sendFile(String filename, long offset, long length) {
+                return null;
+            }
+
+            @Override
+            public Future<HttpServerResponse> push(HttpMethod method, HostAndPort authority, String path, MultiMap headers) {
                 return null;
             }
 
@@ -809,8 +825,23 @@ public class HookHandlerTest {
             }
 
             @Override
+            public @Nullable HostAndPort authority() {
+                return null;
+            }
+
+            @Override
             public MultiMap headers() {
                 return requestHeaders;
+            }
+
+            @Override
+            public HttpServerRequest setParamsCharset(String charset) {
+                return null;
+            }
+
+            @Override
+            public String getParamsCharset() {
+                return null;
             }
 
             @Override

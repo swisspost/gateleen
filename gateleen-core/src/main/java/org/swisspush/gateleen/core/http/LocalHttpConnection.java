@@ -108,7 +108,17 @@ public class LocalHttpConnection implements HttpConnection {
     }
 
     @Override
+    public SocketAddress remoteAddress(boolean real) {
+        throw new UnsupportedOperationException("LocalConnection don't support this");
+    }
+
+    @Override
     public SocketAddress localAddress() {
+        throw new UnsupportedOperationException("LocalConnection don't support this");
+    }
+
+    @Override
+    public SocketAddress localAddress(boolean real) {
         throw new UnsupportedOperationException("LocalConnection don't support this");
     }
 
