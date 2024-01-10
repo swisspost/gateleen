@@ -106,15 +106,15 @@ public class LuaScriptState {
                     log.debug("RedisStorage script already exists in redis cache: {}", luaScriptType);
                     redisCommand.exec(executionCounterIncr);
                 } else {
-                    log.info("load lua script for script type: {} logutput: {}", luaScriptType, logoutput);
+                    log.info("loading lua script for script type: {} log output: {}", luaScriptType, logoutput);
                     redisAPI.script(Arrays.asList("load", script), stringAsyncResult -> {
-                        String newSha = stringAsyncResult.result().toString();
-                        log.info("got sha from redis for lua script: {}: {}", luaScriptType, newSha);
-                        if (!newSha.equals(sha)) {
-                            log.warn("the sha calculated by myself: {} doesn't match with the sha from redis: {}. " +
-                                    "We use the sha from redis", sha, newSha);
+                        String redisSha = stringAsyncResult.result().toString();
+                        log.info("got sha from redis for lua script: {}: {}", luaScriptType, redisSha);
+                        if (!redisSha.equals(sha)) {
+                        log.warn("the sha calculated by myself: {} doesn't match with the sha from redis: {}. " +
+                                "We use the sha from redis", sha, redisSha);
                         }
-                        sha = newSha;
+                        sha = redisSha;
                         log.info("execute redis command for script type: {} with new sha: {}", luaScriptType, sha);
                         redisCommand.exec(executionCounterIncr);
                     });
