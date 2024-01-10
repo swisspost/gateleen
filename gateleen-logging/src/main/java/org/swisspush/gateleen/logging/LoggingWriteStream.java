@@ -3,6 +3,7 @@ package org.swisspush.gateleen.logging;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.WriteStream;
 
@@ -36,15 +37,17 @@ public class LoggingWriteStream implements WriteStream<Buffer> {
 
     @Override
     public Future<Void> write(Buffer data) {
+        Promise<Void> p = Promise.promise();
         write(data, event -> {
-
+            if( event.failed() ) p.fail(event.cause());
+            else p.complete();
         });
-        return Future.succeededFuture();
+        return p.future();
     }
 
     @Override
     public void write(Buffer data, Handler<AsyncResult<Void>> handler) {
-        wrappedWriteStream.write(data);
+        wrappedWriteStream.write(data, handler);
         if (isRequest) {
             loggingHandler.appendRequestPayload(data);
         } else {
