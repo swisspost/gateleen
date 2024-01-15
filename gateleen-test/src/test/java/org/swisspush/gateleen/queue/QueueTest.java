@@ -12,11 +12,11 @@ import org.junit.runner.RunWith;
 
 import java.util.Set;
 
-import static com.jayway.awaitility.Awaitility.await;
-import static com.jayway.awaitility.Duration.*;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
+import static org.awaitility.Durations.*;
 import static org.hamcrest.CoreMatchers.*;
 
 @RunWith(VertxUnitRunner.class)

@@ -1,8 +1,7 @@
 package org.swisspush.gateleen.hook;
 
 import com.google.common.collect.ImmutableMap;
-import com.jayway.awaitility.Awaitility;
-import com.jayway.awaitility.Duration;
+import org.awaitility.Awaitility;
 import io.restassured.RestAssured;
 import io.restassured.http.Header;
 import io.restassured.http.Headers;
@@ -20,6 +19,8 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.TEN_SECONDS;
+import static org.awaitility.Durations.TWO_SECONDS;
 import static org.hamcrest.CoreMatchers.containsString;
 
 /**
@@ -108,8 +109,7 @@ public class RouteTest extends AbstractTest {
         TestUtils.registerRoute(requestUrl, target, methods, staticHeaders);
 
         //
-
-        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() ->
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() ->
                 when().get(routedResource).then().assertThat()
                         .statusCode(200)
                         .body(containsString("x-test1"))
@@ -148,7 +148,7 @@ public class RouteTest extends AbstractTest {
 
         String body2 = "{ \"name\" : \"routePathTest\"}";
         given().headers(Headers.headers(new Header("x-foo", "A"))).body(body2).put(routedResource).then().assertThat().statusCode(200);
-        Awaitility.given().await().atMost(Duration.TEN_SECONDS).until(() -> {
+        Awaitility.given().await().atMost(TEN_SECONDS).untilAsserted(() -> {
             given().headers(Headers.headers(new Header("x-foo", "A"))).when().get(routedResource).then().assertThat().body(containsString(body2));
             when().get(checkTarget).then().assertThat().body(containsString(body2));
         });
@@ -183,7 +183,7 @@ public class RouteTest extends AbstractTest {
 
         String body2 = "{ \"name\" : \"routePathTest\"}";
         given().body(body2).put(routedResource).then().assertThat().statusCode(200);
-        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
                     when().get(routedResource).then().assertThat().body(containsString(body2));
                     when().get(checkTarget).then().assertThat().body(containsString(body2));
         });
@@ -224,7 +224,7 @@ public class RouteTest extends AbstractTest {
          */
         String body1 = "{ \"name\" : \"routeTest 1\"}";
         given().body(body1).put(routedResource).then().assertThat().statusCode(200);
-        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
                     when().get(routedResource).then().assertThat().body(containsString(body1));
                     when().get(checkTarget).then().assertThat().statusCode(404);
         });
@@ -246,7 +246,7 @@ public class RouteTest extends AbstractTest {
          */
         String body2 = "{ \"name\" : \"routeTest 2\"}";
         given().body(body2).put(routedResource).then().assertThat().statusCode(200);
-        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
             when().get(routedResource).then().assertThat().body(containsString(body2));
             when().get(checkTarget).then().assertThat().body(containsString(body2));
         });
@@ -258,7 +258,7 @@ public class RouteTest extends AbstractTest {
          * -------
          */
         delete(routedResource).then().assertThat().statusCode(200);
-        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
                     when().get(routedResource).then().assertThat().statusCode(404);
                     when().get(checkTarget).then().assertThat().statusCode(404);
         });
@@ -279,7 +279,7 @@ public class RouteTest extends AbstractTest {
          */
         String body3 = "{ \"name\" : \"routeTest 3\"}";
         given().body(body3).put(routedResource).then().assertThat().statusCode(200);
-        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() -> {
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
                     when().get(routedResource).then().assertThat().body(containsString(body3));
                     when().get(checkTarget).then().assertThat().statusCode(404);
                     delete(routedResource);
@@ -316,7 +316,7 @@ public class RouteTest extends AbstractTest {
         TestUtils.registerRoute(requestUrl, target, methods);
 
         // since no translateStatus was defined, the resource should not be found and return a 404
-        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() ->
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() ->
                 when().get(routedResource).then().assertThat()
                         .statusCode(404)
         );
@@ -327,7 +327,7 @@ public class RouteTest extends AbstractTest {
         TestUtils.registerRoute(requestUrl, target, methods, null, true, false, translateStatus);
 
         // with translateStatus defined, the response status code should have changed from 404 to 405
-        Awaitility.given().await().atMost(Duration.TWO_SECONDS).until(() ->
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() ->
                 when().get(routedResource).then().assertThat()
                         .statusCode(405)
         );

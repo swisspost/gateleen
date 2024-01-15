@@ -21,7 +21,7 @@ import java.util.Objects;
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class DummyHttpServerRequest implements FastFailHttpServerRequest {
+public class DummyHttpServerRequest extends FastFailHttpServerRequest {
 
     private Charset paramsCharset = StandardCharsets.UTF_8;
     private MultiMap params;

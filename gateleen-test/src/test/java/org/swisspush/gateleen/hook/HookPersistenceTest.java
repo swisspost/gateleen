@@ -2,7 +2,6 @@ package org.swisspush.gateleen.hook;
 
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
-import com.jayway.awaitility.Duration;
 import io.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
@@ -11,8 +10,9 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 /**
@@ -380,7 +380,7 @@ public class HookPersistenceTest extends AbstractTest {
      * @param statusCode
      */
     private void checkGETStatusCodeWithAwait(final String request, final Integer statusCode) {
-        await().atMost(Duration.FIVE_SECONDS).until(() -> {
+        await().atMost(FIVE_SECONDS).until(() -> {
             System.out.println(request);
             return String.valueOf(RestAssured.get(request).getStatusCode());
         }, equalTo(String.valueOf(statusCode)));

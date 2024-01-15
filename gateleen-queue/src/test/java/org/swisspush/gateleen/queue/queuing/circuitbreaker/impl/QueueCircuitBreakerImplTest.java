@@ -122,7 +122,7 @@ public class QueueCircuitBreakerImplTest {
         ArgumentCaptor<String> lockArguments = ArgumentCaptor.forClass(String.class);
 
         Mockito.verify(lock, timeout(1100).times(3)).acquireLock(lockArguments.capture(), Matchers.anyString(), Matchers.anyLong());
-        Mockito.verify(lock, timeout(1100).never()).releaseLock(Matchers.anyString(), Matchers.anyString());
+        Mockito.verify(lock, after(1100).never()).releaseLock(Matchers.anyString(), Matchers.anyString());
 
         List<String> lockValues = lockArguments.getAllValues();
         context.assertTrue(lockValues.contains(QueueCircuitBreakerImpl.OPEN_TO_HALF_OPEN_TASK_LOCK));

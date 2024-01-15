@@ -1,12 +1,12 @@
 package org.swisspush.gateleen.hook;
 
 import com.google.common.collect.ImmutableMap;
-import com.jayway.awaitility.Awaitility;
 import io.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.awaitility.Awaitility;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.AbstractTest;
@@ -157,7 +157,7 @@ public class HookQueueingStrategiesTest extends AbstractTest {
 
         // after 5s an unlocked manager queue with a single queue item should exist and the original queue should be empty
         // and its lock should have been deleted
-        Awaitility.await().until(() -> when().get("pushnotification/queuing/queues/").then().assertThat().body("queues", hasItem(managerQueue)));
+        Awaitility.await().untilAsserted(() -> when().get("pushnotification/queuing/queues/").then().assertThat().body("queues", hasItem(managerQueue)));
         given().urlEncodingEnabled(true).when().get("pushnotification/queuing/queues/" + managerQueue)
                 .then().assertThat()
                 .body(managerQueue, hasSize(1));
@@ -192,7 +192,7 @@ public class HookQueueingStrategiesTest extends AbstractTest {
         // after another 5s the unlocked manager queue with a single queue item should still exist and the original queue should be empty
         // and its lock should have been deleted
         TestUtils.waitSomeTime(5);
-        Awaitility.await().until(() -> when().get("pushnotification/queuing/queues/").then().assertThat().body("queues", hasItem(managerQueue)));
+        Awaitility.await().untilAsserted(() -> when().get("pushnotification/queuing/queues/").then().assertThat().body("queues", hasItem(managerQueue)));
         given().urlEncodingEnabled(true).when().get("pushnotification/queuing/queues/" + managerQueue)
                 .then().assertThat()
                 .body(managerQueue, hasSize(1));

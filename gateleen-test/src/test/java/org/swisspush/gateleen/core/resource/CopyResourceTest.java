@@ -2,7 +2,6 @@ package org.swisspush.gateleen.core.resource;
 
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
-import com.jayway.awaitility.Duration;
 import io.restassured.RestAssured;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
@@ -11,11 +10,12 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 
@@ -200,6 +200,6 @@ public class CopyResourceTest extends AbstractTest {
     }
 
     private void checkGETStatusWithAwait(final String requestUrl, final int statusCode) {
-        await().atMost(Duration.TWO_SECONDS).until(() -> when().get(requestUrl).getStatusCode(), equalTo(statusCode));
+        await().atMost(Duration.ofSeconds(2)).until(() -> when().get(requestUrl).getStatusCode(), equalTo(statusCode));
     }
 }

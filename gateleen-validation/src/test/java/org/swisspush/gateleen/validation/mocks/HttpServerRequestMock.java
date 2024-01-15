@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.validation.mocks;
 
 import io.vertx.codegen.annotations.Nullable;
+import io.vertx.core.Context;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
@@ -18,7 +19,7 @@ import javax.security.cert.X509Certificate;
  *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
-public class HttpServerRequestMock implements FastFailHttpServerRequest {
+public class HttpServerRequestMock extends FastFailHttpServerRequest {
 
     private String bodyContent;
 
@@ -217,4 +218,13 @@ public class HttpServerRequestMock implements FastFailHttpServerRequest {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public Context context() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Object metric() {
+        throw new UnsupportedOperationException();
+    }
 }

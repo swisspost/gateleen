@@ -434,6 +434,8 @@ public class RunConfig {
                 .processorAddress(Address.queueProcessorAddress())
                 .httpRequestHandlerEnabled(true)
                 .httpRequestHandlerPort(7015)
+                .redisReconnectAttempts(-1)
+                .redisPoolRecycleTimeoutMs(-1)
                 .build()
                 .asJsonObject();
     }
@@ -445,6 +447,8 @@ public class RunConfig {
         return new ModuleConfiguration()
                 .storageType(ModuleConfiguration.StorageType.redis)
                 .storageAddress(Address.storageAddress() + "-main")
+                .redisReconnectAttempts(-1)
+                .redisPoolRecycleTimeoutMs(-1)
                 .asJsonObject();
     }
 

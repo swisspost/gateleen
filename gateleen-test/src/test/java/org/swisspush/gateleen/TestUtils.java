@@ -1,7 +1,6 @@
 package org.swisspush.gateleen;
 
 import com.google.common.collect.ImmutableMap;
-import com.jayway.awaitility.Duration;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -15,8 +14,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 public class TestUtils {
@@ -197,7 +197,7 @@ public class TestUtils {
      * @param statusCode
      */
     public static void checkGETStatusCodeWithAwait(final String request, final Integer statusCode) {
-        await().atMost(Duration.FIVE_SECONDS).until(()
+        await().atMost(FIVE_SECONDS).until(()
                 -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
     }
 

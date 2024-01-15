@@ -815,6 +815,16 @@ public class HookHandlerTest {
         };
         return new FastFailHttpServerRequest() {
             @Override
+            public Context context() {
+                return null;
+            }
+
+            @Override
+            public Object metric() {
+                return null;
+            }
+
+            @Override
             public HttpMethod method() {
                 return method;
             }
