@@ -17,7 +17,7 @@ import org.swisspush.gateleen.core.validation.ValidationStatus;
 
 import java.util.Optional;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @RunWith(VertxUnitRunner.class)

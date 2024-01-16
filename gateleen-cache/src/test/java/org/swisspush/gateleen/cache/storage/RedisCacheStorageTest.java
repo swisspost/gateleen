@@ -33,8 +33,8 @@ import java.util.concurrent.TimeUnit;
 import static org.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.swisspush.gateleen.cache.storage.RedisCacheStorage.CACHED_REQUESTS;
 import static org.swisspush.gateleen.cache.storage.RedisCacheStorage.CACHE_PREFIX;
 

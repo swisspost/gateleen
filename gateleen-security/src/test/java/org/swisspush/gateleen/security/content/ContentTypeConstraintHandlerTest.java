@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -59,7 +59,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
         Async async = context.async();
         context.assertFalse(handler.isInitialized());
         handler.initialize().onComplete(event -> {
-            verifyZeroInteractions(repository);
+            verifyNoInteractions(repository);
             context.assertFalse(handler.isInitialized());
             async.complete();
         });
@@ -92,7 +92,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
             final boolean handled = handler.handle(request);
 
             context.assertFalse(handled);
-            verifyZeroInteractions(repository);
+            verifyNoInteractions(repository);
 
             async.complete();
         });        
@@ -113,7 +113,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
             final boolean handled = handler.handle(request);
 
             context.assertFalse(handled);
-            verifyZeroInteractions(repository);
+            verifyNoInteractions(repository);
             async.complete();
         });
     }
@@ -132,7 +132,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
             final boolean handled = handler.handle(request);
 
             context.assertFalse(handled);
-            verifyZeroInteractions(repository);
+            verifyNoInteractions(repository);
             async.complete();
         });
     }
@@ -259,7 +259,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
             context.assertTrue(handler.isInitialized());
 
             handler.resourceRemoved("/some/other/uri");
-            verifyZeroInteractions(repository);
+            verifyNoInteractions(repository);
             context.assertTrue(handler.isInitialized());
             async.complete();
         });
@@ -275,7 +275,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
             context.assertTrue(handler.isInitialized());
 
             handler.resourceChanged("/some/other/uri", Buffer.buffer(VALID_CONFIG2));
-            verifyZeroInteractions(repository);
+            verifyNoInteractions(repository);
             context.assertTrue(handler.isInitialized());
             async.complete();
         });

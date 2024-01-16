@@ -8,7 +8,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
@@ -18,8 +18,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
 
@@ -202,7 +201,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         // resource should still not be in storage after invalid update
         context.assertFalse(storage.getMockData().containsKey(resourceURI));
 
-        verify(observer, Mockito.never()).resourceChanged(Matchers.anyString(), Matchers.any(Buffer.class));
+        verify(observer, Mockito.never()).resourceChanged(anyString(), any(Buffer.class));
         async.complete();
     }
 
@@ -241,7 +240,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
 
         context.assertEquals(storagePutFailStatusCode, response.getStatusCode());
 
-        verify(observer, Mockito.never()).resourceChanged(anyString(), Matchers.any(Buffer.class));
+        verify(observer, Mockito.never()).resourceChanged(anyString(), any(Buffer.class));
         async.complete();
     }
 
@@ -266,9 +265,9 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
 
         // only 1 occurence of Storage.get is allowed during registerObserver. The second call would have come after the publish
-        verify(storage, times(1)).get(Matchers.anyString(), Matchers.any());
+        verify(storage, times(1)).get(anyString(), any());
 
-        verify(observer, Mockito.never()).resourceChanged(Matchers.anyString(), Matchers.any(Buffer.class));
+        verify(observer, Mockito.never()).resourceChanged(anyString(), any(Buffer.class));
         async.complete();
     }
 

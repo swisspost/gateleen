@@ -312,7 +312,7 @@ public class ReducedPropagationManagerTest {
 
             verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
             verify(reducedPropagationStorage, after(1000).never()).removeQueueRequest(anyString());
-            verifyZeroInteractions(requestQueue);
+            verifyNoInteractions(requestQueue);
 
             async.complete();
         });
@@ -331,7 +331,7 @@ public class ReducedPropagationManagerTest {
 
             verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
             verify(reducedPropagationStorage, after(1000).never()).removeQueueRequest(anyString());
-            verifyZeroInteractions(requestQueue);
+            verifyNoInteractions(requestQueue);
 
             async.complete();
         });
