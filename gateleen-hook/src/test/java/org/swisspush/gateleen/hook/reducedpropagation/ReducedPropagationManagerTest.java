@@ -114,7 +114,7 @@ public class ReducedPropagationManagerTest {
             ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
 
             verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
-                    queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
+                    queuesCaptor.capture(), eq(LOCK_REQUESTER), isNull());
 
             // verify that request has been locked-enqueued in original queue
             HttpRequest originalEnqueue = requestCaptor.getValue();
@@ -159,7 +159,7 @@ public class ReducedPropagationManagerTest {
             ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
 
             verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
-                    queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
+                    queuesCaptor.capture(), eq(LOCK_REQUESTER), isNull());
 
             List<HttpRequest> requests = requestCaptor.getAllValues();
             List<String> queues = queuesCaptor.getAllValues();
@@ -212,7 +212,7 @@ public class ReducedPropagationManagerTest {
             ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
 
             verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
-                    queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
+                    queuesCaptor.capture(), eq(LOCK_REQUESTER), isNull());
 
             List<HttpRequest> requests = requestCaptor.getAllValues();
             List<String> queues = queuesCaptor.getAllValues();
@@ -262,7 +262,7 @@ public class ReducedPropagationManagerTest {
             ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
 
             verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
-                    queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
+                    queuesCaptor.capture(), eq(LOCK_REQUESTER), isNull());
 
             // verify that request has been locked-enqueued in original queue
             HttpRequest originalEnqueue = requestCaptor.getValue();
