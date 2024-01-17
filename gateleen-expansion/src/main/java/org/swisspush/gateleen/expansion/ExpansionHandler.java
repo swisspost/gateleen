@@ -404,7 +404,7 @@ public class ExpansionHandler implements RuleChangesObserver {
             if (log.isTraceEnabled()) {
                 log.trace("set cReq headers");
             }
-            cReq.setTimeout(TIMEOUT);
+            cReq.idleTimeout(TIMEOUT);
             cReq.headers().setAll(req.headers());
             cReq.headers().set("Accept", "application/json");
             cReq.headers().set(SELF_REQUEST_HEADER, "true");
@@ -514,7 +514,7 @@ public class ExpansionHandler implements RuleChangesObserver {
             requestPayload.put("subResources", new JsonArray(subResourceNames));
             Buffer payload = Buffer.buffer(requestPayload.encodePrettily());
 
-            cReq.setTimeout(TIMEOUT);
+            cReq.idleTimeout(TIMEOUT);
             cReq.headers().setAll(req.headers());
             cReq.headers().set(SELF_REQUEST_HEADER, "true");
             cReq.headers().set("Content-Type", "application/json; charset=utf-8");
@@ -591,7 +591,7 @@ public class ExpansionHandler implements RuleChangesObserver {
             if (log.isTraceEnabled()) {
                 log.trace("set the cReq headers for the subRequest");
             }
-            cReq.setTimeout(TIMEOUT);
+            cReq.idleTimeout(TIMEOUT);
             cReq.headers().setAll(req.headers());
             cReq.headers().set("Accept", "application/json");
             cReq.headers().set(SELF_REQUEST_HEADER, "true");

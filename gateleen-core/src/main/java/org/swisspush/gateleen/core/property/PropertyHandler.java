@@ -141,7 +141,7 @@ public class PropertyHandler {
                 }
 
                 if (!found) {
-                    log.warn("id for the request PUT {} could not be found: {}", request.uri(), body.toString());
+                    log.warn("id for the request PUT {} could not be found: {}", request.uri(), body);
                 }
 
                 // everythin is fine

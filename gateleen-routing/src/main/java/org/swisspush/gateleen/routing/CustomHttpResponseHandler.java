@@ -49,7 +49,7 @@ public class CustomHttpResponseHandler {
             rs = HttpResponseStatus.BAD_REQUEST;
             info = ": missing, wrong or non-numeric status-code in request URL";
         }
-        request.response().setStatusCode(rs.code()).setStatusMessage(rs.reasonPhrase()).end(rs.toString() + info);
+        request.response().setStatusCode(rs.code()).setStatusMessage(rs.reasonPhrase()).end(rs + info);
         return true;
     }
 }

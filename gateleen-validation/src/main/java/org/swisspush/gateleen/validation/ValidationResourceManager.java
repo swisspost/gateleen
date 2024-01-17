@@ -90,7 +90,7 @@ public class ValidationResourceManager implements LoggableResource {
                     extractValidationValues(validationResourceBuffer);
                 } catch (ValidationException validationException) {
                     updateValidationResource();
-                    log.error("Could not parse validation resource: " + validationException.toString());
+                    log.error("Could not parse validation resource: " + validationException);
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, ValidationResourceManager.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());

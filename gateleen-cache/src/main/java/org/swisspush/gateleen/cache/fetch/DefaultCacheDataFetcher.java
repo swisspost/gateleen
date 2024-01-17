@@ -62,7 +62,7 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
                 return;
             }
             HttpClientRequest cReq = event.result();
-            cReq.setTimeout(requestTimeoutMs);
+            cReq.idleTimeout(requestTimeoutMs);
             cReq.headers().setAll(requestHeaders);
             cReq.headers().set("Accept", "application/json");
             cReq.headers().set(SELF_REQUEST_HEADER, "true");

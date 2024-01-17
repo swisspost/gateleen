@@ -10,8 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 
-import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
-
 /**
  * Gives programmatic access to the resource storage.
  *
@@ -57,7 +55,7 @@ public class HttpResourceStorage implements ResourceStorage {
                 log.error("Storage request error", new Exception("stacktrace", e));
                 bodyHandler.handle(null);
             });
-            request.setTimeout(TIMEOUT);
+            request.idleTimeout(TIMEOUT);
             request.send(event -> {
                 HttpClientResponse response = event.result();
                 response.exceptionHandler(exception -> {
@@ -102,7 +100,7 @@ public class HttpResourceStorage implements ResourceStorage {
                 HttpHeaderUtil.mergeHeaders(request.headers(), headers, uri);
             }
 
-            request.setTimeout(TIMEOUT);
+            request.idleTimeout(TIMEOUT);
             request.putHeader("Content-Length", "" + buffer.length());
             request.write(buffer);
             request.send(asyncRespnose -> {
@@ -138,7 +136,7 @@ public class HttpResourceStorage implements ResourceStorage {
                 log.warn("Deleting {} failed", uri, new Exception("stacktrace", ex));
                 doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
             });
-            request.setTimeout(TIMEOUT);
+            request.idleTimeout(TIMEOUT);
             request.send(asyncRespnose -> {
                 if( asyncRespnose.failed() ){
                     log.error("TODO error handling", new Exception(request.getURI(), asyncRespnose.cause()));

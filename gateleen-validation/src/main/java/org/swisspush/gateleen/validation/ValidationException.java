@@ -33,7 +33,7 @@ public class ValidationException extends Exception {
     public String toString() {
         StringBuilder stringBuilder = new StringBuilder("ValidationException: ").append(getMessage());
         if(validationDetails != null){
-            stringBuilder.append(" Details: ").append(validationDetails.toString());
+            stringBuilder.append(" Details: ").append(validationDetails);
         }
         return stringBuilder.toString();
     }
