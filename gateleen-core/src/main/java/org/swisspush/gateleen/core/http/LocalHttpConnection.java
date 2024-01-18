@@ -54,8 +54,6 @@ public class LocalHttpConnection implements HttpConnection {
 
     @Override
     public HttpConnection closeHandler(Handler<Void> handler) {
-        log.warn("Happy debugging, as this impl is going to ignore your closeHandler anyway",
-                new Exception("may this stacktrace help you"));
         return this;
     }
 
