@@ -199,7 +199,7 @@ public class MergeHandler {
         final String targetUrlPart = getTargetUrlPart(requestUrl);
 
         if (log.isTraceEnabled()) {
-            log.trace("requestCollection > (requestUrl)" + requestUrl + " (parentUrl) " + parentUrl + " (targetUrlPart) " + targetUrlPart);
+            log.trace("requestCollection > (requestUrl) {} (parentUrl) {} (targetUrlPart) {}", requestUrl, parentUrl, targetUrlPart);
         }
 
         httpClient.request(HttpMethod.GET, parentUrl).onComplete(asyncReqResult -> {

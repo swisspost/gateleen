@@ -114,7 +114,7 @@ public class ConfigurationResourceManager implements LoggableResource {
             requestLog.info("Refresh resource {}", resourceUri);
             request.bodyHandler(buffer -> configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
                 if (event.failed() || (event.succeeded() && !event.result().isSuccess())) {
-                    requestLog.error("Could not parse configuration resource for uri '" + resourceUri + "' message: " + event.result().getMessage());
+                    requestLog.error("Could not parse configuration resource for uri '{}' message: {}", resourceUri, event.result().getMessage());
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + event.result().getMessage());
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, ConfigurationResourceManager.class);

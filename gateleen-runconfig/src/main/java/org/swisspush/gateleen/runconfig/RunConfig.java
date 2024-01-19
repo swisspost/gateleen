@@ -201,7 +201,7 @@ public class RunConfig {
             conf = "classpath:" + SERVER_NAME + "/config/logging/log4j2.xml";
         }
 
-        log.info(SERVER_NAME + " starting with log configuration " + conf);
+        log.info("{} starting with log configuration {}", SERVER_NAME, conf);
         Configurator.initialize("", conf);
     }
 
@@ -790,7 +790,7 @@ public class RunConfig {
                 DateTime dt = isoDateTimeParser.parseDateTime(timestamp);
                 request.headers().set(header, dfISO8601.print(dt));
             } catch (IllegalArgumentException e) {
-                log.warn("Could not parse " + header + " : " + timestamp);
+                log.warn("Could not parse {} : {}", header, timestamp);
             }
         }
     }

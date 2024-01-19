@@ -41,7 +41,7 @@ public class QueueCircuitBreakerRulePatternToCircuitMapping {
                 log.debug(patternAndCircuitHash.toString());
                 rulePatternToCircuitMapping.add(patternAndCircuitHash);
             } else {
-                log.error("rule pattern and circuitHash could not be retrieved from rule " + rule.getUrlPattern());
+                log.error("rule pattern and circuitHash could not be retrieved from rule {}", rule.getUrlPattern());
             }
         }
         return getRemovedPatternAndCircuitHashes(originalPatternAndCircuitHashes, rulePatternToCircuitMapping);
@@ -68,7 +68,7 @@ public class QueueCircuitBreakerRulePatternToCircuitMapping {
             String circuitHash = HashCodeGenerator.createHashCode(rule.getUrlPattern());
             return new PatternAndCircuitHash(pattern, circuitHash);
         } catch (Exception e) {
-            log.error("Could not compile the regex:" + rule.getUrlPattern() + " to a pattern.");
+            log.error("Could not compile the regex:{} to a pattern.", rule.getUrlPattern());
             return null;
         }
     }

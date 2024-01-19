@@ -71,7 +71,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -132,7 +132,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -183,7 +183,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -227,7 +227,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/execution/([^/?]+)/([^/?]+)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -272,7 +272,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -314,7 +314,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -380,7 +380,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -465,7 +465,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -557,7 +557,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -637,7 +637,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -678,7 +678,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -727,7 +727,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -764,7 +764,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -820,7 +820,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -885,7 +885,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -941,7 +941,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration
@@ -1000,7 +1000,7 @@ public class DelegateTest extends AbstractTest {
         methods.add(HttpMethod.PUT);
 
         JsonObject delegate = createDelegate(methods, ".*/([^/]+.*)", requests);
-        System.out.println(delegate.toString());
+        System.out.println(delegate);
         // -----
 
         // Registration

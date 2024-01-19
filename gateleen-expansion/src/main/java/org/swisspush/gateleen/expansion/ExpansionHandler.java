@@ -438,7 +438,7 @@ public class ExpansionHandler implements RuleChangesObserver {
 
     private Integer extractExpandParamValue(final HttpServerRequest request, final Logger log) {
         String expandValue = request.params().get(EXPAND_PARAM);
-        log.debug("got expand parameter value " + expandValue);
+        log.debug("got expand parameter value {}", expandValue);
 
         try {
             int value = Integer.parseInt(expandValue);

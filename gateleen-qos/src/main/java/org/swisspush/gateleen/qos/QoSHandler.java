@@ -650,8 +650,8 @@ public class QoSHandler implements LoggableResource {
             Set<ObjectInstance> instances = mbeanServer.queryMBeans(null, null);
             for (ObjectInstance instance : instances) {
                 log.trace("MBean Found:");
-                log.trace("Class Name:t" + instance.getClassName());
-                log.trace("Object Name:t" + instance.getObjectName());
+                log.trace("Class Name:t{}", instance.getClassName());
+                log.trace("Object Name:t{}", instance.getObjectName());
                 log.trace("****************************************");
             }
         }
@@ -723,13 +723,13 @@ public class QoSHandler implements LoggableResource {
                     log.warn("MBean {} for sentinel {} is not ready yet ...", name, sentinel.getName());
                 }
             } catch (MalformedObjectNameException e) {
-                log.error("Could not load MBean for metric name '" + sentinel.getName() + "'.", e);
+                log.error("Could not load MBean for metric name '{}'.", sentinel.getName(), e);
             } catch (AttributeNotFoundException e) {
                 // ups ... should not be possible, we check if the bean is registered
             } catch (InstanceNotFoundException e) {
-                log.error("Could not find attribute " + sentinel.getPercentile() + PERCENTILE_SUFFIX + " for the MBean of the metric '" + sentinel.getName() + "'.", e);
+                log.error("Could not find attribute {} for the MBean of the metric '{}'.", sentinel.getPercentile() + PERCENTILE_SUFFIX, sentinel.getName(), e);
             } catch (MBeanException | ReflectionException e) {
-                log.error("Could not load value of attribute " + sentinel.getPercentile() + PERCENTILE_SUFFIX + " for the MBean of the metric '" + sentinel.getName() + "'.", e);
+                log.error("Could not load value of attribute {} for the MBean of the metric '{}'.", sentinel.getPercentile() + PERCENTILE_SUFFIX, sentinel.getName(), e);
             }
         }
 

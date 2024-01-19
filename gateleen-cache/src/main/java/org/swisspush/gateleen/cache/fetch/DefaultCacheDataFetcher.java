@@ -58,7 +58,7 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
                     promise.complete(Result.err(StatusCode.INTERNAL_SERVER_ERROR));
                 }).onComplete(event -> {
             if (event.failed()) {
-                log.warn("Failed request to {}: {}", requestUri, event.cause());
+                log.warn("Failed request to {}", requestUri, event.cause());
                 return;
             }
             HttpClientRequest cReq = event.result();

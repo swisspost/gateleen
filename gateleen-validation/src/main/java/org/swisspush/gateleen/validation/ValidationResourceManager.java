@@ -76,7 +76,7 @@ public class ValidationResourceManager implements LoggableResource {
     private void updateValidationResource(Buffer buffer) throws ValidationException {
         extractValidationValues(buffer);
         for (Map<String, String> resourceToValidate : getValidationResource().getResources()) {
-            log.info("Applying validation for resource: " + resourceToValidate);
+            log.info("Applying validation for resource: {}", resourceToValidate);
         }
         if(getValidationResource().getResources().isEmpty()){
             log.info("No validation rules to apply!");

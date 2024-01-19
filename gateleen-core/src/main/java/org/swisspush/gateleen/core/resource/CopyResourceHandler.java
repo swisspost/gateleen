@@ -105,9 +105,7 @@ public class CopyResourceHandler {
             selfRequest.idleTimeout(DEFAULT_TIMEOUT);
 
             // add exception handler
-            selfRequest.exceptionHandler( ex -> {
-                log.warn("CopyResourceHandler: GET request failed: {}", request.uri(), new Exception("stacktrace", ex));
-            });
+            selfRequest.exceptionHandler( ex -> log.warn("CopyResourceHandler: GET request failed: {}", request.uri(), new Exception("stacktrace", ex)));
 
             // fire
             selfRequest.send(asyncResult -> {

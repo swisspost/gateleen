@@ -172,17 +172,17 @@ public class TestUtils {
         JsonObject newRule = new JsonObject();
         for (Entry<String, ? extends Object> entry : map.entrySet()) {
             if (entry.getValue() instanceof String) {
-                newRule.put(entry.getKey(), (String) entry.getValue());
+                newRule.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof Number) {
                 newRule.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof Boolean) {
-                newRule.put(entry.getKey(), (Boolean)entry.getValue());
+                newRule.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof JsonObject) {
-                newRule.put(entry.getKey(), (JsonObject) entry.getValue());
+                newRule.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof JsonArray) {
-                newRule.put(entry.getKey(), (JsonArray) entry.getValue());
+                newRule.put(entry.getKey(), entry.getValue());
             } else {
-                LOG.error("not handled data type for rule " + entry.getKey());
+                LOG.error("not handled data type for rule {}", entry.getKey());
             }
         }
         return newRule;
