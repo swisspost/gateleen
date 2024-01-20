@@ -60,7 +60,7 @@ public class BufferBridge {
             } catch (Exception e) {
                 if (exceptionHandler != null) {
                     exceptionHandler.handle(e);
-                }else{
+                } else {
                     log.warn("TODO error handling", e);
                 }
             }
