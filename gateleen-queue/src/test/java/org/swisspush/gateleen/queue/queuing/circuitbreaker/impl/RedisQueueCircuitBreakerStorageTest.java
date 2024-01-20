@@ -4,12 +4,15 @@ import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.NetClientOptions;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.redis.client.PoolOptions;
 import io.vertx.redis.client.RedisAPI;
-import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.RedisStandaloneConnectOptions;
 import io.vertx.redis.client.impl.RedisClient;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -46,7 +49,7 @@ public class RedisQueueCircuitBreakerStorageTest {
     @BeforeClass
     public static void setupStorage(){
         vertx = Vertx.vertx();
-        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new RedisOptions()));
+        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions(), TracingPolicy.IGNORE));
         storage = new RedisQueueCircuitBreakerStorage(() -> Future.succeededFuture(redisAPI));
     }
 
@@ -736,10 +739,14 @@ public class RedisQueueCircuitBreakerStorageTest {
 
             // second lua script execution
             storage.unlockSampleQueues().onComplete(event1 -> {
+                context.assertTrue(event1.succeeded());
 
-                context.assertTrue(event1.result().get(0).toString().contains("c1_2"));
-                context.assertTrue(event1.result().get(1).toString().contains("c2_2"));
-                context.assertTrue(event1.result().get(2).toString().contains("c3_2"));
+                context.assertEquals(3, event1.result().size());
+                Set<String> results1 = new HashSet<>();
+                results1.add(event1.result().get(0).toString());
+                results1.add(event1.result().get(1).toString());
+                results1.add(event1.result().get(2).toString());
+                context.assertTrue(results1.containsAll(Arrays.asList("c1_2", "c2_2", "c3_2")));
 
                 context.assertEquals(3L, jedis.scard(STORAGE_ALL_CIRCUITS));
                 context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
@@ -749,10 +756,14 @@ public class RedisQueueCircuitBreakerStorageTest {
 
                 // third lua script execution
                 storage.unlockSampleQueues().onComplete(event2 -> {
+                    context.assertTrue(event2.succeeded());
 
-                    context.assertTrue(event2.result().get(0).toString().contains("c1_3"));
-                    context.assertTrue(event2.result().get(1).toString().contains("c2_1"));
-                    context.assertTrue(event2.result().get(2).toString().contains("c3_3"));
+                    context.assertEquals(3, event2.result().size());
+                    Set<String> results2 = new HashSet<>();
+                    results2.add(event2.result().get(0).toString());
+                    results2.add(event2.result().get(1).toString());
+                    results2.add(event2.result().get(2).toString());
+                    context.assertTrue(results2.containsAll(Arrays.asList("c1_3", "c2_1", "c3_3")));
 
                     context.assertEquals(3L, jedis.scard(STORAGE_ALL_CIRCUITS));
                     context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));

@@ -1,17 +1,17 @@
 package org.swisspush.gateleen.playground;
 
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.NetClientOptions;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.client.PoolOptions;
 import io.vertx.redis.client.RedisAPI;
-import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.RedisStandaloneConnectOptions;
 import io.vertx.redis.client.impl.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +64,10 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCi
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
-import org.swisspush.gateleen.routing.*;
+import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
+import org.swisspush.gateleen.routing.DeferCloseHttpClient;
+import org.swisspush.gateleen.routing.Router;
+import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.routing.auth.DefaultOAuthProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
@@ -192,7 +195,7 @@ public class Server extends AbstractVerticle {
         RunConfig.deployModules(vertx, Server.class, props, success -> {
             if (success) {
                 String protocol = redisEnableTls ? "rediss://" : "redis://";
-                redisClient = new RedisClient(vertx, new RedisOptions().setConnectionString(protocol + redisHost + ":" + redisPort));
+                redisClient = new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions().setConnectionString(protocol + redisHost + ":" + redisPort), TracingPolicy.IGNORE);
                 redisApi = RedisAPI.api(redisClient);
                 RedisProvider redisProvider = () -> Future.succeededFuture(redisApi);
 

@@ -21,7 +21,7 @@ import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.redisques.util.RedisquesAPI;
 
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
@@ -90,7 +90,7 @@ public class QueueClientTest {
         });
 
         // since redisques answered with a 'failure', the monitoringHandler should not be called
-        Mockito.verifyZeroInteractions(monitoringHandler);
+        Mockito.verifyNoInteractions(monitoringHandler);
     }
 
     @Test
@@ -252,7 +252,7 @@ public class QueueClientTest {
         queueClient.lockedEnqueue(request, "myQueue", "LockRequester", event -> async.complete());
 
         // since redisques answered with a 'failure', the monitoringHandler should not be called
-        Mockito.verifyZeroInteractions(monitoringHandler);
+        Mockito.verifyNoInteractions(monitoringHandler);
     }
 
     private void validateMessage(TestContext context, Message<JsonObject> message, RedisquesAPI.QueueOperation expectedOperation, String queue){

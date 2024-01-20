@@ -85,7 +85,7 @@ public class ZipExtractHandler {
             selfRequest.headers().setAll(req.headers());
 
             // avoids blocking other requests
-            selfRequest.setTimeout(DEFAULT_TIMEOUT);
+            selfRequest.idleTimeout(DEFAULT_TIMEOUT);
 
             // fire
             selfRequest.send(event -> {

@@ -3,8 +3,7 @@ package org.swisspush.gateleen.hook;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.google.common.collect.ImmutableMap;
-import com.jayway.awaitility.Awaitility;
-import com.jayway.awaitility.Duration;
+import org.awaitility.Awaitility;
 import io.restassured.RestAssured;
 import io.restassured.http.Header;
 import io.restassured.http.Headers;
@@ -24,8 +23,10 @@ import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.FIVE_SECONDS;
+import static org.awaitility.Durations.TEN_SECONDS;
 import static org.hamcrest.CoreMatchers.*;
 
 
@@ -649,7 +650,7 @@ public class ListenerTest extends AbstractTest {
             delete(url);
             given().body(body).put(url);
             System.out.println(index);
-            Awaitility.given().ignoreExceptions().await().atMost(Duration.FIVE_SECONDS).until(
+            Awaitility.given().ignoreExceptions().await().atMost(FIVE_SECONDS).until(
                     () -> RestAssured.get(target + "/atest").then().extract().jsonPath().getString("name"), is("test"));
         }
 
@@ -926,7 +927,7 @@ public class ListenerTest extends AbstractTest {
      * @param statusCode
      */
     private void checkGETStatusCodeWithAwait(final String request, final Integer statusCode) {
-        await().atMost(Duration.FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
+        await().atMost(FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
     }
 
     /**
@@ -937,6 +938,6 @@ public class ListenerTest extends AbstractTest {
      * @param body
      */
     private void checkGETBodyWithAwait(final String requestUrl, final String body) {
-        await().atMost(Duration.TEN_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
+        await().atMost(TEN_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
     }
 }

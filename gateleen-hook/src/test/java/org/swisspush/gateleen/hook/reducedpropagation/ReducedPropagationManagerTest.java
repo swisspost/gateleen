@@ -62,7 +62,7 @@ public class ReducedPropagationManagerTest {
     public void testStartExpiredQueueProcessingInitiallyDisabled(TestContext context) {
         Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
                 .thenReturn(Future.succeededFuture(MultiType.EMPTY_MULTI));
-        verify(reducedPropagationStorage, timeout(1000).never()).removeExpiredQueues(anyLong());
+        verify(reducedPropagationStorage, after(1000).never()).removeExpiredQueues(anyLong());
     }
 
     @Test
@@ -72,7 +72,7 @@ public class ReducedPropagationManagerTest {
         Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
                 .thenReturn(Future.succeededFuture(MultiType.EMPTY_MULTI));
         manager.startExpiredQueueProcessing(10);
-        verify(reducedPropagationStorage, timeout(110).atLeast(10)).removeExpiredQueues(anyLong());
+        verify(reducedPropagationStorage, timeout(150).atLeast(10)).removeExpiredQueues(anyLong());
     }
 
     @Test
@@ -82,7 +82,7 @@ public class ReducedPropagationManagerTest {
         Mockito.when(reducedPropagationStorage.removeExpiredQueues(anyLong()))
                 .thenReturn(Future.succeededFuture(MultiType.EMPTY_MULTI));
         manager.startExpiredQueueProcessing(10);
-        verify(reducedPropagationStorage, timeout(110).never()).removeExpiredQueues(anyLong());
+        verify(reducedPropagationStorage, after(110).never()).removeExpiredQueues(anyLong());
     }
 
     @Test
@@ -114,7 +114,7 @@ public class ReducedPropagationManagerTest {
             ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
 
             verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
-                    queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
+                    queuesCaptor.capture(), eq(LOCK_REQUESTER), isNull());
 
             // verify that request has been locked-enqueued in original queue
             HttpRequest originalEnqueue = requestCaptor.getValue();
@@ -126,7 +126,7 @@ public class ReducedPropagationManagerTest {
             context.assertEquals(queue, queuesCaptor.getValue());
 
             //verify queue request has not been stored to storage
-            verify(reducedPropagationStorage, timeout(1000).never()).storeQueueRequest(anyString(), any(JsonObject.class));
+            verify(reducedPropagationStorage, after(1000).never()).storeQueueRequest(anyString(), any(JsonObject.class));
         });
 
     }
@@ -159,7 +159,7 @@ public class ReducedPropagationManagerTest {
             ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
 
             verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
-                    queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
+                    queuesCaptor.capture(), eq(LOCK_REQUESTER), isNull());
 
             List<HttpRequest> requests = requestCaptor.getAllValues();
             List<String> queues = queuesCaptor.getAllValues();
@@ -212,7 +212,7 @@ public class ReducedPropagationManagerTest {
             ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
 
             verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
-                    queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
+                    queuesCaptor.capture(), eq(LOCK_REQUESTER), isNull());
 
             List<HttpRequest> requests = requestCaptor.getAllValues();
             List<String> queues = queuesCaptor.getAllValues();
@@ -262,7 +262,7 @@ public class ReducedPropagationManagerTest {
             ArgumentCaptor<String> queuesCaptor = ArgumentCaptor.forClass(String.class);
 
             verify(requestQueue, timeout(1000).times(1)).lockedEnqueue(requestCaptor.capture(),
-                    queuesCaptor.capture(), eq(LOCK_REQUESTER), any(Handler.class));
+                    queuesCaptor.capture(), eq(LOCK_REQUESTER), isNull());
 
             // verify that request has been locked-enqueued in original queue
             HttpRequest originalEnqueue = requestCaptor.getValue();
@@ -275,7 +275,7 @@ public class ReducedPropagationManagerTest {
             context.assertEquals(queue, queuesCaptor.getValue());
 
             //verify queue request has not been stored to storage
-            verify(reducedPropagationStorage, timeout(1000).never()).storeQueueRequest(anyString(), any(JsonObject.class));
+            verify(reducedPropagationStorage, after(1000).never()).storeQueueRequest(anyString(), any(JsonObject.class));
         });
     }
 
@@ -311,8 +311,8 @@ public class ReducedPropagationManagerTest {
             context.assertEquals("boom: getQueueRequest failed", event.result().body().getString(MESSAGE));
 
             verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
-            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
-            verifyZeroInteractions(requestQueue);
+            verify(reducedPropagationStorage, after(1000).never()).removeQueueRequest(anyString());
+            verifyNoInteractions(requestQueue);
 
             async.complete();
         });
@@ -330,8 +330,8 @@ public class ReducedPropagationManagerTest {
             context.assertEquals("stored queue request for queue 'myExpiredQueue' is null", event.result().body().getString(MESSAGE));
 
             verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
-            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
-            verifyZeroInteractions(requestQueue);
+            verify(reducedPropagationStorage, after(1000).never()).removeQueueRequest(anyString());
+            verifyNoInteractions(requestQueue);
 
             async.complete();
         });
@@ -354,9 +354,9 @@ public class ReducedPropagationManagerTest {
             verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
             verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(managerQueue), eq(false));
 
-            verify(requestQueue, timeout(1000).never()).enqueueFuture(any(), any());
-            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
-            verify(requestQueue, timeout(1000).never()).deleteAllQueueItems(eq(expiredQueue), eq(true));
+            verify(requestQueue, after(1000).never()).enqueueFuture(any(), any());
+            verify(reducedPropagationStorage, after(1000).never()).removeQueueRequest(anyString());
+            verify(requestQueue, after(1000).never()).deleteAllQueueItems(eq(expiredQueue), eq(true));
 
             async.complete();
         });
@@ -379,9 +379,9 @@ public class ReducedPropagationManagerTest {
             verify(reducedPropagationStorage, timeout(1000).times(1)).getQueueRequest(eq(expiredQueue));
             verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(managerQueue), eq(false));
 
-            verify(requestQueue, timeout(1000).never()).enqueueFuture(any(), any());
-            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
-            verify(requestQueue, timeout(1000).never()).deleteAllQueueItems(eq(expiredQueue), eq(true));
+            verify(requestQueue, after(1000).never()).enqueueFuture(any(), any());
+            verify(reducedPropagationStorage, after(1000).never()).removeQueueRequest(anyString());
+            verify(requestQueue, after(1000).never()).deleteAllQueueItems(eq(expiredQueue), eq(true));
 
             async.complete();
         });
@@ -409,8 +409,8 @@ public class ReducedPropagationManagerTest {
             verify(requestQueue, timeout(1000).times(1)).deleteAllQueueItems(eq(managerQueue), eq(false));
             verify(requestQueue, timeout(1000).times(1)).enqueueFuture(any(), eq(managerQueue));
 
-            verify(reducedPropagationStorage, timeout(1000).never()).removeQueueRequest(anyString());
-            verify(requestQueue, timeout(1000).never()).deleteAllQueueItems(eq(expiredQueue), eq(true));
+            verify(reducedPropagationStorage, after(1000).never()).removeQueueRequest(anyString());
+            verify(requestQueue, after(1000).never()).deleteAllQueueItems(eq(expiredQueue), eq(true));
 
             async.complete();
         });

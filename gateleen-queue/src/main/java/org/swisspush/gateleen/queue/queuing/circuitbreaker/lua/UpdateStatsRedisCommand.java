@@ -39,14 +39,14 @@ public class UpdateStatsRedisCommand implements RedisCommand {
             if (event.succeeded()) {
                 String value = event.result().toString();
                 if (log.isTraceEnabled()) {
-                    log.trace("UpdateStatsRedisCommand lua script got result: " + value);
+                    log.trace("UpdateStatsRedisCommand lua script got result: {}", value);
                 }
                 promise.complete(UpdateStatisticsResult.fromString(value, UpdateStatisticsResult.ERROR));
             } else {
                 String message = event.cause().getMessage();
                 if (message != null && message.startsWith("NOSCRIPT")) {
                     log.warn("UpdateStatsRedisCommand script couldn't be found, reload it");
-                    log.warn("amount the script got loaded: " + executionCounter);
+                    log.warn("amount the script got loaded: {}", executionCounter);
                     if (executionCounter > 10) {
                         promise.fail("amount the script got loaded is higher than 10, we abort");
                     } else {

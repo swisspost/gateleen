@@ -60,8 +60,8 @@ public class KafkaMessageValidatorTest {
         messageValidator.validateMessages(request, Collections.emptyList()).onComplete(event -> {
             context.assertTrue(event.succeeded());
             context.assertEquals(ValidationStatus.VALIDATED_POSITIV, event.result().getValidationStatus());
-            verifyZeroInteractions(validationResourceManager);
-            verifyZeroInteractions(validator);
+            verifyNoInteractions(validationResourceManager);
+            verifyNoInteractions(validator);
             async.complete();
         });
 
@@ -83,7 +83,7 @@ public class KafkaMessageValidatorTest {
             context.assertTrue(event.succeeded());
             context.assertEquals(ValidationStatus.VALIDATED_POSITIV, event.result().getValidationStatus());
             verify(validationResourceManager, times(1)).getValidationResource();
-            verifyZeroInteractions(validator);
+            verifyNoInteractions(validator);
             async.complete();
         });
 
@@ -108,7 +108,7 @@ public class KafkaMessageValidatorTest {
             context.assertTrue(event.succeeded());
             context.assertEquals(ValidationStatus.COULD_NOT_VALIDATE, event.result().getValidationStatus());
             verify(validationResourceManager, times(2)).getValidationResource();
-            verifyZeroInteractions(validator);
+            verifyNoInteractions(validator);
             async.complete();
         });
 

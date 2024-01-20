@@ -103,7 +103,7 @@ public class RecursiveZipRootHandler extends RecursiveRootHandlerBase {
                 ResponseStatusCodeLogUtil.debug(req, StatusCode.OK, RecursiveExpansionRootHandler.class);
                 req.response().end(Buffer.buffer(outputStream.toByteArray()));
             } catch (Exception e) {
-                log.error("Error while writing zip: " + e.getMessage(), e);
+                log.error("Error while writing zip: {}", e.getMessage(), e);
                 createErrorResponse(e);
             }
         } catch (ResourceCollectionException exception) {
@@ -133,7 +133,7 @@ public class RecursiveZipRootHandler extends RecursiveRootHandlerBase {
             zipOutputStream.closeEntry();
             inputStream.close();
         } catch (Exception e) {
-            log.error("Error while writing zip entry '" + resourceNode.getNodeName() + "'.", e);
+            log.error("Error while writing zip entry '{}'.", resourceNode.getNodeName(), e);
         }
     }
 

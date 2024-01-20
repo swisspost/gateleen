@@ -7,6 +7,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.*;
+import io.vertx.core.net.SSLOptions;
 
 import java.util.List;
 import java.util.function.Function;
@@ -163,6 +164,11 @@ public abstract class AbstractHttpClient implements HttpClient {
 
     @Override
     public boolean isMetricsEnabled() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Future<Boolean> updateSSLOptions(SSLOptions options, boolean force) {
         throw new UnsupportedOperationException();
     }
 }

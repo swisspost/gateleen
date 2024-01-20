@@ -80,7 +80,7 @@ public class MergeHandler {
                 HttpClientRequest cReq = asyncReqResult.result();
 
 
-                cReq.setTimeout(TIMEOUT);
+                cReq.idleTimeout(TIMEOUT);
                 cReq.headers().set("Accept", "application/json");
                 cReq.headers().set(SELF_REQUEST_HEADER, "true");
                 cReq.setChunked(true);
@@ -101,7 +101,7 @@ public class MergeHandler {
                             JsonObject dataObject = new JsonObject(data.toString());
 
                             if (log.isTraceEnabled()) {
-                                log.trace(" >> body is \"{}\"", dataObject.toString());
+                                log.trace(" >> body is \"{}\"", dataObject);
                             }
 
                             // we get an array back
@@ -199,7 +199,7 @@ public class MergeHandler {
         final String targetUrlPart = getTargetUrlPart(requestUrl);
 
         if (log.isTraceEnabled()) {
-            log.trace("requestCollection > (requestUrl)" + requestUrl + " (parentUrl) " + parentUrl + " (targetUrlPart) " + targetUrlPart);
+            log.trace("requestCollection > (requestUrl) {} (parentUrl) {} (targetUrlPart) {}", requestUrl, parentUrl, targetUrlPart);
         }
 
         httpClient.request(HttpMethod.GET, parentUrl).onComplete(asyncReqResult -> {
@@ -210,7 +210,7 @@ public class MergeHandler {
             HttpClientRequest collectionRequest = asyncReqResult.result();
 
 
-            collectionRequest.setTimeout(TIMEOUT);
+            collectionRequest.idleTimeout(TIMEOUT);
             collectionRequest.headers().set("Accept", "application/json");
             collectionRequest.headers().set(SELF_REQUEST_HEADER, "true");
             collectionRequest.setChunked(true);
@@ -259,7 +259,7 @@ public class MergeHandler {
 
 
                         if (log.isTraceEnabled()) {
-                            log.trace("requestCollection >> uri is: {}, body is: {}", parentUrl, data.toString());
+                            log.trace("requestCollection >> uri is: {}, body is: {}", parentUrl, data);
                         }
 
 
@@ -505,7 +505,7 @@ public class MergeHandler {
             }
             HttpClientRequest mergeRequest = asyncReqResult.result();
 
-            mergeRequest.setTimeout(TIMEOUT);
+            mergeRequest.idleTimeout(TIMEOUT);
             HttpHeaderUtil.mergeHeaders(mergeRequest.headers(), request.headers(), request.uri());
             mergeRequest.headers().set(SELF_REQUEST_HEADER, "true");
             mergeRequest.headers().remove(MERGE_HEADER);
@@ -608,7 +608,7 @@ public class MergeHandler {
         for (final MergeData data : collectionData) {
             final JsonObject dataObject = new JsonObject(data.getContent().toString());
             if (log.isTraceEnabled()) {
-                log.trace("createMergedResponse > loop - {}", dataObject.toString());
+                log.trace("createMergedResponse > loop - {}", dataObject);
             }
 
             if (dataObject.getValue(collectionName) instanceof JsonArray) {
@@ -659,7 +659,7 @@ public class MergeHandler {
             }
             HttpClientRequest directRequest = asyncReqResult.result();
 
-            directRequest.setTimeout(TIMEOUT);
+            directRequest.idleTimeout(TIMEOUT);
             HttpHeaderUtil.mergeHeaders(directRequest.headers(), request.headers(), request.uri());
             directRequest.headers().set(SELF_REQUEST_HEADER, "true");
             directRequest.headers().remove(MERGE_HEADER);

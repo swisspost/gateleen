@@ -11,7 +11,7 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.lock.Lock;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 
 /**
  * Tests for the {@link LockUtil} class

@@ -273,7 +273,7 @@ public class QueueProcessor {
                     performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
                 });
             };
-            request1.setTimeout(120000); // avoids blocking other requests
+            request1.idleTimeout(120000); // avoids blocking other requests
             if (queuedRequest.getPayload() != null) {
                 request1.send(Buffer.buffer(queuedRequest.getPayload()), httpAsyncHandler);
             } else {

@@ -58,11 +58,11 @@ public class DefaultCacheDataFetcher implements CacheDataFetcher {
                     promise.complete(Result.err(StatusCode.INTERNAL_SERVER_ERROR));
                 }).onComplete(event -> {
             if (event.failed()) {
-                log.warn("Failed request to {}: {}", requestUri, event.cause());
+                log.warn("Failed request to {}", requestUri, event.cause());
                 return;
             }
             HttpClientRequest cReq = event.result();
-            cReq.setTimeout(requestTimeoutMs);
+            cReq.idleTimeout(requestTimeoutMs);
             cReq.headers().setAll(requestHeaders);
             cReq.headers().set("Accept", "application/json");
             cReq.headers().set(SELF_REQUEST_HEADER, "true");

@@ -28,10 +28,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
 
@@ -76,8 +76,8 @@ public class KafkaHandlerTest {
         Async async = context.async();
         context.assertFalse(handler.isInitialized());
         handler.initialize().onComplete(event -> {
-            verifyZeroInteractions(repository);
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(repository);
+            verifyNoInteractions(kafkaMessageSender);
             context.assertFalse(handler.isInitialized());
             async.complete();
         });
@@ -105,7 +105,7 @@ public class KafkaHandlerTest {
                 put("acks", "1");
             }};
             verify(repository, times(1)).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("."), configs_2)));
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             context.assertTrue(handler.isInitialized());
             async.complete();
         });
@@ -133,7 +133,7 @@ public class KafkaHandlerTest {
                 put("acks", "all");
             }};
             verify(repository, atLeastOnce()).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("my.properties.topic.*"), configs_1)));
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             context.assertTrue(handler.isInitialized());
             async.complete();
         });
@@ -151,7 +151,7 @@ public class KafkaHandlerTest {
 
         handler.initialize().onComplete(event -> {
             verify(repository, never()).addKafkaProducer(any());
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             context.assertTrue(handler.isInitialized());
             async.complete();
         });
@@ -166,7 +166,7 @@ public class KafkaHandlerTest {
             object.put("type", "remove");
             vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
             verify(repository, timeout(100).times(1)).closeAll();
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             async.complete();
         });
     }
@@ -197,7 +197,7 @@ public class KafkaHandlerTest {
             put("acks", "1");
         }};
         verify(repository, timeout(500).times(1)).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("."), configs_2)));
-        verifyZeroInteractions(kafkaMessageSender);
+        verifyNoInteractions(kafkaMessageSender);
         await().atMost(1, SECONDS).until( () -> handler.isInitialized(), equalTo(Boolean.TRUE));
         async.complete();
     }
@@ -209,7 +209,7 @@ public class KafkaHandlerTest {
             StreamingRequest request = new StreamingRequest(HttpMethod.POST, "/some/other/uri/path");
             final boolean handled = handler.handle(request);
             context.assertFalse(handled);
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             async.complete();
         });
     }
@@ -224,7 +224,7 @@ public class KafkaHandlerTest {
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             verify(response, times(1)).setStatusCode(eq(StatusCode.METHOD_NOT_ALLOWED.getStatusCode()));
 
             async.complete();
@@ -241,7 +241,7 @@ public class KafkaHandlerTest {
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
 
             async.complete();
@@ -258,7 +258,7 @@ public class KafkaHandlerTest {
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             verify(response, times(1)).setStatusCode(eq(StatusCode.NOT_FOUND.getStatusCode()));
 
             async.complete();
@@ -277,7 +277,7 @@ public class KafkaHandlerTest {
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
 
             async.complete();
@@ -471,7 +471,7 @@ public class KafkaHandlerTest {
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
 
             async.complete();
@@ -520,7 +520,7 @@ public class KafkaHandlerTest {
             final boolean handled = handler.handle(request);
 
             context.assertTrue(handled);
-            verifyZeroInteractions(kafkaMessageSender);
+            verifyNoInteractions(kafkaMessageSender);
             verify(response, times(1)).setStatusCode(eq(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode()));
 
             async.complete();

@@ -12,7 +12,7 @@ import org.swisspush.gateleen.AbstractTest;
 import java.util.Calendar;
 import java.util.Date;
 
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.Matchers.*;

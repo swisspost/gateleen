@@ -9,8 +9,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import static com.jayway.awaitility.Awaitility.await;
-import static com.jayway.awaitility.Duration.TWO_SECONDS;
+import static org.awaitility.Awaitility.await;
+import static org.awaitility.Durations.TWO_SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.swisspush.gateleen.logging.LoggingResourceManager.UPDATE_ADDRESS;
 

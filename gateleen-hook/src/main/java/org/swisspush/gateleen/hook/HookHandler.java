@@ -598,7 +598,7 @@ public class HookHandler implements LoggableResource {
                     selfRequest.headers().add(HOOK_ROUTES_LISTED, "true");
 
                     selfRequest.exceptionHandler(exception -> log.warn("HookHandler: listing of collections (routes) failed: {}: {}", request.uri(), exception.getMessage()));
-                    selfRequest.setTimeout(120000); // avoids blocking other requests
+                    selfRequest.idleTimeout(120000); // avoids blocking other requests
                     selfRequest.send(asyncResult -> {
                         HttpClientResponse response = asyncResult.result();
                         HttpServerRequestUtil.prepareResponse(request, response);
@@ -623,7 +623,7 @@ public class HookHandler implements LoggableResource {
                                 }
 
                                 if (log.isTraceEnabled()) {
-                                    log.trace("createListingIfRequested > response: {}", responseObject.toString());
+                                    log.trace("createListingIfRequested > response: {}", responseObject);
                                 }
 
                                 // write the response
@@ -649,7 +649,7 @@ public class HookHandler implements LoggableResource {
                                 collections.forEach(parentCollectionArray::add);
 
                                 if (log.isTraceEnabled()) {
-                                    log.trace("createListingIfRequested > response: {}", responseObject.toString());
+                                    log.trace("createListingIfRequested > response: {}", responseObject);
                                 }
 
                                 // write the response
@@ -1199,7 +1199,7 @@ public class HookHandler implements LoggableResource {
 
             selfRequest.exceptionHandler(exception -> log.warn("HookHandler HOOK_ERROR: Failed self request to {}: {}", request.uri(), exception.getMessage()));
 
-            selfRequest.setTimeout(120000); // avoids blocking other requests
+            selfRequest.idleTimeout(120000); // avoids blocking other requests
 
             Handler<AsyncResult<HttpClientResponse>> asyncResultHandler = asyncResult -> {
                 HttpClientResponse response = asyncResult.result();
