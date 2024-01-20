@@ -295,7 +295,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
             }
             HttpClientRequest cReq = asyncResult.result();
 
-            cReq.setTimeout(TIMEOUT);
+            cReq.idleTimeout(TIMEOUT);
             cReq.headers().setAll(request.headers());
             // add a marker header to signalize, that in the next loop of the mainverticle we should pass the deltahandler
             cReq.headers().set(DELTA_BACKEND_HEADER, "");
@@ -324,7 +324,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                                 final long updateIdNumber = extractNumberDeltaParameter(updateId, request, log);
 
                                 if (log.isTraceEnabled()) {
-                                    log.trace("DeltaHandler: deltaResourceKeys for targetUri ({}): {}", targetUri, deltaResourceKeys.toString());
+                                    log.trace("DeltaHandler: deltaResourceKeys for targetUri ({}): {}", targetUri, deltaResourceKeys);
                                 }
 
                                 if (deltaResourceKeys.size() > 0) {

@@ -31,7 +31,7 @@ public class BufferBridge {
     }
 
     protected void pump() {
-        vertx.runOnContext(event -> {
+        vertx.runOnContext(nothing -> {
             try {
                 if (!queue.isEmpty()) {
                     log.trace("Pumping from queue");
@@ -60,6 +60,8 @@ public class BufferBridge {
             } catch (Exception e) {
                 if (exceptionHandler != null) {
                     exceptionHandler.handle(e);
+                } else {
+                    log.warn("TODO error handling", e);
                 }
             }
         } else {
@@ -80,6 +82,8 @@ public class BufferBridge {
             } catch (Exception e) {
                 if (exceptionHandler != null) {
                     exceptionHandler.handle(e);
+                }else{
+                    log.warn("TODO error handling", e);
                 }
             }
             endHandler = null;

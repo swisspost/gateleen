@@ -10,6 +10,7 @@ import io.vertx.core.http.Cookie;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.net.HostAndPort;
 
 import java.util.Set;
 
@@ -254,6 +255,18 @@ public interface FastFailHttpServerResponse extends HttpServerResponse {
 
 
     default @Nullable Cookie removeCookie(String name, String domain, String path, boolean invalidate) {
+        throw new UnsupportedOperationException();
+    }
+
+    default Future<Void> writeEarlyHints(MultiMap headers) {
+        throw new UnsupportedOperationException();
+    }
+
+    default void writeEarlyHints(MultiMap headers, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    default Future<HttpServerResponse> push(HttpMethod method, HostAndPort authority, String path, MultiMap headers) {
         throw new UnsupportedOperationException();
     }
 }

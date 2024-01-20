@@ -7,8 +7,6 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.Map;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 

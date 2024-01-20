@@ -9,12 +9,15 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.NetClientOptions;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.client.PoolOptions;
 import io.vertx.redis.client.RedisAPI;
-import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.RedisStandaloneConnectOptions;
 import io.vertx.redis.client.impl.RedisClient;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -145,7 +148,7 @@ public abstract class AbstractTest {
         RunConfig.deployModules(vertx, AbstractTest.class, props, success -> {
             if (success) {
                 String protocol = redisEnableTls ? "rediss://" : "redis://";
-                RedisClient redisClient = new RedisClient(vertx, new RedisOptions().setConnectionString(protocol + redisHost + ":" + redisPort));
+                RedisClient redisClient = new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions().setConnectionString(protocol + redisHost + ":" + redisPort), TracingPolicy.IGNORE);
                 RedisAPI redisAPI = RedisAPI.api(redisClient);
                 RedisProvider redisProvider = () -> Future.succeededFuture(redisAPI);
 

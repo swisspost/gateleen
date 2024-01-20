@@ -97,7 +97,7 @@ public class ExpandByBackendTest extends AbstractTest {
     private void createBackend() {
 
         HttpServer httpServer = vertx.createHttpServer().requestHandler(req -> {
-            log.info("got request in backend: " + req.path());
+            log.info("got request in backend: {}", req.path());
             req.response().headers().set("Content-Type", "application/json");
             if(req.uri().indexOf("expand") > 1) {
                 req.response().end("{\"expandonbackend\": \"success\"}");
@@ -106,6 +106,6 @@ public class ExpandByBackendTest extends AbstractTest {
             }
         });
 
-        httpServer.listen(9999, event -> log.info("created http server on port 9999, " + event.result()));
+        httpServer.listen(9999, event -> log.info("created http server on port 9999, {}", event.result()));
     }
 }

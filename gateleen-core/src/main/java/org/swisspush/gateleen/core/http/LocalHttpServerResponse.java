@@ -1,16 +1,12 @@
 package org.swisspush.gateleen.core.http;
 
-import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
-
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
-
-import java.util.Set;
 
 /**
  * Bridges the reponses of a LocalHttpClientRequest.

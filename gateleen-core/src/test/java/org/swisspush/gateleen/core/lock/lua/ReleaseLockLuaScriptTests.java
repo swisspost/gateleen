@@ -1,6 +1,6 @@
 package org.swisspush.gateleen.core.lock.lua;
 
-import com.jayway.awaitility.Duration;
+import java.time.Duration;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -10,7 +10,7 @@ import redis.clients.jedis.params.SetParams;
 import java.util.Collections;
 import java.util.List;
 
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -201,6 +201,6 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
     }
 
     private void waitMaxUntilExpired(String key, long expireMs){
-        await().pollInterval(50, MILLISECONDS).atMost(new Duration(expireMs, MILLISECONDS)).until(() -> !jedis.exists(key));
+        await().pollInterval(50, MILLISECONDS).atMost(Duration.ofMillis(expireMs)).until(() -> !jedis.exists(key));
     }
 }

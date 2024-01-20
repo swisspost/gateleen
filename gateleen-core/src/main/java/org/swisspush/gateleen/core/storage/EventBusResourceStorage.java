@@ -18,8 +18,8 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 public class EventBusResourceStorage implements ResourceStorage {
 
     private static final Logger log = LoggerFactory.getLogger(EventBusResourceStorage.class);
-    private EventBus eventBus;
-    private String address;
+    private final EventBus eventBus;
+    private final String address;
 
     public EventBusResourceStorage(EventBus eventBus, String address) {
         this.eventBus = eventBus;
@@ -34,14 +34,16 @@ public class EventBusResourceStorage implements ResourceStorage {
 
         eventBus.request(address, request, (Handler<AsyncResult<Message<Buffer>>>) message -> {
             if (message.failed()) {
-                log.warn("Got failed msg from event bus while GET. Lets run into NPE now.", message.cause());
+                log.warn("Got failed msg from event bus while GET. Lets run into NPE now.", new Exception("stacktrace", message.cause()));
                 // Would be best to stop processing now. But we don't to keep backward
                 // compatibility (Will run into NPE anyway).
             }
             Buffer buffer = message.result().body();
             int headerLength = buffer.getInt(0);
             JsonObject header1 = new JsonObject(buffer.getString(4, headerLength + 4));
-            if (header1.getInteger("statusCode") == 200) {
+            Integer statusCode = header1.getInteger("statusCode");
+            if( statusCode == null ) log.debug("getInteger(\"statusCode\") -> null");
+            if( statusCode != null && statusCode == 200 ){
                 bodyHandler.handle(buffer.getBuffer(4 + headerLength, buffer.length()));
             } else {
                 bodyHandler.handle(null);
@@ -56,7 +58,8 @@ public class EventBusResourceStorage implements ResourceStorage {
         request.setInt(0, header.length()).appendBuffer(header).appendBuffer(buffer);
         eventBus.request(address, request, (Handler<AsyncResult<Message<Buffer>>>) message -> {
             if (message.failed()) {
-                log.warn("Got failed msg from event bus while PUT. Lets run into NPE now.", message.cause());
+                log.warn("Got failed msg from event bus while PUT. Lets run into NPE now.",
+                        new Exception("stacktrace", message.cause()));
                 // Would be best to stop processing now. But we don't to keep backward
                 // compatibility (Will run into NPE anyway).
             }
@@ -79,7 +82,8 @@ public class EventBusResourceStorage implements ResourceStorage {
         request.setInt(0, header.length()).appendBuffer(header);
         eventBus.request(address, request, (Handler<AsyncResult<Message<Buffer>>>) message -> {
             if (message.failed()) {
-                log.warn("Got failed msg from event bus while DELETE. Lets run into NPE now.", message.cause());
+                log.warn("Got failed msg from event bus while DELETE. Lets run into NPE now.",
+                        new Exception("stacktrace", message.cause()));
                 // Would be best to stop processing now. But we don't to keep backward
                 // compatibility (Will run into NPE anyway).
             }

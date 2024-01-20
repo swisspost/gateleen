@@ -21,24 +21,24 @@ import java.util.regex.Matcher;
 
 public class RoleAuthorizer implements ConfigurationResource {
 
-    private String aclRoot;
-    private String aclKey = "acls";
+    private final String aclRoot;
+    private final String aclKey = "acls";
 
-    private String adminRole = "admin";
-    private String anonymousRole = "everyone";
-    private String deviceHeader = "x-rp-deviceid";
-    private String userHeader = "x-rp-usr";
+    private final String adminRole = "admin";
+    private final String anonymousRole = "everyone";
+    private final String deviceHeader = "x-rp-deviceid";
+    private final String userHeader = "x-rp-usr";
 
     private final String rolePrefix;
 
-    private AclFactory aclFactory;
-    private RoleMapper roleMapper;
+    private final AclFactory aclFactory;
+    private final RoleMapper roleMapper;
 
-    private PatternHolder aclUriPattern;
+    private final PatternHolder aclUriPattern;
 
-    private ResourceStorage storage;
-    private RoleExtractor roleExtractor;
-    private Map<PatternHolder, Map<String, Set<String>>> initialGrantedRoles;
+    private final ResourceStorage storage;
+    private final RoleExtractor roleExtractor;
+    private final Map<PatternHolder, Map<String, Set<String>>> initialGrantedRoles;
     private final boolean grantAccessWithoutRoles;
 
     // URI -> Method -> Roles

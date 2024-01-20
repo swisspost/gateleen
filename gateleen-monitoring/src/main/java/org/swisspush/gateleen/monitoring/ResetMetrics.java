@@ -51,7 +51,7 @@ public class ResetMetrics implements ResetMetricsMBean {
         log.debug("About to reset '{}' (triggered by an operation from MBean) by sending message to monitoring address '{}'", metric, monitoringAddress);
         vertx.eventBus().request(monitoringAddress, new JsonObject().put("name", metric).put("action", "remove"), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if(reply.failed()){
-             log.error("Failed to remove value for metric '"+metric+"'. Cause: " + reply.cause().getMessage(), reply.cause());
+             log.error("Failed to remove value for metric '{}'. Cause: {}", metric, reply.cause().getMessage(), reply.cause());
             } else {
                 if (!RedisUtils.STATUS_OK.equals(reply.result().body().getString(RedisUtils.REPLY_STATUS))) {
                     log.error("Removing value for metric '{}' resulted in status '{}'. Message: {}", metric,

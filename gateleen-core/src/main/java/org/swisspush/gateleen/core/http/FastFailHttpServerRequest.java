@@ -27,216 +27,215 @@ import java.util.Set;
  * methods you need to mock.
  *
  */
-public interface FastFailHttpServerRequest extends HttpServerRequestInternal {
+public abstract class FastFailHttpServerRequest extends HttpServerRequestInternal {
 
     String msg = "Mock: Override this method to mock your expected behaviour.";
 
 
-    default HttpServerRequest exceptionHandler(Handler<Throwable> handler) {
+    public HttpServerRequest exceptionHandler(Handler<Throwable> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerRequest handler(Handler<Buffer> handler) {
+    public HttpServerRequest handler(Handler<Buffer> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerRequest pause() {
+    public HttpServerRequest pause() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerRequest resume() {
+    public HttpServerRequest resume() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerRequest fetch(long amount) {
+    public HttpServerRequest fetch(long amount) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerRequest endHandler(Handler<Void> endHandler) {
+    public HttpServerRequest endHandler(Handler<Void> endHandler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpVersion version() {
+    public HttpVersion version() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpMethod method() {
+    public HttpMethod method() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default String rawMethod() {
+    public String rawMethod() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default boolean isSSL() {
+    public boolean isSSL() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default @Nullable String scheme() {
+    public @Nullable String scheme() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default String uri() {
+    public String uri() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default @Nullable String path() {
+    public @Nullable String path() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default @Nullable String query() {
+    public @Nullable String query() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default @Nullable String host() {
+    public @Nullable String host() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default long bytesRead() {
+    public long bytesRead() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerResponse response() {
+    public HttpServerResponse response() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default MultiMap headers() {
+    public MultiMap headers() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default @Nullable String getHeader(String headerName) {
+    public @Nullable String getHeader(String headerName) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default String getHeader(CharSequence headerName) {
+    public String getHeader(CharSequence headerName) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default MultiMap params() {
+    public MultiMap params() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default @Nullable String getParam(String paramName) {
+    public @Nullable String getParam(String paramName) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default SocketAddress remoteAddress() {
+    public SocketAddress remoteAddress() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default SocketAddress localAddress() {
+    public SocketAddress localAddress() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default SSLSession sslSession() {
+    public SSLSession sslSession() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default X509Certificate[] peerCertificateChain() throws SSLPeerUnverifiedException {
+    public X509Certificate[] peerCertificateChain() throws SSLPeerUnverifiedException {
         throw new UnsupportedOperationException( msg );
     }
 
-    default String absoluteURI() {
+    public String absoluteURI() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default NetSocket netSocket() {
+    public NetSocket netSocket() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerRequest setExpectMultipart(boolean expect) {
+    public HttpServerRequest setExpectMultipart(boolean expect) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default boolean isExpectMultipart() {
+    public boolean isExpectMultipart() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerRequest uploadHandler(@Nullable Handler<HttpServerFileUpload> uploadHandler) {
+    public HttpServerRequest uploadHandler(@Nullable Handler<HttpServerFileUpload> uploadHandler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default MultiMap formAttributes() {
+    public MultiMap formAttributes() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default @Nullable String getFormAttribute(String attributeName) {
+    public @Nullable String getFormAttribute(String attributeName) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default ServerWebSocket upgrade() {
+    public ServerWebSocket upgrade() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default boolean isEnded() {
+    public boolean isEnded() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerRequest customFrameHandler(Handler<HttpFrame> handler) {
+    public HttpServerRequest customFrameHandler(Handler<HttpFrame> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpConnection connection() {
+    public HttpConnection connection() {
         throw new UnsupportedOperationException( msg );
     }
 
-    default HttpServerRequest streamPriorityHandler(Handler<StreamPriority> handler) {
-        throw new UnsupportedOperationException( msg );
-    }
-
-
-    default Future<Buffer> body() {
+    public HttpServerRequest streamPriorityHandler(Handler<StreamPriority> handler) {
         throw new UnsupportedOperationException( msg );
     }
 
 
-    default Future<Void> end() {
+    public Future<Buffer> body() {
         throw new UnsupportedOperationException( msg );
     }
 
 
-    default Future<NetSocket> toNetSocket() {
+    public Future<Void> end() {
         throw new UnsupportedOperationException( msg );
     }
 
 
-    default Future<ServerWebSocket> toWebSocket() {
+    public Future<NetSocket> toNetSocket() {
         throw new UnsupportedOperationException( msg );
     }
 
 
-    default DecoderResult decoderResult() {
+    public Future<ServerWebSocket> toWebSocket() {
         throw new UnsupportedOperationException( msg );
     }
 
 
-    default @Nullable Cookie getCookie(String name) {
+    public DecoderResult decoderResult() {
         throw new UnsupportedOperationException( msg );
     }
 
 
-    default @Nullable Cookie getCookie(String name, String domain, String path) {
+    public @Nullable Cookie getCookie(String name) {
         throw new UnsupportedOperationException( msg );
     }
 
 
-    default Set<Cookie> cookies(String name) {
+    public @Nullable Cookie getCookie(String name, String domain, String path) {
         throw new UnsupportedOperationException( msg );
     }
 
 
-    default Set<Cookie> cookies() {
+    public Set<Cookie> cookies(String name) {
         throw new UnsupportedOperationException( msg );
     }
 
 
-    @Override
-    default Context context() {
+    public Set<Cookie> cookies() {
         throw new UnsupportedOperationException( msg );
     }
 
     @Override
-    default Object metric() {
+    public Context context() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+    @Override
+    public Object metric() {
         throw new UnsupportedOperationException( msg );
     }
 }

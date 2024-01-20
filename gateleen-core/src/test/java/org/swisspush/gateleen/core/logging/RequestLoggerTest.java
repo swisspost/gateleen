@@ -18,8 +18,8 @@ import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.swisspush.gateleen.core.logging.RequestLogger.*;
 
 /**

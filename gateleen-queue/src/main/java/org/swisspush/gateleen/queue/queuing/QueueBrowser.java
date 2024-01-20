@@ -264,7 +264,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
                     defaultMaxIndex = maxIndex;
                 }
             } catch (NumberFormatException ex) {
-                log.warn("Invalid limit parameter '" + limitParam + "' configured for max queue item count. Using default " + DEFAULT_MAX_QUEUEITEM_COUNT);
+                log.warn("Invalid limit parameter '{}' configured for max queue item count. Using default {}", limitParam, DEFAULT_MAX_QUEUEITEM_COUNT);
             }
         }
         return defaultMaxIndex;
@@ -277,7 +277,7 @@ public class QueueBrowser implements Handler<HttpServerRequest> {
             numQueues = Integer.parseInt(numberOfQueuesStr);
         } catch (Exception e) {
             numQueues = DEFAULT_QUEUE_NUM;
-            log.warn("Queue size monitoring url was used with wrong or without number of queues param. Using default " + DEFAULT_QUEUE_NUM);
+            log.warn("Queue size monitoring url was used with wrong or without number of queues param. Using default {}", DEFAULT_QUEUE_NUM);
         }
 
         return numQueues;

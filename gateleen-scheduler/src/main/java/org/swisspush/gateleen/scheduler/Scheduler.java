@@ -78,7 +78,7 @@ public class Scheduler {
     }
 
     public void start() {
-        log.info("Starting scheduler [ " + cronExpression.getCronExpression() + " ]");
+        log.info("Starting scheduler [ {} ]", cronExpression.getCronExpression());
 
         timer = vertx.setPeriodic(5000, timer -> redisProvider.redis()
                 .onSuccess(redisAPI -> redisAPI.get("schedulers:" + name, reply -> {
@@ -113,14 +113,14 @@ public class Scheduler {
     }
 
     public void stop() {
-        log.info("Stopping scheduler [ " + cronExpression.getCronExpression() + " ] ");
+        log.info("Stopping scheduler [ {} ] ", cronExpression.getCronExpression());
         vertx.cancelTimer(timer);
         String key = "schedulers:" + name;
         redisProvider.redis().onSuccess(redisAPI -> redisAPI.del(Collections.singletonList(key), reply -> {
             if (reply.failed()) {
                 log.error("Could not reset scheduler '" + key + "'");
             }
-        })).onFailure(throwable -> log.error("Redis: Could not reset scheduler '" + key + "'"));
+        })).onFailure(throwable -> log.error("Redis: Could not reset scheduler '{}'", key));
     }
 
     private void trigger() {
@@ -140,7 +140,7 @@ public class Scheduler {
             vertx.eventBus().request(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
                     (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                         if (!OK.equals(event.result().body().getString(STATUS))) {
-                            log.error("Could not enqueue request " + request.toJsonObject().encodePrettily());
+                            log.error("Could not enqueue request {}", request.toJsonObject().encodePrettily());
                         }
                     });
         }

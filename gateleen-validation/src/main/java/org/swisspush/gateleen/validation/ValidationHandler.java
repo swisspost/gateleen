@@ -104,7 +104,7 @@ public class ValidationHandler {
             HttpClientRequest cReq = asyncReqResult.result();
 
 
-            cReq.setTimeout(TIMEOUT);
+            cReq.idleTimeout(TIMEOUT);
             cReq.headers().setAll(req.headers());
             cReq.headers().set(VALID_HEADER, "0");
             Handler<AsyncResult<HttpClientResponse>> resultHandler = asyncResult -> {

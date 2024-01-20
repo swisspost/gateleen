@@ -1,7 +1,5 @@
 package org.swisspush.gateleen.user;
 
-import org.swisspush.gateleen.AbstractTest;
-import com.jayway.awaitility.Duration;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import io.vertx.core.json.JsonObject;
@@ -10,11 +8,11 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.AbstractTest;
 
-import java.util.concurrent.TimeUnit;
-
-import static com.jayway.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Awaitility.await;
+import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 
@@ -118,7 +116,7 @@ public class UserProfileTest extends AbstractTest {
         // we have to wait here, cause the role profile needs to be published over the vert.x bus
         System.out.println("get the known-user profile, after deletion of known-role profile");
         RestAssured.requestSpecification.basePath("/server/users/v1");
-        await().atMost(new Duration(5, TimeUnit.SECONDS)).until(() -> given().header("x-rp-grp", "z-gateleen-known-role,z-gateleen-admin").when().get("known-user/profile").then().extract().body().jsonPath().getString("attrSetByClient"), nullValue());
+        await().atMost(FIVE_SECONDS).until(() -> given().header("x-rp-grp", "z-gateleen-known-role,z-gateleen-admin").when().get("known-user/profile").then().extract().body().jsonPath().getString("attrSetByClient"), nullValue());
 
         given().header("x-rp-grp", "z-gateleen-known-role,z-gateleen-admin").when().get("known-user/profile").then().assertThat().body("username", equalTo("username")).body("personalNumber", equalTo(testPersonalNumber)).body("mail", equalTo("mail")).body("department", equalTo("department")).body("lang", equalTo("lang")).body("tour", equalTo("tour")).body("zip", equalTo("zip"))
                 .body("context", equalTo("context")).body("contextIsDefault", equalTo("contextIsDefault")).body("passkeyChanged", equalTo("passkeyChanged")).body("volumeBeep", equalTo("volumeBeep")).body("torchMode", equalTo("torchMode")).body("spn", equalTo("spn"));

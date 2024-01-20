@@ -33,24 +33,24 @@ public class Authorizer implements LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.authorization-updated";
 
-    private Pattern userUriPattern;
+    private final Pattern userUriPattern;
 
-    private String aclKey = "acls";
+    private final String aclKey = "acls";
 
-    private String anonymousRole = "everyone";
+    private final String anonymousRole = "everyone";
 
-    private RoleMapper roleMapper;
-    private RoleAuthorizer roleAuthorizer;
+    private final RoleMapper roleMapper;
+    private final RoleAuthorizer roleAuthorizer;
 
-    private PatternHolder aclUriPattern;
-    private PatternHolder roleMapperUriPattern;
+    private final PatternHolder aclUriPattern;
+    private final PatternHolder roleMapperUriPattern;
 
-    private Vertx vertx;
-    private EventBus eb;
+    private final Vertx vertx;
+    private final EventBus eb;
 
     private boolean logACLChanges = false;
-    private ResourceStorage storage;
-    private RoleExtractor roleExtractor;
+    private final ResourceStorage storage;
+    private final RoleExtractor roleExtractor;
 
     public static final Logger log = LoggerFactory.getLogger(Authorizer.class);
 

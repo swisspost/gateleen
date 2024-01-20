@@ -13,14 +13,14 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 import java.util.Optional;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
@@ -105,7 +105,7 @@ public class ValidationHandlerTest extends AbstractTest {
         httpClient = Mockito.mock(HttpClient.class);
         clientRequest = Mockito.mock(HttpClientRequest.class);
         Mockito.when(clientRequest.headers()).thenReturn(new HeadersMultiMap());
-        Mockito.when(httpClient.request(any(HttpMethod.class), Matchers.anyString()))
+        Mockito.when(httpClient.request(any(HttpMethod.class), ArgumentMatchers.anyString()))
                 .thenReturn(Future.succeededFuture(clientRequest));
 
         storage = new MockResourceStorage();
@@ -253,7 +253,7 @@ public class ValidationHandlerTest extends AbstractTest {
 
         validationHandler.handle(request);
 
-        verifyZeroInteractions(response);
+        verifyNoInteractions(response);
     }
 
     @Test

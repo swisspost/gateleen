@@ -17,7 +17,7 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 
 import java.util.List;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
