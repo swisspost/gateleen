@@ -1,0 +1,13 @@
+{
+    "my-queue-1" : {
+        "postfixFromStatic": [
+            "A",
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    "my-queue-[0-9]+" : {
+        "postfixDelimiter": "+"
+    }
+}

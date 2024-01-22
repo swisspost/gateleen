@@ -1,0 +1,18 @@
+{
+    "my-queue-1" : {
+        "postfixFromStatic": [
+            "A",
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    "my-queue-[0-9]+" : {
+        "postfixDelimiter": "+",
+        "postfixFromHeader": "{x-rp-deviceid}"
+    },
+    "my-queue-[a-zA-Z]+" : {
+        "postfixDelimiter": "_",
+        "postfixFromUrl": ".*/path1/(.*)/path3/path4/.*"
+    }
+}
