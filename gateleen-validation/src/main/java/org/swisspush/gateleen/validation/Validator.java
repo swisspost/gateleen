@@ -195,7 +195,7 @@ public class Validator {
             JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
             if (jsonNode == null) {
                 promise.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV,
-                        "no valid JSON object: " + jsonBuffer.toString()));
+                        "no valid JSON object: " + jsonBuffer));
                 return promise.future();
             }
             final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
@@ -212,7 +212,7 @@ public class Validator {
                         .append(" | Report: ").append(getReportAsString(valMsgs));
 
                 if (log.isDebugEnabled()) {
-                    msgBuilder.append(" | Validated JSON: ").append(jsonBuffer.toString());
+                    msgBuilder.append(" | Validated JSON: ").append(jsonBuffer);
                 }
 
                 log.warn(msgBuilder.toString());
@@ -234,7 +234,7 @@ public class Validator {
         try {
             JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
             if (jsonNode == null) {
-                throw new IOException("no valid JSON object: " + jsonBuffer.toString());
+                throw new IOException("no valid JSON object: " + jsonBuffer);
             }
             final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
             if (valMsgs.isEmpty()) {
@@ -252,7 +252,7 @@ public class Validator {
                         .append(" | Report: ").append(getReportAsString(valMsgs));
 
                 if (log.isDebugEnabled()) {
-                    msgBuilder.append(" | Validated JSON: ").append(jsonBuffer.toString());
+                    msgBuilder.append(" | Validated JSON: ").append(jsonBuffer);
                 }
 
                 log.warn(msgBuilder.toString());

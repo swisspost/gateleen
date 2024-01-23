@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.player.player;
 
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
 import org.springframework.http.client.ClientHttpResponse;
@@ -12,6 +14,7 @@ import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,7 +41,11 @@ public class Client {
 
         @Override
         protected JSONObject readInternal(Class<? extends JSONObject> clazz, HttpInputMessage inputMessage) throws IOException, HttpMessageNotReadableException {
-            return new JSONObject(inputMessage.getBody());
+            try {
+                return new JSONObject(IOUtils.toString(inputMessage.getBody(), StandardCharsets.UTF_8));
+            } catch (JSONException e) {
+                throw new IOException(e);
+            }
         }
 
         @Override

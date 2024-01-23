@@ -1,17 +1,17 @@
 package org.swisspush.gateleen.playground;
 
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.NetClientOptions;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.redis.client.PoolOptions;
 import io.vertx.redis.client.RedisAPI;
-import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.RedisStandaloneConnectOptions;
 import io.vertx.redis.client.impl.RedisClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +46,8 @@ import org.swisspush.gateleen.kafka.KafkaHandler;
 import org.swisspush.gateleen.kafka.KafkaMessageSender;
 import org.swisspush.gateleen.kafka.KafkaMessageValidator;
 import org.swisspush.gateleen.kafka.KafkaProducerRepository;
+import org.swisspush.gateleen.logging.DefaultLogAppenderRepository;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LogController;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
@@ -62,7 +64,10 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCi
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
-import org.swisspush.gateleen.routing.*;
+import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
+import org.swisspush.gateleen.routing.DeferCloseHttpClient;
+import org.swisspush.gateleen.routing.Router;
+import org.swisspush.gateleen.routing.RuleProvider;
 import org.swisspush.gateleen.routing.auth.DefaultOAuthProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
@@ -119,6 +124,7 @@ public class Server extends AbstractVerticle {
      * Managers
      */
     private LoggingResourceManager loggingResourceManager;
+    private LogAppenderRepository logAppenderRepository;
     private ConfigurationResourceManager configurationResourceManager;
     private ValidationResourceManager validationResourceManager;
     private ValidationSchemaProvider validationSchemaProvider;
@@ -181,13 +187,15 @@ public class Server extends AbstractVerticle {
 
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
+        boolean redisEnableTls = props.get("redis.enableTls") != null ? (Boolean) props.get("redis.enableTls") : false;
 
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_HARD_PROPERTY, "100");
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_SOFT_PROPERTY, "50");
 
         RunConfig.deployModules(vertx, Server.class, props, success -> {
             if (success) {
-                redisClient = new RedisClient(vertx, new RedisOptions().setConnectionString("redis://" + redisHost + ":" + redisPort));
+                String protocol = redisEnableTls ? "rediss://" : "redis://";
+                redisClient = new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions().setConnectionString(protocol + redisHost + ":" + redisPort), TracingPolicy.IGNORE);
                 redisApi = RedisAPI.api(redisClient);
                 RedisProvider redisProvider = () -> Future.succeededFuture(redisApi);
 
@@ -219,8 +227,10 @@ public class Server extends AbstractVerticle {
                         "channels/([^/]+).*", configurationResourceManager, SERVER_ROOT + "/admin/v1/hookconfig");
                 eventBusHandler.setEventbusBridgePingInterval(RunConfig.EVENTBUS_BRIDGE_PING_INTERVAL);
 
+                logAppenderRepository = new DefaultLogAppenderRepository(vertx);
                 loggingResourceManager = new LoggingResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/logging");
                 loggingResourceManager.enableResourceLogging(true);
+
 
                 ContentTypeConstraintRepository repository = new ContentTypeConstraintRepository();
                 contentTypeConstraintHandler = new ContentTypeConstraintHandler(configurationResourceManager, repository,
@@ -242,9 +252,9 @@ public class Server extends AbstractVerticle {
                         queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
 
-                hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, monitoringHandler,
-                        SERVER_ROOT + "/users/v1/%s/profile", SERVER_ROOT + "/hooks/v1/", queueClient,
-                        false, reducedPropagationManager);
+                hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository,
+                        monitoringHandler,SERVER_ROOT + "/users/v1/%s/profile",
+                        SERVER_ROOT + "/hooks/v1/", queueClient,false, reducedPropagationManager);
                 hookHandler.enableResourceLogging(true);
 
                 authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN, ROLE_PREFIX, props);
@@ -285,6 +295,7 @@ public class Server extends AbstractVerticle {
                         .withInfo(info)
                         .withMonitoringHandler(monitoringHandler)
                         .withLoggingResourceManager(loggingResourceManager)
+                        .withLogAppenderRepository(logAppenderRepository)
                         .withResourceLogging(true)
                         .withRoutingConfiguration(configurationResourceManager, SERVER_ROOT + "/admin/v1/routing/config")
                         .withHttpClientFactory(this::createHttpClientForRouter)

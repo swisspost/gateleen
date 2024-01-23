@@ -46,7 +46,7 @@ public abstract class RouteRepositoryBase<T> implements RouteRepository {
      * @param route
      */
     void cleanupRoute(Route route) {
-        LOG.debug("Route for cleanup available? " + (route != null));
+        LOG.debug("Route for cleanup available? {}", (route != null));
 
         if (route != null) {
             route.cleanup();

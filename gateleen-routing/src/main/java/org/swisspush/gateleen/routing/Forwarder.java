@@ -18,6 +18,7 @@ import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.logging.LoggingWriteStream;
@@ -39,18 +40,19 @@ import java.util.regex.Pattern;
  */
 public class Forwarder extends AbstractForwarder {
 
-    private String userProfilePath;
-    private HttpClient client;
-    private Pattern urlPattern;
+    private final String userProfilePath;
+    private final HttpClient client;
+    private final Pattern urlPattern;
     private String target;
     private int port;
-    private Rule rule;
-    private LoggingResourceManager loggingResourceManager;
-    private MonitoringHandler monitoringHandler;
-    private ResourceStorage storage;
+    private final Rule rule;
+    private final LoggingResourceManager loggingResourceManager;
+    private final LogAppenderRepository logAppenderRepository;
+    private final MonitoringHandler monitoringHandler;
+    private final ResourceStorage storage;
     @Nullable
-    private AuthStrategy authStrategy;
-    private Vertx vertx;
+    private final AuthStrategy authStrategy;
+    private final Vertx vertx;
 
     private static final String ON_BEHALF_OF_HEADER = "x-on-behalf-of";
     private static final String USER_HEADER = "x-rp-usr";
@@ -64,13 +66,14 @@ public class Forwarder extends AbstractForwarder {
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
 
     public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage,
-                     LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler,
+                     LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
                      String userProfilePath, @Nullable AuthStrategy authStrategy) {
-        super(rule, loggingResourceManager, monitoringHandler);
+        super(rule, loggingResourceManager, logAppenderRepository, monitoringHandler);
         this.vertx = vertx;
         this.client = client;
         this.rule = rule;
         this.loggingResourceManager = loggingResourceManager;
+        this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;
         this.storage = storage;
         this.urlPattern = Pattern.compile(rule.getUrlPattern());
@@ -233,7 +236,7 @@ public class Forwarder extends AbstractForwarder {
     private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri,
                                final Logger log, final Map<String, String> profileHeaderMap,
                                Optional<AuthHeader> authHeader, @Nullable final Handler<Void> afterHandler) {
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, req, vertx.eventBus());
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, req, vertx.eventBus());
 
         final String uniqueId = req.headers().get("x-rp-unique_id");
         final String timeout = req.headers().get("x-timeout");
@@ -257,9 +260,9 @@ public class Forwarder extends AbstractForwarder {
                 cReq.response(cResHandler);
 
                 if (timeout != null) {
-                    cReq.setTimeout(Long.parseLong(timeout));
+                    cReq.idleTimeout(Long.parseLong(timeout));
                 } else {
-                    cReq.setTimeout(rule.getTimeout());
+                    cReq.idleTimeout(rule.getTimeout());
                 }
 
                 // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10

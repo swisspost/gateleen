@@ -7,7 +7,11 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.*;
+import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +27,7 @@ import java.util.Random;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+@RunWith(VertxUnitRunner.class)
 public class RuleUpdateTest {
 
     private static final Logger logger = LoggerFactory.getLogger(RuleUpdateTest.class);
@@ -56,7 +61,8 @@ public class RuleUpdateTest {
     }
 
     @BeforeClass
-    public static void mockServerIsRunning() throws IOException, InterruptedException {
+    public static void mockServerIsRunning(TestContext context) throws IOException, InterruptedException {
+        Async async = context.async();
         RestAssured.port = port;
         RestAssured.registerParser("application/json; charset=utf-8", Parser.JSON);
         RestAssured.defaultParser = Parser.JSON;
@@ -78,12 +84,19 @@ public class RuleUpdateTest {
             writeDataToResponse(rsp, largeResource, buf, vBuf); // write first part of data, and this will trigger the drainHandler
             rsp.drainHandler(event -> writeDataToResponse(rsp, largeResource, buf, vBuf));
         });
-        httpServer.listen(upstreamPort, upstreamHost);
+        httpServer.listen(upstreamPort, upstreamHost,  event -> {
+            if (event.succeeded()) {
+                async.complete();
+            } else {
+                context.fail("Server not listening on port " + upstreamPort);
+            }
+        });
         logger.info("Mock httpServer.listen( {}, \"{}\")", upstreamPort, upstreamHost);
         // Then register that server as a static route.
         putCustomUpstreamRoute();
         // Give it some time to properly initialize.
         Thread.sleep(42);
+        async.awaitSuccess();
     }
 
     private static boolean writeDataToResponse(HttpServerResponse rsp, InputStream largeResource, byte[] buf, Buffer vBuf) {

@@ -8,9 +8,9 @@ import io.vertx.core.MultiMap;
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 public class CopyTask {
-    private String sourceUri;
-    private String destinationUri;
-    private MultiMap headers;
+    private final String sourceUri;
+    private final String destinationUri;
+    private final MultiMap headers;
 
     public CopyTask(String sourceUri, String destinationUri, MultiMap headers) {
         this.sourceUri = sourceUri;

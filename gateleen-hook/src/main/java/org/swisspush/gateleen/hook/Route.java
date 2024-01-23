@@ -10,6 +10,7 @@ import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.routing.Forwarder;
@@ -44,6 +45,7 @@ public class Route {
 
     private Vertx vertx;
     private LoggingResourceManager loggingResourceManager;
+    private LogAppenderRepository logAppenderRepository;
     private MonitoringHandler monitoringHandler;
     private String userProfilePath;
     private ResourceStorage storage;
@@ -76,10 +78,12 @@ public class Route {
      * @param httpHook httpHook
      * @param urlPattern - this can be a listener or a normal urlPattern (eg. for a route)
      */
-    public Route(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, String userProfilePath, HttpHook httpHook, String urlPattern, HttpClient selfClient) {
+    public Route(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
+                 MonitoringHandler monitoringHandler, String userProfilePath, HttpHook httpHook, String urlPattern, HttpClient selfClient) {
         this.vertx = vertx;
         this.storage = storage;
         this.loggingResourceManager = loggingResourceManager;
+        this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;
         this.userProfilePath = userProfilePath;
         this.httpHook = httpHook;
@@ -97,7 +101,8 @@ public class Route {
      * Creates the forwarder for this hook.
      */
     private void createForwarder() {
-        forwarder = new Forwarder(vertx, client, rule, storage, loggingResourceManager, monitoringHandler, userProfilePath, null);
+        forwarder = new Forwarder(vertx, client, rule, storage, loggingResourceManager, logAppenderRepository,
+                monitoringHandler, userProfilePath, null);
     }
 
     /**

@@ -37,7 +37,7 @@ public final class ValidationUtil {
                 }
             }
         } catch (PatternSyntaxException patternException) {
-            log.error(patternException.getMessage() + " " + patternException.getPattern());
+            log.error("{} {}", patternException.getMessage(), patternException.getPattern());
         }
 
         return null;

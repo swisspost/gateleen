@@ -63,7 +63,7 @@ public final class RuleFeaturesProvider {
                         RuleFeatures.Feature.DELTA_ON_BACKEND, isDeltaOnBackend)));
                 log.info(String.format("Collected features for rule url pattern %s storageExpand:%s expandOnBackend:%s deltaOnBackend:%s", rule.getUrlPattern(), isStorageExpand, isExpandOnBackend, isDeltaOnBackend));
             } catch (Exception e) {
-                log.error("Could not compile the regex:" + rule.getUrlPattern() + " to a pattern. Cannot collect feature information of this rule");
+                log.error("Could not compile the regex:{} to a pattern. Cannot collect feature information of this rule", rule.getUrlPattern());
             }
         }
         return featuresList;

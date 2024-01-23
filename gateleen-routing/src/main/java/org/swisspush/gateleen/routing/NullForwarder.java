@@ -12,6 +12,7 @@ import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -25,8 +26,8 @@ public class NullForwarder extends AbstractForwarder {
 
     private EventBus eventBus;
 
-    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, MonitoringHandler monitoringHandler, EventBus eventBus) {
-        super(rule, loggingResourceManager, monitoringHandler);
+    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler, EventBus eventBus) {
+        super(rule, loggingResourceManager, logAppenderRepository, monitoringHandler);
         this.eventBus = eventBus;
     }
 
@@ -40,7 +41,7 @@ public class NullForwarder extends AbstractForwarder {
         }
 
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, ctx.request(), eventBus);
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, ctx.request(), eventBus);
         log.debug("Not forwarding request: {} with rule {}", ctx.request().uri(), rule.getRuleIdentifier());
         final HeadersMultiMap requestHeaders = new HeadersMultiMap();
         requestHeaders.addAll(ctx.request().headers());

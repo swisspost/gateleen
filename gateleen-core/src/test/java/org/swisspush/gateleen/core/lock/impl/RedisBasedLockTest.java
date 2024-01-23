@@ -1,14 +1,16 @@
 package org.swisspush.gateleen.core.lock.impl;
 
-import com.jayway.awaitility.Duration;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.net.NetClientOptions;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.redis.client.PoolOptions;
 import io.vertx.redis.client.RedisAPI;
-import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.RedisStandaloneConnectOptions;
 import io.vertx.redis.client.impl.RedisClient;
 import org.junit.After;
 import org.junit.Before;
@@ -18,7 +20,9 @@ import org.junit.runner.RunWith;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
-import static com.jayway.awaitility.Awaitility.await;
+import java.time.Duration;
+
+import static org.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
@@ -42,7 +46,8 @@ public class RedisBasedLockTest {
     @BeforeClass
     public static void setupLock(){
         vertx = Vertx.vertx();
-        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new RedisOptions()));
+        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new NetClientOptions(), new PoolOptions(),
+                new RedisStandaloneConnectOptions(), TracingPolicy.IGNORE));
         redisBasedLock = new RedisBasedLock(() -> Future.succeededFuture(redisAPI));
     }
 
@@ -245,6 +250,6 @@ public class RedisBasedLockTest {
     }
 
     private void waitMaxUntilExpired(String key, long expireMs){
-        await().pollInterval(50, MILLISECONDS).atMost(new Duration(expireMs, MILLISECONDS)).until(() -> !jedis.exists(key));
+        await().pollInterval(50, MILLISECONDS).atMost(Duration.ofMillis(expireMs)).until(() -> !jedis.exists(key));
     }
 }

@@ -70,7 +70,7 @@ public class LockUtil {
                     log.debug("Released lock '{}' with token '{}'", lock, token);
                 }
             } else {
-                log.error("Could not release lock '{}'. Message: {}", lock, releaseEvent.cause().getMessage());
+                log.error("Could not release lock '{}'.", lock, new Exception("stacktrace", releaseEvent.cause()));
             }
         });
     }

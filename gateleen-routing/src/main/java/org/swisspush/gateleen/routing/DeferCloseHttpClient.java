@@ -2,6 +2,7 @@ package org.swisspush.gateleen.routing;
 
 import io.vertx.core.*;
 import io.vertx.core.http.*;
+import io.vertx.core.net.SSLOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -249,6 +250,11 @@ public class DeferCloseHttpClient implements HttpClient {
     @Override
     public Future<WebSocket> webSocketAbs(String url, MultiMap headers, WebsocketVersion version, List<String> subProtocols) {
         return delegate.webSocketAbs(url, headers, version, subProtocols);
+    }
+
+    @Override
+    public Future<Boolean> updateSSLOptions(SSLOptions options, boolean force) {
+        return delegate.updateSSLOptions(options, force);
     }
 
     @Override

@@ -89,7 +89,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         try {
             schedulers = schedulerFactory.parseSchedulers(buffer);
         } catch(ValidationException validationException) {
-            log.error("Could not parse schedulers: " + validationException.toString());
+            log.error("Could not parse schedulers: " + validationException);
         } finally {
             vertx.setTimer(2000, aLong -> startSchedulers());
         }
@@ -101,7 +101,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
                 try {
                     schedulerFactory.parseSchedulers(buffer);
                 } catch (ValidationException validationException) {
-                    log.warn("Could not parse schedulers: " + validationException.toString());
+                    log.warn("Could not parse schedulers: " + validationException);
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, SchedulerResourceManager.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());

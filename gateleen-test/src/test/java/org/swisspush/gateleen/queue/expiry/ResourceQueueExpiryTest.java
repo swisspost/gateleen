@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.queue.expiry;
 
-import com.jayway.awaitility.Duration;
 import io.restassured.RestAssured;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -13,9 +12,9 @@ import org.swisspush.gateleen.TestUtils;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.jayway.awaitility.Awaitility.await;
-import static com.jayway.awaitility.Duration.TEN_SECONDS;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
 
@@ -45,7 +44,7 @@ public class ResourceQueueExpiryTest extends AbstractTest {
      * @param body
      */
     private void checkGETBodyWithAwait(final String requestUrl, final String body) {
-        await().atMost(Duration.FIVE_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
+        await().atMost(FIVE_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
     }
 
     /**
@@ -127,7 +126,7 @@ public class ResourceQueueExpiryTest extends AbstractTest {
         // ----
 
         // wait 2 seconds
-        await().timeout(Duration.TWO_SECONDS);
+        await().timeout(TWO_SECONDS);
 
         // check if the two items are in the queue
         when().get("queuing/queues/").then().assertThat().body("queues", hasItem("gateleen-queue-expiry-test-discard"));
@@ -188,7 +187,7 @@ public class ResourceQueueExpiryTest extends AbstractTest {
         given().headers(headers).body(discardedBody).when().put(discardedRequestUrl);
 
         // wait 2 seconds
-        await().timeout(Duration.TWO_SECONDS);
+        await().timeout(TWO_SECONDS);
 
         // check if item is still in queue - yes
         when().get("queuing/queues/").then().assertThat().body("queues", hasItem(name));
@@ -236,7 +235,7 @@ public class ResourceQueueExpiryTest extends AbstractTest {
         given().headers(headers).body(discardedBody).when().put(discardedRequestUrl);
 
         // wait 2 seconds
-        await().timeout(Duration.TWO_SECONDS);
+        await().timeout(TWO_SECONDS);
 
         // check if item is still in queue - yes
         when().get("queuing/queues/").then().assertThat().body("queues", hasItem(name));

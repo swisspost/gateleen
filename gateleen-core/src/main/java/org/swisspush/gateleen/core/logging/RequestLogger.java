@@ -41,7 +41,7 @@ public class RequestLogger {
 
     public static void logRequest(EventBus eventBus, final HttpServerRequest request, final int status, Buffer data, final MultiMap responseHeaders) {
         Logger log = RequestLoggerFactory.getLogger(RequestLogger.class, request);
-        log.info("Notify logging to eventually log the payload and headers of request to uri " + request.uri());
+        log.info("Notify logging to eventually log the payload and headers of request to uri {}", request.uri());
         JsonObject logEntry = new JsonObject();
         logEntry.put(REQUEST_URI, request.uri());
         logEntry.put(REQUEST_METHOD, request.method().name());
@@ -52,9 +52,9 @@ public class RequestLogger {
 
         eventBus.request(Address.requestLoggingConsumerAddress(), logEntry, (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (reply.failed()) {
-                log.warn("Failed to log the payload and headers. Cause: " + reply.cause().getMessage());
+                log.warn("Failed to log the payload and headers. Cause: {}", reply.cause().getMessage());
             } else if (ERROR.equals(reply.result().body().getString("status"))) {
-                log.warn("Failed to log the payload and headers. Cause: " + reply.result().body().getString("message"));
+                log.warn("Failed to log the payload and headers. Cause: {}", reply.result().body().getString("message"));
             }
         });
     }

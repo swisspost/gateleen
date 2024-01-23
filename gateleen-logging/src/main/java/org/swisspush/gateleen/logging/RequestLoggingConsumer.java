@@ -24,10 +24,12 @@ import static org.swisspush.gateleen.core.logging.RequestLogger.*;
 public class RequestLoggingConsumer {
     private final Vertx vertx;
     private final LoggingResourceManager loggingResourceManager;
+    private final LogAppenderRepository logAppenderRepository;
 
-    public RequestLoggingConsumer(Vertx vertx, LoggingResourceManager loggingResourceManager) {
+    public RequestLoggingConsumer(Vertx vertx, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository) {
         this.vertx = vertx;
         this.loggingResourceManager = loggingResourceManager;
+        this.logAppenderRepository = logAppenderRepository;
 
         vertx.eventBus().localConsumer(Address.requestLoggingConsumerAddress(), (Handler<Message<JsonObject>>) event -> {
             try {
@@ -66,7 +68,7 @@ public class RequestLoggingConsumer {
      * @param responseHeaders the response headers
      */
     private void logRequest(final HttpServerRequest request, final int status, Buffer data, final MultiMap responseHeaders) {
-        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, request, vertx.eventBus());
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, request, vertx.eventBus());
         if (HttpMethod.PUT == request.method() || HttpMethod.POST == request.method()) {
             loggingHandler.appendRequestPayload(data);
         } else if (HttpMethod.GET == request.method()) {

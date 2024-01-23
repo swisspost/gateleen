@@ -144,7 +144,7 @@ This is a list of the custom headers used by Gateleen.
 ## Performance Tuning
 * The amount of max open files per process should be at least 16384. You can check your max open files per process with this command `cat /proc/<process id>/limits`.
 * The amount of open files depends on the amount of open Http Requests, which are holding a tcp connection which are holding a file handle.
-* The important number to control the open Http Requests is the pool size of the Http Client. The higher the pool size the higher the open files.
+* The important number to control the open HTTP requests is the pool size of the Http Client. The higher the pool size the higher the open files.
 
 ## Dependencies
 * [vertx-rest-storage](https://github.com/swisspush/vertx-rest-storage) at least release [v2.0.2](https://github.com/swisspush/vertx-rest-storage/releases/tag/v2.0.2)

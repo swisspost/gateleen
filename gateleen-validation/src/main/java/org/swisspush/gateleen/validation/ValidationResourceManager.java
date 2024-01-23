@@ -76,7 +76,7 @@ public class ValidationResourceManager implements LoggableResource {
     private void updateValidationResource(Buffer buffer) throws ValidationException {
         extractValidationValues(buffer);
         for (Map<String, String> resourceToValidate : getValidationResource().getResources()) {
-            log.info("Applying validation for resource: " + resourceToValidate);
+            log.info("Applying validation for resource: {}", resourceToValidate);
         }
         if(getValidationResource().getResources().isEmpty()){
             log.info("No validation rules to apply!");
@@ -90,7 +90,7 @@ public class ValidationResourceManager implements LoggableResource {
                     extractValidationValues(validationResourceBuffer);
                 } catch (ValidationException validationException) {
                     updateValidationResource();
-                    log.error("Could not parse validation resource: " + validationException.toString());
+                    log.error("Could not parse validation resource: " + validationException);
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, ValidationResourceManager.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());

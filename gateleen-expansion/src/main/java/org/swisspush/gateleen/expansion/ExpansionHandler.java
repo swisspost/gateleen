@@ -5,16 +5,24 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.*;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.*;
+import org.swisspush.gateleen.core.util.ExpansionDeltaUtil;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
+import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
+import org.swisspush.gateleen.core.util.ResourceCollectionException;
+import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleFeaturesProvider;
 import org.swisspush.gateleen.routing.RuleProvider;
@@ -25,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.EXPAND_ON_BACKEND;
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.STORAGE_EXPAND;
 import static org.swisspush.gateleen.routing.RuleProvider.RuleChangesObserver;
@@ -395,7 +404,7 @@ public class ExpansionHandler implements RuleChangesObserver {
             if (log.isTraceEnabled()) {
                 log.trace("set cReq headers");
             }
-            cReq.setTimeout(TIMEOUT);
+            cReq.idleTimeout(TIMEOUT);
             cReq.headers().setAll(req.headers());
             cReq.headers().set("Accept", "application/json");
             cReq.headers().set(SELF_REQUEST_HEADER, "true");
@@ -429,7 +438,7 @@ public class ExpansionHandler implements RuleChangesObserver {
 
     private Integer extractExpandParamValue(final HttpServerRequest request, final Logger log) {
         String expandValue = request.params().get(EXPAND_PARAM);
-        log.debug("got expand parameter value " + expandValue);
+        log.debug("got expand parameter value {}", expandValue);
 
         try {
             int value = Integer.parseInt(expandValue);
@@ -491,7 +500,9 @@ public class ExpansionHandler implements RuleChangesObserver {
 
     private void makeStorageExpandRequest(final String targetUri, final List subResourceNames, final HttpServerRequest req, final DeltaHandler<ResourceNode> handler) {
         Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
-        httpClient.request(HttpMethod.POST, targetUri + "?storageExpand=true").onComplete(asyncResult -> {
+        HttpMethod reqMethod = HttpMethod.POST;
+        String reqUri = targetUri + "?storageExpand=true";
+        httpClient.request(reqMethod, reqUri).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
                 log.warn("Failed request to {}: {}", targetUri + "?storageExpand=true", asyncResult.cause());
                 return;
@@ -503,7 +514,7 @@ public class ExpansionHandler implements RuleChangesObserver {
             requestPayload.put("subResources", new JsonArray(subResourceNames));
             Buffer payload = Buffer.buffer(requestPayload.encodePrettily());
 
-            cReq.setTimeout(TIMEOUT);
+            cReq.idleTimeout(TIMEOUT);
             cReq.headers().setAll(req.headers());
             cReq.headers().set(SELF_REQUEST_HEADER, "true");
             cReq.headers().set("Content-Type", "application/json; charset=utf-8");
@@ -512,16 +523,23 @@ public class ExpansionHandler implements RuleChangesObserver {
             cReq.write(payload);
 
             cReq.send(event -> {
+                if (event.failed()) {
+                    Throwable ex = event.cause();
+                    log.debug("{} {}", reqMethod, reqUri, ex);
+                    var exWrappr = new ResourceCollectionException(ex.getMessage(), INTERNAL_SERVER_ERROR);
+                    handler.handle(new ResourceNode(SERIOUS_EXCEPTION, exWrappr));
+                }
                 HttpClientResponse cRes = event.result();
                 cRes.bodyHandler(data -> {
                     if (StatusCode.NOT_FOUND.getStatusCode() == cRes.statusCode()) {
-                        log.debug("requested resource could not be found: {}", targetUri);
+                        log.debug("NotFound: {}", targetUri);
                         handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.NOT_FOUND)));
                     } else if (StatusCode.INTERNAL_SERVER_ERROR.getStatusCode() == cRes.statusCode()) {
-                        log.error("error in request resource : {} message : {}", targetUri, data.toString());
-                        handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(data.toString(), StatusCode.INTERNAL_SERVER_ERROR)));
+                        String fullResponseBody = data.toString();
+                        log.error("{}: {}: {}", INTERNAL_SERVER_ERROR, targetUri, fullResponseBody);
+                        handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(fullResponseBody, StatusCode.INTERNAL_SERVER_ERROR)));
                     } else if (StatusCode.METHOD_NOT_ALLOWED.getStatusCode() == cRes.statusCode()) {
-                        log.error("POST requests (storageExpand) not allowed for uri: {}", targetUri);
+                        log.error("storageExpand not allowed for: {}", targetUri);
                         handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.METHOD_NOT_ALLOWED)));
                     } else {
                         String eTag = geteTag(cRes.headers());
@@ -573,7 +591,7 @@ public class ExpansionHandler implements RuleChangesObserver {
             if (log.isTraceEnabled()) {
                 log.trace("set the cReq headers for the subRequest");
             }
-            cReq.setTimeout(TIMEOUT);
+            cReq.idleTimeout(TIMEOUT);
             cReq.headers().setAll(req.headers());
             cReq.headers().set("Accept", "application/json");
             cReq.headers().set(SELF_REQUEST_HEADER, "true");

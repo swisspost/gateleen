@@ -2,7 +2,6 @@ package org.swisspush.gateleen.user;
 
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
-import com.jayway.awaitility.Duration;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import io.vertx.ext.unit.Async;
@@ -11,10 +10,11 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 
@@ -90,7 +90,7 @@ public class RoleProfileTest extends AbstractTest {
         // we have to wait here, cause the role profile needs to be published over the vert.x bus
         RestAssured.requestSpecification.basePath("/server/users/v1");
 
-        await().atMost(new Duration(8, TimeUnit.SECONDS)).until(() -> given().header("x-rp-grp", "z-gateleen-known-role,z-gateleen-admin").when().get("known-user/profile").then().extract().body().jsonPath().getString("foo"), equalTo(roleProfilePropertyValue));
+        await().atMost(Duration.ofSeconds(8)).until(() -> given().header("x-rp-grp", "z-gateleen-known-role,z-gateleen-admin").when().get("known-user/profile").then().extract().body().jsonPath().getString("foo"), equalTo(roleProfilePropertyValue));
 
         async.complete();
     }
@@ -106,7 +106,7 @@ public class RoleProfileTest extends AbstractTest {
         // we have to wait here, cause the role profile needs to be published over the vert.x bus
         RestAssured.requestSpecification.basePath("/server/users/v1");
 
-        await().atMost(new Duration(5, TimeUnit.SECONDS)).until(() -> given().header("x-rp-grp", "z-gateleen-admin").when().get("known-user/profile").then().extract().body().jsonPath().getString("foo"), nullValue());
+        await().atMost(FIVE_SECONDS).until(() -> given().header("x-rp-grp", "z-gateleen-admin").when().get("known-user/profile").then().extract().body().jsonPath().getString("foo"), nullValue());
 
         async.complete();
     }
@@ -157,7 +157,7 @@ public class RoleProfileTest extends AbstractTest {
         // we have to wait here, cause the role profile needs to be published over the vert.x bus
         System.out.println("get the known-user profile, after deletion of known-role profile");
         RestAssured.requestSpecification.basePath("/server/users/v1");
-        await().atMost(new Duration(5, TimeUnit.SECONDS)).until(() -> given().header("x-rp-grp", "z-gateleen-known-role,z-gateleen-admin").when().get("known-user/profile").then().extract().body().jsonPath().getString("foo"), nullValue());
+        await().atMost(FIVE_SECONDS).until(() -> given().header("x-rp-grp", "z-gateleen-known-role,z-gateleen-admin").when().get("known-user/profile").then().extract().body().jsonPath().getString("foo"), nullValue());
 
         async.complete();
     }

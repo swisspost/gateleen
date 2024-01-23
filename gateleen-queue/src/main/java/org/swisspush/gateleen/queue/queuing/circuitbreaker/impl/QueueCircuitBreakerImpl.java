@@ -35,20 +35,20 @@ import static org.swisspush.redisques.util.RedisquesAPI.*;
  */
 public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChangesObserver, Refreshable {
 
-    private Logger log = LoggerFactory.getLogger(QueueCircuitBreakerImpl.class);
+    private final Logger log = LoggerFactory.getLogger(QueueCircuitBreakerImpl.class);
 
-    private Vertx vertx;
-    private QueueCircuitBreakerStorage queueCircuitBreakerStorage;
-    private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
-    private QueueCircuitBreakerConfigurationResourceManager configResourceManager;
+    private final Vertx vertx;
+    private final QueueCircuitBreakerStorage queueCircuitBreakerStorage;
+    private final QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
+    private final QueueCircuitBreakerConfigurationResourceManager configResourceManager;
 
-    private Lock lock;
+    private final Lock lock;
 
     public static final String OPEN_TO_HALF_OPEN_TASK_LOCK = "openToHalfOpenTask";
     public static final String UNLOCK_QUEUES_TASK_LOCK = "unlockQueuesTask";
     public static final String UNLOCK_SAMPLE_QUEUES_TASK_LOCK = "unlockSampleQueuesTask";
 
-    private String redisquesAddress;
+    private final String redisquesAddress;
 
     private long openToHalfOpenTimerId = -1;
     private long unlockQueuesTimerId = -1;

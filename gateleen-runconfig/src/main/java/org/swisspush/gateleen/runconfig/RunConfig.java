@@ -201,7 +201,7 @@ public class RunConfig {
             conf = "classpath:" + SERVER_NAME + "/config/logging/log4j2.xml";
         }
 
-        log.info(SERVER_NAME + " starting with log configuration " + conf);
+        log.info("{} starting with log configuration {}", SERVER_NAME, conf);
         Configurator.initialize("", conf);
     }
 
@@ -382,9 +382,17 @@ public class RunConfig {
      * Builds redis properties configuration.
      */
     public static Map<String, Object> buildRedisProps(String redisHost, int redisPort) {
+        return buildRedisProps(redisHost, redisPort, false);
+    }
+
+    /**
+     * Builds redis properties configuration.
+     */
+    public static Map<String, Object> buildRedisProps(String redisHost, int redisPort, boolean redisEnableTls) {
         final Map<String, Object> props = new HashMap<>();
         props.put("redis.host", redisHost);
         props.put("redis.port", redisPort);
+        props.put("redis.enableTls", redisEnableTls);
         props.put("redis.encoding", "UTF-8");
         return props;
     }
@@ -393,9 +401,17 @@ public class RunConfig {
      * Builds a standard mod redis configuration.
      */
     public static JsonObject buildModRedisConfig(String redisHost, int redisPort) {
+        return buildModRedisConfig(redisHost, redisPort, false);
+    }
+
+    /**
+     * Builds a standard mod redis configuration.
+     */
+    public static JsonObject buildModRedisConfig(String redisHost, int redisPort, boolean redisEnableTls) {
         JsonObject config = new JsonObject();
         config.put("host", redisHost);
         config.put("port", redisPort);
+        config.put("enableTls", redisEnableTls);
         config.put("encoding", "UTF-8");
         return config;
     }
@@ -418,6 +434,8 @@ public class RunConfig {
                 .processorAddress(Address.queueProcessorAddress())
                 .httpRequestHandlerEnabled(true)
                 .httpRequestHandlerPort(7015)
+                .redisReconnectAttempts(-1)
+                .redisPoolRecycleTimeoutMs(-1)
                 .build()
                 .asJsonObject();
     }
@@ -429,6 +447,8 @@ public class RunConfig {
         return new ModuleConfiguration()
                 .storageType(ModuleConfiguration.StorageType.redis)
                 .storageAddress(Address.storageAddress() + "-main")
+                .redisReconnectAttempts(-1)
+                .redisPoolRecycleTimeoutMs(-1)
                 .asJsonObject();
     }
 
@@ -480,7 +500,8 @@ public class RunConfig {
         final Logger log = LoggerFactory.getLogger(verticleClass);
         String redisHost = (String) props.get("redis.host");
         Integer redisPort = (Integer) props.get("redis.port");
-        log.info("deploying redis module with host:" + redisHost + " port:" + redisPort);
+        boolean redisEnableTls = props.get("redis.enableTls") != null ? (Boolean) props.get("redis.enableTls") : false;
+        log.info("deploying redis module with host: {}, port: {}, TLS: {}", redisHost, redisPort, redisEnableTls);
 
         // redisques module
         vertx.deployVerticle("org.swisspush.redisques.RedisQues", new DeploymentOptions().setConfig(RunConfig.buildRedisquesConfig()).setInstances(4), event -> {
@@ -769,7 +790,7 @@ public class RunConfig {
                 DateTime dt = isoDateTimeParser.parseDateTime(timestamp);
                 request.headers().set(header, dfISO8601.print(dt));
             } catch (IllegalArgumentException e) {
-                log.warn("Could not parse " + header + " : " + timestamp);
+                log.warn("Could not parse {} : {}", header, timestamp);
             }
         }
     }

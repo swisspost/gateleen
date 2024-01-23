@@ -31,13 +31,13 @@ import java.util.Optional;
  */
 public class ConfigurationResourceManager implements LoggableResource {
 
-    private Logger log = LoggerFactory.getLogger(ConfigurationResourceManager.class);
+    private static final Logger log = LoggerFactory.getLogger(ConfigurationResourceManager.class);
 
-    private Vertx vertx;
-    private ResourceStorage storage;
+    private final Vertx vertx;
+    private final ResourceStorage storage;
     private Map<String, String> registeredResources;
     private Map<String, List<ConfigurationResourceObserver>> observers;
-    private ConfigurationResourceValidator configurationResourceValidator;
+    private final ConfigurationResourceValidator configurationResourceValidator;
     private boolean logConfigurationResourceChanges = false;
 
     public static final String CONFIG_RESOURCE_CHANGED_ADDRESS = "gateleen.configuration-resource-changed";
@@ -113,16 +113,20 @@ public class ConfigurationResourceManager implements LoggableResource {
         if(HttpMethod.PUT == request.method()) {
             requestLog.info("Refresh resource {}", resourceUri);
             request.bodyHandler(buffer -> configurationResourceValidator.validateConfigurationResource(buffer, resourceSchema, event -> {
+                var rsp = request.response();
                 if (event.failed() || (event.succeeded() && !event.result().isSuccess())) {
-                    requestLog.error("Could not parse configuration resource for uri '" + resourceUri + "' message: " + event.result().getMessage());
-                    request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                    request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + event.result().getMessage());
+                    var eventResult = event.result();
+                    requestLog.error("Could not parse configuration resource for uri '{}' message: {}",
+                            resourceUri, eventResult == null ? "<null>" : eventResult.getMessage());
+                    rsp.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+                    rsp.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " +
+                            (eventResult == null ? "<null>" : eventResult.getMessage()));
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, ConfigurationResourceManager.class);
-                    if (event.result().getValidationDetails() != null) {
-                        request.response().headers().add("content-type", "application/json");
-                        request.response().end(event.result().getValidationDetails().encode());
+                    if (eventResult != null && eventResult.getValidationDetails() != null) {
+                        rsp.headers().add("content-type", "application/json");
+                        rsp.end(eventResult.getValidationDetails().encode());
                     } else {
-                        request.response().end(event.result().getMessage());
+                        rsp.end(eventResult == null ? "<null>\n" : eventResult.getMessage());
                     }
                 } else {
                     storage.put(resourceUri, buffer, status -> {
@@ -135,10 +139,10 @@ public class ConfigurationResourceManager implements LoggableResource {
                             object.put("type", ConfigurationResourceChangeType.CHANGE);
                             vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
                         } else {
-                            request.response().setStatusCode(status);
+                            rsp.setStatusCode(status);
                         }
                         ResponseStatusCodeLogUtil.info(request, StatusCode.fromCode(status), ConfigurationResourceManager.class);
-                        request.response().end();
+                        rsp.end();
                     });
                 }
             }));
@@ -188,10 +192,11 @@ public class ConfigurationResourceManager implements LoggableResource {
                         if (event.result().isSuccess()) {
                             promise.complete(Optional.of(buffer));
                         } else {
-                            promise.fail("Failure during validation of resource " + resourceUri + ". Message: " + event.result().getMessage());
+                            promise.fail(new Exception("Failure during validation of resource "
+                                    + resourceUri + ". Message: " + event.result().getMessage()));
                         }
                     } else {
-                        promise.fail("Failure during validation of resource " + resourceUri + ". Message: " + event.cause());
+                        promise.fail(new Exception("ReleaseLockRedisCommand request failed", event.cause()));
                     }
                 });
             } else {
@@ -213,7 +218,7 @@ public class ConfigurationResourceManager implements LoggableResource {
     private void notifyObserverAboutResourceChange(String requestUri, ConfigurationResourceObserver observer) {
         getValidatedRegisteredResource(requestUri).onComplete(event -> {
             if(event.failed()){
-                log.warn(event.cause().getMessage());
+                log.warn("TODO error handling", new Exception(event.cause()));
             } else if(event.result().isPresent()){
                 if(observer != null) {
                     observer.resourceChanged(requestUri, event.result().get());

@@ -33,7 +33,7 @@ class KafkaTopicExtractor {
         if (StringUtils.isNotEmptyTrimmed(topic)) {
             return Optional.of(topic);
         }
-        requestLog.warn("Extracted an empty string as topic from uri " + request.uri());
+        requestLog.warn("Extracted an empty string as topic from uri {}", request.uri());
         return Optional.empty();
     }
 }

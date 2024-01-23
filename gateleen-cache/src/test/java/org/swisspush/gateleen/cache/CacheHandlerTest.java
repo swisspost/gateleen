@@ -100,7 +100,7 @@ public class CacheHandlerTest {
         Request cacheControlMaxAgeZero = new Request(HttpMethod.GET, "/some/path", headers, response);
         context.assertFalse(cacheHandler.handle(cacheControlMaxAgeZero));
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
     }
 
     @Test

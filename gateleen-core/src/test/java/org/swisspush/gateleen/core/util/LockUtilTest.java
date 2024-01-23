@@ -11,7 +11,7 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.lock.Lock;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 
 /**
  * Tests for the {@link LockUtil} class
@@ -103,6 +103,6 @@ public class LockUtilTest {
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.failedFuture("Booom"));
         LockUtil.releaseLock(lock, "someLock", "someToken", log);
         Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to release lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
-        Mockito.verify(log, Mockito.times(1)).error(eq("Could not release lock '{}'. Message: {}"), eq("someLock"), eq("Booom"));
+        Mockito.verify(log, Mockito.times(1)).error(eq("Could not release lock '{}'."), eq("someLock"), isA(Throwable.class));
     }
 }
