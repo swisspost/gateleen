@@ -11,6 +11,7 @@ import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.duplicate.DuplicateCheckHandler;
+import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
 
 import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
 
@@ -34,16 +35,30 @@ public class QueuingHandler implements Handler<Buffer> {
     private final HttpServerRequest request;
     private final Vertx vertx;
     private final RedisProvider redisProvider;
+    private final QueueSplitter queueSplitter;
 
-    public QueuingHandler(Vertx vertx, RedisProvider redisProvider, HttpServerRequest request, MonitoringHandler monitoringHandler) {
-        this(vertx, redisProvider, request, new QueueClient(vertx, monitoringHandler));
+    public QueuingHandler(
+            Vertx vertx,
+            RedisProvider redisProvider,
+            HttpServerRequest request,
+            MonitoringHandler monitoringHandler,
+            QueueSplitter queueSplitter
+    ) {
+        this(vertx, redisProvider, request, new QueueClient(vertx, monitoringHandler), queueSplitter);
     }
 
-    public QueuingHandler(Vertx vertx, RedisProvider redisProvider, HttpServerRequest request, RequestQueue requestQueue) {
+    public QueuingHandler(
+            Vertx vertx,
+            RedisProvider redisProvider,
+            HttpServerRequest request,
+            RequestQueue requestQueue,
+            QueueSplitter queueSplitter
+    ) {
         this.request = request;
         this.vertx = vertx;
         this.redisProvider = redisProvider;
         this.requestQueue = requestQueue;
+        this.queueSplitter = queueSplitter;
     }
 
     @Override
@@ -61,12 +76,12 @@ public class QueuingHandler implements Handler<Buffer> {
                     request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
                     request.response().end();
                 } else {
-                    requestQueue.enqueue(request, headers, buffer, queue);
+                    requestQueue.enqueue(request, headers, buffer, queueSplitter.handle(queue));
                 }
             });
 
         } else {
-            requestQueue.enqueue(request, headers, buffer, queue);
+            requestQueue.enqueue(request, headers, buffer, queueSplitter.handle(queue));
         }
     }
 

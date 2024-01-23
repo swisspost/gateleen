@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "additionalProperties": {
+    "$ref": "#/definitions/QueueSplitter"
+  },
+  "definitions": {
+    "QueueSplitter": {
+      "description": "A single queue splitter configuration",
+      "type": "object",
+      "properties": {
+        "postfixDelimiter": {
+          "type": "string"
+        },
+        "postfixFromStatic": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "postfixFromHeader": {
+          "type": "string"
+        }
+      },
+      "postfixFromUrl": {
+        "type": "string"
+      }
+    }
+  }
+}

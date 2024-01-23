@@ -64,6 +64,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCi
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
+import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
 import org.swisspush.gateleen.routing.*;
 import org.swisspush.gateleen.routing.auth.DefaultOAuthProvider;
 import org.swisspush.gateleen.runconfig.RunConfig;
@@ -150,6 +151,8 @@ public class Server extends AbstractVerticle {
     private CustomHttpResponseHandler customHttpResponseHandler;
     private ContentTypeConstraintHandler contentTypeConstraintHandler;
     private CacheHandler cacheHandler;
+
+    private QueueSplitter queueSplitter;
 
     public static void main(String[] args) {
         Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event ->
@@ -320,6 +323,8 @@ public class Server extends AbstractVerticle {
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(),
                         monitoringHandler);
 
+                queueSplitter = new QueueSplitter(configurationResourceManager, SERVER_ROOT + "/admin/v1/queueSplitters");
+
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);
 
@@ -344,6 +349,7 @@ public class Server extends AbstractVerticle {
                         .loggingResourceManager(loggingResourceManager)
                         .configurationResourceManager(configurationResourceManager)
                         .queueCircuitBreakerConfigurationResourceManager(queueCircuitBreakerConfigurationResourceManager)
+                        .queueSplitterHandler(queueSplitter)
                         .schedulerResourceManager(schedulerResourceManager)
                         .zipExtractHandler(zipExtractHandler)
                         .delegateHandler(delegateHandler)

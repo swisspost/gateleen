@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
- * Container holding configuration values for {@link QueueSplitterHandler} identified
+ * Container holding configuration values for {@link QueueSplitter} identified
  * by a queue pattern.
  *
  * @author https://github.com/gcastaldi [Giannandrea Castaldi]
