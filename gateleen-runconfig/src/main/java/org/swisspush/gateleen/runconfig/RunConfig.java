@@ -38,6 +38,7 @@ import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
+import org.swisspush.gateleen.queue.queuing.splitter.NoOpQueueSplitter;
 import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
 import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
 import org.swisspush.gateleen.routing.Router;
@@ -92,7 +93,7 @@ public class RunConfig {
     private final LoggingResourceManager loggingResourceManager;
     private final ConfigurationResourceManager configurationResourceManager;
     private final QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
-    private QueueSplitter queueSplitter;
+    private final QueueSplitter queueSplitter;
     private final EventBusHandler eventBusHandler;
     private final ValidationHandler validationHandler;
     private final HookHandler hookHandler;
@@ -229,7 +230,7 @@ public class RunConfig {
         private LoggingResourceManager loggingResourceManager;
         private ConfigurationResourceManager configurationResourceManager;
         private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
-        private QueueSplitter queueSplitter;
+        private QueueSplitter queueSplitter = new NoOpQueueSplitter();
         private EventBusHandler eventBusHandler;
         private KafkaHandler kafkaHandler;
         private CustomHttpResponseHandler customHttpResponseHandler;
@@ -282,7 +283,7 @@ public class RunConfig {
             return this;
         }
 
-        public RunConfigBuilder queueSplitterHandler(QueueSplitter queueSplitter) {
+        public RunConfigBuilder queueSplitter(QueueSplitter queueSplitter) {
             this.queueSplitter = queueSplitter;
             return this;
         }
