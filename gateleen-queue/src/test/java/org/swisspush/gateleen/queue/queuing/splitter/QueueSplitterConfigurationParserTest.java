@@ -63,13 +63,17 @@ public class QueueSplitterConfigurationParserTest {
         context.assertEquals(List.of("A", "B", "C", "D"), config_1.getPostfixFromStatic());
         context.assertNull(config_1.getPostfixFromHeader());
         context.assertNull(config_1.getPostfixFromUrl());
+        context.assertTrue(config_1.isSplitStatic());
+        context.assertFalse(config_1.isSplitFromRequest());
 
         QueueSplitterConfiguration config_2 = configurations.get(1);
         context.assertEquals(Pattern.compile("my-queue-[0-9]+").pattern(), config_2.getQueue().pattern());
         context.assertEquals("+", config_2.getPostfixDelimiter());
         context.assertNull(config_2.getPostfixFromStatic());
-        context.assertEquals("{x-rp-deviceid}", config_2.getPostfixFromHeader());
+        context.assertEquals("x-rp-deviceid", config_2.getPostfixFromHeader());
         context.assertNull(config_2.getPostfixFromUrl());
+        context.assertFalse(config_2.isSplitStatic());
+        context.assertTrue(config_2.isSplitFromRequest());
 
         QueueSplitterConfiguration config_3 = configurations.get(2);
         context.assertEquals(Pattern.compile("my-queue-[a-zA-Z]+").pattern(), config_3.getQueue().pattern());
@@ -77,6 +81,8 @@ public class QueueSplitterConfigurationParserTest {
         context.assertNull(config_3.getPostfixFromStatic());
         context.assertNull(config_3.getPostfixFromHeader());
         context.assertEquals(".*/path1/(.*)/path3/path4/.*", config_3.getPostfixFromUrl());
+        context.assertFalse(config_3.isSplitStatic());
+        context.assertTrue(config_3.isSplitFromRequest());
     }
 
     @Test

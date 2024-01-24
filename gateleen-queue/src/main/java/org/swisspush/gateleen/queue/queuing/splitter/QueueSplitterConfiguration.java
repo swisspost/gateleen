@@ -90,4 +90,12 @@ public class QueueSplitterConfiguration {
                 ", postfixFromUrl='" + postfixFromUrl + '\'' +
                 '}';
     }
+
+    public boolean isSplitStatic() {
+        return postfixFromStatic != null && !postfixFromStatic.isEmpty();
+    }
+
+    public boolean isSplitFromRequest() {
+        return postfixFromHeader != null || postfixFromUrl != null;
+    }
 }

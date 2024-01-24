@@ -9,7 +9,7 @@
     },
     "my-queue-[0-9]+" : {
         "postfixDelimiter": "+",
-        "postfixFromHeader": "{x-rp-deviceid}"
+        "postfixFromHeader": "x-rp-deviceid"
     },
     "my-queue-[a-zA-Z]+" : {
         "postfixDelimiter": "_",

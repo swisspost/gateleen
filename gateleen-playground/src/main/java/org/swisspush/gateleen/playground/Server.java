@@ -325,6 +325,7 @@ public class Server extends AbstractVerticle {
                         monitoringHandler);
 
                 queueSplitter = new QueueSplitterImpl(configurationResourceManager, SERVER_ROOT + "/admin/v1/queueSplitters");
+                queueSplitter.initialize();
 
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);

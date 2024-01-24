@@ -85,12 +85,12 @@ public class QueuingHandler implements Handler<Buffer> {
                     request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
                     request.response().end();
                 } else {
-                    requestQueue.enqueue(request, headers, buffer, queueSplitter.convertToSubQueue(queue));
+                    requestQueue.enqueue(request, headers, buffer, queueSplitter.convertToSubQueue(queue, request));
                 }
             });
 
         } else {
-            requestQueue.enqueue(request, headers, buffer, queueSplitter.convertToSubQueue(queue));
+            requestQueue.enqueue(request, headers, buffer, queueSplitter.convertToSubQueue(queue, request));
         }
     }
 
