@@ -24,7 +24,7 @@ public class QueueSplitterConfiguration {
     private final String postfixFromHeader;
 
     @Nullable
-    private final String postfixFromUrl;
+    private final Pattern postfixFromUrl;
 
 
     public QueueSplitterConfiguration(
@@ -32,7 +32,7 @@ public class QueueSplitterConfiguration {
             String postfixDelimiter,
             @Nullable List<String> postfixFromStatic,
             @Nullable String postfixFromHeader,
-            @Nullable String postfixFromUrl) {
+            @Nullable Pattern postfixFromUrl) {
         this.queue = queue;
         this.postfixDelimiter = postfixDelimiter;
         this.postfixFromStatic = postfixFromStatic;
@@ -59,7 +59,7 @@ public class QueueSplitterConfiguration {
     }
 
     @Nullable
-    public String getPostfixFromUrl() {
+    public Pattern getPostfixFromUrl() {
         return postfixFromUrl;
     }
 

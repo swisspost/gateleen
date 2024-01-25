@@ -16,8 +16,7 @@ public class QueueSplitExecutorFromRequest extends QueueSplitExecutorBase {
         StringBuilder stringBuilder = new StringBuilder(queue);
         if (matches(queue)) {
             if (configuration.getPostfixFromUrl() != null) {
-                Pattern pattern = Pattern.compile(configuration.getPostfixFromUrl());
-                Matcher matcher = pattern.matcher(request.uri());
+                Matcher matcher = configuration.getPostfixFromUrl().matcher(request.uri());
                 if (matcher.matches()) {
                     for (int i = 0; i < matcher.groupCount(); i++) {
                         stringBuilder.append(configuration.getPostfixDelimiter());

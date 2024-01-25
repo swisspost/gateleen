@@ -94,7 +94,7 @@ public class QueueSplitExecutorFromRequestTest {
                 "-",
                 null,
                 null,
-                "/path1/(.+)/path3/(.+)"
+                Pattern.compile("/path1/(.+)/path3/(.+)")
         ));
         HttpServerRequest request = mock(HttpServerRequest.class);
         when(request.headers()).thenReturn(new HeadersMultiMap());
@@ -112,7 +112,7 @@ public class QueueSplitExecutorFromRequestTest {
                 "-",
                 null,
                 "x-rp-deviceid",
-                "/path1/(.+)/path3/(.+)"
+                Pattern.compile("/path1/(.+)/path3/(.+)")
         ));
         HttpServerRequest request = mock(HttpServerRequest.class);
         when(request.headers()).thenReturn(new HeadersMultiMap().add("x-rp-deviceid", "A1B2C3D4E5F6"));

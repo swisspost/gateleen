@@ -80,7 +80,9 @@ public class QueueSplitterConfigurationParserTest {
         context.assertEquals("_", config_3.getPostfixDelimiter());
         context.assertNull(config_3.getPostfixFromStatic());
         context.assertNull(config_3.getPostfixFromHeader());
-        context.assertEquals(".*/path1/(.*)/path3/path4/.*", config_3.getPostfixFromUrl());
+        context.assertEquals(
+                Pattern.compile(".*/path1/(.*)/path3/path4/.*").pattern(),
+                config_3.getPostfixFromUrl().pattern());
         context.assertFalse(config_3.isSplitStatic());
         context.assertTrue(config_3.isSplitFromRequest());
     }

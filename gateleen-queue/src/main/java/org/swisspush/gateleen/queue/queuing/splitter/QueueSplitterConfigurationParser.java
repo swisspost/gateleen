@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 /**
@@ -45,32 +46,36 @@ public class QueueSplitterConfigurationParser {
         }
 
         for (String queuePattern : config.fieldNames()) {
-            Pattern pattern = Pattern.compile(queuePattern);
-            JsonObject queueConfig = config.getJsonObject(queuePattern);
-            JsonArray postfixFromStatic = queueConfig.getJsonArray(POSTFIX_FROM_STATIC_KEY);
-            if (postfixFromStatic != null) {
-                List<String> staticPostfixes = postfixFromStatic.stream().map(Object::toString).collect(Collectors.toList());
-                queueSplitterConfigurations.add(new QueueSplitterConfiguration(
-                        pattern,
-                        queueConfig.getString("postfixDelimiter", DEFAULT_POSTFIX_DELIMITER),
-                        staticPostfixes,
-                        null,
-                        null
-                ));
-                continue;
-            }
-            String postfixFromHeader = queueConfig.getString(POSTFIX_FROM_HEADER_KEY);
-            String postfixFromUrl = queueConfig.getString(POSTFIX_FROM_URL_KEY);
-            if (postfixFromHeader != null || postfixFromUrl != null) {
-                queueSplitterConfigurations.add(new QueueSplitterConfiguration(
-                        pattern,
-                        queueConfig.getString(POSTFIX_DELIMITER_KEY, DEFAULT_POSTFIX_DELIMITER),
-                        null,
-                        postfixFromHeader,
-                        postfixFromUrl
-                ));
-            } else {
-                log.warn("Queue splitter configuration without a postfix definition");
+            try {
+                Pattern pattern = Pattern.compile(queuePattern);
+                JsonObject queueConfig = config.getJsonObject(queuePattern);
+                JsonArray postfixFromStatic = queueConfig.getJsonArray(POSTFIX_FROM_STATIC_KEY);
+                if (postfixFromStatic != null) {
+                    List<String> staticPostfixes = postfixFromStatic.stream().map(Object::toString).collect(Collectors.toList());
+                    queueSplitterConfigurations.add(new QueueSplitterConfiguration(
+                            pattern,
+                            queueConfig.getString("postfixDelimiter", DEFAULT_POSTFIX_DELIMITER),
+                            staticPostfixes,
+                            null,
+                            null
+                    ));
+                    continue;
+                }
+                String postfixFromHeader = queueConfig.getString(POSTFIX_FROM_HEADER_KEY);
+                String postfixFromUrl = queueConfig.getString(POSTFIX_FROM_URL_KEY);
+                if (postfixFromHeader != null || postfixFromUrl != null) {
+                    queueSplitterConfigurations.add(new QueueSplitterConfiguration(
+                            pattern,
+                            queueConfig.getString(POSTFIX_DELIMITER_KEY, DEFAULT_POSTFIX_DELIMITER),
+                            null,
+                            postfixFromHeader,
+                            postfixFromUrl != null ? Pattern.compile(postfixFromUrl) : null
+                    ));
+                } else {
+                    log.warn("Queue splitter configuration without a postfix definition");
+                }
+            } catch (PatternSyntaxException patternException) {
+                log.warn("Queue splitter '{}' is not a valid regex pattern. Discarding this queue splitter configuration", queuePattern);
             }
         }
 
