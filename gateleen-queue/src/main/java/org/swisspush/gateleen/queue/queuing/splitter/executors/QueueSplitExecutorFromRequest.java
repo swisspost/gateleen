@@ -7,7 +7,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class QueueSplitExecutorFromRequest extends QueueSplitExecutorBase {
-    protected QueueSplitExecutorFromRequest(QueueSplitterConfiguration configuration) {
+    public QueueSplitExecutorFromRequest(QueueSplitterConfiguration configuration) {
         super(configuration);
     }
 

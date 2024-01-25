@@ -9,7 +9,7 @@ public class QueueSplitExecutorFromList extends QueueSplitExecutorBase {
 
     AtomicInteger atomicInteger = new AtomicInteger(0);
 
-    protected QueueSplitExecutorFromList(QueueSplitterConfiguration configuration) {
+    public QueueSplitExecutorFromList(QueueSplitterConfiguration configuration) {
         super(configuration);
     }
 

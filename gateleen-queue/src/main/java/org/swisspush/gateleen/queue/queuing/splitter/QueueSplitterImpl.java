@@ -8,10 +8,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceConsumer;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
+import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutor;
+import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromList;
+import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromRequest;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * {@inheritDoc}
@@ -23,6 +25,8 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
     private final Map<String, Object> properties;
 
     private boolean initialized = false;
+
+    private List<QueueSplitExecutor> queueSplitExecutors = new ArrayList<>();
 
     public QueueSplitterImpl(
             ConfigurationResourceManager configurationResourceManager,
@@ -40,11 +44,16 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
         this.properties = properties;
     }
 
+    public List<QueueSplitExecutor> getQueueSplitExecutors() {
+        return queueSplitExecutors;
+    }
+
     public Future<Void> initialize() {
         Promise<Void> promise = Promise.promise();
         configurationResourceManager().getRegisteredResource(configResourceUri()).onComplete((event -> {
             if (event.succeeded() && event.result().isPresent()) {
-                initializeQueueSplitterConfiguration(event.result().get()).onComplete((event1 -> promise.complete()));
+                initializeQueueSplitterConfiguration(event.result().get());
+                promise.complete();
             } else {
                 log.warn("No queue splitter configuration resource with uri '{}' found. Unable to setup kafka configuration correctly", configResourceUri());
                 promise.complete();
@@ -57,13 +66,18 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
         return initialized;
     }
 
-    private Future<Void> initializeQueueSplitterConfiguration(Buffer configuration) {
+    private void initializeQueueSplitterConfiguration(Buffer configuration) {
         Promise<Void> promise = Promise.promise();
-        final List<QueueSplitterConfiguration> kafkaConfigurations = QueueSplitterConfigurationParser.parse(configuration, properties);
-
-        // TODO: release all splitters and creates new ones
-
-        return promise.future();
+        final List<QueueSplitterConfiguration> configurations = QueueSplitterConfigurationParser.parse(configuration, properties);
+        queueSplitExecutors.clear();
+        queueSplitExecutors = configurations.stream().map(queueSplitterConfiguration -> {
+            if (queueSplitterConfiguration.isSplitStatic()) {
+                return new QueueSplitExecutorFromList(queueSplitterConfiguration);
+            } else {
+                return new QueueSplitExecutorFromRequest(queueSplitterConfiguration);
+            }
+        }).collect(Collectors.toList());
+        initialized = true;
     }
 
     /**
@@ -71,7 +85,8 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
      */
     @Override
     public String convertToSubQueue(final String queue, HttpServerRequest request) {
-        return queue + "-1";
+        Optional<QueueSplitExecutor> executor = queueSplitExecutors.stream().filter(splitExecutor -> splitExecutor.matches(queue)).findFirst();
+        return executor.isPresent() ? executor.get().executeSplit(queue, request) : queue;
     }
 
     @Override
@@ -86,9 +101,7 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
     public void resourceRemoved(String resourceUri) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
             log.info("Queue splitter configuration resource {} was removed. Going to close all kafka producers", resourceUri);
-
-            // TODO: release all splitters and creates new ones
-
+            queueSplitExecutors.clear();
             initialized = false;
         }
     }
