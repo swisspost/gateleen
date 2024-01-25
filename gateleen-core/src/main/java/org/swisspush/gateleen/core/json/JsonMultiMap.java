@@ -1,10 +1,9 @@
 package org.swisspush.gateleen.core.json;
 
-import java.util.Iterator;
-import java.util.Map;
-
 import io.vertx.core.MultiMap;
 import io.vertx.core.json.JsonArray;
+
+import java.util.Map;
 
 public final class JsonMultiMap {
 

@@ -10,7 +10,6 @@ import io.vertx.core.http.Http2Settings;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.net.SocketAddress;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
@@ -55,8 +54,6 @@ public class LocalHttpConnection implements HttpConnection {
 
     @Override
     public HttpConnection closeHandler(Handler<Void> handler) {
-        log.warn("Happy debugging, as this impl is going to ignore your closeHandler anyway",
-                new Exception("may this stacktrace help you"));
         return this;
     }
 
@@ -119,7 +116,17 @@ public class LocalHttpConnection implements HttpConnection {
     }
 
     @Override
+    public SocketAddress remoteAddress(boolean real) {
+        throw new UnsupportedOperationException("LocalConnection don't support this");
+    }
+
+    @Override
     public SocketAddress localAddress() {
+        throw new UnsupportedOperationException("LocalConnection don't support this");
+    }
+
+    @Override
+    public SocketAddress localAddress(boolean real) {
         throw new UnsupportedOperationException("LocalConnection don't support this");
     }
 

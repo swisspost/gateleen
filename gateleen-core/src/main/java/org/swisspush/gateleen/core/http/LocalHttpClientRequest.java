@@ -2,42 +2,28 @@ package org.swisspush.gateleen.core.http;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.codegen.annotations.Nullable;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.Cookie;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpConnection;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.http.HttpVersion;
+import io.vertx.core.http.*;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.net.HostAndPort;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.SocketAddressImpl;
 import io.vertx.ext.auth.User;
-import io.vertx.ext.web.FileUpload;
-import io.vertx.ext.web.LanguageHeader;
-import io.vertx.ext.web.ParsedHeaderValues;
-import io.vertx.ext.web.Route;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.Session;
+import io.vertx.ext.web.*;
 import org.slf4j.Logger;
 
 import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
+import java.util.function.Function;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -49,6 +35,7 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class LocalHttpClientRequest extends BufferBridge implements FastFailHttpClientRequest {
     private static final Logger log = getLogger(LocalHttpClientRequest.class);
     private MultiMap headers = new HeadersMultiMap();
+    private Charset paramsCharset = StandardCharsets.UTF_8;
     private MultiMap params;
     private HttpMethod method;
     private String uri;
@@ -99,9 +86,14 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
+        public @Nullable HostAndPort authority() {
+            return null;
+        }
+
+        @Override
         public MultiMap params() {
             if (params == null) {
-                QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri());
+                QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri(), paramsCharset);
                 Map<String, List<String>> prms = queryStringDecoder.parameters();
                 params = new HeadersMultiMap();
                 if (!prms.isEmpty()) {
@@ -131,6 +123,22 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         @Override
         public String getHeader(CharSequence headerName) {
             return headers().get(headerName);
+        }
+
+        @Override
+        public HttpServerRequest setParamsCharset(String charset) {
+            Objects.requireNonNull(charset, "Charset must not be null");
+            Charset current = paramsCharset;
+            paramsCharset = Charset.forName(charset);
+            if (!paramsCharset.equals(current)) {
+                params = null;
+            }
+            return this;
+        }
+
+        @Override
+        public String getParamsCharset() {
+            return paramsCharset.name();
         }
 
         @Override
@@ -373,7 +381,17 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
 
         @Override
-        public Set<FileUpload> fileUploads() {
+        public RequestBody body() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<FileUpload> fileUploads() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void cancelAndCleanupFileUploads() {
             throw new UnsupportedOperationException();
         }
 
@@ -610,7 +628,22 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
+    public boolean isFollowRedirects() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public HttpClientRequest setMaxRedirects(int maxRedirects) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getMaxRedirects() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int numberOfRedirections() {
         throw new UnsupportedOperationException();
     }
 
@@ -645,6 +678,16 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
             headers().add(name, value);
         }
         return this;
+    }
+
+    @Override
+    public HttpClientRequest traceOperation(String op) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String traceOperation() {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -725,6 +768,16 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
+    public HttpClientRequest earlyHintsHandler(@Nullable Handler<MultiMap> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpClientRequest redirectHandler(@Nullable Function<HttpClientResponse, Future<HttpClientRequest>> handler) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Future<Void> end(String chunk) {
         return write(chunk).onComplete(event -> end());
     }
@@ -800,6 +853,11 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         log.warn("Happy debugging, as this impl will just ignore your drainHandler anyway",
                 new Exception("may this stacktrace lead you where this problem comes from"));
         return this;
+    }
+
+    @Override
+    public HttpClientRequest authority(HostAndPort authority) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

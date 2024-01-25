@@ -31,7 +31,7 @@ public class ResetMetricsController {
     }
 
     public void registerResetMetricsControlMBean(String domain, String prefix) {
-        log.debug("About to register ResetMetricsControlMBean with domain '"+domain+"', prefix '"+prefix+"' and monitoring address '"+monitoringAddress+"'");
+        log.debug("About to register ResetMetricsControlMBean with domain '{}', prefix '{}' and monitoring address '{}'", domain, prefix, monitoringAddress);
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
         ResetMetrics resetMetrics = new ResetMetrics(vertx, prefix, monitoringAddress);
         ObjectName name;

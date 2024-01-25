@@ -1,7 +1,6 @@
 package org.swisspush.gateleen.player;
 
 import com.google.common.collect.FluentIterable;
-import com.jayway.awaitility.Duration;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.swisspush.gateleen.player.exchange.Exchange;
@@ -15,7 +14,8 @@ import org.swisspush.gateleen.player.player.Player;
 import java.util.Iterator;
 
 import static com.google.common.base.Predicates.equalTo;
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
+import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.swisspush.gateleen.player.exchange.Exchange.*;
 
 /**
@@ -35,7 +35,7 @@ public class CollectorTest {
                 setExchangeHandler(new ExchangeHandler(){
                     @Override
                     public boolean after(final Exchange exchange, final FluentIterable<Exchange> tailOutputLog) {
-                        await().atMost(Duration.FIVE_SECONDS).until(() -> !tailOutputLog.filter(request(header("x-request-id",
+                        await().atMost(FIVE_SECONDS).until(() -> !tailOutputLog.filter(request(header("x-request-id",
                                 equalTo(exchange.getRequest().getHeaders().get("x-request-id").get(0))))).isEmpty());
                         return true;
                     }

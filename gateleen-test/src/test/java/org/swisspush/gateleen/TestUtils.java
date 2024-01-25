@@ -1,7 +1,6 @@
 package org.swisspush.gateleen;
 
 import com.google.common.collect.ImmutableMap;
-import com.jayway.awaitility.Duration;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -15,8 +14,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 
 public class TestUtils {
@@ -172,17 +172,17 @@ public class TestUtils {
         JsonObject newRule = new JsonObject();
         for (Entry<String, ? extends Object> entry : map.entrySet()) {
             if (entry.getValue() instanceof String) {
-                newRule.put(entry.getKey(), (String) entry.getValue());
+                newRule.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof Number) {
                 newRule.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof Boolean) {
-                newRule.put(entry.getKey(), (Boolean)entry.getValue());
+                newRule.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof JsonObject) {
-                newRule.put(entry.getKey(), (JsonObject) entry.getValue());
+                newRule.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof JsonArray) {
-                newRule.put(entry.getKey(), (JsonArray) entry.getValue());
+                newRule.put(entry.getKey(), entry.getValue());
             } else {
-                LOG.error("not handled data type for rule " + entry.getKey());
+                LOG.error("not handled data type for rule {}", entry.getKey());
             }
         }
         return newRule;
@@ -197,7 +197,7 @@ public class TestUtils {
      * @param statusCode
      */
     public static void checkGETStatusCodeWithAwait(final String request, final Integer statusCode) {
-        await().atMost(Duration.FIVE_SECONDS).until(()
+        await().atMost(FIVE_SECONDS).until(()
                 -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
     }
 

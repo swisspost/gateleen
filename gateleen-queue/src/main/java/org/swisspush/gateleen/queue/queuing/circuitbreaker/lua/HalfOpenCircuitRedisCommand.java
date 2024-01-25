@@ -41,7 +41,7 @@ public class HalfOpenCircuitRedisCommand implements RedisCommand {
                 String message = event.cause().getMessage();
                 if (message != null && message.startsWith("NOSCRIPT")) {
                     log.warn("HalfOpenCircuitRedisCommand script couldn't be found, reload it");
-                    log.warn("amount the script got loaded: " + executionCounter);
+                    log.warn("amount the script got loaded: {}", executionCounter);
                     if (executionCounter > 10) {
                         promise.fail("amount the script got loaded is higher than 10, we abort");
                     } else {

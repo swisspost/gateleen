@@ -32,7 +32,7 @@ public class ClientRequestCreator {
             }
             delegateRequest.headers().setAll(headers);
             delegateRequest.exceptionHandler(exceptionHandler);
-            delegateRequest.setTimeout(timeoutMs); // avoids blocking other requests
+            delegateRequest.idleTimeout(timeoutMs); // avoids blocking other requests
             promise.complete(delegateRequest);
         });
         return promise.future();

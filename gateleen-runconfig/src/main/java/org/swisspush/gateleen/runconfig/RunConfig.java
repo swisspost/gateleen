@@ -206,7 +206,7 @@ public class RunConfig {
             conf = "classpath:" + SERVER_NAME + "/config/logging/log4j2.xml";
         }
 
-        log.info(SERVER_NAME + " starting with log configuration " + conf);
+        log.info("{} starting with log configuration {}", SERVER_NAME, conf);
         Configurator.initialize("", conf);
     }
 
@@ -445,6 +445,8 @@ public class RunConfig {
                 .processorAddress(Address.queueProcessorAddress())
                 .httpRequestHandlerEnabled(true)
                 .httpRequestHandlerPort(7015)
+                .redisReconnectAttempts(-1)
+                .redisPoolRecycleTimeoutMs(-1)
                 .build()
                 .asJsonObject();
     }
@@ -456,6 +458,8 @@ public class RunConfig {
         return new ModuleConfiguration()
                 .storageType(ModuleConfiguration.StorageType.redis)
                 .storageAddress(Address.storageAddress() + "-main")
+                .redisReconnectAttempts(-1)
+                .redisPoolRecycleTimeoutMs(-1)
                 .asJsonObject();
     }
 
@@ -797,7 +801,7 @@ public class RunConfig {
                 DateTime dt = isoDateTimeParser.parseDateTime(timestamp);
                 request.headers().set(header, dfISO8601.print(dt));
             } catch (IllegalArgumentException e) {
-                log.warn("Could not parse " + header + " : " + timestamp);
+                log.warn("Could not parse {} : {}", header, timestamp);
             }
         }
     }

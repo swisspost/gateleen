@@ -20,8 +20,8 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 /**
  * Tests for the {@link LoggingHandler} class

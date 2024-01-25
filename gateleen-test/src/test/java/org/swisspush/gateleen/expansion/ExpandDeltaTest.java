@@ -19,9 +19,9 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static com.jayway.awaitility.Awaitility.await;
-import static com.jayway.awaitility.Duration.TEN_SECONDS;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.TEN_SECONDS;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertNotNull;

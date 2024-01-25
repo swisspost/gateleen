@@ -2,12 +2,15 @@ package org.swisspush.gateleen.hook.reducedpropagation.impl;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.net.NetClientOptions;
+import io.vertx.core.tracing.TracingPolicy;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.redis.client.PoolOptions;
 import io.vertx.redis.client.RedisAPI;
-import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.RedisStandaloneConnectOptions;
 import io.vertx.redis.client.impl.RedisClient;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -47,7 +50,7 @@ public class RedisReducedPropagationStorageAddQueueMultipleQueuesTest {
     public static void setupStorage() {
         vertx = Vertx.vertx();
 
-        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new RedisOptions()));
+        RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions(), TracingPolicy.IGNORE));
         storage = new RedisReducedPropagationStorage(() -> Future.succeededFuture(redisAPI));
     }
 

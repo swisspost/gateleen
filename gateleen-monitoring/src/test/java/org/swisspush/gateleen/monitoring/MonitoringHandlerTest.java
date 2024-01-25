@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.monitoring;
 
-import com.jayway.awaitility.Duration;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
@@ -22,7 +21,8 @@ import org.swisspush.gateleen.core.util.Address;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
+import static org.awaitility.Durations.TWO_SECONDS;
 
 
 /**
@@ -127,7 +127,7 @@ public class MonitoringHandlerTest {
         request.addHeader(PROPERTY_NAME, "my_value_123");
         mh.updateRequestPerRuleMonitoring(request, "a_fancy_rule");
 
-        await().atMost(Duration.TWO_SECONDS).until(storageContainsData("my_value_123.a_fancy_rule"));
+        await().atMost(TWO_SECONDS).until(storageContainsData("my_value_123.a_fancy_rule"));
     }
 
     private Callable<Boolean> storageContainsData(String valueToLookFor) {

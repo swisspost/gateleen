@@ -16,8 +16,8 @@ public class UserProfileConfiguration {
     private Map<String,ProfileProperty> profileProperties = new HashMap<>();
     private List<String> allowedProfileProperties = new ArrayList<>();
     private Pattern userProfileUriPattern;
-    private String roleProfilesRoot;
-    private String rolePattern;
+    private final String roleProfilesRoot;
+    private final String rolePattern;
 
     private UserProfileConfiguration(UserProfileConfigurationBuilder arguments) {
         this.allowedProfileProperties = arguments.allowedProfileProperties;
@@ -77,13 +77,13 @@ public class UserProfileConfiguration {
     }
 
     public static class ProfileProperty {
-        private String headerName;
-        private String profileName;
-        private String validationRegex;
+        private final String headerName;
+        private final String profileName;
+        private final String validationRegex;
         private Pattern validationRegexPattern;
-        private boolean optional;
-        private UpdateStrategy updateStrategy;
-        private String valueToUseIfNoOtherValidValue;
+        private final boolean optional;
+        private final UpdateStrategy updateStrategy;
+        private final String valueToUseIfNoOtherValidValue;
 
         private ProfileProperty(ProfilePropertyBuilder arguments) {
             this.headerName = arguments.headerName;
@@ -156,8 +156,8 @@ public class UserProfileConfiguration {
             public boolean optional;
             public UpdateStrategy updateStrategy = UpdateStrategy.UPDATE_ALWAYS;
             public String valueToUseIfNoOtherValidValue;
-            private String headerName;
-            private String profileName;
+            private final String headerName;
+            private final String profileName;
             private String validationRegex;
 
             protected ProfilePropertyBuilder(String headerName, String profileName) {

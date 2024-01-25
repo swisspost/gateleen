@@ -251,7 +251,7 @@ public class ExpansionHandlerTest {
         verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
         verify(response, times(1)).end("Expand parameter is not valid. Must be a positive number");
 
-        verifyZeroInteractions(httpClient);
+        verifyNoInteractions(httpClient);
     }
 
     @Test
@@ -271,7 +271,7 @@ public class ExpansionHandlerTest {
         verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
         verify(response, times(1)).end("Expand level '15' is greater than the maximum expand level '10'");
 
-        verifyZeroInteractions(httpClient);
+        verifyNoInteractions(httpClient);
     }
 
     private static class Request extends DummyHttpServerRequest {

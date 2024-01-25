@@ -15,7 +15,7 @@ import org.mockito.Mockito;
 import javax.management.*;
 
 import static io.restassured.RestAssured.*;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 /**

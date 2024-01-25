@@ -2,7 +2,6 @@ package org.swisspush.gateleen.expansion;
 
 import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
-import com.jayway.awaitility.Duration;
 import io.restassured.response.Response;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonObject;
@@ -16,8 +15,9 @@ import java.io.ByteArrayInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static com.jayway.awaitility.Awaitility.await;
+import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.hamcrest.CoreMatchers.*;
 
 /**
@@ -215,6 +215,6 @@ public class ExpandZipTest extends AbstractTest {
      * @param statusCode
      */
     private void checkGETStatusCodeWithAwait(final String request, final Integer statusCode) {
-        await().atMost(Duration.FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
+        await().atMost(FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
     }
 }

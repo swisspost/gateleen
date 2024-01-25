@@ -15,13 +15,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerAPI;
-import org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerHttpRequestHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerAPI.*;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.api.QueueCircuitBreakerHttpRequestHandler.HTTP_REQUEST_API_ADDRESS;
 

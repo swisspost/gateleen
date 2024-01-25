@@ -8,7 +8,6 @@
 
 package org.swisspush.gateleen.hookjs;
 
-import com.jayway.awaitility.Duration;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import cucumber.api.java.After;
@@ -22,7 +21,8 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 
-import static com.jayway.awaitility.Awaitility.given;
+import static org.awaitility.Awaitility.given;
+import static org.awaitility.Durations.TWO_SECONDS;
 import static org.hamcrest.core.IsEqual.equalTo;
 
 public class HookJsSteps {
@@ -45,7 +45,7 @@ public class HookJsSteps {
     @And("^the hook-js UI is displayed$")
     public void theHookJsUIIsDisplayed() throws Throwable {
         webDriver.get(PLAYGROUND_URL + "/hooktest.html");
-        given().await().atMost(Duration.TWO_SECONDS).until(() ->
+        given().await().atMost(TWO_SECONDS).until(() ->
                         webDriver.findElement(By.xpath("/html/body/div/div/div/div[1]")).getText(),
                 equalTo("Hook JS Demo")
         );
@@ -59,7 +59,7 @@ public class HookJsSteps {
 
     @Then("^we see the message \"([^\"]*)\" at position (\\d+)$")
     public void weSeeTheMessageAtPosition(String message, int indexOfMessage) throws Throwable {
-        given().await().atMost(Duration.TWO_SECONDS).until(() ->
+        given().await().atMost(TWO_SECONDS).until(() ->
                         webDriver.findElement(By.xpath("//*[@id=\"hookjs messages\"]/li[" + indexOfMessage + "]")).getText(),
                 equalTo(message));
 
@@ -67,7 +67,7 @@ public class HookJsSteps {
 
     @Then("^we see no message at position (\\d+)$")
     public void weSeeNoMessageAtPosition(int indexOfMessage) throws Throwable {
-        given().await().atMost(Duration.TWO_SECONDS).until(() ->
+        given().await().atMost(TWO_SECONDS).until(() ->
                 webDriver.findElements(By.xpath("//*[@id=\"hookjs messages\"]/li[" + indexOfMessage + "]")).size(),
                 equalTo(0));
     }

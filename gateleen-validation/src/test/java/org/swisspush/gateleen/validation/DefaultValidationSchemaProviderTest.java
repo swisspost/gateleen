@@ -18,7 +18,7 @@ import org.swisspush.gateleen.core.http.LocalHttpClient;
 import java.time.Duration;
 import java.util.Map;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 

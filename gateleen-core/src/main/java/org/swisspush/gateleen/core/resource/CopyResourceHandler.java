@@ -102,12 +102,10 @@ public class CopyResourceHandler {
             selfRequest.headers().setAll(task.getHeaders());
 
             // avoids blocking other requests
-            selfRequest.setTimeout(DEFAULT_TIMEOUT);
+            selfRequest.idleTimeout(DEFAULT_TIMEOUT);
 
             // add exception handler
-            selfRequest.exceptionHandler( ex -> {
-                log.warn("CopyResourceHandler: GET request failed: {}", request.uri(), new Exception("stacktrace", ex));
-            });
+            selfRequest.exceptionHandler( ex -> log.warn("CopyResourceHandler: GET request failed: {}", request.uri(), new Exception("stacktrace", ex)));
 
             // fire
             selfRequest.send(asyncResult -> {
@@ -152,7 +150,7 @@ public class CopyResourceHandler {
                     selfRequest.write(data);
 
                     // avoids blocking other requests
-                    selfRequest.setTimeout(DEFAULT_TIMEOUT);
+                    selfRequest.idleTimeout(DEFAULT_TIMEOUT);
 
                     // fire
                     selfRequest.send(asyncResult -> {

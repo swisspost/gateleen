@@ -19,8 +19,8 @@ import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.*;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.kafka.KafkaProducerRecordBuilder.buildRecords;
 
@@ -49,7 +49,7 @@ public class KafkaMessageSenderTest {
         final List<KafkaProducerRecord<String, String>> records =
                 buildRecords(topic, Buffer.buffer(buildSingleRecordPayload("someKey").encode()));
 
-        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
+        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1, topic)));
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
@@ -66,7 +66,7 @@ public class KafkaMessageSenderTest {
         final List<KafkaProducerRecord<String, String>> records =
                 buildRecords(topic, Buffer.buffer(buildSingleRecordPayload(null).encode()));
 
-        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
+        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1, topic)));
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
@@ -83,7 +83,7 @@ public class KafkaMessageSenderTest {
         final List<KafkaProducerRecord<String, String>> records =
                 buildRecords(topic, Buffer.buffer(buildThreeRecordsPayload("key_1", "key_2", "key_3").encode()));
 
-        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
+        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1, topic)));
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
@@ -107,7 +107,7 @@ public class KafkaMessageSenderTest {
         final List<KafkaProducerRecord<String, String>> records =
                 buildRecords(topic, Buffer.buffer(buildThreeRecordsPayload("key_1", "key_2", "key_3").encode()));
 
-        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1,1, topic)));
+        when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1, topic)));
         when(producer.send(eq(records.get(1)))).thenReturn(Future.failedFuture("Message with key '" + records.get(1).key() + "' failed."));
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {

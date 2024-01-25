@@ -30,7 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.timeout;
 
 /**
@@ -158,7 +158,7 @@ public class AuthorizerTest {
             context.assertTrue(event.result());
         });
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
     }
 
     @Test
@@ -224,7 +224,7 @@ public class AuthorizerTest {
             context.assertTrue(event.result());
         });
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
     }
 
     @Test
@@ -239,7 +239,7 @@ public class AuthorizerTest {
             context.assertTrue(event.result());
         });
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
     }
 
     @Test
@@ -296,7 +296,7 @@ public class AuthorizerTest {
             context.assertTrue(event.result());
         });
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
     }
 
     @Test
@@ -320,7 +320,7 @@ public class AuthorizerTest {
             context.assertTrue(roles.contains("z-gateleen-everyone"));
         });
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
 
     }
 
@@ -338,7 +338,7 @@ public class AuthorizerTest {
             context.assertTrue(event.result());
         });
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
     }
 
     @Test
@@ -356,7 +356,7 @@ public class AuthorizerTest {
             context.assertTrue(event.result());
         });
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
     }
 
     @Test
@@ -374,7 +374,7 @@ public class AuthorizerTest {
             context.assertTrue(event.result());
         });
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
     }
 
     @Test
@@ -426,7 +426,7 @@ public class AuthorizerTest {
             context.assertTrue(event.result());
         });
 
-        Mockito.verifyZeroInteractions(response);
+        Mockito.verifyNoInteractions(response);
     }
 
     @Test
