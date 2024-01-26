@@ -14,12 +14,8 @@ import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
-import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutor;
-import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromList;
-import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromRequest;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
 
 @RunWith(VertxUnitRunner.class)
@@ -43,50 +39,56 @@ public class QueueSplitterImplTest {
     }
 
     @Test
-    public void initWithMissingConfigResource(TestContext context) {
+    public void splitWithMissingConfigResource(TestContext context) {
         Async async = context.async();
         context.assertFalse(queueSplitter.isInitialized());
         queueSplitter.initialize().onComplete(event -> {
             context.assertFalse(queueSplitter.isInitialized());
-            context.assertTrue(queueSplitter.getQueueSplitExecutors().isEmpty());
+            verifySplitStaticNotExecuted(context);
+            verifySplitWithHeaderNotExecuted(context);
+            verifySplitWithUrlNotExecuted(context);
             async.complete();
         });
     }
 
     @Test
-    public void initWithExistingConfigResource(TestContext context) {
+    public void splitWithValidConfigResource(TestContext context) {
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
         context.assertFalse(queueSplitter.isInitialized());
         queueSplitter.initialize().onComplete(event -> {
             context.assertTrue(queueSplitter.isInitialized());
-            context.assertEquals(3, queueSplitter.getQueueSplitExecutors().size());
-
-            QueueSplitExecutor executor_1 = queueSplitter.getQueueSplitExecutors().get(0);
-            context.assertTrue(executor_1 instanceof QueueSplitExecutorFromList);
-
-            QueueSplitExecutor executor_2 = queueSplitter.getQueueSplitExecutors().get(1);
-            context.assertTrue(executor_2 instanceof QueueSplitExecutorFromRequest);
-
-            QueueSplitExecutor executor_3 = queueSplitter.getQueueSplitExecutors().get(2);
-            context.assertTrue(executor_3 instanceof QueueSplitExecutorFromRequest);
-
+            verifySplitStaticExecuted(context);
+            verifySplitWithHeaderExecuted(context);
+            verifySplitWithUrlExecuted(context);
             async.complete();
         });
     }
 
     @Test
-    public void initWithExistingInvalidConfigResource(TestContext context) {
+    public void splitWithPartiallyInvalidConfigResource(TestContext context) {
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_INVALID);
         context.assertFalse(queueSplitter.isInitialized());
         queueSplitter.initialize().onComplete(event -> {
             context.assertTrue(queueSplitter.isInitialized());
-            context.assertEquals(1, queueSplitter.getQueueSplitExecutors().size());
+            verifySplitStaticExecuted(context);
+            verifySplitWithHeaderNotExecuted(context);
+            verifySplitWithUrlNotExecuted(context);
+            async.complete();
+        });
+    }
 
-            QueueSplitExecutor executor_1 = queueSplitter.getQueueSplitExecutors().get(0);
-            context.assertTrue(executor_1 instanceof QueueSplitExecutorFromList);
 
+    @Test
+    public void splitWithQueueNotMatchingAnyConfiguration(TestContext context) {
+        Async async = context.async();
+        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
+        context.assertFalse(queueSplitter.isInitialized());
+        queueSplitter.initialize().onComplete(event -> {
+            HttpServerRequest request = mock(HttpServerRequest.class);
+            when(request.headers()).thenReturn(new HeadersMultiMap());
+            context.assertEquals("another-queue", queueSplitter.convertToSubQueue("another-queue", request));
             async.complete();
         });
     }
@@ -99,15 +101,19 @@ public class QueueSplitterImplTest {
         context.assertFalse(queueSplitter.isInitialized());
         queueSplitter.initialize().onComplete(event -> {
             context.assertTrue(queueSplitter.isInitialized());
-            context.assertEquals(3, queueSplitter.getQueueSplitExecutors().size());
+            verifySplitStaticExecuted(context);
+            verifySplitWithHeaderExecuted(context);
+            verifySplitWithUrlExecuted(context);
             JsonObject object = new JsonObject();
             object.put("requestUri", configResourceUri);
             object.put("type", "remove");
             vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
-            // try { Thread.sleep(2000);} catch (InterruptedException e) {}
+            try { Thread.sleep(10000);} catch (InterruptedException e) {}
             // verify(storage, timeout(100).times(1)).delete(eq(CONFIG_RESOURCE_CHANGED_ADDRESS), any());
             // await().atMost(TWO_SECONDS).until(() -> queueSplitter.getQueueSplitExecutors(), equalTo(0));
-            context.assertEquals(0, queueSplitter.getQueueSplitExecutors().size());
+            verifySplitStaticNotExecuted(context);
+            verifySplitWithHeaderNotExecuted(context);
+            verifySplitWithUrlNotExecuted(context);
             async.complete();
         });
     }
@@ -120,71 +126,59 @@ public class QueueSplitterImplTest {
         context.assertFalse(queueSplitter.isInitialized());
         queueSplitter.initialize().onComplete(event -> {
             context.assertTrue(queueSplitter.isInitialized());
-            context.assertEquals(3, queueSplitter.getQueueSplitExecutors().size());
-
+            verifySplitStaticExecuted(context);
+            verifySplitWithHeaderExecuted(context);
+            verifySplitWithUrlExecuted(context);
             JsonObject object = new JsonObject();
             object.put("requestUri", configResourceUri);
             object.put("type", "change");
             vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
             // try { Thread.sleep(2000);} catch (InterruptedException e) {}
-            // verify(storage, timeout(100).times(1)).delete(eq(CONFIG_RESOURCE_CHANGED_ADDRESS), any());
+            // verify(storage, timeout(100).times(1)).put(eq(CONFIG_RESOURCE_CHANGED_ADDRESS), any(), any());
+            verify(storage, times(1)).get(anyString(), any());
             // await().atMost(TWO_SECONDS).until(() -> queueSplitter.getQueueSplitExecutors(), equalTo(0));
-            context.assertEquals(0, queueSplitter.getQueueSplitExecutors().size());
+            verifySplitStaticExecuted(context);
+            verifySplitWithHeaderNotExecuted(context);
+            verifySplitWithUrlNotExecuted(context);
             async.complete();
         });
     }
 
-    @Test
-    public void testConvertToSubQueueWithPostfixFromStatic(TestContext context) {
-        Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
-        context.assertFalse(queueSplitter.isInitialized());
-        queueSplitter.initialize().onComplete(event -> {
-            HttpServerRequest request = mock(HttpServerRequest.class);
-            when(request.headers()).thenReturn(new HeadersMultiMap());
-            context.assertEquals("my-queue-1-A", queueSplitter.convertToSubQueue("my-queue-1", request));
-            context.assertEquals("my-queue-1-B", queueSplitter.convertToSubQueue("my-queue-1", request));
-            context.assertEquals("my-queue-1-C", queueSplitter.convertToSubQueue("my-queue-1", request));
-            async.complete();
-        });
+    private void verifySplitStaticExecuted(TestContext context) {
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        context.assertEquals("my-queue-1-A", queueSplitter.convertToSubQueue("my-queue-1", request));
+        context.assertEquals("my-queue-1-B", queueSplitter.convertToSubQueue("my-queue-1", request));
+        context.assertEquals("my-queue-1-C", queueSplitter.convertToSubQueue("my-queue-1", request));
     }
 
-    @Test
-    public void testConvertToSubQueueWithPostfixFromHeader(TestContext context) {
-        Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
-        context.assertFalse(queueSplitter.isInitialized());
-        queueSplitter.initialize().onComplete(event -> {
-            HttpServerRequest request = mock(HttpServerRequest.class);
-            when(request.headers()).thenReturn(new HeadersMultiMap().add("x-rp-deviceid", "A1B2C3D4E5F6"));
-            context.assertEquals("my-queue-2+A1B2C3D4E5F6", queueSplitter.convertToSubQueue("my-queue-2", request));
-            async.complete();
-        });
-    }
-    @Test
-    public void testConvertToSubQueueWithPostfixFromUrl(TestContext context) {
-        Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
-        context.assertFalse(queueSplitter.isInitialized());
-        queueSplitter.initialize().onComplete(event -> {
-            HttpServerRequest request = mock(HttpServerRequest.class);
-            when(request.headers()).thenReturn(new HeadersMultiMap());
-            when(request.uri()).thenReturn("/path1/path2/path3/path4/");
-            context.assertEquals("my-queue-a_path2", queueSplitter.convertToSubQueue("my-queue-a", request));
-            async.complete();
-        });
+    private void verifySplitStaticNotExecuted(TestContext context) {
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        context.assertEquals("my-queue-1", queueSplitter.convertToSubQueue("my-queue-1", request));
     }
 
-    @Test
-    public void testConvertToSubQueueWithNoPostfixConfigured(TestContext context) {
-        Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
-        context.assertFalse(queueSplitter.isInitialized());
-        queueSplitter.initialize().onComplete(event -> {
-            HttpServerRequest request = mock(HttpServerRequest.class);
-            when(request.headers()).thenReturn(new HeadersMultiMap());
-            context.assertEquals("another-queue", queueSplitter.convertToSubQueue("another-queue", request));
-            async.complete();
-        });
+    private void verifySplitWithHeaderExecuted(TestContext context) {
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        when(request.headers()).thenReturn(new HeadersMultiMap().add("x-rp-deviceid", "A1B2C3D4E5F6"));
+        context.assertEquals("my-queue-2+A1B2C3D4E5F6", queueSplitter.convertToSubQueue("my-queue-2", request));
+    }
+
+    private void verifySplitWithHeaderNotExecuted(TestContext context) {
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        when(request.headers()).thenReturn(new HeadersMultiMap().add("x-rp-deviceid", "A1B2C3D4E5F6"));
+        context.assertEquals("my-queue-2", queueSplitter.convertToSubQueue("my-queue-2", request));
+    }
+
+    private void verifySplitWithUrlExecuted(TestContext context) {
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        when(request.headers()).thenReturn(new HeadersMultiMap());
+        when(request.uri()).thenReturn("/path1/path2/path3/path4/");
+        context.assertEquals("my-queue-a_path2", queueSplitter.convertToSubQueue("my-queue-a", request));
+    }
+
+    private void verifySplitWithUrlNotExecuted(TestContext context) {
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        when(request.headers()).thenReturn(new HeadersMultiMap());
+        when(request.uri()).thenReturn("/path1/path2/path3/path4/");
+        context.assertEquals("my-queue-a", queueSplitter.convertToSubQueue("my-queue-a", request));
     }
 }

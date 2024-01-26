@@ -44,10 +44,6 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
         this.properties = properties;
     }
 
-    public List<QueueSplitExecutor> getQueueSplitExecutors() {
-        return queueSplitExecutors;
-    }
-
     public Future<Void> initialize() {
         Promise<Void> promise = Promise.promise();
         configurationResourceManager().getRegisteredResource(configResourceUri()).onComplete((event -> {
