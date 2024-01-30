@@ -137,12 +137,17 @@ public class Scheduler {
 
             ExpiryCheckHandler.updateServerTimestampHeader(request);
 
-            vertx.eventBus().request(redisquesAddress, buildEnqueueOperation("scheduler-" + name, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
-                    (Handler<AsyncResult<Message<JsonObject>>>) event -> {
-                        if (!OK.equals(event.result().body().getString(STATUS))) {
-                            log.error("Could not enqueue request {}", request.toJsonObject().encodePrettily());
-                        }
-                    });
+            String queueName = "scheduler-" + name;
+            JsonObject enqueOp = buildEnqueueOperation(queueName, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode());
+            vertx.eventBus().request(redisquesAddress, enqueOp, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+                if( event.failed() ){
+                    if( log.isWarnEnabled() ) log.warn("Could not enqueue request '{}' '{}'", queueName, request.getUri(), new Exception(event.cause()));
+                    return;
+                }
+                if (!OK.equals(event.result().body().getString(STATUS))) {
+                    log.error("Could not enqueue request {}", request.toJsonObject().encodePrettily());
+                }
+            });
         }
     }
 
