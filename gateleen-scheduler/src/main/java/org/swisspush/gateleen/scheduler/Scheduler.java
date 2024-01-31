@@ -140,8 +140,8 @@ public class Scheduler {
             String queueName = "scheduler-" + name;
             JsonObject enqueOp = buildEnqueueOperation(queueName, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode());
             vertx.eventBus().request(redisquesAddress, enqueOp, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
-                if( event.failed() ){
-                    if( log.isWarnEnabled() ) log.warn("Could not enqueue request '{}' '{}'", queueName, request.getUri(), new Exception(event.cause()));
+                if (event.failed()) {
+                    if (log.isWarnEnabled()) log.warn("Could not enqueue request '{}' '{}'", queueName, request.getUri(), new Exception(event.cause()));
                     return;
                 }
                 if (!OK.equals(event.result().body().getString(STATUS))) {
