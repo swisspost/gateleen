@@ -51,7 +51,7 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
                 initializeQueueSplitterConfiguration(event.result().get());
                 promise.complete();
             } else {
-                log.warn("No queue splitter configuration resource with uri '{}' found. Unable to setup kafka configuration correctly", configResourceUri());
+                log.warn("No queue splitter configuration resource with uri '{}' found. Unable to setup splitter configuration correctly", configResourceUri());
                 promise.complete();
             }
         }));
