@@ -25,8 +25,11 @@ public class QueueSplitExecutorFromRequest extends QueueSplitExecutorBase {
                 }
             }
             if (configuration.getPostfixFromHeader() != null) {
-                stringBuilder.append(configuration.getPostfixDelimiter());
-                stringBuilder.append(request.headers().get(configuration.getPostfixFromHeader()));
+                String headerValue = request.headers().get(configuration.getPostfixFromHeader());
+                if (headerValue != null) {
+                    stringBuilder.append(configuration.getPostfixDelimiter());
+                    stringBuilder.append(headerValue);
+                }
             }
         }
         return stringBuilder.toString();

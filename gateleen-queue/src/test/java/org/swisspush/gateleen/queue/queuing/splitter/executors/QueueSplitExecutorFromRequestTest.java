@@ -82,7 +82,7 @@ public class QueueSplitExecutorFromRequestTest {
         when(request.headers()).thenReturn(new HeadersMultiMap());
 
         // Then
-        assertEquals("queue-1-null", executor.executeSplit("queue-1", request));
+        assertEquals("queue-1", executor.executeSplit("queue-1", request));
     }
 
     @Test

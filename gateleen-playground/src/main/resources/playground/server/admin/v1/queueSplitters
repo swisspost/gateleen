@@ -1,5 +1,5 @@
 {
-    "my-queue-1" : {
+    "queue-static-split": {
         "postfixFromStatic": [
             "A",
             "B",
@@ -7,12 +7,17 @@
             "D"
         ]
     },
-    "my-queue-[0-9]+" : {
+    "queue-header-[a-z]+": {
         "postfixDelimiter": "+",
-        "postfixFromHeader": "{x-rp-deviceid}"
+        "postfixFromHeader": "x-rp-deviceid"
     },
-    "my-queue-[a-zA-Z]+" : {
+    "queue-path-[a-z]+": {
         "postfixDelimiter": "_",
-        "postfixFromUrl": ".*/path1/(.*)/path3/path4/.*"
+        "postfixFromUrl": ".*/path1/(.*)/.*"
+    },
+    "queue-header-and-path-[a-z]+": {
+        "postfixDelimiter": "_",
+        "postfixFromHeader": "x-rp-deviceid",
+        "postfixFromUrl": ".*/path1/(.*)/.*"
     }
 }
