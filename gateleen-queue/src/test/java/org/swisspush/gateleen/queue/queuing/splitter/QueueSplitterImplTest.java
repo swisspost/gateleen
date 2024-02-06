@@ -49,9 +49,15 @@ public class QueueSplitterImplTest {
 
     @Test
     public void splitWithMissingConfigResource(TestContext context) {
+
+        // Given
         Async async = context.async();
         context.assertFalse(queueSplitter.isInitialized());
+
+        // When
         queueSplitter.initialize().onComplete(event -> {
+
+            // Then
             context.assertFalse(queueSplitter.isInitialized());
             verifySplitStaticNotExecuted(context);
             verifySplitWithHeaderNotExecuted(context);
@@ -62,10 +68,16 @@ public class QueueSplitterImplTest {
 
     @Test
     public void splitWithValidConfigResource(TestContext context) {
+
+        // Given
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
         context.assertFalse(queueSplitter.isInitialized());
+
+        // When
         queueSplitter.initialize().onComplete(event -> {
+
+            // Then
             context.assertTrue(queueSplitter.isInitialized());
             verifySplitStaticExecuted(context);
             verifySplitWithHeaderExecuted(context);
@@ -76,10 +88,16 @@ public class QueueSplitterImplTest {
 
     @Test
     public void splitWithPartiallyInvalidConfigResource(TestContext context) {
+
+        // Given
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_INVALID);
         context.assertFalse(queueSplitter.isInitialized());
+
+        // When
         queueSplitter.initialize().onComplete(event -> {
+
+            // Then
             context.assertTrue(queueSplitter.isInitialized());
             verifySplitStaticExecuted(context);
             verifySplitWithHeaderNotExecuted(context);
@@ -91,10 +109,16 @@ public class QueueSplitterImplTest {
 
     @Test
     public void splitWithQueueNotMatchingAnyConfiguration(TestContext context) {
+
+        // Given
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
         context.assertFalse(queueSplitter.isInitialized());
+
+        // When
         queueSplitter.initialize().onComplete(event -> {
+
+            // Then
             HttpServerRequest request = mock(HttpServerRequest.class);
             when(request.headers()).thenReturn(new HeadersMultiMap());
             context.assertEquals("another-queue", queueSplitter.convertToSubQueue("another-queue", request));
@@ -103,7 +127,9 @@ public class QueueSplitterImplTest {
     }
 
     @Test
-    public void configResourceRemovedTriggerRemoveAllExecutorsOld(TestContext context) {
+    public void configResourceRemovedTriggerRemoveAllExecutors(TestContext context) {
+
+        // Given
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
         queueSplitter.initialize().onComplete(event -> {
@@ -120,6 +146,8 @@ public class QueueSplitterImplTest {
 
                 @Override
                 public void resourceRemoved(String resourceUri) {
+
+                    // Then
                     context.assertFalse(queueSplitter.isInitialized());
                     verifySplitStaticNotExecuted(context);
                     verifySplitWithHeaderNotExecuted(context);
@@ -128,6 +156,7 @@ public class QueueSplitterImplTest {
                 }
             }, configResourceUri);
 
+            // When
             JsonObject object = new JsonObject();
             object.put("requestUri", configResourceUri);
             object.put("type", "remove");
@@ -136,35 +165,11 @@ public class QueueSplitterImplTest {
     }
 
     @Test
-    public void configResourceRemovedTriggerRemoveAllExecutors(TestContext context) {
+    public void configResourceChangedTriggerNewInitOfExecutors(TestContext context) {
+
+        // Given
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
-        queueSplitter.initialize().onComplete(event -> {
-            context.assertTrue(queueSplitter.isInitialized());
-            verifySplitStaticExecuted(context);
-            verifySplitWithHeaderExecuted(context);
-            verifySplitWithUrlExecuted(context);
-
-            vertx.eventBus().consumer(CONFIG_RESOURCE_CHANGED_ADDRESS, (Handler<Message<JsonObject>>) message -> {
-                context.assertEquals("remove", message.body().getString("type"));
-                context.assertFalse(queueSplitter.isInitialized());
-                verifySplitStaticNotExecuted(context);
-                verifySplitWithHeaderNotExecuted(context);
-                verifySplitWithUrlNotExecuted(context);
-                async.complete();
-            });
-            JsonObject object = new JsonObject();
-            object.put("requestUri", configResourceUri);
-            object.put("type", "remove");
-            vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
-        });
-    }
-
-    @Test
-    public void configResourceChangedTriggerNewInitOfExecutorsOld(TestContext context) {
-        Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
-
         queueSplitter.initialize().onComplete(event -> {
             context.assertTrue(queueSplitter.isInitialized());
             verifySplitStaticExecuted(context);
@@ -177,6 +182,7 @@ public class QueueSplitterImplTest {
 
                 @Override
                 public void resourceChanged(String resourceUri, Buffer resource) {
+                    // Then
                     resourceChangedCalls++;
                     if (resourceChangedCalls == 2) {
                         context.assertTrue(queueSplitter.isInitialized());
@@ -192,81 +198,13 @@ public class QueueSplitterImplTest {
                 }
             }, configResourceUri);
 
+            // When
             storage.putMockData(configResourceUri, CONFIG_RESOURCE_INVALID);
             JsonObject object = new JsonObject();
             object.put("requestUri", configResourceUri);
             object.put("type", "change");
             vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
         });
-    }
-
-    @Test
-    @Ignore("to review")
-    public void configResourceChangedTriggerNewInitOfExecutors1(TestContext context) {
-        Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
-
-        queueSplitter.initialize().onComplete(event -> {
-
-            context.assertTrue(queueSplitter.isInitialized());
-            verifySplitStaticExecuted(context);
-            verifySplitWithHeaderExecuted(context);
-            verifySplitWithUrlExecuted(context);
-
-            storage.putMockData(configResourceUri, CONFIG_RESOURCE_INVALID);
-            JsonObject object = new JsonObject();
-            object.put("requestUri", configResourceUri);
-            object.put("type", "change");
-            vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
-
-            await().atMost(10, SECONDS).until( () -> {
-                HttpServerRequest request = mock(HttpServerRequest.class);
-                when(request.headers()).thenReturn(new HeadersMultiMap().add("x-rp-deviceid", "A1B2C3D4E5F6"));
-                String value = queueSplitter.convertToSubQueue("my-queue-2", request);
-                System.out.println("await called");
-                return "my-queue-2".equals(value);
-            }, equalTo(Boolean.TRUE));
-
-            context.assertTrue(queueSplitter.isInitialized());
-//            verifySplitStaticExecuted(context);
-//            verifySplitWithHeaderNotExecuted(context);
-//            verifySplitWithUrlNotExecuted(context);
-//             async.complete();
-        });
-    }
-
-    @Test
-    @Ignore("to review")
-    public void configResourceChangedTriggerNewInitOfExecutors2(TestContext context) {
-        Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
-
-        AtomicInteger resourceChangedCalls = new AtomicInteger(0);
-        vertx.eventBus().consumer(CONFIG_RESOURCE_CHANGED_ADDRESS, (Handler<Message<JsonObject>>) message -> {
-
-            int counter = resourceChangedCalls.incrementAndGet();
-            if (counter == 1) {
-                context.assertEquals("change", message.body().getString("type"));
-                context.assertFalse(queueSplitter.isInitialized());
-                verifySplitStaticNotExecuted(context);
-                verifySplitWithHeaderNotExecuted(context);
-                verifySplitWithUrlNotExecuted(context);
-                async.complete();
-            } else if (counter == 2) {
-                context.assertEquals("change", message.body().getString("type"));
-                context.assertTrue(queueSplitter.isInitialized());
-                verifySplitStaticExecuted(context);
-                verifySplitWithHeaderExecuted(context);
-                verifySplitWithUrlExecuted(context);
-                async.complete();
-            }
-        });
-
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_INVALID);
-        JsonObject object = new JsonObject();
-        object.put("requestUri", configResourceUri);
-        object.put("type", "change");
-        vertx.eventBus().publish(CONFIG_RESOURCE_CHANGED_ADDRESS, object);
     }
 
     private void verifySplitStaticExecuted(TestContext context) {
