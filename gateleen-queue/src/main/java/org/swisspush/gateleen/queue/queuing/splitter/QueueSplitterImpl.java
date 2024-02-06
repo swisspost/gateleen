@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceConsumer;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutor;
-import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromList;
+import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromStaticList;
 import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromRequest;
 
 import java.util.*;
@@ -67,7 +67,7 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
         queueSplitExecutors.clear();
         queueSplitExecutors = configurations.stream().map(queueSplitterConfiguration -> {
             if (queueSplitterConfiguration.isSplitStatic()) {
-                return new QueueSplitExecutorFromList(queueSplitterConfiguration);
+                return new QueueSplitExecutorFromStaticList(queueSplitterConfiguration);
             } else {
                 return new QueueSplitExecutorFromRequest(queueSplitterConfiguration);
             }

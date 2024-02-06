@@ -59,20 +59,20 @@ public class QueueSplitterConfigurationParser {
                             null,
                             null
                     ));
-                    continue;
-                }
-                String postfixFromHeader = queueConfig.getString(POSTFIX_FROM_HEADER_KEY);
-                String postfixFromUrl = queueConfig.getString(POSTFIX_FROM_URL_KEY);
-                if (postfixFromHeader != null || postfixFromUrl != null) {
-                    queueSplitterConfigurations.add(new QueueSplitterConfiguration(
-                            pattern,
-                            queueConfig.getString(POSTFIX_DELIMITER_KEY, DEFAULT_POSTFIX_DELIMITER),
-                            null,
-                            postfixFromHeader,
-                            postfixFromUrl != null ? Pattern.compile(postfixFromUrl) : null
-                    ));
                 } else {
-                    log.warn("Queue splitter configuration without a postfix definition");
+                    String postfixFromHeader = queueConfig.getString(POSTFIX_FROM_HEADER_KEY);
+                    String postfixFromUrl = queueConfig.getString(POSTFIX_FROM_URL_KEY);
+                    if (postfixFromHeader != null || postfixFromUrl != null) {
+                        queueSplitterConfigurations.add(new QueueSplitterConfiguration(
+                                pattern,
+                                queueConfig.getString(POSTFIX_DELIMITER_KEY, DEFAULT_POSTFIX_DELIMITER),
+                                null,
+                                postfixFromHeader,
+                                postfixFromUrl != null ? Pattern.compile(postfixFromUrl) : null
+                        ));
+                    } else {
+                        log.warn("Queue splitter configuration without a postfix definition");
+                    }
                 }
             } catch (PatternSyntaxException patternException) {
                 log.warn("Queue splitter '{}' is not a valid regex pattern. Discarding this queue splitter configuration", queuePattern);

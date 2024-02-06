@@ -230,7 +230,7 @@ public class RunConfig {
         private LoggingResourceManager loggingResourceManager;
         private ConfigurationResourceManager configurationResourceManager;
         private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
-        private QueueSplitter queueSplitter = new NoOpQueueSplitter();
+        private QueueSplitter queueSplitter;
         private EventBusHandler eventBusHandler;
         private KafkaHandler kafkaHandler;
         private CustomHttpResponseHandler customHttpResponseHandler;
@@ -521,22 +521,22 @@ public class RunConfig {
                 handler.handle(false);
                 return;
             }
-        // rest storage module
-        vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
-            if (event1.failed()) {
-                log.error("Could not load rest storage redis module", event1.cause());
-                handler.handle(false);
-                return;
-            }
-
-            // metrics module
-            vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
-                if (event2.failed()) {
-                    log.error("Could not load metrics module", event2.cause());
+            // rest storage module
+            vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
+                if (event1.failed()) {
+                    log.error("Could not load rest storage redis module", event1.cause());
                     handler.handle(false);
                     return;
                 }
-                handler.handle(true);
+
+                // metrics module
+                vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
+                    if (event2.failed()) {
+                        log.error("Could not load metrics module", event2.cause());
+                        handler.handle(false);
+                        return;
+                    }
+                    handler.handle(true);
                 });
             });
         });
@@ -608,11 +608,25 @@ public class RunConfig {
                     return;
                 }
                 if (PackingHandler.isPacked(request)) {
-                    request.bodyHandler(new PackingHandler(request, new QueuingHandler(vertx, redisProvider, request, monitoringHandler, queueSplitter)));
+                    request.bodyHandler(new PackingHandler(
+                            request,
+                            new QueuingHandler(
+                                    vertx,
+                                    redisProvider,
+                                    request,
+                                    monitoringHandler,
+                                    queueSplitter != null ? queueSplitter : new NoOpQueueSplitter()
+                            )
+                    ));
                 } else {
                     if (QueuingHandler.isQueued(request)) {
                         setISO8601Timestamps(request);
-                        request.bodyHandler(new QueuingHandler(vertx, redisProvider, request, monitoringHandler, queueSplitter));
+                        request.bodyHandler(new QueuingHandler(
+                                vertx,
+                                redisProvider,
+                                request,
+                                monitoringHandler,
+                                queueSplitter != null ? queueSplitter : new NoOpQueueSplitter()));
                     } else {
                         if (cacheHandler != null && cacheHandler.handle(request)) {
                             return;

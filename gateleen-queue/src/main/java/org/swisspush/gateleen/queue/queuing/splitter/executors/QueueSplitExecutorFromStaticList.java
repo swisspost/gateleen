@@ -5,11 +5,11 @@ import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitterConfiguration;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class QueueSplitExecutorFromList extends QueueSplitExecutorBase {
+public class QueueSplitExecutorFromStaticList extends QueueSplitExecutorBase {
 
     AtomicInteger atomicInteger = new AtomicInteger(0);
 
-    public QueueSplitExecutorFromList(QueueSplitterConfiguration configuration) {
+    public QueueSplitExecutorFromStaticList(QueueSplitterConfiguration configuration) {
         super(configuration);
     }
 

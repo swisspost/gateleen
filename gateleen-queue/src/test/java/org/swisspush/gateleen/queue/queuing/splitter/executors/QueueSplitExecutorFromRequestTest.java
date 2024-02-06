@@ -126,7 +126,7 @@ public class QueueSplitExecutorFromRequestTest {
     public void testExecuteSplitForWrongQueue() {
 
         // Given
-        QueueSplitExecutorFromList executor = new QueueSplitExecutorFromList(new QueueSplitterConfiguration(
+        QueueSplitExecutorFromRequest executor = new QueueSplitExecutorFromRequest(new QueueSplitterConfiguration(
                 Pattern.compile("queue-1"),
                 "-",
                 null,

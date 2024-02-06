@@ -10,13 +10,13 @@ import java.util.regex.Pattern;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
-public class QueueSplitExecutorFromListTest {
+public class QueueSplitExecutorFromStaticListTest {
 
     @Test
     public void testMatchesWithStaticQueueName() {
 
         // Given
-        QueueSplitExecutorFromList executor = new QueueSplitExecutorFromList(new QueueSplitterConfiguration(
+        QueueSplitExecutorFromStaticList executor = new QueueSplitExecutorFromStaticList(new QueueSplitterConfiguration(
                 Pattern.compile("queue-1"),
                 "-",
                 List.of("A", "B", "C", "D"),
@@ -33,7 +33,7 @@ public class QueueSplitExecutorFromListTest {
     public void testMatchesWithWildCharQueueName() {
 
         // Given
-        QueueSplitExecutorFromList executor = new QueueSplitExecutorFromList(new QueueSplitterConfiguration(
+        QueueSplitExecutorFromStaticList executor = new QueueSplitExecutorFromStaticList(new QueueSplitterConfiguration(
                 Pattern.compile("queue-[0-9]+"),
                 "-",
                 List.of("A", "B", "C", "D"),
@@ -52,7 +52,7 @@ public class QueueSplitExecutorFromListTest {
     public void testExecuteSplit() {
 
         // Given
-        QueueSplitExecutorFromList executor = new QueueSplitExecutorFromList(new QueueSplitterConfiguration(
+        QueueSplitExecutorFromStaticList executor = new QueueSplitExecutorFromStaticList(new QueueSplitterConfiguration(
                 Pattern.compile("queue-1"),
                 "-",
                 List.of("A", "B", "C", "D"),
@@ -77,7 +77,7 @@ public class QueueSplitExecutorFromListTest {
     public void testExecuteSplitForWrongQueue() {
 
         // Given
-        QueueSplitExecutorFromList executor = new QueueSplitExecutorFromList(new QueueSplitterConfiguration(
+        QueueSplitExecutorFromStaticList executor = new QueueSplitExecutorFromStaticList(new QueueSplitterConfiguration(
                 Pattern.compile("queue-1"),
                 "-",
                 List.of("A", "B", "C", "D"),
