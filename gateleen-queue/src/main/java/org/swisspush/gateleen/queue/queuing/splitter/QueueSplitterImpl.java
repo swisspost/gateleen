@@ -88,7 +88,6 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
     public void resourceChanged(String resourceUri, Buffer resource) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
             log.info("Queue splitter configuration resource {} was updated. Going to initialize with new configuration", resourceUri);
-            System.out.println("Queue splitter configuration resource changed");
             initializeQueueSplitterConfiguration(resource);
         }
     }
@@ -96,8 +95,7 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
     @Override
     public void resourceRemoved(String resourceUri) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
-            log.info("Queue splitter configuration resource {} was removed. Going to close all kafka producers", resourceUri);
-            System.out.println("Queue splitter configuration resource removed");
+            log.info("Queue splitter configuration resource {} was removed. Going to release all executors", resourceUri);
             queueSplitExecutors.clear();
             initialized = false;
         }

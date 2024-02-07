@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 public class QueueSplitterConfigurationParserTest {
 
     private final String CONFIGURATION_VALID = ResourcesUtils.loadResource(
-            "testresource_queuesplitter_configuration_valid",
+            "testresource_queuesplitter_configuration_valid_1",
             true
     );
 
@@ -147,7 +147,7 @@ public class QueueSplitterConfigurationParserTest {
         context.assertEquals(Pattern.compile("my-queue-[0-9]+").pattern(), config_1.getQueue().pattern());
         context.assertEquals("_", config_1.getPostfixDelimiter());
         context.assertNull(config_1.getPostfixFromStatic());
-        context.assertEquals("{x-rp-deviceid}", config_1.getPostfixFromHeader());
+        context.assertEquals("x-rp-deviceid", config_1.getPostfixFromHeader());
         context.assertNull(config_1.getPostfixFromUrl());
     }
     @Test

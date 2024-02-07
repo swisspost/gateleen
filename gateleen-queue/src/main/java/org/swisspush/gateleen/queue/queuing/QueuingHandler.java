@@ -46,6 +46,7 @@ public class QueuingHandler implements Handler<Buffer> {
     ) {
         this(vertx, redisProvider, request, new QueueClient(vertx, monitoringHandler), new NoOpQueueSplitter());
     }
+
     public QueuingHandler(
             Vertx vertx,
             RedisProvider redisProvider,
@@ -53,7 +54,13 @@ public class QueuingHandler implements Handler<Buffer> {
             MonitoringHandler monitoringHandler,
             QueueSplitter queueSplitter
     ) {
-        this(vertx, redisProvider, request, new QueueClient(vertx, monitoringHandler), queueSplitter);
+        this(
+                vertx,
+                redisProvider,
+                request,
+                new QueueClient(vertx, monitoringHandler),
+                queueSplitter == null ? new NoOpQueueSplitter() : queueSplitter
+        );
     }
 
     public QueuingHandler(

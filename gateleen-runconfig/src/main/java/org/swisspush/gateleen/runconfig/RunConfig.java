@@ -615,7 +615,7 @@ public class RunConfig {
                                     redisProvider,
                                     request,
                                     monitoringHandler,
-                                    queueSplitter != null ? queueSplitter : new NoOpQueueSplitter()
+                                    queueSplitter
                             )
                     ));
                 } else {
@@ -626,7 +626,7 @@ public class RunConfig {
                                 redisProvider,
                                 request,
                                 monitoringHandler,
-                                queueSplitter != null ? queueSplitter : new NoOpQueueSplitter()));
+                                queueSplitter));
                     } else {
                         if (cacheHandler != null && cacheHandler.handle(request)) {
                             return;

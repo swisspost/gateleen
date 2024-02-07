@@ -1,9 +1,7 @@
 package org.swisspush.gateleen.queue.queuing.splitter;
 
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonObject;
@@ -11,7 +9,6 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
@@ -19,11 +16,7 @@ import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
-import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
 
@@ -36,7 +29,8 @@ public class QueueSplitterImplTest {
     private ConfigurationResourceManager configurationResourceManager;
     private QueueSplitterImpl queueSplitter;
 
-    private final String CONFIG_RESOURCE_VALID = ResourcesUtils.loadResource("testresource_queuesplitter_configuration_valid", true);
+    private final String CONFIG_RESOURCE_VALID_1 = ResourcesUtils.loadResource("testresource_queuesplitter_configuration_valid_1", true);
+    private final String CONFIG_RESOURCE_VALID_2 = ResourcesUtils.loadResource("testresource_queuesplitter_configuration_valid_2", true);
     private final String CONFIG_RESOURCE_INVALID = ResourcesUtils.loadResource("testresource_queuesplitter_configuration_invalid", true);
 
     @Before
@@ -71,7 +65,7 @@ public class QueueSplitterImplTest {
 
         // Given
         Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
+        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
         context.assertFalse(queueSplitter.isInitialized());
 
         // When
@@ -98,10 +92,7 @@ public class QueueSplitterImplTest {
         queueSplitter.initialize().onComplete(event -> {
 
             // Then
-            context.assertTrue(queueSplitter.isInitialized());
-            verifySplitStaticExecuted(context);
-            verifySplitWithHeaderNotExecuted(context);
-            verifySplitWithUrlNotExecuted(context);
+            context.assertFalse(queueSplitter.isInitialized());
             async.complete();
         });
     }
@@ -112,7 +103,7 @@ public class QueueSplitterImplTest {
 
         // Given
         Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
+        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
         context.assertFalse(queueSplitter.isInitialized());
 
         // When
@@ -131,7 +122,7 @@ public class QueueSplitterImplTest {
 
         // Given
         Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
+        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
         queueSplitter.initialize().onComplete(event -> {
             context.assertTrue(queueSplitter.isInitialized());
             verifySplitStaticExecuted(context);
@@ -169,7 +160,7 @@ public class QueueSplitterImplTest {
 
         // Given
         Async async = context.async();
-        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID);
+        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
         queueSplitter.initialize().onComplete(event -> {
             context.assertTrue(queueSplitter.isInitialized());
             verifySplitStaticExecuted(context);
@@ -199,7 +190,7 @@ public class QueueSplitterImplTest {
             }, configResourceUri);
 
             // When
-            storage.putMockData(configResourceUri, CONFIG_RESOURCE_INVALID);
+            storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_2);
             JsonObject object = new JsonObject();
             object.put("requestUri", configResourceUri);
             object.put("type", "change");

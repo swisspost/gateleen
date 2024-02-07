@@ -24,8 +24,9 @@ public class QueueSplitterConfigurationParser {
 
     private static final Logger log = LoggerFactory.getLogger(QueueSplitterConfigurationParser.class);
     public static final String POSTFIX_FROM_STATIC_KEY = "postfixFromStatic";
-    public static final String POSTFIX_FROM_HEADER_KEY = "postfixFromHeader";
-    public static final String POSTFIX_FROM_URL_KEY = "postfixFromUrl";
+    public static final String POSTFIX_FROM_REQUEST_KEY = "postfixFromRequest";
+    public static final String POSTFIX_FROM_HEADER_KEY = "header";
+    public static final String POSTFIX_FROM_URL_KEY = "url";
     public static final String POSTFIX_DELIMITER_KEY = "postfixDelimiter";
     public static final String DEFAULT_POSTFIX_DELIMITER = "-";
 
@@ -60,9 +61,10 @@ public class QueueSplitterConfigurationParser {
                             null
                     ));
                 } else {
-                    String postfixFromHeader = queueConfig.getString(POSTFIX_FROM_HEADER_KEY);
-                    String postfixFromUrl = queueConfig.getString(POSTFIX_FROM_URL_KEY);
-                    if (postfixFromHeader != null || postfixFromUrl != null) {
+                    JsonObject postfixFromRequest = queueConfig.getJsonObject(POSTFIX_FROM_REQUEST_KEY);
+                    String postfixFromHeader = postfixFromRequest != null ? postfixFromRequest.getString(POSTFIX_FROM_HEADER_KEY) : null;
+                    String postfixFromUrl = postfixFromRequest != null ? postfixFromRequest.getString(POSTFIX_FROM_URL_KEY) : null;
+                    if (postfixFromRequest != null && (postfixFromHeader != null || postfixFromUrl != null)) {
                         queueSplitterConfigurations.add(new QueueSplitterConfiguration(
                                 pattern,
                                 queueConfig.getString(POSTFIX_DELIMITER_KEY, DEFAULT_POSTFIX_DELIMITER),

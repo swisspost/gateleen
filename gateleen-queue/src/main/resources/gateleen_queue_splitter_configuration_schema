@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "A list of queue splitter configurations",
   "type": "object",
   "additionalProperties": {
     "$ref": "#/definitions/QueueSplitter"
@@ -9,10 +10,16 @@
       "description": "A single queue splitter configuration",
       "type": "object",
       "properties": {
+        "description": {
+          "description": "description of the splitter",
+          "type": "string"
+        },
         "postfixDelimiter": {
+          "description": "Separator between original queue and postfix added",
           "type": "string"
         },
         "postfixFromStatic": {
+          "description": "List of postfixes to use to compose sub-queues",
           "type": "array",
           "items": {
             "type": "string"
@@ -20,13 +27,49 @@
           "minItems": 1,
           "uniqueItems": true
         },
-        "postfixFromHeader": {
+        "postfixFromRequest": {
+          "$ref": "#/definitions/PostfixFromRequest"
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "postfixFromStatic"
+          ]
+        },
+        {
+          "required": [
+            "postfixFromRequest"
+          ]
+        }
+      ]
+    },
+    "PostfixFromRequest": {
+      "description": "Postfix generated using request header and/or url",
+      "anyOf": [
+        {
+          "required": [
+            "header"
+          ]
+        },
+        {
+          "required": [
+            "url"
+          ]
+        }
+      ],
+      "properties": {
+        "header": {
+          "description": "Header to use as postfix",
+          "type": "string"
+        },
+        "url": {
+          "description": "Regex to group postfixes from url",
           "type": "string"
         }
       },
-      "postfixFromUrl": {
-        "type": "string"
-      }
+      "additionalProperties": false
     }
   }
 }
