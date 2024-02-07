@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceConsumer;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutor;
-import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromStaticList;
 import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromRequest;
+import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromStaticList;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -23,8 +23,6 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
     private final Logger log = LoggerFactory.getLogger(QueueSplitterImpl.class);
 
     private final Map<String, Object> properties;
-
-    private boolean initialized = false;
 
     private List<QueueSplitExecutor> queueSplitExecutors = new ArrayList<>();
 
@@ -58,10 +56,6 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
         return promise.future();
     }
 
-    public boolean isInitialized() {
-        return initialized;
-    }
-
     private void initializeQueueSplitterConfiguration(Buffer configuration) {
         final List<QueueSplitterConfiguration> configurations = QueueSplitterConfigurationParser.parse(configuration, properties);
         queueSplitExecutors.clear();
@@ -72,7 +66,6 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
                 return new QueueSplitExecutorFromRequest(queueSplitterConfiguration);
             }
         }).collect(Collectors.toList());
-        initialized = true;
     }
 
     /**
@@ -97,7 +90,6 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
             log.info("Queue splitter configuration resource {} was removed. Going to release all executors", resourceUri);
             queueSplitExecutors.clear();
-            initialized = false;
         }
     }
 }

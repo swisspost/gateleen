@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "description": "A list of queue splitter configurations",
+  "description": "Queue splitter configurations",
   "type": "object",
   "additionalProperties": {
     "$ref": "#/definitions/QueueSplitter"

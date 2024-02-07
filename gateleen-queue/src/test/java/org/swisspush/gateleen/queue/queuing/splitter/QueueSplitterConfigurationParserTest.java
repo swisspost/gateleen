@@ -26,7 +26,7 @@ public class QueueSplitterConfigurationParserTest {
     );
 
     private final String CONFIGURATION_INVALID = ResourcesUtils.loadResource(
-            "testresource_queuesplitter_configuration_invalid",
+            "testresource_queuesplitter_configuration_missing_postfix",
             true
     );
 

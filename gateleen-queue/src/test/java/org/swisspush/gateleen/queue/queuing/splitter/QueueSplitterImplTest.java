@@ -16,8 +16,8 @@ import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 
-import static org.awaitility.Awaitility.await;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
 
 @RunWith(VertxUnitRunner.class)
@@ -31,7 +31,7 @@ public class QueueSplitterImplTest {
 
     private final String CONFIG_RESOURCE_VALID_1 = ResourcesUtils.loadResource("testresource_queuesplitter_configuration_valid_1", true);
     private final String CONFIG_RESOURCE_VALID_2 = ResourcesUtils.loadResource("testresource_queuesplitter_configuration_valid_2", true);
-    private final String CONFIG_RESOURCE_INVALID = ResourcesUtils.loadResource("testresource_queuesplitter_configuration_invalid", true);
+    private final String CONFIG_RESOURCE_INVALID = ResourcesUtils.loadResource("testresource_queuesplitter_configuration_missing_postfix", true);
 
     @Before
     public void setUp() {
@@ -46,13 +46,11 @@ public class QueueSplitterImplTest {
 
         // Given
         Async async = context.async();
-        context.assertFalse(queueSplitter.isInitialized());
 
         // When
         queueSplitter.initialize().onComplete(event -> {
 
             // Then
-            context.assertFalse(queueSplitter.isInitialized());
             verifySplitStaticNotExecuted(context);
             verifySplitWithHeaderNotExecuted(context);
             verifySplitWithUrlNotExecuted(context);
@@ -66,13 +64,11 @@ public class QueueSplitterImplTest {
         // Given
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
-        context.assertFalse(queueSplitter.isInitialized());
 
         // When
         queueSplitter.initialize().onComplete(event -> {
 
             // Then
-            context.assertTrue(queueSplitter.isInitialized());
             verifySplitStaticExecuted(context);
             verifySplitWithHeaderExecuted(context);
             verifySplitWithUrlExecuted(context);
@@ -86,13 +82,14 @@ public class QueueSplitterImplTest {
         // Given
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_INVALID);
-        context.assertFalse(queueSplitter.isInitialized());
 
         // When
         queueSplitter.initialize().onComplete(event -> {
 
             // Then
-            context.assertFalse(queueSplitter.isInitialized());
+            verifySplitStaticNotExecuted(context);
+            verifySplitWithHeaderNotExecuted(context);
+            verifySplitWithUrlNotExecuted(context);
             async.complete();
         });
     }
@@ -104,7 +101,6 @@ public class QueueSplitterImplTest {
         // Given
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
-        context.assertFalse(queueSplitter.isInitialized());
 
         // When
         queueSplitter.initialize().onComplete(event -> {
@@ -124,7 +120,6 @@ public class QueueSplitterImplTest {
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
         queueSplitter.initialize().onComplete(event -> {
-            context.assertTrue(queueSplitter.isInitialized());
             verifySplitStaticExecuted(context);
             verifySplitWithHeaderExecuted(context);
             verifySplitWithUrlExecuted(context);
@@ -139,7 +134,6 @@ public class QueueSplitterImplTest {
                 public void resourceRemoved(String resourceUri) {
 
                     // Then
-                    context.assertFalse(queueSplitter.isInitialized());
                     verifySplitStaticNotExecuted(context);
                     verifySplitWithHeaderNotExecuted(context);
                     verifySplitWithUrlNotExecuted(context);
@@ -162,7 +156,6 @@ public class QueueSplitterImplTest {
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
         queueSplitter.initialize().onComplete(event -> {
-            context.assertTrue(queueSplitter.isInitialized());
             verifySplitStaticExecuted(context);
             verifySplitWithHeaderExecuted(context);
             verifySplitWithUrlExecuted(context);
@@ -176,7 +169,6 @@ public class QueueSplitterImplTest {
                     // Then
                     resourceChangedCalls++;
                     if (resourceChangedCalls == 2) {
-                        context.assertTrue(queueSplitter.isInitialized());
                         verifySplitStaticExecuted(context);
                         verifySplitWithHeaderNotExecuted(context);
                         verifySplitWithUrlNotExecuted(context);

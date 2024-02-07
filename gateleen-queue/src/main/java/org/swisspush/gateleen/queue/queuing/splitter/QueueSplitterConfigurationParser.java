@@ -64,7 +64,7 @@ public class QueueSplitterConfigurationParser {
                     JsonObject postfixFromRequest = queueConfig.getJsonObject(POSTFIX_FROM_REQUEST_KEY);
                     String postfixFromHeader = postfixFromRequest != null ? postfixFromRequest.getString(POSTFIX_FROM_HEADER_KEY) : null;
                     String postfixFromUrl = postfixFromRequest != null ? postfixFromRequest.getString(POSTFIX_FROM_URL_KEY) : null;
-                    if (postfixFromRequest != null && (postfixFromHeader != null || postfixFromUrl != null)) {
+                    if (postfixFromHeader != null || postfixFromUrl != null) {
                         queueSplitterConfigurations.add(new QueueSplitterConfiguration(
                                 pattern,
                                 queueConfig.getString(POSTFIX_DELIMITER_KEY, DEFAULT_POSTFIX_DELIMITER),
