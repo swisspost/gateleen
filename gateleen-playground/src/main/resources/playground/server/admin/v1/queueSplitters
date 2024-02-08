@@ -1,6 +1,6 @@
 {
     "queue-static-split": {
-        "description": "Simple splitter with request header",
+        "description": "Simple static splitter",
         "postfixFromStatic": [
             "A",
             "B",

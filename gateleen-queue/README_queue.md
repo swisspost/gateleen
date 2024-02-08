@@ -1,7 +1,7 @@
 # gateleen-queue
 The gateleen-queue module provides queuing functionality and acts as a bridge to [vertx-redisques](https://github.com/swisspush/vertx-redisques).
 
-### Queue retry configuration
+## Queue retry configuration
 Normally, failed queue items remain in the queue until successfully processed or manually deleted. With the `x-queue-retry-xxx` request header, you are able to control this behaviour.
 
 Example values are:
@@ -32,9 +32,9 @@ The state diagram below describes the possible transitions between these states:
 
 ```
                  +--------+
-        +------->+        |          open circuit
+        +------->+        | fail ratio reached
 success |        | CLOSED +---------------------+
-        +--------+        |                     |
+        +--------+        |   open circuit      |
                  +---+----+                     |
                      ^                          |
                      |                          v
@@ -470,3 +470,58 @@ Also you have to enable the logging on the [QueueCircuitBreakerConfigurationReso
 ```java
 queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
 ```
+
+## Queue Splitter
+In case there are queues can have a large number of requests to process there is the option to configure for these queues the split of requests in sub-queues.
+The split is implemented dispatching the incoming request in one of the sub-queues (so the split is always active). Before using this feature for a queue must be evaluated if the consistency of the data of the system is maintained processing the requests not in the cronological order (requests in sub-queues are processed in parallel).
+
+Queue splitters are configured together (for example in admin/v1/queueSplitters), each splitter configuration is composted of two parts:
+* name: regex used to match the queue name of the incoming requests
+* postfix rule: rule used to generate the postfix to append to the initial queue name
+
+There are two types of postfix rules:
+* static
+* based on request
+
+### Static postfix rule
+In the rule are listed all postfixes to use splitting. Here an example of splitter configuration with static postfix rule:
+```json
+"queue-static-split": {
+        "description": "Simple static splitter",
+        "postfixFromStatic": [
+            "A",
+            "B",
+            "C",
+            "D"
+        ]
+    }
+```
+In this case the splitter is applied only if the queue in the request is 'queue-static-split' and the splitting is done distributing uniformly the requests in the sub-queues 'queue-static-split-A', 'queue-static-split-B', 'queue-static-split-C' and 'queue-static-split-D' (also the separator can be configured).
+
+### Postfix rule based on request
+In the rule can be defined the header to use as postfix and/or the regex to extract parts of the url. Here two examples:
+```json
+    "queue-header-[a-z]+": {
+        "description": "Simple splitter with request header",
+        "postfixDelimiter": "+",
+        "postfixFromRequest": {
+            "header": "x-rp-deviceid"
+        }
+    },
+    "queue-path-[a-z]+": {
+        "description": "Simple splitter with request url matching",
+        "postfixDelimiter": "_",
+        "postfixFromRequest": {
+            "url": ".*/path1/(.*)/.*"
+        }
+    }
+```
+In both cases the splitter is applied to all the queues matching the name regex.
+
+In first case is added the value of the header 'x-rp-deviceid'. If for example is entering a request with queue 'queue-header-test' and with header 'x-rp-deviceid' valued 'A1B2C3D4' the request is inserted in the sub-queue 'queue-header-test+A1B2C3D4'.
+In second case are added the matching parts of the request url. If for example is entering a request with queue 'queue-path-test' and with the url ending with .../path1/path2/path3 the queue is inserted in the sub-queue 'queue-path-test_path2'.
+In the playground are configured the three splitters above (playground/server/admin/v1/queueSplitters) and so you can try them.
+
+### Splitter implementation
+The evaluation of splitting for a queue is defined in the interface [QueueSplitter](../gateleen-queue/src/main/java/org/swisspush/gateleen/queue/queuing/splitter/QueueSplitter.java) with two implementations: [QueueSplitterImpl](../gateleen-queue/src/main/java/org/swisspush/gateleen/queue/queuing/splitter/QueueSplitterImpl.java) (to execute the splitters configured) and [NoOpQueueSplitter](../gateleen-queue/src/main/java/org/swisspush/gateleen/queue/queuing/splitter/NoOpQueueSplitter.java) (no splitter).
+For each splitter configured is created either an instance of [QueueSplitExecutorFromStaticList](../gateleen-queue/src/main/java/org/swisspush/gateleen/queue/queuing/splitter/executors/QueueSplitExecutorFromStaticList.java) (for the case of static postfix rule) or an instance of [QueueSplitExecutorFromRequest](../gateleen-queue/src/main/java/org/swisspush/gateleen/queue/queuing/splitter/executors/QueueSplitExecutorFromRequest.java) (for the case of postfix rule based on request).
