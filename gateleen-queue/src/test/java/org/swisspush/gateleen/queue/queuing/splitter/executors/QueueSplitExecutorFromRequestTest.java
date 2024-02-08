@@ -68,6 +68,24 @@ public class QueueSplitExecutorFromRequestTest {
     }
 
     @Test
+    public void testExecuteSplitWithHeaderInDifferentCase() {
+
+        // Given
+        QueueSplitExecutorFromRequest executor = new QueueSplitExecutorFromRequest(new QueueSplitterConfiguration(
+                Pattern.compile("queue-1"),
+                "-",
+                null,
+                "x-rp-deviceid",
+                null
+        ));
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        when(request.headers()).thenReturn(new HeadersMultiMap().add("X-RP-DEVICEID", "A1B2C3D4E5F6"));
+
+        // Then
+        assertEquals("queue-1-A1B2C3D4E5F6", executor.executeSplit("queue-1", request));
+    }
+
+    @Test
     public void testExecuteSplitWithHeaderButMissingInRequest() {
 
         // Given
