@@ -1,0 +1,33 @@
+{
+    "queue-static-split": {
+        "description": "Simple static splitter",
+        "postfixFromStatic": [
+            "A",
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    "queue-header-[a-z]+": {
+        "description": "Simple splitter with request header",
+        "postfixDelimiter": "+",
+        "postfixFromRequest": {
+            "header": "x-rp-deviceid"
+        }
+    },
+    "queue-path-[a-z]+": {
+        "description": "Simple splitter with request url matching",
+        "postfixDelimiter": "_",
+        "postfixFromRequest": {
+            "url": ".*/path1/(.*)/.*"
+        }
+    },
+    "queue-header-and-path-[a-z]+": {
+        "description": "Simple splitter with request header and url matching",
+        "postfixDelimiter": "_",
+        "postfixFromRequest": {
+            "header": "x-rp-deviceid",
+            "url": ".*/path1/(.*)/.*"
+        }
+    }
+}

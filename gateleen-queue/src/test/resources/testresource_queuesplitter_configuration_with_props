@@ -1,0 +1,8 @@
+{
+    "my-queue-[0-9]+" : {
+        "postfixDelimiter": "${queue.splitter.delimiter}",
+        "postfixFromRequest": {
+            "header": "x-rp-deviceid"
+        }
+    }
+}

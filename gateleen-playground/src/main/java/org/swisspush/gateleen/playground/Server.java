@@ -64,6 +64,8 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCi
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.QueueCircuitBreakerImpl;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitBreakerRulePatternToCircuitMapping;
+import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
+import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitterImpl;
 import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
 import org.swisspush.gateleen.routing.DeferCloseHttpClient;
 import org.swisspush.gateleen.routing.Router;
@@ -154,6 +156,8 @@ public class Server extends AbstractVerticle {
     private ContentTypeConstraintHandler contentTypeConstraintHandler;
     private CacheHandler cacheHandler;
 
+    private QueueSplitter queueSplitter;
+
     public static void main(String[] args) {
         Vertx.vertx().deployVerticle("org.swisspush.gateleen.playground.Server", event ->
                 LoggerFactory.getLogger(Server.class).info("[_] Gateleen - http://localhost:7012/gateleen/")
@@ -237,7 +241,8 @@ public class Server extends AbstractVerticle {
                         SERVER_ROOT + "/admin/v1/contentTypeConstraints",
                         Arrays.asList(
                                 new PatternHolder("application/json"),
-                                new PatternHolder("application/x-www-form-urlencoded")
+                                new PatternHolder("application/x-www-form-urlencoded"),
+                                new PatternHolder("multipart/form-data")
                         ));
                 contentTypeConstraintHandler.initialize();
 
@@ -323,6 +328,9 @@ public class Server extends AbstractVerticle {
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(),
                         monitoringHandler);
 
+                queueSplitter = new QueueSplitterImpl(configurationResourceManager, SERVER_ROOT + "/admin/v1/queueSplitters");
+                queueSplitter.initialize();
+
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);
 
@@ -347,6 +355,7 @@ public class Server extends AbstractVerticle {
                         .loggingResourceManager(loggingResourceManager)
                         .configurationResourceManager(configurationResourceManager)
                         .queueCircuitBreakerConfigurationResourceManager(queueCircuitBreakerConfigurationResourceManager)
+                        .queueSplitter(queueSplitter)
                         .schedulerResourceManager(schedulerResourceManager)
                         .zipExtractHandler(zipExtractHandler)
                         .delegateHandler(delegateHandler)
