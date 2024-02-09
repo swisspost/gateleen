@@ -237,7 +237,8 @@ public class Server extends AbstractVerticle {
                         SERVER_ROOT + "/admin/v1/contentTypeConstraints",
                         Arrays.asList(
                                 new PatternHolder("application/json"),
-                                new PatternHolder("application/x-www-form-urlencoded")
+                                new PatternHolder("application/x-www-form-urlencoded"),
+                                new PatternHolder("multipart/form-data")
                         ));
                 contentTypeConstraintHandler.initialize();
 
