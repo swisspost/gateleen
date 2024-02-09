@@ -38,6 +38,8 @@ import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
+import org.swisspush.gateleen.queue.queuing.splitter.NoOpQueueSplitter;
+import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
 import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
@@ -91,6 +93,7 @@ public class RunConfig {
     private final LoggingResourceManager loggingResourceManager;
     private final ConfigurationResourceManager configurationResourceManager;
     private final QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
+    private final QueueSplitter queueSplitter;
     private final EventBusHandler eventBusHandler;
     private final ValidationHandler validationHandler;
     private final HookHandler hookHandler;
@@ -115,7 +118,7 @@ public class RunConfig {
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
                      ConfigurationResourceManager configurationResourceManager,
                      QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager,
-                     EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
+                     QueueSplitter queueSplitter, EventBusHandler eventBusHandler, ValidationHandler validationHandler, HookHandler hookHandler,
                      UserProfileHandler userProfileHandler, RoleProfileHandler roleProfileHandler, ExpansionHandler expansionHandler,
                      DeltaHandler deltaHandler, Authorizer authorizer, CopyResourceHandler copyResourceHandler,
                      QoSHandler qosHandler, PropertyHandler propertyHandler, ZipExtractHandler zipExtractHandler,
@@ -134,6 +137,7 @@ public class RunConfig {
         this.loggingResourceManager = loggingResourceManager;
         this.configurationResourceManager = configurationResourceManager;
         this.queueCircuitBreakerConfigurationResourceManager = queueCircuitBreakerConfigurationResourceManager;
+        this.queueSplitter = queueSplitter;
         this.eventBusHandler = eventBusHandler;
         this.validationHandler = validationHandler;
         this.hookHandler = hookHandler;
@@ -168,6 +172,7 @@ public class RunConfig {
                 builder.loggingResourceManager,
                 builder.configurationResourceManager,
                 builder.queueCircuitBreakerConfigurationResourceManager,
+                builder.queueSplitter,
                 builder.eventBusHandler,
                 builder.validationHandler,
                 builder.hookHandler,
@@ -225,6 +230,7 @@ public class RunConfig {
         private LoggingResourceManager loggingResourceManager;
         private ConfigurationResourceManager configurationResourceManager;
         private QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager;
+        private QueueSplitter queueSplitter;
         private EventBusHandler eventBusHandler;
         private KafkaHandler kafkaHandler;
         private CustomHttpResponseHandler customHttpResponseHandler;
@@ -274,6 +280,11 @@ public class RunConfig {
 
         public RunConfigBuilder queueCircuitBreakerConfigurationResourceManager(QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager) {
             this.queueCircuitBreakerConfigurationResourceManager = queueCircuitBreakerConfigurationResourceManager;
+            return this;
+        }
+
+        public RunConfigBuilder queueSplitter(QueueSplitter queueSplitter) {
+            this.queueSplitter = queueSplitter;
             return this;
         }
 
@@ -510,22 +521,22 @@ public class RunConfig {
                 handler.handle(false);
                 return;
             }
-        // rest storage module
-        vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
-            if (event1.failed()) {
-                log.error("Could not load rest storage redis module", event1.cause());
-                handler.handle(false);
-                return;
-            }
-
-            // metrics module
-            vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
-                if (event2.failed()) {
-                    log.error("Could not load metrics module", event2.cause());
+            // rest storage module
+            vertx.deployVerticle("org.swisspush.reststorage.RestStorageMod", new DeploymentOptions().setConfig(RunConfig.buildStorageConfig()).setInstances(4), event1 -> {
+                if (event1.failed()) {
+                    log.error("Could not load rest storage redis module", event1.cause());
                     handler.handle(false);
                     return;
                 }
-                handler.handle(true);
+
+                // metrics module
+                vertx.deployVerticle("org.swisspush.metrics.MetricsModule", new DeploymentOptions().setConfig(RunConfig.buildMetricsConfig()), event2 -> {
+                    if (event2.failed()) {
+                        log.error("Could not load metrics module", event2.cause());
+                        handler.handle(false);
+                        return;
+                    }
+                    handler.handle(true);
                 });
             });
         });
@@ -597,11 +608,25 @@ public class RunConfig {
                     return;
                 }
                 if (PackingHandler.isPacked(request)) {
-                    request.bodyHandler(new PackingHandler(request, new QueuingHandler(vertx, redisProvider, request, monitoringHandler)));
+                    request.bodyHandler(new PackingHandler(
+                            request,
+                            new QueuingHandler(
+                                    vertx,
+                                    redisProvider,
+                                    request,
+                                    monitoringHandler,
+                                    queueSplitter
+                            )
+                    ));
                 } else {
                     if (QueuingHandler.isQueued(request)) {
                         setISO8601Timestamps(request);
-                        request.bodyHandler(new QueuingHandler(vertx, redisProvider, request, monitoringHandler));
+                        request.bodyHandler(new QueuingHandler(
+                                vertx,
+                                redisProvider,
+                                request,
+                                monitoringHandler,
+                                queueSplitter));
                     } else {
                         if (cacheHandler != null && cacheHandler.handle(request)) {
                             return;

@@ -1,0 +1,25 @@
+{
+    "my-queue-1" : {
+        "description": "Simple splitter with static list",
+        "postfixFromStatic": [
+            "A",
+            "B",
+            "C",
+            "D"
+        ]
+    },
+    "my-queue-[0-9]+" : {
+        "description": "Simple splitter with request header",
+        "postfixFromRequest": {
+            "header": "x-rp-deviceid"
+        },
+        "postfixDelimiter": "+"
+    },
+    "my-queue-[a-zA-Z]+" : {
+        "description": "Simple splitter with request url matching",
+        "postfixFromRequest" : {
+            "url": ".*/path1/(.*)/path3/path4/.*"
+        },
+        "postfixDelimiter": "_"
+    }
+}
