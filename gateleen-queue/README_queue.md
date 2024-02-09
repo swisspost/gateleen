@@ -472,21 +472,22 @@ queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
 ```
 
 ## Queue Splitter
-In case there are queues can have a large number of requests to process there is the option to configure for these queues the split of requests in sub-queues.
-The split is implemented dispatching the incoming request in one of the sub-queues (so the split is always active). Before using this feature for a queue must be evaluated if the consistency of the data of the system is maintained processing the requests not in the cronological order (requests in sub-queues are processed in parallel).
+In case there are queues with a large number of queue items to process there is the option to configure these queues to split into sub-queues.
+The split is implemented dispatching the incoming request in one of the sub-queues (so the split is always active). Don't use the queue splitting feature when queue items from a queue have to be in cronological order (requests in sub-queues are processed in parallel).
 
-Queue splitters are configured together (for example in admin/v1/queueSplitters), each splitter configuration is composted of two parts:
+Queue splitters are configured together (for example in admin/v1/queueSplitters), each splitter configuration is composted of three parts:
 * name: regex used to match the queue name of the incoming requests
 * postfix rule: rule used to generate the postfix to append to the initial queue name
+* postfixDelimiter: Optional delimiter value to add between queue name and postfix. When not configured, _-_ is used
 
 There are two types of postfix rules:
 * static
 * based on request
 
 ### Static postfix rule
-In the rule are listed all postfixes to use splitting. Here an example of splitter configuration with static postfix rule:
+In the rule all postfixes for splitting are listed. Here is an example of splitter configuration with static postfix rule:
 ```json
-"queue-static-split": {
+"queue-static": {
         "description": "Simple static splitter",
         "postfixFromStatic": [
             "A",
@@ -496,10 +497,10 @@ In the rule are listed all postfixes to use splitting. Here an example of splitt
         ]
     }
 ```
-In this case the splitter is applied only if the queue in the request is 'queue-static-split' and the splitting is done distributing uniformly the requests in the sub-queues 'queue-static-split-A', 'queue-static-split-B', 'queue-static-split-C' and 'queue-static-split-D' (also the separator can be configured).
+In this case the splitter is applied only if the queue in the request is 'queue-static' and the splitting is done distributing uniformly the requests in the sub-queues 'queue-static-A', 'queue-static-B', 'queue-static-C' and 'queue-static-D'.
 
 ### Postfix rule based on request
-In the rule can be defined the header to use as postfix and/or the regex to extract parts of the url. Here two examples:
+Request header to use as postfix and/or the regex to extract parts from the url can be defined in the _postfixFromRequest_ property. Here are two examples:
 ```json
     "queue-header-[a-z]+": {
         "description": "Simple splitter with request header",
@@ -518,9 +519,8 @@ In the rule can be defined the header to use as postfix and/or the regex to extr
 ```
 In both cases the splitter is applied to all the queues matching the name regex.
 
-In first case is added the value of the header 'x-rp-deviceid'. If for example is entering a request with queue 'queue-header-test' and with header 'x-rp-deviceid' valued 'A1B2C3D4' the request is inserted in the sub-queue 'queue-header-test+A1B2C3D4'.
-In second case are added the matching parts of the request url. If for example is entering a request with queue 'queue-path-test' and with the url ending with .../path1/path2/path3 the queue is inserted in the sub-queue 'queue-path-test_path2'.
-In the playground are configured the three splitters above (playground/server/admin/v1/queueSplitters) and so you can try them.
+In first case the value of the header 'x-rp-deviceid' is added. A queue with name 'queue-header-test' and with a request header 'x-rp-deviceid' valued 'A1B2C3D4' the request is splitted in the sub-queue 'queue-header-test+A1B2C3D4'.
+For the second case the matching parts of the request url are added. A queue with name 'queue-path-test' and with the url ending with .../path1/path2/path3 the request is splitted in the sub-queue 'queue-path-test_path2'.
 
 ### Splitter implementation
 The evaluation of splitting for a queue is defined in the interface [QueueSplitter](../gateleen-queue/src/main/java/org/swisspush/gateleen/queue/queuing/splitter/QueueSplitter.java) with two implementations: [QueueSplitterImpl](../gateleen-queue/src/main/java/org/swisspush/gateleen/queue/queuing/splitter/QueueSplitterImpl.java) (to execute the splitters configured) and [NoOpQueueSplitter](../gateleen-queue/src/main/java/org/swisspush/gateleen/queue/queuing/splitter/NoOpQueueSplitter.java) (no splitter).
