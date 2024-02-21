@@ -296,13 +296,12 @@ public class LoggingHandler {
             requestLog.put(HEADERS, headersAsJson(requestHeaders));
             responseLog.put(HEADERS, headersAsJson(responseHeaders));
             if (requestPayload != null) {
-                String requestPayloadString = requestPayload.toString("UTF-8");
                 try {
-                    requestLog.put(BODY, new JsonObject(requestPayloadString));
+                    requestLog.put(BODY, new JsonObject(requestPayload));
                 } catch (DecodeException e) {
                     // maybe payload was a JsonArray
                     try {
-                        requestLog.put(BODY, new JsonArray(requestPayloadString));
+                        requestLog.put(BODY, new JsonArray(requestPayload));
                     } catch (DecodeException ex) {
                         log.info("request payload could not be parsed and will not be logged");
                     }
