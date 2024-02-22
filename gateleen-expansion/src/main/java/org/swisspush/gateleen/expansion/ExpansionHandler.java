@@ -96,6 +96,8 @@ public class ExpansionHandler implements RuleChangesObserver {
     private static final String ETAG_HEADER = "Etag";
     private static final String SELF_REQUEST_HEADER = "x-self-request";
 
+    private static final Handler<Buffer> DEV_NULL = buf -> {};
+
     private int maxSubRequestCount;
 
     private int maxExpansionLevelSoft = Integer.MAX_VALUE;
@@ -504,11 +506,10 @@ public class ExpansionHandler implements RuleChangesObserver {
         String reqUri = targetUri + "?storageExpand=true";
         httpClient.request(reqMethod, reqUri).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
-                log.warn("Failed request to {}: {}", targetUri + "?storageExpand=true", asyncResult.cause());
+                log.warn("Failed request to {}", reqUri, asyncResult.cause());
                 return;
             }
             HttpClientRequest cReq = asyncResult.result();
-
 
             JsonObject requestPayload = new JsonObject();
             requestPayload.put("subResources", new JsonArray(subResourceNames));
@@ -530,17 +531,23 @@ public class ExpansionHandler implements RuleChangesObserver {
                     handler.handle(new ResourceNode(SERIOUS_EXCEPTION, exWrappr));
                 }
                 HttpClientResponse cRes = event.result();
+                if (StatusCode.NOT_FOUND.getStatusCode() == cRes.statusCode()) {
+                    log.debug("NotFound: {}", targetUri);
+                    cRes.handler(DEV_NULL);
+                    handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.NOT_FOUND)));
+                    return;
+                }
+                if (StatusCode.METHOD_NOT_ALLOWED.getStatusCode() == cRes.statusCode()) {
+                    log.error("storageExpand not allowed for: {}", targetUri);
+                    cRes.handler(DEV_NULL);
+                    handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.METHOD_NOT_ALLOWED)));
+                    return;
+                }
                 cRes.bodyHandler(data -> {
-                    if (StatusCode.NOT_FOUND.getStatusCode() == cRes.statusCode()) {
-                        log.debug("NotFound: {}", targetUri);
-                        handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.NOT_FOUND)));
-                    } else if (StatusCode.INTERNAL_SERVER_ERROR.getStatusCode() == cRes.statusCode()) {
+                    if (StatusCode.INTERNAL_SERVER_ERROR.getStatusCode() == cRes.statusCode()) {
                         String fullResponseBody = data.toString();
                         log.error("{}: {}: {}", INTERNAL_SERVER_ERROR, targetUri, fullResponseBody);
                         handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(fullResponseBody, StatusCode.INTERNAL_SERVER_ERROR)));
-                    } else if (StatusCode.METHOD_NOT_ALLOWED.getStatusCode() == cRes.statusCode()) {
-                        log.error("storageExpand not allowed for: {}", targetUri);
-                        handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(cRes.statusMessage(), StatusCode.METHOD_NOT_ALLOWED)));
                     } else {
                         String eTag = geteTag(cRes.headers());
                         handleSimpleResource(removeParameters(targetUri), handler, data, eTag);
