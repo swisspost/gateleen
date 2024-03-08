@@ -264,7 +264,7 @@ public class Forwarder extends AbstractForwarder {
                     long postponeMs = 1000;
                     long remainingTimeMs = timeoutMs - postponeMs;
                     if (remainingTimeMs > 0 && ex instanceof ConnectionPoolTooBusyException) {
-                        log.debug("EAGAIN: No connection avail now for {}", targetUri, ex);
+                        log.debug("No connection avail now for {}", targetUri, ex);
                         vertx.setTimer(postponeMs, nonsense -> {
                             retryPerformRequest(req, bodyData, targetUri, log, profileHeaderMap, authHeader,
                                 afterHandler, loggingHandler, uniqueId, remainingTimeMs, startTime);
