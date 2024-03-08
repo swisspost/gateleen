@@ -33,6 +33,8 @@ import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
+import static java.lang.Long.parseLong;
+
 /**
  * Forwards requests to the backend.
  *
@@ -239,31 +241,49 @@ public class Forwarder extends AbstractForwarder {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, req, vertx.eventBus());
 
         final String uniqueId = req.headers().get("x-rp-unique_id");
-        final String timeout = req.headers().get("x-timeout");
+        final String timeoutRaw = req.headers().get("x-timeout");
+        long timeoutMs = (timeoutRaw != null) ? parseLong(timeoutRaw) : rule.getTimeout();
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());
 
+        retryPerformRequest(req, bodyData, targetUri, log, profileHeaderMap, authHeader.orElse(null),
+            afterHandler, loggingHandler, uniqueId, timeoutMs, startTime);
+    }
+
+    private void retryPerformRequest(
+        HttpServerRequest req, Buffer bodyData, String targetUri, Logger log, Map<String, String> profileHeaderMap,
+        AuthHeader authHeader, @Nullable Handler<Void> afterHandler, LoggingHandler loggingHandler,
+        String uniqueId, long timeoutMs, long startTime
+    ){
         client.request(req.method(), port, rule.getHost(), targetUri, new Handler<>() {
             @Override
             public void handle(AsyncResult<HttpClientRequest> event) {
                 req.resume();
 
                 if (event.failed()) {
-                    log.warn("Problem to request {}: {}", targetUri, event.cause());
+                    Throwable ex = event.cause();
+                    long postponeMs = 1000;
+                    long remainingTimeMs = timeoutMs - postponeMs;
+                    if (remainingTimeMs > 0 && ex instanceof ConnectionPoolTooBusyException) {
+                        log.debug("EAGAIN: No connection avail now for {}", targetUri, ex);
+                        vertx.setTimer(postponeMs, nonsense -> {
+                            retryPerformRequest(req, bodyData, targetUri, log, profileHeaderMap, authHeader,
+                                afterHandler, loggingHandler, uniqueId, remainingTimeMs, startTime);
+                        });
+                        return;
+                    }
+                    log.warn("Problem to request {}", targetUri, ex);
                     final HttpServerResponse response = req.response();
                     response.setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
                     response.setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
                     response.end();
                     return;
                 }
+
                 HttpClientRequest cReq = event.result();
                 final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, startTime, afterHandler);
                 cReq.response(cResHandler);
 
-                if (timeout != null) {
-                    cReq.idleTimeout(Long.parseLong(timeout));
-                } else {
-                    cReq.idleTimeout(rule.getTimeout());
-                }
+                cReq.idleTimeout(timeoutMs);
 
                 // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
                 MultiMap headersToForward = req.headers();
@@ -278,7 +298,7 @@ public class Forwarder extends AbstractForwarder {
                 }
                 setProfileHeaders(log, profileHeaderMap, cReq);
 
-                authHeader.ifPresent(authHeaderValue -> cReq.headers().set(authHeaderValue.key(), authHeaderValue.value()));
+                if (authHeader != null) cReq.headers().set(authHeader.key(), authHeader.value());
 
                 final String errorMessage = applyHeaderFunctions(log, cReq.headers());
                 if (errorMessage != null) {
