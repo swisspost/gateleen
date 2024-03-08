@@ -245,13 +245,13 @@ public class Forwarder extends AbstractForwarder {
         long timeoutMs = (timeoutRaw != null) ? parseLong(timeoutRaw) : rule.getTimeout();
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());
 
-        retryPerformRequest(req, bodyData, targetUri, log, profileHeaderMap, authHeader.orElse(null),
+        retryPerformRequest(req, bodyData, targetUri, log, profileHeaderMap, authHeader,
             afterHandler, loggingHandler, uniqueId, timeoutMs, startTime);
     }
 
     private void retryPerformRequest(
         HttpServerRequest req, Buffer bodyData, String targetUri, Logger log, Map<String, String> profileHeaderMap,
-        AuthHeader authHeader, @Nullable Handler<Void> afterHandler, LoggingHandler loggingHandler,
+        Optional<AuthHeader> authHeader, @Nullable Handler<Void> afterHandler, LoggingHandler loggingHandler,
         String uniqueId, long timeoutMs, long startTime
     ){
         client.request(req.method(), port, rule.getHost(), targetUri, new Handler<>() {
@@ -298,7 +298,7 @@ public class Forwarder extends AbstractForwarder {
                 }
                 setProfileHeaders(log, profileHeaderMap, cReq);
 
-                if (authHeader != null) cReq.headers().set(authHeader.key(), authHeader.value());
+                authHeader.ifPresent(authHeaderValue -> cReq.headers().set(authHeaderValue.key(), authHeaderValue.value()));
 
                 final String errorMessage = applyHeaderFunctions(log, cReq.headers());
                 if (errorMessage != null) {
