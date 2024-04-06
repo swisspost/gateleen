@@ -29,6 +29,7 @@ import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
+import org.swisspush.gateleen.queue.queuing.splitter.NoOpQueueSplitter;
 import org.swisspush.gateleen.routing.Router;
 
 import java.util.Arrays;

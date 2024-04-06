@@ -259,7 +259,7 @@ public class Server extends AbstractVerticle {
 
                 hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository,
                         monitoringHandler,SERVER_ROOT + "/users/v1/%s/profile",
-                        SERVER_ROOT + "/hooks/v1/", queueClient,false, reducedPropagationManager);
+                        SERVER_ROOT + "/hooks/v1/", queueClient,false, reducedPropagationManager, null, storage, Router.DEFAULT_ROUTER_MULTIPLIER, queueSplitter);
                 hookHandler.enableResourceLogging(true);
 
                 authorizer = new Authorizer(vertx, storage, SERVER_ROOT + "/security/v1/", ROLE_PATTERN, ROLE_PREFIX, props);
