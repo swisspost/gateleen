@@ -257,6 +257,9 @@ public class Server extends AbstractVerticle {
                         queueClient, lock);
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
 
+                queueSplitter = new QueueSplitterImpl(configurationResourceManager, SERVER_ROOT + "/admin/v1/queueSplitters");
+                queueSplitter.initialize();
+
                 hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository,
                         monitoringHandler,SERVER_ROOT + "/users/v1/%s/profile",
                         SERVER_ROOT + "/hooks/v1/", queueClient,false, reducedPropagationManager, null, storage, Router.DEFAULT_ROUTER_MULTIPLIER, queueSplitter);
@@ -327,9 +330,6 @@ public class Server extends AbstractVerticle {
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(),
                         monitoringHandler);
-
-                queueSplitter = new QueueSplitterImpl(configurationResourceManager, SERVER_ROOT + "/admin/v1/queueSplitters");
-                queueSplitter.initialize();
 
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);
