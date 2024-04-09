@@ -481,11 +481,6 @@
             </dependency>
 
             <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>${slf4j.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.swisspush</groupId>
                 <artifactId>mod-metrics</artifactId>
                 <version>${mod-metrics.version}</version>
@@ -507,13 +502,13 @@
                 <version>${wiremock.version}</version>
             </dependency>
             <dependency>
-                <groupId>info.cukes</groupId>
+                <groupId>io.cucumber</groupId>
                 <artifactId>cucumber-java</artifactId>
                 <scope>test</scope>
                 <version>${cucumber.version}</version>
             </dependency>
             <dependency>
-                <groupId>info.cukes</groupId>
+                <groupId>io.cucumber</groupId>
                 <artifactId>cucumber-junit</artifactId>
                 <scope>test</scope>
                 <version>${cucumber.version}</version>
