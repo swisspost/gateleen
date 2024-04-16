@@ -371,12 +371,13 @@ public class Forwarder extends AbstractForwarder {
                     };
 
                     req.exceptionHandler(t -> {
-                        RequestLoggerFactory
-                                .getLogger(Forwarder.class, req)
-                                .warn("Exception during forwarding - closing (forwarding) client connection", t);
+                        log.info("Exception during forwarding - closing (forwarding) client connection", t);
                         HttpConnection connection = cReq.connection();
                         if (connection != null) {
                             connection.close();
+                        } else {
+                            log.warn("There's no connection we could close in {}, gateleen wishes your request a happy timeout ({})",
+                                    cReq.getClass(), req.uri());
                         }
                     });
 

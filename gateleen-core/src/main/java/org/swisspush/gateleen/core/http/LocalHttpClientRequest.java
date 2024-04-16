@@ -825,7 +825,11 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
     @Override
     public HttpConnection connection() {
-        throw new UnsupportedOperationException();
+        // Cited from API specification:
+        //     @return the {@link HttpConnection} associated with this request
+        // As "no connection" is associated with this request, we return "no connection".
+        log.debug("There's no connection associated with this request.");
+        return null;
     }
 
     @Override
