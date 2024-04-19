@@ -135,7 +135,7 @@ public class RedisMonitor {
                     publisher.publishMetric(key, value);
                 }
             } catch (NumberFormatException e) {
-                // ignore this field
+                log.trace("ignore field '{}' because '{}' doesnt look number-ish enough", key, valueStr);
             }
         });
     }
