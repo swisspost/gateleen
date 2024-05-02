@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
+import static org.swisspush.gateleen.core.util.StatusCode.PAYLOAD_TOO_LARGE;
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.EXPAND_ON_BACKEND;
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.STORAGE_EXPAND;
 import static org.swisspush.gateleen.routing.RuleProvider.RuleChangesObserver;
@@ -544,7 +545,11 @@ public class ExpansionHandler implements RuleChangesObserver {
                     return;
                 }
                 cRes.bodyHandler(data -> {
-                    if (StatusCode.INTERNAL_SERVER_ERROR.getStatusCode() == cRes.statusCode()) {
+                    if (StatusCode.PAYLOAD_TOO_LARGE.getStatusCode() == cRes.statusCode()) {
+                        String fullResponseBody = data.toString();
+                        log.info("{}: {}: {}", PAYLOAD_TOO_LARGE, targetUri, fullResponseBody);
+                        handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(fullResponseBody, PAYLOAD_TOO_LARGE)));
+                    } else if (StatusCode.INTERNAL_SERVER_ERROR.getStatusCode() == cRes.statusCode()) {
                         String fullResponseBody = data.toString();
                         log.error("{}: {}: {}", INTERNAL_SERVER_ERROR, targetUri, fullResponseBody);
                         handler.handle(new ResourceNode(SERIOUS_EXCEPTION, new ResourceCollectionException(fullResponseBody, StatusCode.INTERNAL_SERVER_ERROR)));
