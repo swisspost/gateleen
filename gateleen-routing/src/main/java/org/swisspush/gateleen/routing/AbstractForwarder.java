@@ -4,7 +4,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
@@ -13,11 +12,8 @@ import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
-import static org.slf4j.LoggerFactory.getLogger;
-
 public abstract class AbstractForwarder implements Handler<RoutingContext> {
 
-    private static final Logger log = getLogger(AbstractForwarder.class);
     protected final Rule rule;
     protected final LoggingResourceManager loggingResourceManager;
     protected final LogAppenderRepository logAppenderRepository;
