@@ -48,22 +48,24 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
     }
 
     protected void respondError(HttpServerRequest req, StatusCode statusCode) {
+        Logger log = null;
         try {
             ResponseStatusCodeLogUtil.info(req, statusCode, getClass());
 
             String msg = statusCode.getStatusMessage();
             var rsp = req.response();
             if (rsp.headWritten()) {
-                log.warn("Response already sent. Cannot send anymore: HTTP {} {}", statusCode, msg);
+                log = (log != null) ? log : RequestLoggerFactory.getLogger(AbstractForwarder.class, req);
+                log.warn("Response already sent. Cannot send: HTTP {} {}", statusCode, msg);
             } else {
-                req.response()
-                        .setStatusCode(statusCode.getStatusCode())
-                        .setStatusMessage(msg)
-                        .end(msg);
+                rsp.setStatusCode(statusCode.getStatusCode());
+                rsp.setStatusMessage(msg);
+                rsp.end(msg);
             }
         } catch (IllegalStateException ex) {
             // (nearly) ignore because underlying connection maybe already closed
-            RequestLoggerFactory.getLogger(getClass(), req).info("IllegalStateException while sending error response for {}", req.uri(), ex);
+            log = (log != null) ? log : RequestLoggerFactory.getLogger(AbstractForwarder.class, req);
+            log.warn("IllegalStateException while sending error response for {}", req.uri(), ex);
         }
     }
 }
