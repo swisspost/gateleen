@@ -450,9 +450,16 @@ public class Forwarder extends AbstractForwarder {
             HttpClientResponse cRes = asyncResult.result();
             if (asyncResult.failed()) {
                 error(asyncResult.cause().getMessage(), req, targetUri);
-                req.response().setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
-                req.response().setStatusMessage(asyncResult.cause().getMessage());
-                req.response().end();
+                HttpServerResponse rsp = req.response();
+                int rspCode = HttpResponseStatus.INTERNAL_SERVER_ERROR.code();
+                String shortMsg = asyncResult.cause().getMessage();
+                if (rsp.headWritten()) {
+                    log.warn("Already responded. Cannot send anymore: HTTP {} {}", rspCode, shortMsg);
+                } else {
+                    rsp.setStatusCode(rspCode);
+                    rsp.setStatusMessage(shortMsg);
+                    rsp.end();
+                }
                 return;
             }
             monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
