@@ -13,8 +13,18 @@ import io.vertx.core.eventbus.ReplyFailure;
  * So now through this abstraction, both applications can choose the behavior
  * they need.
  *
- * If dependency-injection gets applied properly, an app can even provide its
- * custom implementation to fine-tune the exact behavior even further.
+ * There are two default options an app can use (if it does not want to provide
+ * a custom impl).
+ * One is {@link GateleenThriftyExceptionFactory}. It trades maintainability
+ * for speed. For example prefers lightweight exceptions without stacktrace
+ * recording. Plus it may apply other tricks to reduce resource costs.
+ * The other one is {@link GateleenWastefulExceptionFactory}. It trades speed
+ * for maintainability. So it tries to track as much error details as possible.
+ * For example recording stack traces, keeping 'cause' and 'suppressed'
+ * exceptions, plus maybe more.
+ *
+ * If none of those defaults matches, an app can provide its custom
+ * implementation via dependency injection.
  */
 public interface GateleenExceptionFactory {
 
