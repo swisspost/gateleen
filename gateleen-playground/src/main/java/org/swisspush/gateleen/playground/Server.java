@@ -86,6 +86,8 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
+
 /**
  * Playground server to try Gateleen at home.
  *
@@ -214,7 +216,7 @@ public class Server extends AbstractVerticle {
                 copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
 
-                Lock lock = new RedisBasedLock(redisProvider);
+                Lock lock = new RedisBasedLock(redisProvider, newGateleenWastefulExceptionFactory());
 
                 cacheStorage = new RedisCacheStorage(vertx, lock, redisProvider, 20 * 1000);
                 cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));

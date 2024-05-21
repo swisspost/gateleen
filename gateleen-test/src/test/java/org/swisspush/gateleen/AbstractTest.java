@@ -73,6 +73,7 @@ import org.swisspush.gateleen.runconfig.RunConfig;
 import org.swisspush.gateleen.scheduler.SchedulerResourceManager;
 import org.swisspush.gateleen.user.RoleProfileHandler;
 import org.swisspush.gateleen.user.UserProfileHandler;
+import org.swisspush.reststorage.exception.RestStorageExceptionFactory;
 import redis.clients.jedis.Jedis;
 
 import javax.management.*;
@@ -81,6 +82,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static org.swisspush.reststorage.exception.RestStorageExceptionFactory.newRestStorageWastefulExceptionFactory;
 
 /**
  * TestVerticle all Gateleen tests. <br />
@@ -170,7 +173,7 @@ public abstract class AbstractTest {
                 RoleProfileHandler roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
 
-                Lock lock = new RedisBasedLock(redisProvider);
+                Lock lock = new RedisBasedLock(redisProvider, newRestStorageWastefulExceptionFactory());
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
                 ReducedPropagationManager reducedPropagationManager = new ReducedPropagationManager(vertx,
