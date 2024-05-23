@@ -13,18 +13,21 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 @RunWith(VertxUnitRunner.class)
 public class QueueSplitterImplTest {
 
     private Vertx vertx;
     private MockResourceStorage storage;
+    private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private final String configResourceUri = "/queueSplitters";
     private ConfigurationResourceManager configurationResourceManager;
     private QueueSplitterImpl queueSplitter;
@@ -37,7 +40,7 @@ public class QueueSplitterImplTest {
     public void setUp() {
         vertx = Vertx.vertx();
         storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, exceptionFactory);
         queueSplitter = new QueueSplitterImpl(configurationResourceManager, configResourceUri);
     }
 

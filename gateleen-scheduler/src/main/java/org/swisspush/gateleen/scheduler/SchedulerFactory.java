@@ -6,6 +6,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.StringUtils;
@@ -40,19 +41,28 @@ public class SchedulerFactory {
     private final JsonArray defaultRequestHeaders;
     private final Vertx vertx;
     private final RedisProvider redisProvider;
+    private final GateleenExceptionFactory exceptionFactory;
     private final MonitoringHandler monitoringHandler;
     private final String schedulersSchema;
     private final String redisquesAddress;
 
     private final Logger log = LoggerFactory.getLogger(SchedulerFactory.class);
 
-    public SchedulerFactory(Map<String, Object> properties, Map<String, String> defaultRequestHeaders, Vertx vertx,
-                            RedisProvider redisProvider, MonitoringHandler monitoringHandler, String schedulersSchema,
-                            String redisquesAddress) {
+    public SchedulerFactory(
+        Map<String, Object> properties,
+        Map<String, String> defaultRequestHeaders,
+        Vertx vertx,
+        RedisProvider redisProvider,
+        GateleenExceptionFactory exceptionFactory,
+        MonitoringHandler monitoringHandler,
+        String schedulersSchema,
+        String redisquesAddress
+    ) {
         this.properties = properties;
         this.defaultRequestHeaders = defaultRequestHeadersAsJsonArray(defaultRequestHeaders);
         this.vertx = vertx;
         this.redisProvider = redisProvider;
+        this.exceptionFactory = exceptionFactory;
         this.monitoringHandler = monitoringHandler;
         this.schedulersSchema = schedulersSchema;
         this.redisquesAddress = redisquesAddress;
@@ -122,7 +132,7 @@ public class SchedulerFactory {
                 }
             }
             try {
-                result.add(new Scheduler(vertx, redisquesAddress, redisProvider, entry.getKey(),
+                result.add(new Scheduler(vertx, redisquesAddress, redisProvider, exceptionFactory, entry.getKey(),
                         (String) schedulerJson.get("cronExpression"), requests, monitoringHandler, maxRandomOffset, executeOnStartup, executeOnReload)
                 );
             } catch (ParseException e) {

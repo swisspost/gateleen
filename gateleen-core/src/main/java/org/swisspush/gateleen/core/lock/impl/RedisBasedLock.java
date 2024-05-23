@@ -40,7 +40,7 @@ public class RedisBasedLock implements Lock {
     public RedisBasedLock(RedisProvider redisProvider, GateleenExceptionFactory exceptionFactory) {
         this.redisProvider = redisProvider;
         this.exceptionFactory = exceptionFactory;
-        this.releaseLockLuaScriptState = new LuaScriptState(LockLuaScripts.LOCK_RELEASE, redisProvider, false);
+        this.releaseLockLuaScriptState = new LuaScriptState(LockLuaScripts.LOCK_RELEASE, redisProvider, exceptionFactory, false);
     }
 
     private void redisSetWithOptions(String key, String value, boolean nx, long px, Handler<AsyncResult<Response>> handler) {
@@ -94,7 +94,7 @@ public class RedisBasedLock implements Lock {
         List<String> keys = Collections.singletonList(buildLockKey(lock));
         List<String> arguments = Collections.singletonList(token);
         ReleaseLockRedisCommand cmd = new ReleaseLockRedisCommand(releaseLockLuaScriptState,
-                keys, arguments, redisProvider, log, promise);
+                keys, arguments, redisProvider, exceptionFactory, log, promise);
         cmd.exec(0);
         return promise.future();
     }

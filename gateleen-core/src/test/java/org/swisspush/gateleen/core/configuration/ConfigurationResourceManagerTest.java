@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 /**
  * Tests for the {@link ConfigurationResourceManager} class
@@ -35,7 +36,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testGetRegisteredResourceNotYetRegistered(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -53,7 +54,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testGetRegisteredResource(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -68,8 +69,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
 
         // resource should not be in storage
         context.assertFalse(storage.getMockData().containsKey(resourceURI));
-
-        boolean handled = configurationResourceManager.handleConfigurationResource(request);
+boolean handled = configurationResourceManager.handleConfigurationResource(request);
         context.assertTrue(handled, "PUT Request to configuration resource should be handled");
 
         // resource should be in storage
@@ -87,7 +87,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testGetRegisteredResourceInitiallyLoadedFromStorage(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -118,7 +118,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testGetRegisteredResourceInitiallyLoadedFromStorageInvalid(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -148,7 +148,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testRegistrationAndValidUpdateWithSchema(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -178,7 +178,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testRegistrationAndInvalidUpdateWithSchema(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -212,7 +212,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         int storagePutFailStatusCode = 400;
 
         storage.failPutWith(storagePutFailStatusCode);
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -247,7 +247,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testNotSupportedConfigurationResourceChangeType(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = Mockito.spy(new MockResourceStorage());
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -274,7 +274,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testRequestWithoutUri(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -297,7 +297,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testGETRequestToRegisteredResourceUriShouldNotBeHandled(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -320,7 +320,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testNotificationAfterRegistration(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
         storage.putMockData(resourceURI, CONTENT_MATCHING_PERSON_SCHEMA);
@@ -348,7 +348,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testNotificationMultipleObserversAfterRegistration(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
         storage.putMockData(resourceURI, CONTENT_MATCHING_PERSON_SCHEMA);
@@ -379,7 +379,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testRemoveResource(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -420,7 +420,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
 
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         String resourceURI = "/gateleen/resources/person";
 
@@ -467,7 +467,7 @@ public class ConfigurationResourceManagerTest extends ConfigurationResourceTestB
     public void testRequestToNotRegisteredResourceUriShouldNotBeHandled(TestContext context) {
         Async async = context.async();
         MockResourceStorage storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, newGateleenWastefulExceptionFactory());
 
         configurationResourceManager.registerResource("/gateleen/resources/person/abc", PERSON_SCHEMA);
         configurationResourceManager.registerResource("/gateleen/resources/person/def", PERSON_SCHEMA);

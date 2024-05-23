@@ -21,6 +21,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.FastFaiHttpClientResponse;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.LocalHttpClientRequest;
@@ -34,6 +35,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitStat
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
 import static org.mockito.Mockito.*;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 /**
  * Tests for the {@link QueueProcessor} class
@@ -45,6 +47,7 @@ public class QueueProcessorTest {
     private Vertx vertx;
     private HttpClient httpClient;
     private MonitoringHandler monitoringHandler;
+    private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
 
     private String PAYLOAD = "{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"}";
     private final String QUEUE_RETRY_400 = ResourcesUtils.loadResource("testresource_queue_retry_400", true);
@@ -68,10 +71,10 @@ public class QueueProcessorTest {
         QueueProcessor queueProcessor = new QueueProcessor(vertx, httpClient, monitoringHandler);
         context.assertTrue(queueProcessor.isQueueProcessingStarted());
 
-        queueProcessor = new QueueProcessor(vertx, httpClient, monitoringHandler, null, true);
+        queueProcessor = new QueueProcessor(vertx, httpClient, monitoringHandler, null, exceptionFactory, true);
         context.assertTrue(queueProcessor.isQueueProcessingStarted());
 
-        queueProcessor = new QueueProcessor(vertx, httpClient, monitoringHandler, null, false);
+        queueProcessor = new QueueProcessor(vertx, httpClient, monitoringHandler, null, exceptionFactory, false);
         context.assertFalse(queueProcessor.isQueueProcessingStarted());
 
         queueProcessor.startQueueProcessing();
@@ -214,7 +217,7 @@ public class QueueProcessorTest {
             String url = (String) invocation.getArguments()[1];
             LocalHttpClientRequest request = new LocalHttpClientRequest(httpMethod, url, vertx, event -> {
 
-            }, new LocalHttpServerResponse(vertx)) {
+            }, exceptionFactory, new LocalHttpServerResponse(vertx)) {
                 @Override
                 public HttpClientRequest response(Handler<AsyncResult<HttpClientResponse>> handler) {
                     FastFaiHttpClientResponse response = new FastFaiHttpClientResponse() {

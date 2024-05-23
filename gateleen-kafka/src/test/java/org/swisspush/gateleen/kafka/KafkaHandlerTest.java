@@ -17,6 +17,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
@@ -34,6 +35,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 /**
  * Test class for the {@link KafkaHandler}
@@ -50,6 +52,7 @@ public class KafkaHandlerTest {
     private ConfigurationResourceManager configurationResourceManager;
     private KafkaHandler handler;
     private MockResourceStorage storage;
+    private GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
 
     private final String configResourceUri = "/kafka/topicsConfig";
     private final String streamingPath = "/kafka/streaming/";
@@ -64,7 +67,7 @@ public class KafkaHandlerTest {
         kafkaMessageSender = Mockito.mock(KafkaMessageSender.class);
         messageValidator = Mockito.mock(KafkaMessageValidator.class);
         storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+        configurationResourceManager = new ConfigurationResourceManager(vertx, storage, exceptionFactory);
         handler = new KafkaHandler(configurationResourceManager, repository, kafkaMessageSender,
                 configResourceUri, streamingPath);
 

@@ -17,6 +17,7 @@ import org.mockito.AdditionalMatchers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
@@ -25,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.mockito.Mockito.*;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.getInteger;
 import static org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager.*;
@@ -42,6 +44,7 @@ public class ReducedPropagationManagerTest {
     public Timeout rule = Timeout.seconds(50);
 
     private Vertx vertx;
+    private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private ReducedPropagationStorage reducedPropagationStorage;
     private ReducedPropagationManager manager;
     private RequestQueue requestQueue;
@@ -55,7 +58,7 @@ public class ReducedPropagationManagerTest {
         requestQueue = Mockito.mock(RequestQueue.class);
         requestQueueInOrder = Mockito.inOrder(requestQueue);
         lock = Mockito.mock(Lock.class);
-        manager = new ReducedPropagationManager(vertx, reducedPropagationStorage, requestQueue, lock);
+        manager = new ReducedPropagationManager(vertx, reducedPropagationStorage, requestQueue, lock, exceptionFactory);
     }
 
     @Test

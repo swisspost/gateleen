@@ -14,6 +14,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.Address;
@@ -25,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 /**
  * Tests for the {@link SchedulerFactory} class
@@ -39,6 +41,7 @@ public class SchedulerFactoryTest {
 
     private RedisAPI redisAPI;
     private RedisProvider redisProvider;
+    private GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private SchedulerFactory schedulerFactory;
 
     @Rule
@@ -62,8 +65,8 @@ public class SchedulerFactoryTest {
 
         monitoringHandler = Mockito.mock(MonitoringHandler.class);
 
-        schedulerFactory = new SchedulerFactory(null, Collections.emptyMap(), vertx, redisProvider, monitoringHandler,
-                schedulersSchema, Address.redisquesAddress());
+        schedulerFactory = new SchedulerFactory(null, Collections.emptyMap(), vertx, redisProvider, exceptionFactory,
+                monitoringHandler, schedulersSchema, Address.redisquesAddress());
     }
 
     @Test
@@ -105,7 +108,7 @@ public class SchedulerFactoryTest {
     @Test
     public void testValidSchedulerConfigWithDefaultHeaders(TestContext context) throws ValidationException {
         schedulerFactory = new SchedulerFactory(null, Collections.singletonMap("x-foo", "zzz"), vertx, redisProvider,
-                monitoringHandler, schedulersSchema, Address.redisquesAddress());
+                exceptionFactory, monitoringHandler, schedulersSchema, Address.redisquesAddress());
         List<Scheduler> schedulers = schedulerFactory.parseSchedulers(Buffer.buffer(VALID_SCHEDULER_RESOURCE));
         context.assertNotNull(schedulers);
         context.assertEquals(4, schedulers.size());

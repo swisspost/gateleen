@@ -16,6 +16,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 import static org.swisspush.gateleen.core.util.ResourcesUtils.loadResource;
 
 /**
@@ -39,6 +41,7 @@ public class DelegateTest {
     private final String VALID_DYNAMIC_HEADERS_DELEGATE = loadResource("valid_dynamic_headers_delegate", true);
     private final String VALID_HEADER_DEFINITON_DELEGATE = loadResource("valid_header_definition_delegate", true);
 
+    private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private String delegatesSchema = loadResource("gateleen_delegate_schema_delegates", true);
 
     private ClientRequestCreator clientRequestCreator;
@@ -48,7 +51,7 @@ public class DelegateTest {
     public void setUp() {
         Vertx vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
-        final LocalHttpClient selfClient = new LocalHttpClient(vertx);
+        final LocalHttpClient selfClient = new LocalHttpClient(vertx, exceptionFactory);
         selfClient.setRoutingContexttHandler(event -> {});
         clientRequestCreator = Mockito.spy(new ClientRequestCreator(selfClient));
         delegateFactory = new DelegateFactory(clientRequestCreator, new HashMap<>(), delegatesSchema);

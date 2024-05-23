@@ -12,6 +12,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
+
 @RunWith(VertxUnitRunner.class)
 public class CopyResourceHandlerTest {
     private HttpServerRequest httpServerRequestMock;
@@ -20,7 +22,7 @@ public class CopyResourceHandlerTest {
     @Before
     public void init() {
         httpServerRequestMock = Mockito.mock(HttpServerRequest.class);
-        copyResourceHandler = new CopyResourceHandler(Mockito.mock(HttpClient.class), null);
+        copyResourceHandler = new CopyResourceHandler(Mockito.mock(HttpClient.class), newGateleenWastefulExceptionFactory(), null);
 
         MultiMap headers = MultiMap.caseInsensitiveMultiMap().add("x-expire-after", "700");
         Mockito.doReturn(headers).when(httpServerRequestMock).headers();
