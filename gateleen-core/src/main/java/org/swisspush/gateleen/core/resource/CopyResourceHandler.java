@@ -7,6 +7,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -25,11 +26,13 @@ public class CopyResourceHandler {
     private static final String SLASH = "/";
     private static final int DEFAULT_TIMEOUT = 120000;
 
-    private final String copyPath;
     private final HttpClient selfClient;
+    private final GateleenExceptionFactory exceptionFactory;
+    private final String copyPath;
 
-    public CopyResourceHandler(HttpClient selfClient, String copyPath) {
+    public CopyResourceHandler(HttpClient selfClient, GateleenExceptionFactory exceptionFactory, String copyPath) {
         this.selfClient = selfClient;
+        this.exceptionFactory = exceptionFactory;
         this.copyPath = copyPath;
     }
 
@@ -94,7 +97,8 @@ public class CopyResourceHandler {
 
         selfClient.request(HttpMethod.GET, task.getSourceUri()).onComplete(event -> {
             if (event.failed()) {
-                log.warn("Failed request to {}", request.uri(), new Exception("stacktrace", event.cause()));
+                log.warn("stacktrace", exceptionFactory.newException(
+                    "Failed request to " + request.uri(), event.cause()));
                 return;
             }
             HttpClientRequest selfRequest = event.result();
@@ -105,12 +109,16 @@ public class CopyResourceHandler {
             selfRequest.idleTimeout(DEFAULT_TIMEOUT);
 
             // add exception handler
-            selfRequest.exceptionHandler( ex -> log.warn("CopyResourceHandler: GET request failed: {}", request.uri(), new Exception("stacktrace", ex)));
+            selfRequest.exceptionHandler(ex -> {
+                log.warn("stacktrace", exceptionFactory.newException(
+                    "CopyResourceHandler: GET request failed: " + request.uri(), ex));
+            });
 
             // fire
             selfRequest.send(asyncResult -> {
-                if( asyncResult.failed() ){
-                    log.warn("stacktrace", new Exception("stacktrace", asyncResult.cause()));
+                if (asyncResult.failed()) {
+                    log.warn("stacktrace", exceptionFactory.newException(
+                        "selfRequest.send() failed", asyncResult.cause()));
                     return;
                 }
                 HttpClientResponse response = asyncResult.result();
@@ -138,7 +146,7 @@ public class CopyResourceHandler {
 
                 selfClient.request(HttpMethod.PUT, task.getDestinationUri()).onComplete(event -> {
                     if (event.failed()) {
-                        log.warn("Failed request to {}", request.uri(), new Exception("stacktrace", event.cause()));
+                        log.warn("Failed request to {}", request.uri(), exceptionFactory.newException(event.cause()));
                         return;
                     }
                     HttpClientRequest selfRequest = event.result();
@@ -154,8 +162,9 @@ public class CopyResourceHandler {
 
                     // fire
                     selfRequest.send(asyncResult -> {
-                        if( asyncResult.failed() ){
-                            log.warn("stacktrace", new Exception("stacktrace", asyncResult.cause()));
+                        if (asyncResult.failed()) {
+                            log.warn("stacktrace", exceptionFactory.newException(
+                                "selfRequest.send() failed", asyncResult.cause()));
                             return;
                         }
                         HttpClientResponse response = asyncResult.result();

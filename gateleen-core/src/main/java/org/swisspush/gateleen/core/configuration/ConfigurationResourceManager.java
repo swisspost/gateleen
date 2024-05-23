@@ -11,6 +11,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
@@ -35,6 +36,7 @@ public class ConfigurationResourceManager implements LoggableResource {
 
     private final Vertx vertx;
     private final ResourceStorage storage;
+    private final GateleenExceptionFactory exceptionFactory;
     private Map<String, String> registeredResources;
     private Map<String, List<ConfigurationResourceObserver>> observers;
     private final ConfigurationResourceValidator configurationResourceValidator;
@@ -44,9 +46,14 @@ public class ConfigurationResourceManager implements LoggableResource {
     private static final String MESSAGE_REQUEST_URI = "requestUri";
     private static final String MESSAGE_RESOURCE_TYPE = "type";
 
-    public ConfigurationResourceManager(Vertx vertx, final ResourceStorage storage) {
+    public ConfigurationResourceManager(
+        Vertx vertx,
+        ResourceStorage storage,
+        GateleenExceptionFactory exceptionFactory
+    ) {
         this.vertx = vertx;
         this.storage = storage;
+        this.exceptionFactory = exceptionFactory;
 
         this.configurationResourceValidator = new ConfigurationResourceValidator(vertx);
 
@@ -192,11 +199,11 @@ public class ConfigurationResourceManager implements LoggableResource {
                         if (event.result().isSuccess()) {
                             promise.complete(Optional.of(buffer));
                         } else {
-                            promise.fail(new Exception("Failure during validation of resource "
+                            promise.fail(exceptionFactory.newException("Failure during validation of resource "
                                     + resourceUri + ". Message: " + event.result().getMessage()));
                         }
                     } else {
-                        promise.fail(new Exception("ReleaseLockRedisCommand request failed", event.cause()));
+                        promise.fail(exceptionFactory.newException("ReleaseLockRedisCommand request failed", event.cause()));
                     }
                 });
             } else {
@@ -217,9 +224,9 @@ public class ConfigurationResourceManager implements LoggableResource {
 
     private void notifyObserverAboutResourceChange(String requestUri, ConfigurationResourceObserver observer) {
         getValidatedRegisteredResource(requestUri).onComplete(event -> {
-            if(event.failed()){
-                log.warn("TODO error handling", new Exception(event.cause()));
-            } else if(event.result().isPresent()){
+            if (event.failed()) {
+                log.warn("stacktrace", exceptionFactory.newException("TODO error handling", event.cause()));
+            } else if (event.result().isPresent()) {
                 if(observer != null) {
                     observer.resourceChanged(requestUri, event.result().get());
                 } else {

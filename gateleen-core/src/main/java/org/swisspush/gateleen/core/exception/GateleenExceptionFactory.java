@@ -28,7 +28,13 @@ import io.vertx.core.eventbus.ReplyFailure;
  */
 public interface GateleenExceptionFactory {
 
-    public Exception newException(String message, Throwable cause);
+    /** Convenience overload for {@link #newException(String, Throwable)}. */
+    public default Exception newException(String msg){ return newException(msg, null); }
+
+    /** Convenience overload for {@link #newException(String, Throwable)}. */
+    public default Exception newException(Throwable cause){ return newException(null, cause); }
+
+    public Exception newException(String msg, Throwable cause);
 
     public ReplyException newReplyException(ReplyFailure failureType, int failureCode, String message);
 
