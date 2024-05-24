@@ -44,7 +44,7 @@ public enum StatusCode {
     GONE(410, "Gone"),
     LENGTH_REQUIRED(411, "Length Required"),
     PRECONDITION_FAILED(412, "Precondition Failed"),
-    CONTENT_TOO_LARGE(413, "Content Too Large"),
+    PAYLOAD_TOO_LARGE(413, "Payload Too Large"),
     URI_TOO_LONG(414, "URI Too Long"),
     UNSUPPORTED_MEDIA_TYPE(415, "Unsupported Media Type"),
     RANGE_NOT_SATISFIABLE(416, "Range Not Satisfiable"),

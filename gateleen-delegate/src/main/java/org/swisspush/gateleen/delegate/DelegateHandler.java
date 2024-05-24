@@ -18,9 +18,9 @@ import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
-import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
 
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -83,22 +83,37 @@ public class DelegateHandler implements Refreshable, LoggableResource {
      * @param vertx vertx
      * @param selfClient selfClient
      * @param delegateStorage delegateStorage - only used for storing delegates
-     * @param monitoringHandler monitoringHandler
      * @param delegatesUri delegate root
      * @param properties properties
      * @param doneHandler doneHandler
      */
     public DelegateHandler(final Vertx vertx, final HttpClient selfClient, final ResourceStorage delegateStorage,
-                           final MonitoringHandler monitoringHandler, final String delegatesUri,
-                           final Map<String, Object> properties,
-                           final Handler<Void> doneHandler) {
+                           final String delegatesUri, final Map<String, Object> properties, final Handler<Void> doneHandler) {
+        this(vertx, selfClient, delegateStorage, delegatesUri, properties, null, doneHandler);
+    }
+
+    /**
+     * Creates a new instance of the DelegateHandler.
+     *
+     * @param vertx vertx
+     * @param selfClient selfClient
+     * @param delegateStorage delegateStorage - only used for storing delegates
+     * @param delegatesUri delegate root
+     * @param properties properties
+     * @param unmatchedDelegateStatusCode respond requests with this status code when not matched
+     * @param doneHandler doneHandler
+     */
+    public DelegateHandler(final Vertx vertx, final HttpClient selfClient, final ResourceStorage delegateStorage,
+                           final String delegatesUri, final Map<String, Object> properties,
+                           @Nullable StatusCode unmatchedDelegateStatusCode, final Handler<Void> doneHandler) {
         this.vertx = vertx;
         this.delegateStorage = delegateStorage;
         this.delegatesUri = delegatesUri;
         this.doneHandler = doneHandler;
 
         String delegatesSchema = ResourcesUtils.loadResource("gateleen_delegate_schema_delegates", true);
-        this.delegateFactory = new DelegateFactory(new ClientRequestCreator(selfClient), properties, delegatesSchema);
+        this.delegateFactory = new DelegateFactory(new ClientRequestCreator(selfClient), properties,
+                delegatesSchema, unmatchedDelegateStatusCode);
 
         delegateNamePattern = Pattern.compile(delegatesUri + "([^/]+)(/" + DEFINITION_RESOURCE + "|/"+ EXECUTION_RESOURCE + ".*" + "|/?)");
 

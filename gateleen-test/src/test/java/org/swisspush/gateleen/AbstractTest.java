@@ -191,8 +191,8 @@ public abstract class AbstractTest {
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);
                 ZipExtractHandler zipExtractHandler = new ZipExtractHandler(selfClient);
-                DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler,
-                        DELEGATE_ROOT, props, null);
+                DelegateHandler delegateHandler = new DelegateHandler(vertx, selfClient, storage, DELEGATE_ROOT,
+                        props, null);
                 MergeHandler mergeHandler = new MergeHandler(selfClient);
 
                 cacheHandler = new CacheHandler(

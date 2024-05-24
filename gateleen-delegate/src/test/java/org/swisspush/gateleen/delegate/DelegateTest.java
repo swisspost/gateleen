@@ -1,13 +1,13 @@
 package org.swisspush.gateleen.delegate;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-
 import io.vertx.core.http.HttpMethod;
-
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -20,6 +20,7 @@ import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.HashMap;
@@ -38,8 +39,11 @@ import static org.swisspush.gateleen.core.util.ResourcesUtils.loadResource;
 public class DelegateTest {
 
     private final String VALID_DELEGATE = loadResource("valid_delegate", true);
+    private final String VALID_DELEGATE_NOT_MATCHING = loadResource("valid_delegate_not_matching", true);
     private final String VALID_DYNAMIC_HEADERS_DELEGATE = loadResource("valid_dynamic_headers_delegate", true);
     private final String VALID_HEADER_DEFINITON_DELEGATE = loadResource("valid_header_definition_delegate", true);
+
+    private final String VALID_TRANSFORM_PROPERTY_DELEGATE = loadResource("valid_transform_delegate", true);
 
     private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private String delegatesSchema = loadResource("gateleen_delegate_schema_delegates", true);
@@ -54,7 +58,64 @@ public class DelegateTest {
         final LocalHttpClient selfClient = new LocalHttpClient(vertx, exceptionFactory);
         selfClient.setRoutingContexttHandler(event -> {});
         clientRequestCreator = Mockito.spy(new ClientRequestCreator(selfClient));
-        delegateFactory = new DelegateFactory(clientRequestCreator, new HashMap<>(), delegatesSchema);
+        delegateFactory = new DelegateFactory(clientRequestCreator, new HashMap<>(), delegatesSchema, null);
+    }
+
+    @Test
+    public void testNotMatchingDelegateWithNoDefinedResponseStatusCode(TestContext context) throws ValidationException {
+        Delegate delegate = delegateFactory.parseDelegate("someDelegate",
+                Buffer.buffer(VALID_DELEGATE_NOT_MATCHING));
+
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+
+        CustomHttpServerRequest request = new CustomHttpServerRequest("/gateleen/playground/foobar", HttpMethod.PUT,
+                MultiMap.caseInsensitiveMultiMap(), null, response
+        );
+
+        delegate.handle(request);
+
+        verifyNoInteractions(clientRequestCreator);
+        verify(response, never()).setStatusCode(anyInt());
+        verify(response, never()).setStatusMessage(anyString());
+        verify(response, times(1)).end();
+    }
+
+    @Test
+    public void testNotMatchingDelegateWithDefinedResponseStatusCode(TestContext context) throws ValidationException {
+        delegateFactory = new DelegateFactory(clientRequestCreator, new HashMap<>(), delegatesSchema, StatusCode.NOT_IMPLEMENTED);
+        Delegate delegate = delegateFactory.parseDelegate("someDelegate",
+                Buffer.buffer(VALID_DELEGATE_NOT_MATCHING));
+
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+
+        CustomHttpServerRequest request = new CustomHttpServerRequest("/gateleen/playground/foobar", HttpMethod.PUT,
+                MultiMap.caseInsensitiveMultiMap(),null, response
+        );
+
+        delegate.handle(request);
+
+        verifyNoInteractions(clientRequestCreator);
+        verify(response, times(1)).setStatusCode(eq(StatusCode.NOT_IMPLEMENTED.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(StatusCode.NOT_IMPLEMENTED.getStatusMessage());
+        verify(response, times(1)).end();
+    }
+
+    @Test
+    public void testTransformationWithInvalidOriginalPayload(TestContext context) throws ValidationException {
+        Delegate delegate = delegateFactory.parseDelegate("someDelegate",
+                Buffer.buffer(VALID_TRANSFORM_PROPERTY_DELEGATE));
+
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        CustomHttpServerRequest request = new CustomHttpServerRequest("/gateleen/playground/foobar", HttpMethod.PUT,
+                MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{"), response
+        );
+
+        delegate.handle(request);
+
+        verifyNoInteractions(clientRequestCreator);
+        verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+        verify(response, times(1)).end(startsWith("Unable to parse payload of delegate execution request"));
     }
 
     @Test
@@ -154,10 +215,19 @@ public class DelegateTest {
         private final HttpMethod method;
         private final MultiMap headers;
 
+        private final HttpServerResponse response;
+        private final Buffer requestBody;
+
         public CustomHttpServerRequest(String uri, HttpMethod method, MultiMap headers) {
+            this(uri, method, headers, null, null);
+        }
+
+        public CustomHttpServerRequest(String uri, HttpMethod method, MultiMap headers, Buffer requestBody, HttpServerResponse response) {
             this.uri = uri;
             this.method = method;
             this.headers = headers;
+            this.requestBody = requestBody;
+            this.response = response;
         }
 
         @Override public HttpMethod method() {
@@ -168,5 +238,14 @@ public class DelegateTest {
         }
         @Override public MultiMap headers() { return headers; }
 
+        @Override
+        public HttpServerResponse response() {
+            return response != null ? response : super.response();
+        }
+
+        @Override
+        public Future<Buffer> body() {
+            return requestBody != null ? Future.succeededFuture(requestBody) : super.body();
+        }
     }
 }

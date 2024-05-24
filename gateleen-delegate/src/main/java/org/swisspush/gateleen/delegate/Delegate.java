@@ -18,6 +18,7 @@ import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,6 +44,7 @@ public class Delegate {
     private final Pattern pattern;
     private final Set<HttpMethod> methods;
     private final List<DelegateRequest> requests;
+    private final StatusCode unmatchedDelegateStatusCode;
     private boolean delegateContainsJoltSpecRequest = false;
 
     /**
@@ -54,12 +56,15 @@ public class Delegate {
      * @param methods              methods of the delegate
      * @param requests             requests of the delegate
      */
-    public Delegate(final ClientRequestCreator clientRequestCreator, final String name, final Pattern pattern, final Set<HttpMethod> methods, final List<DelegateRequest> requests) {
+    public Delegate(final ClientRequestCreator clientRequestCreator, final String name, final Pattern pattern,
+                    final Set<HttpMethod> methods, final List<DelegateRequest> requests,
+                    @Nullable StatusCode unmatchedDelegateStatusCode) {
         this.clientRequestCreator = clientRequestCreator;
         this.name = name;
         this.pattern = pattern;
         this.methods = methods;
         this.requests = requests;
+        this.unmatchedDelegateStatusCode = unmatchedDelegateStatusCode;
 
         this.delegateContainsJoltSpecRequest = doesDelegateContainJoltSpecRequest();
     }
@@ -107,8 +112,15 @@ public class Delegate {
             }
         }
 
-        // end response, if nothing matches
-        request.response().end();
+        // when delegate not matched and status code is defined, respond with defined status code
+        if(unmatchedDelegateStatusCode != null) {
+            request.response().setStatusCode(unmatchedDelegateStatusCode.getStatusCode());
+            request.response().setStatusMessage(unmatchedDelegateStatusCode.getStatusMessage());
+            request.response().end();
+        } else {
+            // when delegate not matched and no status code is defined, just end response with 200 OK
+            request.response().end();
+        }
     }
 
     /**

@@ -34,6 +34,7 @@ public abstract class RecursiveRootHandlerBase implements DeltaHandler<ResourceN
         ResponseStatusCodeLogUtil.debug(req, exception.getStatusCode(), RecursiveRootHandlerBase.class);
         req.response().setStatusCode(exception.getStatusCode().getStatusCode());
         req.response().setStatusMessage(exception.getStatusCode().getStatusMessage());
+        req.response().putHeader("Content-Type", "text/plain");
         req.response().end(exception.getMessage());
     }
 
