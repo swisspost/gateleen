@@ -287,7 +287,7 @@ public class Server extends AbstractVerticle {
 
                 zipExtractHandler = new ZipExtractHandler(selfClient);
 
-                delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler,
+                delegateHandler = new DelegateHandler(vertx, selfClient, storage,
                         SERVER_ROOT + "/admin/v1/delegates/", props, null);
                 delegateHandler.enableResourceLogging(true);
 

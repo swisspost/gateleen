@@ -66,7 +66,7 @@ public class DelegateFactoryTest {
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
         Map<String, Object> properties = new HashMap<>();
 
-        delegateFactory = new DelegateFactory(new ClientRequestCreator(Mockito.mock(HttpClient.class)), properties, delegatesSchema);
+        delegateFactory = new DelegateFactory(new ClientRequestCreator(Mockito.mock(HttpClient.class)), properties, delegatesSchema, null);
     }
 
     @Test

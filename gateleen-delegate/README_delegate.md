@@ -265,3 +265,7 @@ Also you have to enable the logging on the [DelegateHandler](src/main/java/org/s
 ```java
 delegateHandler.enableResourceLogging(true);
 ```
+### Unmatched delegate handling
+The default implementation of _Delegate_ and _DelegateHandler_ end the original request with `200 OK` when the _pattern_ or the _methods_ do not match.
+
+To override this behaviour, a _StatusCode_ can be provided in the constructor of _DelegateHandler_ as `unmatchedDelegateStatusCode` to define how the original requests should be responded when the called delegate does not match.
