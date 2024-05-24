@@ -12,11 +12,13 @@ import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.json.transform.JoltSpec;
 import org.swisspush.gateleen.core.json.transform.JoltSpecBuilder;
 import org.swisspush.gateleen.core.json.transform.JoltSpecException;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.Validator;
 
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -40,17 +42,22 @@ public class DelegateFactory {
     private final Map<String, Object> properties;
     private final String delegatesSchema;
 
+    private final StatusCode unmatchedDelegateStatusCode;
+
     /**
      * Creates a new instance of the DelegateFactory.
      *
      * @param clientRequestCreator
      * @param properties
      * @param delegatesSchema
+     * @param unmatchedDelegateStatusCode
      */
-    public DelegateFactory(final ClientRequestCreator clientRequestCreator, final Map<String, Object> properties, final String delegatesSchema) {
+    public DelegateFactory(final ClientRequestCreator clientRequestCreator, final Map<String, Object> properties,
+                           final String delegatesSchema, @Nullable StatusCode unmatchedDelegateStatusCode) {
         this.clientRequestCreator = clientRequestCreator;
         this.properties = properties;
         this.delegatesSchema = delegatesSchema;
+        this.unmatchedDelegateStatusCode = unmatchedDelegateStatusCode;
     }
 
     /**
@@ -125,7 +132,7 @@ public class DelegateFactory {
             requests.add(new DelegateRequest(requestJsonObject, joltSpec, headerFunction));
         }
 
-        return new Delegate(clientRequestCreator, delegateName, pattern, methods, requests);
+        return new Delegate(clientRequestCreator, delegateName, pattern, methods, requests, unmatchedDelegateStatusCode);
     }
 
     private JoltSpec parsePayloadTransformSpec(JsonObject requestJsonObject, String delegateName) throws ValidationException {
