@@ -38,7 +38,6 @@ import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
-import org.swisspush.gateleen.queue.queuing.splitter.NoOpQueueSplitter;
 import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
 import org.swisspush.gateleen.routing.CustomHttpResponseHandler;
 import org.swisspush.gateleen.routing.Router;

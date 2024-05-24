@@ -7,6 +7,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.StringUtils;
@@ -47,15 +48,15 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     private final LuaScriptState unlockSampleQueuesLuaScriptState;
     private final LuaScriptState getAllCircuitsLuaScriptState;
 
-    public RedisQueueCircuitBreakerStorage(RedisProvider redisProvider) {
+    public RedisQueueCircuitBreakerStorage(RedisProvider redisProvider, GateleenExceptionFactory exceptionFactory) {
         this.redisProvider = redisProvider;
 
-        openCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT, redisProvider, false);
-        closeCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.CLOSE_CIRCUIT, redisProvider, false);
-        reOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.REOPEN_CIRCUIT, redisProvider, false);
-        halfOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.HALFOPEN_CIRCUITS, redisProvider, false);
-        unlockSampleQueuesLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UNLOCK_SAMPLES, redisProvider, false);
-        getAllCircuitsLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.ALL_CIRCUITS, redisProvider, false);
+        openCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT, redisProvider, exceptionFactory, false);
+        closeCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.CLOSE_CIRCUIT, redisProvider, exceptionFactory, false);
+        reOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.REOPEN_CIRCUIT, redisProvider, exceptionFactory, false);
+        halfOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.HALFOPEN_CIRCUITS, redisProvider, exceptionFactory, false);
+        unlockSampleQueuesLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UNLOCK_SAMPLES, redisProvider, exceptionFactory, false);
+        getAllCircuitsLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.ALL_CIRCUITS, redisProvider, exceptionFactory, false);
     }
 
     @Override

@@ -21,6 +21,7 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 @RunWith(VertxUnitRunner.class)
 public class DefaultValidationSchemaProviderTest {
@@ -32,7 +33,7 @@ public class DefaultValidationSchemaProviderTest {
     @Before
     public void setUp(){
         vertx = Vertx.vertx();
-        final LocalHttpClient selfClient = new LocalHttpClient(vertx);
+        final LocalHttpClient selfClient = new LocalHttpClient(vertx, newGateleenWastefulExceptionFactory());
         selfClient.setRoutingContexttHandler(event -> {});
         clientRequestCreator = Mockito.spy(new ClientRequestCreator(selfClient));
         schemaProvider = new DefaultValidationSchemaProvider(vertx, clientRequestCreator, Duration.ofSeconds(5));

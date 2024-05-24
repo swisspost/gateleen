@@ -7,8 +7,11 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
+
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenThriftyExceptionFactory;
 
 /**
  * Gives programmatic access to the resource storage.
@@ -17,19 +20,26 @@ import org.swisspush.gateleen.core.util.StatusCode;
  */
 public class HttpResourceStorage implements ResourceStorage {
 
+    private final GateleenExceptionFactory exceptionFactory;
+    private HttpClient client;
     private String host;
     private int port;
-    private HttpClient client;
 
     private Logger log = LoggerFactory.getLogger(HttpResourceStorage.class);
 
     private static final long TIMEOUT = 30000;
 
     public HttpResourceStorage(Vertx vertx) {
-        this(vertx, "localhost", 8989);
+        this(vertx, newGateleenThriftyExceptionFactory(), "localhost", 8989);
     }
 
-    public HttpResourceStorage(Vertx vertx, String host, int port) {
+    public HttpResourceStorage(
+        Vertx vertx,
+        GateleenExceptionFactory exceptionFactory,
+        String host,
+        int port
+    ) {
+        this.exceptionFactory = exceptionFactory;
         this.host = host;
         this.port = port;
         this.client = vertx.createHttpClient(new HttpClientOptions()
@@ -46,20 +56,20 @@ public class HttpResourceStorage implements ResourceStorage {
         log.debug("Reading {}", path);
         client.request(HttpMethod.GET, path).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
-                log.warn("Failed request to {}", path, new Exception("stacktrace", asyncResult.cause()));
+                log.warn("Failed request to {}", path, exceptionFactory.newException(asyncResult.cause()));
                 return;
             }
             HttpClientRequest request = asyncResult.result();
 
-            request.exceptionHandler(e -> {
-                log.error("Storage request error", new Exception("stacktrace", e));
+            request.exceptionHandler(ex -> {
+                log.error("Storage request error", exceptionFactory.newException(ex));
                 bodyHandler.handle(null);
             });
             request.idleTimeout(TIMEOUT);
             request.send(event -> {
                 HttpClientResponse response = event.result();
-                response.exceptionHandler(exception -> {
-                    log.error("Reading {} failed", path, new Exception("stacktrace", exception));
+                response.exceptionHandler(ex -> {
+                    log.error("Reading {} failed", path, exceptionFactory.newException(ex));
                     bodyHandler.handle(null);
                 });
                 if (response.statusCode() == StatusCode.OK.getStatusCode()) {
@@ -85,7 +95,7 @@ public class HttpResourceStorage implements ResourceStorage {
     public void put(final String uri, MultiMap headers, Buffer buffer, final Handler<Integer> doneHandler) {
         client.request(HttpMethod.PUT, uri).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
-                log.warn("Failed request to {}", uri, new Exception("stacktrace", asyncResult.cause()));
+                log.warn("Failed request to {}", uri, exceptionFactory.newException(asyncResult.cause()));
                 return;
             }
             HttpClientRequest request = asyncResult.result();
@@ -104,13 +114,13 @@ public class HttpResourceStorage implements ResourceStorage {
             request.putHeader("Content-Length", "" + buffer.length());
             request.write(buffer);
             request.send(asyncRespnose -> {
-                if( asyncRespnose.failed() ){
-                    log.error("TODO error handling", new Exception(request.getURI(), asyncRespnose.cause()));
+                if (asyncRespnose.failed()) {
+                    log.error("TODO error handling", exceptionFactory.newException(request.getURI(), asyncRespnose.cause()));
                     return;
                 }
                 HttpClientResponse response = asyncRespnose.result();
                 response.exceptionHandler( ex -> {
-                    log.error("Exception on response to PUT {}", uri, new Exception("stacktrace", ex));
+                    log.error("Exception on response to PUT {}", uri, exceptionFactory.newException(ex));
                     doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                 });
                 response.endHandler(nothing -> doneHandler.handle(response.statusCode()));
@@ -127,24 +137,26 @@ public class HttpResourceStorage implements ResourceStorage {
     public void delete(final String uri, final Handler<Integer> doneHandler) {
         client.request(HttpMethod.DELETE, uri).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
-                log.warn("Failed request to {}", uri, new Exception("stacktrace", asyncResult.cause()));
+                log.warn("Failed request to {}", uri, exceptionFactory.newException(asyncResult.cause()));
                 return;
             }
             HttpClientRequest request = asyncResult.result();
 
             request.exceptionHandler( ex -> {
-                log.warn("Deleting {} failed", uri, new Exception("stacktrace", ex));
+                log.warn("Deleting {} failed", uri, exceptionFactory.newException(ex));
                 doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
             });
             request.idleTimeout(TIMEOUT);
             request.send(asyncRespnose -> {
                 if( asyncRespnose.failed() ){
-                    log.error("TODO error handling", new Exception(request.getURI(), asyncRespnose.cause()));
+                    log.error("TODO error handling", exceptionFactory.newException(
+                        request.getURI(), asyncRespnose.cause()));
                     return;
                 }
                 HttpClientResponse response = asyncRespnose.result();
-                response.exceptionHandler(exception -> {
-                    log.error("Exception on response to DELETE from {}", uri, new Exception("stacktrace", exception));
+                response.exceptionHandler(ex -> {
+                    log.error("Exception on response to DELETE from {}", uri,
+                        exceptionFactory.newException(ex));
                     doneHandler.handle(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                 });
                 response.endHandler(event -> doneHandler.handle(response.statusCode()));

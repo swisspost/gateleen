@@ -13,6 +13,7 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.Address;
@@ -23,6 +24,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenThriftyExceptionFactory;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.FAILURE;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.SUCCESS;
 import static org.swisspush.redisques.util.RedisquesAPI.*;
@@ -36,6 +38,7 @@ public class QueueProcessor {
     private HttpClient httpClient;
     private MonitoringHandler monitoringHandler;
     private QueueCircuitBreaker queueCircuitBreaker;
+    private final GateleenExceptionFactory exceptionFactory;
     private static final Handler<Buffer> DEV_NULL = buf -> {};
     private MessageConsumer<JsonObject> consumer;
 
@@ -46,15 +49,22 @@ public class QueueProcessor {
     }
 
     public QueueProcessor(final Vertx vertx, final HttpClient httpClient, final MonitoringHandler monitoringHandler, QueueCircuitBreaker queueCircuitBreaker) {
-        this(vertx, httpClient, monitoringHandler, queueCircuitBreaker, true);
+        this(vertx, httpClient, monitoringHandler, queueCircuitBreaker, newGateleenThriftyExceptionFactory(), true);
     }
 
-    public QueueProcessor(final Vertx vertx, final HttpClient httpClient, final MonitoringHandler monitoringHandler,
-                          QueueCircuitBreaker queueCircuitBreaker, boolean immediatelyStartQueueProcessing) {
+    public QueueProcessor(
+        Vertx vertx,
+        HttpClient httpClient,
+        MonitoringHandler monitoringHandler,
+        QueueCircuitBreaker queueCircuitBreaker,
+        GateleenExceptionFactory exceptionFactory,
+        boolean immediatelyStartQueueProcessing
+    ) {
         this.vertx = vertx;
         this.httpClient = httpClient;
         this.monitoringHandler = monitoringHandler;
         this.queueCircuitBreaker = queueCircuitBreaker;
+        this.exceptionFactory = exceptionFactory;
 
         if (immediatelyStartQueueProcessing) {
             startQueueProcessing();
@@ -245,7 +255,8 @@ public class QueueProcessor {
 
             Handler<AsyncResult<HttpClientResponse>> httpAsyncHandler = asyncResult -> {
                 if (asyncResult.failed()) {
-                    logger.error("TODO error handling", new Exception("stacktrace", asyncResult.cause()));
+                    logger.error("TODO error handling", exceptionFactory.newException(
+                        "httpClientRequest.send() failed", asyncResult.cause()));
                     return;
                 }
                 HttpClientResponse response = asyncResult.result();

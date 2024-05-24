@@ -20,6 +20,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.lock.Lock;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
@@ -37,6 +38,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.swisspush.gateleen.cache.storage.RedisCacheStorage.CACHED_REQUESTS;
 import static org.swisspush.gateleen.cache.storage.RedisCacheStorage.CACHE_PREFIX;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 /**
  * Tests for the {@link RedisCacheStorage} class
@@ -50,6 +52,7 @@ public class RedisCacheStorageTest {
     public Timeout rule = Timeout.seconds(50);
 
     private Vertx vertx;
+    private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private Lock lock;
     private Jedis jedis;
     private RedisCacheStorage redisCacheStorage;
@@ -65,7 +68,7 @@ public class RedisCacheStorageTest {
         RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new NetClientOptions(), new PoolOptions(),
                 new RedisStandaloneConnectOptions(), TracingPolicy.IGNORE));
 
-        redisCacheStorage = new RedisCacheStorage(vertx, lock, () -> Future.succeededFuture(redisAPI), 2000);
+        redisCacheStorage = new RedisCacheStorage(vertx, lock, () -> Future.succeededFuture(redisAPI), exceptionFactory, 2000);
         jedis = new Jedis(new HostAndPort("localhost", 6379));
         try {
             jedis.flushAll();

@@ -30,6 +30,7 @@ import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
@@ -82,6 +83,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
+
 /**
  * TestVerticle all Gateleen tests. <br />
  *
@@ -117,6 +120,7 @@ public abstract class AbstractTest {
     protected static PropertyHandler propertyHandler;
     protected static Jedis jedis;
     private static HttpServer mainServer;
+    private static final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     protected final static Map<String, Object> props = new HashMap<>();
     protected static SchedulerResourceManager schedulerResourceManager;
     protected static HookHandler hookHandler;
@@ -135,7 +139,7 @@ public abstract class AbstractTest {
         jedis.flushAll();
 
         final JsonObject info = new JsonObject();
-        final LocalHttpClient selfClient = new LocalHttpClient(vertx);
+        final LocalHttpClient selfClient = new LocalHttpClient(vertx, exceptionFactory);
         props.putAll(RunConfig.buildRedisProps("localhost", REDIS_PORT));
 
         String redisHost = (String) props.get("redis.host");
@@ -152,9 +156,9 @@ public abstract class AbstractTest {
                 RedisAPI redisAPI = RedisAPI.api(redisClient);
                 RedisProvider redisProvider = () -> Future.succeededFuture(redisAPI);
 
-                ResourceStorage storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
+                ResourceStorage storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main", exceptionFactory);
                 MonitoringHandler monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX);
-                ConfigurationResourceManager configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+                ConfigurationResourceManager configurationResourceManager = new ConfigurationResourceManager(vertx, storage, exceptionFactory);
 
                 String eventBusConfigurationResource = SERVER_ROOT + "/admin/v1/hookconfig";
                 EventBusHandler eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/",
@@ -170,11 +174,11 @@ public abstract class AbstractTest {
                 RoleProfileHandler roleProfileHandler = new RoleProfileHandler(vertx, storage, SERVER_ROOT + "/roles/v1/([^/]+)/profile");
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
 
-                Lock lock = new RedisBasedLock(redisProvider);
+                Lock lock = new RedisBasedLock(redisProvider, newGateleenWastefulExceptionFactory());
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
                 ReducedPropagationManager reducedPropagationManager = new ReducedPropagationManager(vertx,
-                        new RedisReducedPropagationStorage(redisProvider), queueClient, lock);
+                        new RedisReducedPropagationStorage(redisProvider, exceptionFactory), queueClient, lock, exceptionFactory);
                 reducedPropagationManager.startExpiredQueueProcessing(1000);
                 hookHandler = new HookHandler(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler,
                         SERVER_ROOT + "/users/v1/%s/profile", ROOT + "/server/hooks/v1/",
@@ -193,7 +197,7 @@ public abstract class AbstractTest {
 
                 cacheHandler = new CacheHandler(
                         new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient)),
-                        new RedisCacheStorage(vertx, lock, redisProvider, 60000),
+                        new RedisCacheStorage(vertx, lock, redisProvider, exceptionFactory, 60000),
                         SERVER_ROOT + "/cache");
 
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
@@ -205,13 +209,14 @@ public abstract class AbstractTest {
 
                 QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager =
                         new QueueCircuitBreakerConfigurationResourceManager(vertx, storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
-                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisProvider);
+                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisProvider, exceptionFactory);
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx,
                         queueCircuitBreakerStorage,SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
                 QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, lock,
-                        Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, rulePatternToCircuitMapping,
-                        queueCircuitBreakerConfigurationResourceManager, requestHandler, CIRCUIT_BREAKER_REST_API_PORT);
+                        Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, exceptionFactory,
+                        rulePatternToCircuitMapping, queueCircuitBreakerConfigurationResourceManager, requestHandler,
+                        CIRCUIT_BREAKER_REST_API_PORT);
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
                 final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing",
@@ -248,7 +253,7 @@ public abstract class AbstractTest {
                                 .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))
                                 .hookHandler(hookHandler)
                                 .qosHandler(qosHandler)
-                                .copyResourceHandler(new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy"))
+                                .copyResourceHandler(new CopyResourceHandler(selfClient, exceptionFactory, SERVER_ROOT + "/v1/copy"))
                                 .eventBusHandler(eventBusHandler)
                                 .roleProfileHandler(roleProfileHandler)
                                 .userProfileHandler(userProfileHandler)

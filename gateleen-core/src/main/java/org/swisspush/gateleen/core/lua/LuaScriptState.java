@@ -4,6 +4,7 @@ import io.vertx.redis.client.RedisAPI;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 
 import java.io.BufferedReader;
@@ -30,12 +31,19 @@ public class LuaScriptState {
     private String sha;
 
     private RedisProvider redisProvider;
+    private final GateleenExceptionFactory exceptionFactory;
 
     private Logger log = LoggerFactory.getLogger(LuaScriptState.class);
 
-    public LuaScriptState(LuaScript luaScriptType, RedisProvider redisProvider, boolean logoutput) {
+    public LuaScriptState(
+        LuaScript luaScriptType,
+        RedisProvider redisProvider,
+        GateleenExceptionFactory exceptionFactory,
+        boolean logoutput
+    ) {
         this.luaScriptType = luaScriptType;
         this.redisProvider = redisProvider;
+        this.exceptionFactory = exceptionFactory;
         this.logoutput = logoutput;
         this.composeLuaScript(luaScriptType);
         this.loadLuaScript(new RedisCommandDoNothing(), 0);
@@ -87,17 +95,17 @@ public class LuaScriptState {
     public void loadLuaScript(final RedisCommand redisCommand, int executionCounter) {
         final int executionCounterIncr = ++executionCounter;
         // check first if the lua script already exists in the store
-        redisProvider.redis().onComplete( redisEv -> {
+        redisProvider.redis().onComplete(redisEv -> {
             if (redisEv.failed()) {
-                log.error("Redis: Error checking whether lua script exists",
-                        new Exception("stacktrace", redisEv.cause()));
+                log.error("stacktrace", exceptionFactory.newException(
+                    "redisProvider.redis() failed", redisEv.cause()));
                 return;
             }
             RedisAPI redisAPI = redisEv.result();
             redisAPI.script(Arrays.asList("exists", sha), resultArray -> {
                 if (resultArray.failed()) {
-                    log.error("Error checking whether lua script exists",
-                            new Exception("stacktrace", resultArray.cause()));
+                    log.error("stacktrace", exceptionFactory.newException(
+                        "redisAPI.script(['exists', sha]) failed", resultArray.cause()));
                     return;
                 }
                 Long exists = resultArray.result().get(0).toLong();

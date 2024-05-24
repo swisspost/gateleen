@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.swisspush.gateleen.core.lock.Lock;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 /**
  * Tests for the {@link LockUtil} class
@@ -23,11 +24,13 @@ public class LockUtilTest {
 
     private Lock lock;
     private Logger log;
+    private LockUtil lockUtil;
 
     @Before
     public void setUp(){
         lock = Mockito.mock(Lock.class);
         log = Mockito.mock(Logger.class);
+        lockUtil = new LockUtil(newGateleenWastefulExceptionFactory());
     }
 
     @Test
@@ -79,14 +82,14 @@ public class LockUtilTest {
 
     @Test
     public void testReleaseLockWithoutLockImplementationDefined(TestContext context) {
-        LockUtil.releaseLock(null, "someLock", "someToken", log);
+        lockUtil.releaseLock(null, "someLock", "someToken", log);
         Mockito.verify(log, Mockito.timeout(100).times(1)).info(eq("No lock implementation defined, going to pretend like we released the lock"));
     }
 
     @Test
     public void testReleaseLockSuccess(TestContext context) {
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.TRUE));
-        LockUtil.releaseLock(lock, "someLock", "someToken", log);
+        lockUtil.releaseLock(lock, "someLock", "someToken", log);
         Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to release lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
         Mockito.verify(log, Mockito.times(1)).debug(eq("Released lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
     }
@@ -94,14 +97,14 @@ public class LockUtilTest {
     @Test
     public void testReleaseLockFail(TestContext context) {
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.succeededFuture(Boolean.FALSE));
-        LockUtil.releaseLock(lock, "someLock", "someToken", log);
+        lockUtil.releaseLock(lock, "someLock", "someToken", log);
         Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to release lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
     }
 
     @Test
     public void testReleaseLockError(TestContext context) {
         Mockito.when(lock.releaseLock(anyString(), anyString())).thenReturn(Future.failedFuture("Booom"));
-        LockUtil.releaseLock(lock, "someLock", "someToken", log);
+        lockUtil.releaseLock(lock, "someLock", "someToken", log);
         Mockito.verify(log, Mockito.times(1)).debug(eq("Trying to release lock '{}' with token '{}'"), eq("someLock"), eq("someToken"));
         Mockito.verify(log, Mockito.times(1)).error(eq("Could not release lock '{}'."), eq("someLock"), isA(Throwable.class));
     }

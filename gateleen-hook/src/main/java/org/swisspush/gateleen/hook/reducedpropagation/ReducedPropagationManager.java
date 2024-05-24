@@ -8,10 +8,12 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.HttpRequestHeader;
+import org.swisspush.gateleen.core.util.LockUtil;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 
@@ -21,7 +23,6 @@ import java.util.Random;
 
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 import static org.swisspush.gateleen.core.util.LockUtil.acquireLock;
-import static org.swisspush.gateleen.core.util.LockUtil.releaseLock;
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
@@ -36,6 +37,7 @@ public class ReducedPropagationManager {
     private final ReducedPropagationStorage storage;
     private final RequestQueue requestQueue;
     private Lock lock;
+    private final LockUtil lockUtil;
     public static final String PROCESS_EXPIRED_QUEUES_LOCK = "reducedPropagationProcExpQueuesLock";
     public static final String LOCK_REQUESTER = "ReducedPropagationManager";
     public static final String PROCESSOR_ADDRESS = "gateleen.hook-expired-queues-processor";
@@ -50,11 +52,18 @@ public class ReducedPropagationManager {
 
     private Logger log = LoggerFactory.getLogger(ReducedPropagationManager.class);
 
-    public ReducedPropagationManager(Vertx vertx, ReducedPropagationStorage storage, RequestQueue requestQueue, Lock lock) {
+    public ReducedPropagationManager(
+        Vertx vertx,
+        ReducedPropagationStorage storage,
+        RequestQueue requestQueue,
+        Lock lock,
+        GateleenExceptionFactory exceptionFactory
+    ) {
         this.vertx = vertx;
         this.storage = storage;
         this.requestQueue = requestQueue;
         this.lock = lock;
+        this.lockUtil = new LockUtil(exceptionFactory);
 
         registerExpiredQueueProcessor();
     }
@@ -157,7 +166,7 @@ public class ReducedPropagationManager {
         storage.removeExpiredQueues(System.currentTimeMillis()).onComplete(event -> {
             if (event.failed()) {
                 log.error("Going to release lock because process expired queues failed. Cause: " + event.cause());
-                releaseLock(this.lock, PROCESS_EXPIRED_QUEUES_LOCK, lockToken, log);
+                lockUtil.releaseLock(this.lock, PROCESS_EXPIRED_QUEUES_LOCK, lockToken, log);
                 return;
             }
             Response response = event.result();

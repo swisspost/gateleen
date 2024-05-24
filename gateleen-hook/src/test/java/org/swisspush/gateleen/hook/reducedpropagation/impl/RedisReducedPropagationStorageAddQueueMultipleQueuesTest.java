@@ -16,6 +16,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Tuple;
 import redis.clients.jedis.exceptions.JedisConnectionException;
@@ -25,6 +26,7 @@ import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 import static org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPropagationStorage.QUEUE_TIMERS;
 
 /**
@@ -40,6 +42,7 @@ import static org.swisspush.gateleen.hook.reducedpropagation.impl.RedisReducedPr
 public class RedisReducedPropagationStorageAddQueueMultipleQueuesTest {
 
     private static Vertx vertx;
+    private static final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private Jedis jedis;
     private static RedisReducedPropagationStorage storage;
 
@@ -51,7 +54,7 @@ public class RedisReducedPropagationStorageAddQueueMultipleQueuesTest {
         vertx = Vertx.vertx();
 
         RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions(), TracingPolicy.IGNORE));
-        storage = new RedisReducedPropagationStorage(() -> Future.succeededFuture(redisAPI));
+        storage = new RedisReducedPropagationStorage(() -> Future.succeededFuture(redisAPI), exceptionFactory);
     }
 
     @Before

@@ -535,7 +535,14 @@ public class Forwarder extends AbstractForwarder {
                 respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
             });
 
-            req.connection().closeHandler((aVoid) -> unpump.run());
+            HttpConnection connection = req.connection();
+            if (connection != null) {
+                connection.closeHandler((Void v) -> unpump.run());
+            } else {
+                log.warn("TODO No way to call 'unpump.run()' in the right moment. As there seems"
+                        + " to be no event we could register a handler for. Gateleen wishes you"
+                        + " some happy timeouts ({})", req.uri());
+            }
         };
     }
 

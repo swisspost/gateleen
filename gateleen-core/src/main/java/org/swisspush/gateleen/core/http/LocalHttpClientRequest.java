@@ -15,6 +15,7 @@ import io.vertx.core.net.impl.SocketAddressImpl;
 import io.vertx.ext.auth.User;
 import io.vertx.ext.web.*;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 
 import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
@@ -44,6 +45,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     private HttpServerResponse serverResponse;
     private final HttpConnection connection;
     private Handler<RoutingContext> routingContextHandler;
+    private final GateleenExceptionFactory exceptionFactory;
     private boolean bound = false;
 
     private static final SocketAddress address = new SocketAddressImpl(0, "localhost");
@@ -538,11 +540,19 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         }
     };
 
-    public LocalHttpClientRequest(HttpMethod method, String uri, Vertx vertx, Handler<RoutingContext> routingContextHandler, HttpServerResponse response) {
+    public LocalHttpClientRequest(
+        HttpMethod method,
+        String uri,
+        Vertx vertx,
+        Handler<RoutingContext> routingContextHandler,
+        GateleenExceptionFactory exceptionFactory,
+        HttpServerResponse response
+    ) {
         super(vertx);
         this.method = method;
         this.uri = uri;
         this.routingContextHandler = routingContextHandler;
+        this.exceptionFactory = exceptionFactory;
         this.serverResponse = response;
         this.connection = new LocalHttpConnection();
     }
@@ -854,8 +864,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
     @Override
     public HttpClientRequest drainHandler(Handler<Void> handler) {
-        log.warn("Happy debugging, as this impl will just ignore your drainHandler anyway",
-                new Exception("may this stacktrace lead you where this problem comes from"));
+        log.warn("stacktrace", exceptionFactory.newException("TODO impl drainHandler"));
         return this;
     }
 

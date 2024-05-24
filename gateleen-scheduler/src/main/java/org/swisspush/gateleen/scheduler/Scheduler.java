@@ -8,6 +8,7 @@ import io.vertx.core.json.JsonObject;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -32,6 +33,7 @@ public class Scheduler {
 
     private final Vertx vertx;
     private final RedisProvider redisProvider;
+    private final GateleenExceptionFactory exceptionFactory;
     private final String redisquesAddress;
     private final String name;
     private CronExpression cronExpression;
@@ -45,12 +47,23 @@ public class Scheduler {
 
     private Logger log;
 
-    public Scheduler(Vertx vertx, String redisquesAddress, RedisProvider redisProvider, String name, String cronExpression,
-                     List<HttpRequest> requests, MonitoringHandler monitoringHandler, int maxRandomOffset,
-                     boolean executeOnStartup, boolean executeOnReload) throws ParseException {
+    public Scheduler(
+        Vertx vertx,
+        String redisquesAddress,
+        RedisProvider redisProvider,
+        GateleenExceptionFactory exceptionFactory,
+        String name,
+        String cronExpression,
+        List<HttpRequest> requests,
+        MonitoringHandler monitoringHandler,
+        int maxRandomOffset,
+        boolean executeOnStartup,
+        boolean executeOnReload
+    ) throws ParseException {
         this.vertx = vertx;
         this.redisquesAddress = redisquesAddress;
         this.redisProvider = redisProvider;
+        this.exceptionFactory = exceptionFactory;
         this.name = name;
         this.cronExpression = new CronExpression(cronExpression);
         this.requests = requests;
@@ -141,7 +154,10 @@ public class Scheduler {
             JsonObject enqueOp = buildEnqueueOperation(queueName, request.toJsonObject().put(QueueClient.QUEUE_TIMESTAMP, System.currentTimeMillis()).encode());
             vertx.eventBus().request(redisquesAddress, enqueOp, (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                 if (event.failed()) {
-                    if (log.isWarnEnabled()) log.warn("Could not enqueue request '{}' '{}'", queueName, request.getUri(), new Exception(event.cause()));
+                    if (log.isWarnEnabled()) {
+                        log.warn("Could not enqueue request '{}' '{}'", queueName, request.getUri(),
+                            exceptionFactory.newException("eventBus.request('" + redisquesAddress + "', enqueOp) failed", event.cause()));
+                    }
                     return;
                 }
                 if (!OK.equals(event.result().body().getString(STATUS))) {

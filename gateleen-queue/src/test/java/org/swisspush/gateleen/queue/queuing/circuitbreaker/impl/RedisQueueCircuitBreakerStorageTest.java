@@ -18,6 +18,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
@@ -28,6 +29,7 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
 import java.util.*;
 import java.util.regex.Pattern;
 
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage.*;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState.*;
 
@@ -50,7 +52,7 @@ public class RedisQueueCircuitBreakerStorageTest {
     public static void setupStorage(){
         vertx = Vertx.vertx();
         RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions(), TracingPolicy.IGNORE));
-        storage = new RedisQueueCircuitBreakerStorage(() -> Future.succeededFuture(redisAPI));
+        storage = new RedisQueueCircuitBreakerStorage(() -> Future.succeededFuture(redisAPI), newGateleenWastefulExceptionFactory());
     }
 
     @Before
