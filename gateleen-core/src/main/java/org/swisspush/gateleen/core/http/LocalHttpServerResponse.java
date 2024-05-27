@@ -216,7 +216,7 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
         if (!chunked && !headers.contains(HttpHeaders.CONTENT_LENGTH)) {
             IllegalStateException ex = new IllegalStateException("You must set the Content-Length header to be the total size of the message "
                     + "body BEFORE sending any data if you are not using HTTP chunked encoding.");
-            logger.error("non-proper HttpServerResponse occured", ex);
+            logger.debug("non-proper HttpServerResponse occured", ex);
             throw ex;
         }
         ensureBound();
