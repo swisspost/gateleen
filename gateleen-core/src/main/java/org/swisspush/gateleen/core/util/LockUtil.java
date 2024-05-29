@@ -3,6 +3,7 @@ package org.swisspush.gateleen.core.util;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.lock.Lock;
 
 /**
@@ -12,7 +13,11 @@ import org.swisspush.gateleen.core.lock.Lock;
  */
 public class LockUtil {
 
-    private LockUtil(){}
+    private final GateleenExceptionFactory exceptionFactory;
+
+    public LockUtil(GateleenExceptionFactory exceptionFactory) {
+        this.exceptionFactory = exceptionFactory;
+    }
 
     /**
      * Acquire a lock. Resolves always to <code>Boolean.TRUE</code> when no lock implementation is provided
@@ -58,7 +63,7 @@ public class LockUtil {
      * @param token the unique token
      * @param log the Logger
      */
-    public static void releaseLock(Lock lockImpl, String lock, String token, Logger log){
+    public void releaseLock(Lock lockImpl, String lock, String token, Logger log){
         if(lockImpl == null){
             log.info("No lock implementation defined, going to pretend like we released the lock");
             return;
@@ -70,7 +75,8 @@ public class LockUtil {
                     log.debug("Released lock '{}' with token '{}'", lock, token);
                 }
             } else {
-                log.error("Could not release lock '{}'.", lock, new Exception("stacktrace", releaseEvent.cause()));
+                log.error("Could not release lock '{}'.", lock,
+                    exceptionFactory.newException(releaseEvent.cause()));
             }
         });
     }

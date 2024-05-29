@@ -3,6 +3,7 @@ package org.swisspush.gateleen.core.lock.lua;
 import io.vertx.core.Promise;
 import io.vertx.redis.client.RedisAPI;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.lua.RedisCommand;
 import org.swisspush.gateleen.core.redis.RedisProvider;
@@ -20,14 +21,23 @@ public class ReleaseLockRedisCommand implements RedisCommand {
     private List<String> arguments;
     private Promise<Boolean> promise;
     private RedisProvider redisProvider;
+    private final GateleenExceptionFactory exceptionFactory;
     private Logger log;
 
-    public ReleaseLockRedisCommand(LuaScriptState luaScriptState, List<String> keys, List<String> arguments,
-                                   RedisProvider redisProvider, Logger log, final Promise<Boolean> promise) {
+    public ReleaseLockRedisCommand(
+        LuaScriptState luaScriptState,
+        List<String> keys,
+        List<String> arguments,
+        RedisProvider redisProvider,
+        GateleenExceptionFactory exceptionFactory,
+        Logger log,
+        final Promise<Boolean> promise
+    ) {
         this.luaScriptState = luaScriptState;
         this.keys = keys;
         this.arguments = arguments;
         this.redisProvider = redisProvider;
+        this.exceptionFactory = exceptionFactory;
         this.log = log;
         this.promise = promise;
     }
@@ -42,7 +52,7 @@ public class ReleaseLockRedisCommand implements RedisCommand {
 
         redisProvider.redis().onComplete( redisEv -> {
             if( redisEv.failed() ){
-                promise.fail(new Exception("redisProvider.redis()", redisEv.cause()));
+                promise.fail(exceptionFactory.newException("redisProvider.redis() failed", redisEv.cause()));
                 return;
             }
             RedisAPI redisAPI = redisEv.result();
@@ -54,16 +64,17 @@ public class ReleaseLockRedisCommand implements RedisCommand {
                     Throwable ex = event.cause();
                     String message = ex.getMessage();
                     if (message != null && message.startsWith("NOSCRIPT")) {
-                        log.warn("ReleaseLockRedisCommand script couldn't be found, reload it", new Exception("stacktrace",ex));
+                        log.warn("ReleaseLockRedisCommand script couldn't be found, reload it",
+                            exceptionFactory.newException(ex));
                         log.warn("amount the script got loaded: {}", executionCounter);
                         if (executionCounter > 10) {
-                            promise.fail(new Exception("amount the script got loaded is higher than 10, we abort"));
+                            promise.fail(exceptionFactory.newException("amount the script got loaded is higher than 10, we abort"));
                         } else {
                             luaScriptState.loadLuaScript(new ReleaseLockRedisCommand(luaScriptState, keys,
-                                    arguments, redisProvider, log, promise), executionCounter);
+                                    arguments, redisProvider, exceptionFactory, log, promise), executionCounter);
                         }
                     } else {
-                        promise.fail(new Exception("ReleaseLockRedisCommand request failed", ex));
+                        promise.fail(exceptionFactory.newException("ReleaseLockRedisCommand request failed", ex));
                     }
                 }
             });

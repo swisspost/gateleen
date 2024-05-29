@@ -8,10 +8,12 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.LockUtil;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreakerStorage;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResource;
@@ -26,7 +28,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.swisspush.gateleen.core.util.LockUtil.acquireLock;
-import static org.swisspush.gateleen.core.util.LockUtil.releaseLock;
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 
@@ -43,6 +44,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private final QueueCircuitBreakerConfigurationResourceManager configResourceManager;
 
     private final Lock lock;
+    private final LockUtil lockUtil;
 
     public static final String OPEN_TO_HALF_OPEN_TASK_LOCK = "openToHalfOpenTask";
     public static final String UNLOCK_QUEUES_TASK_LOCK = "unlockQueuesTask";
@@ -67,9 +69,21 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
      * @param queueCircuitBreakerHttpRequestHandler request handler
      * @param requestHandlerPort                    the port to listen to
      */
-    public QueueCircuitBreakerImpl(Vertx vertx, Lock lock, String redisquesAddress, QueueCircuitBreakerStorage queueCircuitBreakerStorage, RuleProvider ruleProvider, QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping, QueueCircuitBreakerConfigurationResourceManager configResourceManager, Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler, int requestHandlerPort) {
+    public QueueCircuitBreakerImpl(
+        Vertx vertx,
+        Lock lock,
+        String redisquesAddress,
+        QueueCircuitBreakerStorage queueCircuitBreakerStorage,
+        RuleProvider ruleProvider,
+        GateleenExceptionFactory exceptionFactory,
+        QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping,
+        QueueCircuitBreakerConfigurationResourceManager configResourceManager,
+        Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler,
+        int requestHandlerPort
+    ) {
         this.vertx = vertx;
         this.lock = lock;
+        this.lockUtil = new LockUtil(exceptionFactory);
         this.redisquesAddress = redisquesAddress;
         this.queueCircuitBreakerStorage = queueCircuitBreakerStorage;
         ruleProvider.registerObserver(this);
@@ -130,7 +144,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                                             }
                                         } else {
                                             log.error(event1.cause().getMessage());
-                                            releaseLock(this.lock, OPEN_TO_HALF_OPEN_TASK_LOCK, token, log);
+                                            lockUtil.releaseLock(this.lock, OPEN_TO_HALF_OPEN_TASK_LOCK, token, log);
                                         }
                                     });
                                 }
@@ -165,7 +179,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                                             }
                                         } else {
                                             log.error("Unable to unlock queue '{}'", event1.cause().getMessage());
-                                            releaseLock(this.lock, UNLOCK_QUEUES_TASK_LOCK, token, log);
+                                            lockUtil.releaseLock(this.lock, UNLOCK_QUEUES_TASK_LOCK, token, log);
                                         }
                                     });
                                 }
@@ -199,7 +213,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                                     }
                                 } else {
                                     log.error(event1.cause().getMessage());
-                                    releaseLock(this.lock, UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token, log);
+                                    lockUtil.releaseLock(this.lock, UNLOCK_SAMPLE_QUEUES_TASK_LOCK, token, log);
                                 }
                             });
                         }

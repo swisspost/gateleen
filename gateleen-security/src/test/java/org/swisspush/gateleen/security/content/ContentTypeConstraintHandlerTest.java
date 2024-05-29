@@ -27,6 +27,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 /**
  * Test class for the {@link ContentTypeConstraintHandler}
@@ -49,7 +50,7 @@ public class ContentTypeConstraintHandlerTest extends ContentTypeConstraintTestB
     @Before
     public void setUp() {
         storage = new MockResourceStorage();
-        configurationResourceManager = new ConfigurationResourceManager(Vertx.vertx(), storage);
+        configurationResourceManager = new ConfigurationResourceManager(Vertx.vertx(), storage, newGateleenWastefulExceptionFactory());
         repository = Mockito.spy(new ContentTypeConstraintRepository());
         handler = new ContentTypeConstraintHandler(configurationResourceManager, repository, configResourceUri);
     }

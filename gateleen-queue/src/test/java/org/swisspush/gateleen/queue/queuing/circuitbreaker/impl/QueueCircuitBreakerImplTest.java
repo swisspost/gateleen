@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.SUCCESS;
 
 /**
@@ -88,9 +89,10 @@ public class QueueCircuitBreakerImplTest {
         config.setUnlockSampleQueuesTaskInterval(1000);
         Mockito.when(configResourceManager.getConfigurationResource()).thenReturn(config);
 
+        var exceptionFactory = newGateleenWastefulExceptionFactory();
         Handler<HttpServerRequest> queueCircuitBreakerHttpRequestHandler = Mockito.mock(Handler.class);
         queueCircuitBreaker = Mockito.spy(new QueueCircuitBreakerImpl(vertx, lock, Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider,
-                ruleToCircuitMapping, configResourceManager, queueCircuitBreakerHttpRequestHandler, 9999));
+                exceptionFactory, ruleToCircuitMapping, configResourceManager, queueCircuitBreakerHttpRequestHandler, 9999));
     }
 
     @After

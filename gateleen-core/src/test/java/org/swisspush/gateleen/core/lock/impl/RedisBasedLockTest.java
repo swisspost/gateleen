@@ -17,6 +17,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
@@ -24,6 +25,7 @@ import java.time.Duration;
 
 import static org.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 /**
  * Tests for the {@link RedisBasedLock} class
@@ -48,7 +50,7 @@ public class RedisBasedLockTest {
         vertx = Vertx.vertx();
         RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new NetClientOptions(), new PoolOptions(),
                 new RedisStandaloneConnectOptions(), TracingPolicy.IGNORE));
-        redisBasedLock = new RedisBasedLock(() -> Future.succeededFuture(redisAPI));
+        redisBasedLock = new RedisBasedLock(() -> Future.succeededFuture(redisAPI), newGateleenWastefulExceptionFactory());
     }
 
     @Before

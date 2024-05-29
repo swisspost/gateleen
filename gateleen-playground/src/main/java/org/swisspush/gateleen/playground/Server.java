@@ -26,6 +26,7 @@ import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.cors.CORSHandler;
 import org.swisspush.gateleen.core.event.EventBusHandler;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
@@ -86,6 +87,8 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
+
 /**
  * Playground server to try Gateleen at home.
  *
@@ -119,6 +122,7 @@ public class Server extends AbstractVerticle {
     private ResourceStorage storage;
     private CacheStorage cacheStorage;
     private CacheDataFetcher cacheDataFetcher;
+    private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private Authorizer authorizer;
     private Router router;
 
@@ -166,7 +170,7 @@ public class Server extends AbstractVerticle {
 
     @Override
     public void start() {
-        final LocalHttpClient selfClient = new LocalHttpClient(vertx);
+        final LocalHttpClient selfClient = new LocalHttpClient(vertx, exceptionFactory);
         final JsonObject info = new JsonObject();
         final Map<String, Object> props = RunConfig.buildRedisProps("localhost", defaultRedisPort);
 
@@ -204,26 +208,26 @@ public class Server extends AbstractVerticle {
                 RedisProvider redisProvider = () -> Future.succeededFuture(redisApi);
 
                 new CustomRedisMonitor(vertx, redisProvider, "main", "rest-storage", 10).start();
-                storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main");
+                storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main", exceptionFactory);
                 corsHandler = new CORSHandler();
 
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
 
                 deltaHandler = new DeltaHandler(redisProvider, selfClient, ruleProvider, true);
                 expansionHandler = new ExpansionHandler(ruleProvider, selfClient, props, ROOT);
-                copyResourceHandler = new CopyResourceHandler(selfClient, SERVER_ROOT + "/v1/copy");
+                copyResourceHandler = new CopyResourceHandler(selfClient, exceptionFactory, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");
 
-                Lock lock = new RedisBasedLock(redisProvider);
+                Lock lock = new RedisBasedLock(redisProvider, newGateleenWastefulExceptionFactory());
 
-                cacheStorage = new RedisCacheStorage(vertx, lock, redisProvider, 20 * 1000);
+                cacheStorage = new RedisCacheStorage(vertx, lock, redisProvider, exceptionFactory, 20 * 1000);
                 cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));
                 cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
 
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 qosHandler.enableResourceLogging(true);
 
-                configurationResourceManager = new ConfigurationResourceManager(vertx, storage);
+                configurationResourceManager = new ConfigurationResourceManager(vertx, storage, exceptionFactory);
                 configurationResourceManager.enableResourceLogging(true);
 
                 eventBusHandler = new EventBusHandler(vertx, SERVER_ROOT + "/event/v1/",
@@ -253,8 +257,8 @@ public class Server extends AbstractVerticle {
                 roleProfileHandler.enableResourceLogging(true);
 
                 QueueClient queueClient = new QueueClient(vertx, monitoringHandler);
-                reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisProvider),
-                        queueClient, lock);
+                reducedPropagationManager = new ReducedPropagationManager(vertx, new RedisReducedPropagationStorage(redisProvider, exceptionFactory),
+                        queueClient, lock, exceptionFactory);
                 reducedPropagationManager.startExpiredQueueProcessing(5000);
 
                 queueSplitter = new QueueSplitterImpl(configurationResourceManager, SERVER_ROOT + "/admin/v1/queueSplitters");
@@ -287,7 +291,7 @@ public class Server extends AbstractVerticle {
 
                 zipExtractHandler = new ZipExtractHandler(selfClient);
 
-                delegateHandler = new DelegateHandler(vertx, selfClient, storage, monitoringHandler,
+                delegateHandler = new DelegateHandler(vertx, selfClient, storage,
                         SERVER_ROOT + "/admin/v1/delegates/", props, null);
                 delegateHandler.enableResourceLogging(true);
 
@@ -319,12 +323,12 @@ public class Server extends AbstractVerticle {
                 queueCircuitBreakerConfigurationResourceManager = new QueueCircuitBreakerConfigurationResourceManager(vertx,
                         storage, SERVER_ROOT + "/admin/v1/circuitbreaker");
                 queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
-                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisProvider);
+                QueueCircuitBreakerStorage queueCircuitBreakerStorage = new RedisQueueCircuitBreakerStorage(redisProvider, exceptionFactory);
                 QueueCircuitBreakerHttpRequestHandler requestHandler = new QueueCircuitBreakerHttpRequestHandler(vertx, queueCircuitBreakerStorage,
                         SERVER_ROOT + "/queuecircuitbreaker/circuit");
 
                 QueueCircuitBreaker queueCircuitBreaker = new QueueCircuitBreakerImpl(vertx, lock,
-                        Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, rulePatternToCircuitMapping,
+                        Address.redisquesAddress(), queueCircuitBreakerStorage, ruleProvider, exceptionFactory, rulePatternToCircuitMapping,
                         queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);

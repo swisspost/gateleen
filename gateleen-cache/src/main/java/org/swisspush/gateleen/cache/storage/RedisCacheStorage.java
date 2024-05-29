@@ -8,10 +8,12 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.LockUtil;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -22,13 +24,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.swisspush.gateleen.core.util.LockUtil.acquireLock;
-import static org.swisspush.gateleen.core.util.LockUtil.releaseLock;
 
 public class RedisCacheStorage implements CacheStorage {
 
     private Logger log = LoggerFactory.getLogger(RedisCacheStorage.class);
 
     private final Lock lock;
+    private final LockUtil lockUtil;
     private final RedisProvider redisProvider;
     private LuaScriptState clearCacheLuaScriptState;
     private LuaScriptState cacheRequestLuaScriptState;
@@ -37,11 +39,18 @@ public class RedisCacheStorage implements CacheStorage {
     public static final String CACHE_PREFIX = "gateleen.cache:";
     public static final String STORAGE_CLEANUP_TASK_LOCK = "cacheStorageCleanupTask";
 
-    public RedisCacheStorage(Vertx vertx, Lock lock, RedisProvider redisProvider, long storageCleanupIntervalMs) {
+    public RedisCacheStorage(
+        Vertx vertx,
+        Lock lock,
+        RedisProvider redisProvider,
+        GateleenExceptionFactory exceptionFactory,
+        long storageCleanupIntervalMs
+    ) {
         this.lock = lock;
+        this.lockUtil = new LockUtil(exceptionFactory);
         this.redisProvider = redisProvider;
-        clearCacheLuaScriptState = new LuaScriptState(CacheLuaScripts.CLEAR_CACHE, redisProvider, false);
-        cacheRequestLuaScriptState = new LuaScriptState(CacheLuaScripts.CACHE_REQUEST, redisProvider, false);
+        clearCacheLuaScriptState = new LuaScriptState(CacheLuaScripts.CLEAR_CACHE, redisProvider, exceptionFactory, false);
+        cacheRequestLuaScriptState = new LuaScriptState(CacheLuaScripts.CACHE_REQUEST, redisProvider, exceptionFactory, false);
 
         vertx.setPeriodic(storageCleanupIntervalMs, event -> {
             String token = token(STORAGE_CLEANUP_TASK_LOCK);
@@ -51,7 +60,7 @@ public class RedisCacheStorage implements CacheStorage {
                         cleanup().onComplete(cleanupResult -> {
                             if (cleanupResult.failed()) {
                                 log.warn("storage cleanup has failed", cleanupResult.cause());
-                                releaseLock(lock, STORAGE_CLEANUP_TASK_LOCK, token, log);
+                                lockUtil.releaseLock(lock, STORAGE_CLEANUP_TASK_LOCK, token, log);
                             } else {
                                 log.debug("Successfully cleaned {} entries from storage", cleanupResult.result());
                             }

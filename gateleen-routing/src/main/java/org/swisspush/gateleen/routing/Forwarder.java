@@ -450,9 +450,16 @@ public class Forwarder extends AbstractForwarder {
             HttpClientResponse cRes = asyncResult.result();
             if (asyncResult.failed()) {
                 error(asyncResult.cause().getMessage(), req, targetUri);
-                req.response().setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code());
-                req.response().setStatusMessage(asyncResult.cause().getMessage());
-                req.response().end();
+                HttpServerResponse rsp = req.response();
+                int rspCode = HttpResponseStatus.INTERNAL_SERVER_ERROR.code();
+                String shortMsg = asyncResult.cause().getMessage();
+                if (rsp.headWritten()) {
+                    log.warn("Already responded. Cannot send anymore: HTTP {} {}", rspCode, shortMsg);
+                } else {
+                    rsp.setStatusCode(rspCode);
+                    rsp.setStatusMessage(shortMsg);
+                    rsp.end();
+                }
                 return;
             }
             monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
@@ -528,7 +535,14 @@ public class Forwarder extends AbstractForwarder {
                 respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
             });
 
-            req.connection().closeHandler((aVoid) -> unpump.run());
+            HttpConnection connection = req.connection();
+            if (connection != null) {
+                connection.closeHandler((Void v) -> unpump.run());
+            } else {
+                log.warn("TODO No way to call 'unpump.run()' in the right moment. As there seems"
+                        + " to be no event we could register a handler for. Gateleen wishes you"
+                        + " some happy timeouts ({})", req.uri());
+            }
         };
     }
 

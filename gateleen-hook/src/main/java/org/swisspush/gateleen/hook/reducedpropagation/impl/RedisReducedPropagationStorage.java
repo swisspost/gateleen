@@ -8,6 +8,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.lua.LuaScriptState;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.StringUtils;
@@ -36,11 +37,11 @@ public class RedisReducedPropagationStorage implements ReducedPropagationStorage
     private LuaScriptState startQueueTimerLuaScriptState;
     private LuaScriptState removeExpiredQueuesRedisCommand;
 
-    public RedisReducedPropagationStorage(RedisProvider redisProvider) {
+    public RedisReducedPropagationStorage(RedisProvider redisProvider, GateleenExceptionFactory exceptionFactory) {
         this.redisProvider = redisProvider;
 
-        startQueueTimerLuaScriptState = new LuaScriptState(ReducedPropagationLuaScripts.START_QUEUE_TIMER, redisProvider, false);
-        removeExpiredQueuesRedisCommand = new LuaScriptState(ReducedPropagationLuaScripts.REMOVE_EXPIRED_QUEUES, redisProvider, false);
+        startQueueTimerLuaScriptState = new LuaScriptState(ReducedPropagationLuaScripts.START_QUEUE_TIMER, redisProvider, exceptionFactory, false);
+        removeExpiredQueuesRedisCommand = new LuaScriptState(ReducedPropagationLuaScripts.REMOVE_EXPIRED_QUEUES, redisProvider, exceptionFactory, false);
     }
 
     @Override
