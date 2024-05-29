@@ -1,6 +1,9 @@
 package org.swisspush.gateleen.playground;
 
-import io.vertx.core.*;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServer;
@@ -55,7 +58,6 @@ import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.monitoring.ResetMetricsController;
 import org.swisspush.gateleen.qos.QoSHandler;
-import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
@@ -332,8 +334,6 @@ public class Server extends AbstractVerticle {
                         queueCircuitBreakerConfigurationResourceManager, requestHandler, circuitBreakerPort);
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
-                final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing", Address.redisquesAddress(),
-                        monitoringHandler);
 
                 LogController logController = new LogController();
                 logController.registerLogConfiguratorMBean(JMX_DOMAIN);
@@ -365,7 +365,7 @@ public class Server extends AbstractVerticle {
                         .delegateHandler(delegateHandler)
                         .customHttpResponseHandler(customHttpResponseHandler)
                         .contentTypeConstraintHandler(contentTypeConstraintHandler)
-                        .build(vertx, redisProvider, Server.class, router, monitoringHandler, queueBrowser);
+                        .build(vertx, redisProvider, Server.class, router, monitoringHandler);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
 

@@ -57,7 +57,6 @@ import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.monitoring.ResetMetricsController;
 import org.swisspush.gateleen.qos.QoSHandler;
-import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
@@ -219,8 +218,6 @@ public abstract class AbstractTest {
                         CIRCUIT_BREAKER_REST_API_PORT);
 
                 new QueueProcessor(vertx, selfClient, monitoringHandler, queueCircuitBreaker);
-                final QueueBrowser queueBrowser = new QueueBrowser(vertx, SERVER_ROOT + "/queuing",
-                        Address.redisquesAddress(), monitoringHandler);
 
                 new CustomRedisMonitor(vertx, redisProvider, "main", "rest-storage", 10).start();
                 Router router = Router.builder()
@@ -266,7 +263,7 @@ public abstract class AbstractTest {
                                 .delegateHandler(delegateHandler)
                                 .mergeHandler(mergeHandler)
                                 .customHttpResponseHandler(customHttpResponseHandler)
-                                .build(vertx, redisProvider, AbstractTest.class, router, monitoringHandler, queueBrowser);
+                                .build(vertx, redisProvider, AbstractTest.class, router, monitoringHandler);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
                 selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
                 mainServer = vertx.createHttpServer();
