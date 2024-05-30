@@ -28,6 +28,6 @@ public class LocalHttpClient extends AbstractHttpClient {
 
     @Override
     protected HttpClientRequest doRequest(HttpMethod method, String uri) {
-        return new LocalHttpClientRequest(method, uri, vertx, wrappedRoutingContexttHandler, exceptionFactory, new LocalHttpServerResponse(vertx));
+        return new LocalHttpClientRequest(method, uri, vertx, wrappedRoutingContexttHandler, exceptionFactory, new LocalHttpServerResponse(vertx, exceptionFactory));
     }
 }
