@@ -16,6 +16,11 @@ class GateleenWastefulExceptionFactory implements GateleenExceptionFactory {
     }
 
     @Override
+    public IllegalStateException newIllegalStateException(String msg, Throwable cause) {
+        return new IllegalStateException(msg, cause);
+    }
+
+    @Override
     public ReplyException newReplyException(ReplyFailure failureType, int failureCode, String message) {
         return new ReplyException(failureType, failureCode, message);
     }
