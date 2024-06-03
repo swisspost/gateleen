@@ -81,6 +81,7 @@ public class RequestPropertyFilter {
     private static void logFilterResult(HttpServerRequest request, String filterPropertyKey, String filterPropertyValue, FilterResult filterResult, boolean noMatchingProperty){
         if(FilterResult.NO_MATCH != filterResult) {
             Logger log = RequestLoggerFactory.getLogger(RequestPropertyFilter.class, request);
+            if (!log.isInfoEnabled()) return;
             StringBuilder sb = new StringBuilder("Request to ").append(request.uri());
             if (noMatchingProperty) {
                 sb.append(" with no matching filterProperty");
@@ -88,7 +89,7 @@ public class RequestPropertyFilter {
                 sb.append(" with filterProperty ").append(filterPropertyKey).append("=").append(filterPropertyValue);
             }
             sb.append(" has FilterResult ").append(filterResult.name());
-            log.info(sb.toString());
+            log.info("{}", sb);
         }
     }
 }
