@@ -21,13 +21,10 @@ import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.core.validation.ValidationStatus;
 import org.swisspush.gateleen.validation.ValidationException;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
-
-import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenThriftyExceptionFactory;
 
 /**
  * Handler class for all Kafka related requests.
@@ -56,41 +53,41 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
 
     private boolean initialized = false;
 
-    /** @deprecated Use {@link #builder()} */
-    @Deprecated
-    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
-                        KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath) {
-        this(configurationResourceManager, null, repository, kafkaMessageSender,
-                configResourceUri, streamingPath);
-    }
-
-    /** @deprecated Use {@link #builder()} */
-    @Deprecated
-    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator,
-                        KafkaProducerRepository repository, KafkaMessageSender kafkaMessageSender, String configResourceUri,
-                        String streamingPath) {
-        this(configurationResourceManager, kafkaMessageValidator, repository, kafkaMessageSender,
-                configResourceUri, streamingPath, new HashMap<>());
-    }
-
-    /** @deprecated Use {@link #builder()} */
-    @Deprecated
-    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
-    KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
-
-        this(configurationResourceManager, null, repository, kafkaMessageSender,
-                configResourceUri, streamingPath, properties);
-    }
-
-    /** @deprecated Use {@link #builder()} */
-    @Deprecated
-    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator, KafkaProducerRepository repository,
-                        KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
-        this(Vertx.vertx(), newGateleenThriftyExceptionFactory(), configurationResourceManager,
-            kafkaMessageValidator, repository, kafkaMessageSender, configResourceUri, streamingPath,
-            properties);
-        log.warn("TODO: Do NOT use this DEPRECATED constructor! It creates instances that it should not create!");
-    }
+//    /** @deprecated Use {@link #builder()} */
+//    @Deprecated
+//    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
+//                        KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath) {
+//        this(configurationResourceManager, null, repository, kafkaMessageSender,
+//                configResourceUri, streamingPath);
+//    }
+//
+//    /** @deprecated Use {@link #builder()} */
+//    @Deprecated
+//    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator,
+//                        KafkaProducerRepository repository, KafkaMessageSender kafkaMessageSender, String configResourceUri,
+//                        String streamingPath) {
+//        this(configurationResourceManager, kafkaMessageValidator, repository, kafkaMessageSender,
+//                configResourceUri, streamingPath, new HashMap<>());
+//    }
+//
+//    /** @deprecated Use {@link #builder()} */
+//    @Deprecated
+//    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
+//    KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
+//
+//        this(configurationResourceManager, null, repository, kafkaMessageSender,
+//                configResourceUri, streamingPath, properties);
+//    }
+//
+//    /** @deprecated Use {@link #builder()} */
+//    @Deprecated
+//    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator, KafkaProducerRepository repository,
+//                        KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
+//        this(Vertx.vertx(), newGateleenThriftyExceptionFactory(), configurationResourceManager,
+//            kafkaMessageValidator, repository, kafkaMessageSender, configResourceUri, streamingPath,
+//            properties);
+//        log.warn("TODO: Do NOT use this DEPRECATED constructor! It creates instances that it should not create!");
+//    }
 
     /** Use {@link #builder()} to get an instance. */
     KafkaHandler(
@@ -181,7 +178,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                 // TODO refactor away this callback-hell (Counts for the COMPLETE method
                 //      surrounding this line, named 'KafkaHandler.handle()', NOT only
                 //      those lines below).
-                kafkaProducerRecordBuilder.buildRecords(topic, payload).compose((List<KafkaProducerRecord<String, String>> kafkaProducerRecords) -> {
+                kafkaProducerRecordBuilder.buildRecordsAsync(topic, payload).compose((List<KafkaProducerRecord<String, String>> kafkaProducerRecords) -> {
                     maybeValidate(request, kafkaProducerRecords).onComplete(validationEvent -> {
                         if(validationEvent.succeeded()) {
                             if(validationEvent.result().isSuccess()) {
@@ -208,6 +205,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                         return;
                     }
                     log.error("TODO error handling", exceptionFactory.newException(ex));
+                    respondWith(StatusCode.INTERNAL_SERVER_ERROR, ex.getMessage(), request);
                 });
             });
             return true;

@@ -17,7 +17,7 @@ import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.List;
 
-import static org.swisspush.gateleen.kafka.KafkaProducerRecordBuilder.buildRecordsBlocking;
+import static org.swisspush.gateleen.kafka.KafkaProducerRecordBuilder.buildRecords;
 
 /**
  * Test class for the {@link KafkaProducerRecordBuilder}
@@ -34,34 +34,34 @@ public class KafkaProducerRecordBuilderTest {
     public void buildRecordsInvalidJson() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Error while parsing payload");
-        buildRecordsBlocking("myTopic", Buffer.buffer("notValidJson"));
+        buildRecords("myTopic", Buffer.buffer("notValidJson"));
     }
 
     @Test
     public void buildRecordsMissingRecordsArray() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Missing 'records' array");
-        buildRecordsBlocking("myTopic", Buffer.buffer("{}"));
+        buildRecords("myTopic", Buffer.buffer("{}"));
     }
 
     @Test
     public void buildRecordsNotArray() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Property 'records' must be of type JsonArray holding JsonObject objects");
-        buildRecordsBlocking("myTopic", Buffer.buffer("{\"records\": \"shouldBeAnArray\"}"));
+        buildRecords("myTopic", Buffer.buffer("{\"records\": \"shouldBeAnArray\"}"));
     }
 
     @Test
     public void buildRecordsInvalidRecordsType() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Property 'records' must be of type JsonArray holding JsonObject objects");
-        buildRecordsBlocking("myTopic", Buffer.buffer("{\"records\": [123]}"));
+        buildRecords("myTopic", Buffer.buffer("{\"records\": [123]}"));
     }
 
     @Test
     public void buildRecordsEmptyRecordsArray(TestContext context) throws ValidationException {
         final List<KafkaProducerRecord<String, String>> records =
-                buildRecordsBlocking("myTopic", Buffer.buffer("{\"records\": []}"));
+                buildRecords("myTopic", Buffer.buffer("{\"records\": []}"));
         context.assertTrue(records.isEmpty());
     }
 
@@ -69,42 +69,42 @@ public class KafkaProducerRecordBuilderTest {
     public void buildRecordsInvalidKeyType() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Property 'key' must be of type String");
-        buildRecordsBlocking("myTopic", Buffer.buffer("{\"records\": [{\"key\": 123,\"value\": {}}]}"));
+        buildRecords("myTopic", Buffer.buffer("{\"records\": [{\"key\": 123,\"value\": {}}]}"));
     }
 
     @Test
     public void buildRecordsInvalidValueType() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Property 'value' must be of type JsonObject");
-        buildRecordsBlocking("myTopic", Buffer.buffer("{\"records\":[{\"value\":123}]}"));
+        buildRecords("myTopic", Buffer.buffer("{\"records\":[{\"value\":123}]}"));
     }
 
     @Test
     public void buildRecordsMissingValue() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Property 'value' is required");
-        buildRecordsBlocking("myTopic", Buffer.buffer("{\"records\":[{}]}"));
+        buildRecords("myTopic", Buffer.buffer("{\"records\":[{}]}"));
     }
 
     @Test
     public void buildRecordsInvalidHeadersType() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Property 'headers' must be of type JsonObject");
-        buildRecordsBlocking("myTopic", Buffer.buffer("{\"records\": [{\"value\":{},\"headers\": 123}]}"));
+        buildRecords("myTopic", Buffer.buffer("{\"records\": [{\"value\":{},\"headers\": 123}]}"));
     }
 
     @Test
     public void buildRecordsInvalidHeadersValueType() throws ValidationException {
         thrown.expect( ValidationException.class );
         thrown.expectMessage("Property 'headers' must be of type JsonObject holding String values only");
-        buildRecordsBlocking("myTopic", Buffer.buffer("{\"records\": [{\"value\": {},\"headers\": {\"key\": 555}}]}"));
+        buildRecords("myTopic", Buffer.buffer("{\"records\": [{\"value\": {},\"headers\": {\"key\": 555}}]}"));
     }
 
     @Test
     public void buildRecordsValidNoKeyNoHeaders(TestContext context) throws ValidationException {
         JsonObject payload = buildPayload(null, null);
         final List<KafkaProducerRecord<String, String>> records =
-                buildRecordsBlocking("myTopic", Buffer.buffer(payload.encode()));
+                buildRecords("myTopic", Buffer.buffer(payload.encode()));
         context.assertFalse(records.isEmpty());
         context.assertEquals(1, records.size());
         context.assertEquals("myTopic", records.get(0).topic());
@@ -118,7 +118,7 @@ public class KafkaProducerRecordBuilderTest {
     public void buildRecordsValidWithKeyNoHeaders(TestContext context) throws ValidationException {
         JsonObject payload = buildPayload("someKey", null);
         final List<KafkaProducerRecord<String, String>> records =
-                buildRecordsBlocking("myTopic", Buffer.buffer(payload.encode()));
+                buildRecords("myTopic", Buffer.buffer(payload.encode()));
         context.assertFalse(records.isEmpty());
         context.assertEquals(1, records.size());
         context.assertEquals("myTopic", records.get(0).topic());
@@ -135,7 +135,7 @@ public class KafkaProducerRecordBuilderTest {
                         .add("header_1", "value_1")
                         .add("header_2", "value_2"));
         final List<KafkaProducerRecord<String, String>> records =
-                buildRecordsBlocking("myTopic", Buffer.buffer(payload.encode()));
+                buildRecords("myTopic", Buffer.buffer(payload.encode()));
         context.assertFalse(records.isEmpty());
         context.assertEquals(1, records.size());
         context.assertEquals("myTopic", records.get(0).topic());

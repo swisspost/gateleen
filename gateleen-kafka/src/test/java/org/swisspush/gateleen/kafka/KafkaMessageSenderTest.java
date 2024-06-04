@@ -22,7 +22,7 @@ import java.util.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
-import static org.swisspush.gateleen.kafka.KafkaProducerRecordBuilder.buildRecordsBlocking;
+import static org.swisspush.gateleen.kafka.KafkaProducerRecordBuilder.buildRecords;
 
 /**
  * Test class for the {@link KafkaMessageSender}
@@ -47,7 +47,7 @@ public class KafkaMessageSenderTest {
         Async async = context.async();
         String topic = "myTopic";
         final List<KafkaProducerRecord<String, String>> records =
-                buildRecordsBlocking(topic, Buffer.buffer(buildSingleRecordPayload("someKey").encode()));
+                buildRecords(topic, Buffer.buffer(buildSingleRecordPayload("someKey").encode()));
 
         when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1, topic)));
 
@@ -64,7 +64,7 @@ public class KafkaMessageSenderTest {
         Async async = context.async();
         String topic = "myTopic";
         final List<KafkaProducerRecord<String, String>> records =
-                buildRecordsBlocking(topic, Buffer.buffer(buildSingleRecordPayload(null).encode()));
+                buildRecords(topic, Buffer.buffer(buildSingleRecordPayload(null).encode()));
 
         when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1, topic)));
 
@@ -81,7 +81,7 @@ public class KafkaMessageSenderTest {
         Async async = context.async();
         String topic = "myTopic";
         final List<KafkaProducerRecord<String, String>> records =
-                buildRecordsBlocking(topic, Buffer.buffer(buildThreeRecordsPayload("key_1", "key_2", "key_3").encode()));
+                buildRecords(topic, Buffer.buffer(buildThreeRecordsPayload("key_1", "key_2", "key_3").encode()));
 
         when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1, topic)));
 
@@ -105,7 +105,7 @@ public class KafkaMessageSenderTest {
         Async async = context.async();
         String topic = "myTopic";
         final List<KafkaProducerRecord<String, String>> records =
-                buildRecordsBlocking(topic, Buffer.buffer(buildThreeRecordsPayload("key_1", "key_2", "key_3").encode()));
+                buildRecords(topic, Buffer.buffer(buildThreeRecordsPayload("key_1", "key_2", "key_3").encode()));
 
         when(producer.send(any())).thenReturn(Future.succeededFuture(new RecordMetadata(1,1,1, topic)));
         when(producer.send(eq(records.get(1)))).thenReturn(Future.failedFuture("Message with key '" + records.get(1).key() + "' failed."));

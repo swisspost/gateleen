@@ -51,7 +51,7 @@ class KafkaProducerRecordBuilder {
      * @return A list of {@link KafkaProducerRecord}s created from the provided payload
      * @throws ValidationException when the payload is not valid (missing properties, wrong types, etc.)
      */
-    Future<List<KafkaProducerRecord<String, String>>> buildRecords(String topic, Buffer payload) {
+    Future<List<KafkaProducerRecord<String, String>>> buildRecordsAsync(String topic, Buffer payload) {
         return Future.<Void>succeededFuture().compose((Void v) -> {
             JsonObject payloadObj;
             try {
@@ -82,9 +82,9 @@ class KafkaProducerRecordBuilder {
         });
     }
 
-    /** @deprecated Use {@link #buildRecords(String, Buffer)}. */
+    /** @deprecated Use {@link #buildRecordsAsync(String, Buffer)}. */
     @Deprecated
-    static List<KafkaProducerRecord<String, String>> buildRecordsBlocking(String topic, Buffer payload) throws ValidationException {
+    static List<KafkaProducerRecord<String, String>> buildRecords(String topic, Buffer payload) throws ValidationException {
         List<KafkaProducerRecord<String, String>> kafkaProducerRecords = new ArrayList<>();
         JsonObject payloadObj;
         try {
