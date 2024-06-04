@@ -180,35 +180,38 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                 // TODO refactor away this callback-hell (Counts for the COMPLETE method
                 //      surrounding this line, named 'KafkaHandler.handle()', NOT only
                 //      those lines below).
+                boolean[] isResponseSent = {false};
                 kafkaProducerRecordBuilder.buildRecordsAsync(topic, payload).compose((List<KafkaProducerRecord<String, String>> kafkaProducerRecords) -> {
-                    var fut =  maybeValidate(request, kafkaProducerRecords).onComplete(validationEvent -> {
-                        if(validationEvent.succeeded()) {
-                            if(validationEvent.result().isSuccess()) {
-                                kafkaMessageSender.sendMessages(optProducer.get().getLeft(), kafkaProducerRecords).onComplete(event -> {
-                                    if(event.succeeded()) {
-                                        RequestLoggerFactory.getLogger(KafkaHandler.class, request)
-                                                .info("Successfully sent {} message(s) to kafka topic '{}'", kafkaProducerRecords.size(), topic);
-                                        respondWith(StatusCode.OK, StatusCode.OK.getStatusMessage(), request);
-                                    } else {
-                                        respondWith(StatusCode.INTERNAL_SERVER_ERROR, event.cause().getMessage(), request);
-                                    }
-                                });
-                            } else {
-                                respondWith(StatusCode.BAD_REQUEST, validationEvent.result().getMessage(), request);
-                            }
+                    var fut =  maybeValidate(request, kafkaProducerRecords).compose(validationEvent -> {
+                        if(validationEvent.isSuccess()) {
+                            kafkaMessageSender.sendMessages(optProducer.get().getLeft(), kafkaProducerRecords).onComplete(event -> {
+                                if(event.succeeded()) {
+                                    RequestLoggerFactory.getLogger(KafkaHandler.class, request)
+                                            .info("Successfully sent {} message(s) to kafka topic '{}'", kafkaProducerRecords.size(), topic);
+                                    isResponseSent[0] = true;
+                                    respondWith(StatusCode.OK, StatusCode.OK.getStatusMessage(), request);
+                                } else {
+                                    isResponseSent[0] = true;
+                                    respondWith(StatusCode.INTERNAL_SERVER_ERROR, event.cause().getMessage(), request);
+                                }
+                            });
                         } else {
-                            respondWith(StatusCode.INTERNAL_SERVER_ERROR, validationEvent.cause().getMessage(), request);
+                            isResponseSent[0] = true;
+                            respondWith(StatusCode.BAD_REQUEST, validationEvent.getMessage(), request);
                         }
+                        return Future.succeededFuture();
                     });
                     assert fut != null;
                     return fut;
                 }).onFailure((Throwable ex) -> {
-                    if (ex instanceof ValidationException) {
+                    if (ex instanceof ValidationException && !isResponseSent[0]) {
                         respondWith(StatusCode.BAD_REQUEST, ex.getMessage(), request);
                         return;
                     }
                     log.error("TODO error handling", exceptionFactory.newException(ex));
-                    respondWith(StatusCode.INTERNAL_SERVER_ERROR, ex.getMessage(), request);
+                    if (!isResponseSent[0]) {
+                        respondWith(StatusCode.INTERNAL_SERVER_ERROR, ex.getMessage(), request);
+                    }
                 });
             });
             return true;

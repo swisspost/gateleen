@@ -66,6 +66,7 @@ public class KafkaHandlerTest {
     private KafkaHandler handler;
     private MockResourceStorage storage;
     private GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
+    private Vertx vertxMock;
 
     private final String configResourceUri = "/kafka/topicsConfig";
     private final String streamingPath = "/kafka/streaming/";
@@ -75,8 +76,8 @@ public class KafkaHandlerTest {
 
     @Before
     public void setUp() {
-        Vertx vertx = Vertx.vertx();
-        Vertx vertxMock = Mockito.mock(Vertx.class);
+        vertx = Vertx.vertx();
+        vertxMock = Mockito.mock(Vertx.class);
         doAnswer(inv -> {
             String bkup = currentThread().getName();
             currentThread().setName("blah");
@@ -461,8 +462,9 @@ public class KafkaHandlerTest {
     public void handlePayloadNotPassingValidation(TestContext context){
         Async async = context.async();
 
-        handler = new KafkaHandler(configurationResourceManager, messageValidator, repository, kafkaMessageSender,
-                configResourceUri, streamingPath);
+        handler = new KafkaHandler(
+            vertxMock, exceptionFactory, configurationResourceManager, messageValidator, repository,
+            kafkaMessageSender, configResourceUri, streamingPath, null);
 
         when(messageValidator.validateMessages(any(HttpServerRequest.class), any()))
                 .thenReturn(Future.succeededFuture(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Boooom")));
@@ -510,8 +512,9 @@ public class KafkaHandlerTest {
     public void handleErrorWhileValidation(TestContext context){
         Async async = context.async();
 
-        handler = new KafkaHandler(configurationResourceManager, messageValidator, repository, kafkaMessageSender,
-                configResourceUri, streamingPath);
+        handler = new KafkaHandler(
+            vertxMock, exceptionFactory, configurationResourceManager, messageValidator, repository,
+            kafkaMessageSender, configResourceUri, streamingPath, null);
 
         when(messageValidator.validateMessages(any(HttpServerRequest.class), any()))
                 .thenReturn(Future.failedFuture("Boooom"));
