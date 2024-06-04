@@ -92,8 +92,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
         log.warn("TODO: Do NOT use this DEPRECATED constructor! It creates instances that it should not create!");
     }
 
-    /** Use {@link #builder()} to get an instance. */
-    KafkaHandler(
+    public KafkaHandler(
         Vertx vertx,
         GateleenExceptionFactory exceptionFactory,
         ConfigurationResourceManager configurationResourceManager,
@@ -201,7 +200,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                             respondWith(StatusCode.INTERNAL_SERVER_ERROR, validationEvent.cause().getMessage(), request);
                         }
                     });
-                    return null;
+                    return Future.succeededFuture();
                 }).onFailure((Throwable ex) -> {
                     if (ex instanceof ValidationException) {
                         respondWith(StatusCode.BAD_REQUEST, ex.getMessage(), request);
