@@ -35,7 +35,6 @@ import org.swisspush.gateleen.merge.MergeHandler;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.packing.PackingHandler;
 import org.swisspush.gateleen.qos.QoSHandler;
-import org.swisspush.gateleen.queue.queuing.QueueBrowser;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.configuration.QueueCircuitBreakerConfigurationResourceManager;
 import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
@@ -101,7 +100,6 @@ public class RunConfig {
     private final ExpansionHandler expansionHandler;
     private final DeltaHandler deltaHandler;
     private final MonitoringHandler monitoringHandler;
-    private final QueueBrowser queueBrowser;
     private final Authorizer authorizer;
     private final CopyResourceHandler copyResourceHandler;
     private final QoSHandler qosHandler;
@@ -113,7 +111,7 @@ public class RunConfig {
     private final CustomHttpResponseHandler customHttpResponseHandler;
 
     public RunConfig(Vertx vertx, RedisProvider redisProvider, Class verticleClass, Router router, MonitoringHandler monitoringHandler,
-                     QueueBrowser queueBrowser, CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
+                     CORSHandler corsHandler, SchedulerResourceManager schedulerResourceManager,
                      ValidationResourceManager validationResourceManager, LoggingResourceManager loggingResourceManager,
                      ConfigurationResourceManager configurationResourceManager,
                      QueueCircuitBreakerConfigurationResourceManager queueCircuitBreakerConfigurationResourceManager,
@@ -129,7 +127,6 @@ public class RunConfig {
         this.verticleClass = verticleClass;
         this.router = router;
         this.monitoringHandler = monitoringHandler;
-        this.queueBrowser = queueBrowser;
         this.corsHandler = corsHandler;
         this.schedulerResourceManager = schedulerResourceManager;
         this.validationResourceManager = validationResourceManager;
@@ -164,7 +161,6 @@ public class RunConfig {
                 builder.verticleClass,
                 builder.router,
                 builder.monitoringHandler,
-                builder.queueBrowser,
                 builder.corsHandler,
                 builder.schedulerResourceManager,
                 builder.validationResourceManager,
@@ -222,7 +218,6 @@ public class RunConfig {
         private Class verticleClass;
         private Router router;
         private MonitoringHandler monitoringHandler;
-        private QueueBrowser queueBrowser;
         private CORSHandler corsHandler;
         private SchedulerResourceManager schedulerResourceManager;
         private ValidationResourceManager validationResourceManager;
@@ -377,13 +372,12 @@ public class RunConfig {
             return this;
         }
 
-        public RunConfig build(Vertx vertx, RedisProvider redisProvider, Class verticleClass, Router router, MonitoringHandler monitoringHandler, QueueBrowser queueBrowser) {
+        public RunConfig build(Vertx vertx, RedisProvider redisProvider, Class verticleClass, Router router, MonitoringHandler monitoringHandler) {
             this.vertx = vertx;
             this.redisProvider = redisProvider;
             this.verticleClass = verticleClass;
             this.router = router;
             this.monitoringHandler = monitoringHandler;
-            this.queueBrowser = queueBrowser;
             return new RunConfig(this);
         }
     }
@@ -631,10 +625,6 @@ public class RunConfig {
                             return;
                         }
                         if (copyResourceHandler != null && copyResourceHandler.handle(request)) {
-                            return;
-                        }
-                        if (request.path().startsWith(SERVER_ROOT + "/queuing/")) {
-                            queueBrowser.handle(request);
                             return;
                         }
                         if (hookHandler != null && hookHandler.handle(ctx)) {
