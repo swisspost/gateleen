@@ -12,6 +12,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -73,6 +74,13 @@ public class KafkaHandlerTest {
 
     private final String CONFIG_RESOURCE = ResourcesUtils.loadResource("testresource_valid_kafka_topic_configuration", true);
     private final String CONFIG_WILDCARD_RESOURCE = ResourcesUtils.loadResource("testresource_wildcard_kafka_topic_configuration", true);
+
+    @AfterClass
+    public static void afterClass() throws InterruptedException {
+        // Test needs some cool-down time. Without it, following tests potentially
+        // will fail with obscure errors.
+        Thread.sleep(3000);
+    }
 
     @Before
     public void setUp() {
