@@ -2,6 +2,7 @@ package org.swisspush.gateleen.kafka;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -27,13 +28,25 @@ import org.swisspush.gateleen.core.validation.ValidationStatus;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
-import static org.awaitility.Awaitility.await;
+import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.swisspush.gateleen.core.configuration.ConfigurationResourceManager.CONFIG_RESOURCE_CHANGED_ADDRESS;
 import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
@@ -62,14 +75,26 @@ public class KafkaHandlerTest {
 
     @Before
     public void setUp() {
-        vertx = Vertx.vertx();
+        Vertx vertx = Vertx.vertx();
+        Vertx vertxMock = Mockito.mock(Vertx.class);
+        doAnswer(inv -> {
+            String bkup = currentThread().getName();
+            currentThread().setName("blah");
+            try {
+                var result = ((Callable) inv.getArguments()[0]).call();
+                return Future.succeededFuture(result);
+            } finally {
+                currentThread().setName(bkup);
+            }
+        }).when(vertxMock).executeBlocking(any(Callable.class));
         repository = Mockito.spy(new KafkaProducerRepository(vertx));
         kafkaMessageSender = Mockito.mock(KafkaMessageSender.class);
         messageValidator = Mockito.mock(KafkaMessageValidator.class);
         storage = new MockResourceStorage();
         configurationResourceManager = new ConfigurationResourceManager(vertx, storage, exceptionFactory);
-        handler = new KafkaHandler(configurationResourceManager, repository, kafkaMessageSender,
-                configResourceUri, streamingPath);
+        handler = new KafkaHandler(
+            vertxMock, exceptionFactory, configurationResourceManager, null, repository,
+            kafkaMessageSender, configResourceUri, streamingPath, null);
 
         when(kafkaMessageSender.sendMessages(any(), any())).thenReturn(Future.succeededFuture());
     }

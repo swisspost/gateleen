@@ -181,7 +181,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                 //      surrounding this line, named 'KafkaHandler.handle()', NOT only
                 //      those lines below).
                 kafkaProducerRecordBuilder.buildRecordsAsync(topic, payload).compose((List<KafkaProducerRecord<String, String>> kafkaProducerRecords) -> {
-                    maybeValidate(request, kafkaProducerRecords).onComplete(validationEvent -> {
+                    var fut =  maybeValidate(request, kafkaProducerRecords).onComplete(validationEvent -> {
                         if(validationEvent.succeeded()) {
                             if(validationEvent.result().isSuccess()) {
                                 kafkaMessageSender.sendMessages(optProducer.get().getLeft(), kafkaProducerRecords).onComplete(event -> {
@@ -200,7 +200,8 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                             respondWith(StatusCode.INTERNAL_SERVER_ERROR, validationEvent.cause().getMessage(), request);
                         }
                     });
-                    return Future.succeededFuture();
+                    assert fut != null;
+                    return fut;
                 }).onFailure((Throwable ex) -> {
                     if (ex instanceof ValidationException) {
                         respondWith(StatusCode.BAD_REQUEST, ex.getMessage(), request);
@@ -233,9 +234,13 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
 
     private Future<ValidationResult> maybeValidate(HttpServerRequest request, List<KafkaProducerRecord<String, String>> kafkaProducerRecords) {
         if(kafkaMessageValidator != null) {
-            return kafkaMessageValidator.validateMessages(request, kafkaProducerRecords);
+            var fut = kafkaMessageValidator.validateMessages(request, kafkaProducerRecords);
+            assert fut != null;
+            return fut;
         }
-        return Future.succeededFuture(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+        var fut = Future.succeededFuture(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+        assert fut != null;
+        return fut;
     }
 
     private void respondWith(StatusCode statusCode, String responseMessage, HttpServerRequest request) {
