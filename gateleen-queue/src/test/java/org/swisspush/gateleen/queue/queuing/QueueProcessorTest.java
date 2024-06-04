@@ -217,7 +217,7 @@ public class QueueProcessorTest {
             String url = (String) invocation.getArguments()[1];
             LocalHttpClientRequest request = new LocalHttpClientRequest(httpMethod, url, vertx, event -> {
 
-            }, exceptionFactory, new LocalHttpServerResponse(vertx)) {
+            }, exceptionFactory, new LocalHttpServerResponse(vertx, exceptionFactory)) {
                 @Override
                 public HttpClientRequest response(Handler<AsyncResult<HttpClientResponse>> handler) {
                     FastFaiHttpClientResponse response = new FastFaiHttpClientResponse() {
