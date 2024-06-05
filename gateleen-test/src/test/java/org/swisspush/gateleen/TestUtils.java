@@ -8,10 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.hook.HookHandler;
 import org.swisspush.gateleen.hook.HookTriggerType;
 
-import java.util.Arrays;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.awaitility.Awaitility.await;
@@ -365,9 +363,29 @@ public class TestUtils {
     public static void registerListener(final String requestUrl, final String target, String[] methods, String filter,
                                         Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type,
                                         String headersFilter) {
+        registerListener(requestUrl, target, methods, filter, queueExpireTime, staticHeaders, type, headersFilter, null);
+    }
+
+    /**
+     * Registers a listener with a filter, static headers, a queue header and a event trigger.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param filter
+     * @param queueExpireTime
+     * @param staticHeaders
+     * @param queueHeader
+     */
+    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter,
+                                        Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type,
+                                        String headersFilter, String queueHeader) {
         JsonObject route = new JsonObject();
         route.put("destination", target);
 
+        if(queueHeader != null) {
+            route.put("headers", new JsonArray(List.of(new JsonObject().put("header", "x-queue").put("value", queueHeader))));
+        }
         if(methods != null){
             route.put("methods", new JsonArray(Arrays.asList(methods)));
         }

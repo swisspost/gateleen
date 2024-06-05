@@ -662,7 +662,6 @@ public class ListenerTest extends AbstractTest {
     }
 
     @Test
-    @Ignore
     public void testHookQueueExpiryOverride(TestContext context) {
         // Prepare Environment
         // ----
@@ -681,7 +680,7 @@ public class ListenerTest extends AbstractTest {
         String requestUrl = sourceUrl + TestUtils.getHookListenersUrlSuffix() + "testservice" + "/" + 1;
         String targetUrl = targetUrlBase + "/result";
 
-        String queueName = HookHandler.LISTENER_QUEUE_PREFIX + "-" + hookHandler.getUniqueListenerId(SERVER_ROOT + requestUrl);
+        String queueName = "hook-queue-expiry-test";
 
         String putRequest = sourceUrl + "/test1";
         String putTarget = targetUrl + "/test1";
@@ -692,7 +691,8 @@ public class ListenerTest extends AbstractTest {
         // ----
 
         // register Listener
-        TestUtils.registerListener(requestUrl, targetUrl, null, null, 5);
+        TestUtils.registerListener(requestUrl, targetUrl, null, null, 5,
+                null, null, null, queueName);
 
         // lock queue
         String lockRequestUrl = "queuing/locks/" + queueName;
