@@ -115,6 +115,23 @@ public class TestUtils {
     }
 
     /**
+     * Adds the routing rule for queuing to the given routing rules.
+     *
+     * @param rules current rules.
+     */
+    public static JsonObject addRoutingRuleQueuing(JsonObject rules) {
+
+        JsonObject queuing = createRoutingRule(ImmutableMap.of(
+                "description",
+                "vertx-redisques API",
+                "url",
+                "http://localhost:" + AbstractTest.REDISQUES_API_PORT + "/queuing/$1"));
+
+        rules = addRoutingRule(rules, AbstractTest.SERVER_ROOT + "/queuing/(.*)", queuing);
+        return rules;
+    }
+
+    /**
      * Adds the routing rule for cleanup to the given routing rules.
      * 
      * @param rules current rules.

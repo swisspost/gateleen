@@ -63,6 +63,7 @@ public class ListenerTest extends AbstractTest {
         // add a routing
         JsonObject rules = new JsonObject();
         rules = TestUtils.addRoutingRuleMainStorage(rules);
+        rules = TestUtils.addRoutingRuleQueuing(rules);
         rules = TestUtils.addRoutingRuleHooks(rules);
         TestUtils.putRoutingRules(rules);
     }

@@ -104,6 +104,7 @@ public abstract class AbstractTest {
     protected static final int REDIS_PORT = 6379;
     protected static final int STORAGE_PORT = 8989;
     private static final int CIRCUIT_BREAKER_REST_API_PORT = 7014;
+    protected static final int REDISQUES_API_PORT = 7015;
 
     /**
      * Basis configuration for RestAssured

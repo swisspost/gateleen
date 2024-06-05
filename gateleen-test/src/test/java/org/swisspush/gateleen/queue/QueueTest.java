@@ -30,6 +30,7 @@ public class QueueTest extends AbstractTest {
         // add a routing
         JsonObject rules = new JsonObject();
         rules = TestUtils.addRoutingRuleMainStorage(rules);
+        rules = TestUtils.addRoutingRuleQueuing(rules);
         rules = TestUtils.addRoutingRuleCleanup(rules);
         TestUtils.putRoutingRules(rules);
     }
