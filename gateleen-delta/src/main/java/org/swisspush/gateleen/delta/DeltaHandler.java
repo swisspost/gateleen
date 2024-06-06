@@ -6,6 +6,8 @@ import com.google.common.collect.Lists;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -17,6 +19,9 @@ import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
+import org.swisspush.gateleen.logging.LoggingHandler;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleFeaturesProvider;
@@ -24,6 +29,7 @@ import org.swisspush.gateleen.routing.RuleProvider;
 
 import java.util.*;
 
+import static org.swisspush.gateleen.logging.LoggingHandler.SKIP_LOGGING_HEADER;
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.DELTA_ON_BACKEND;
 
 /**
@@ -54,18 +60,28 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     private boolean rejectLimitOffsetRequests;
 
     private RuleProvider ruleProvider;
+
+    private Vertx vertx;
+    private LoggingResourceManager loggingResourceManager;
+    private LogAppenderRepository logAppenderRepository;
     private RuleFeaturesProvider ruleFeaturesProvider = new RuleFeaturesProvider(new ArrayList<>());
 
-    public DeltaHandler(RedisProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider) {
-        this(redisProvider, httpClient, ruleProvider, false);
+    public DeltaHandler(Vertx vertx, RedisProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
+                        LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository) {
+        this(vertx,redisProvider, httpClient, ruleProvider, loggingResourceManager, logAppenderRepository, false);
     }
 
-    public DeltaHandler(RedisProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider, boolean rejectLimitOffsetRequests) {
+    public DeltaHandler(Vertx vertx, RedisProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
+                        LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
+                        boolean rejectLimitOffsetRequests) {
+        this.vertx = vertx;
         this.redisProvider = redisProvider;
         this.httpClient = httpClient;
         this.rejectLimitOffsetRequests = rejectLimitOffsetRequests;
 
         this.ruleProvider = ruleProvider;
+        this.loggingResourceManager = loggingResourceManager;
+        this.logAppenderRepository = logAppenderRepository;
         this.ruleProvider.registerObserver(this);
     }
 
@@ -284,6 +300,9 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     private void handleCollectionGET(final HttpServerRequest request, final String updateId, final Logger log) {
         request.pause();
 
+        final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, request, vertx.eventBus());
+        loggingHandler.request(request.headers());
+
         final HttpMethod method = HttpMethod.GET;
         final String targetUri = ExpansionDeltaUtil.constructRequestUri(request.path(), request.params(), null, null, SlashHandling.KEEP);
         log.debug("constructed uri for request: {}", targetUri);
@@ -299,6 +318,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
             cReq.headers().setAll(request.headers());
             // add a marker header to signalize, that in the next loop of the mainverticle we should pass the deltahandler
             cReq.headers().set(DELTA_BACKEND_HEADER, "");
+            cReq.headers().set(SKIP_LOGGING_HEADER, "true");
             cReq.headers().set("Accept", "application/json");
             cReq.setChunked(true);
             request.handler(cReq::write);
@@ -306,6 +326,8 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                 cReq.send(asyncResult1 -> {
                     HttpClientResponse cRes = asyncResult1.result();
                     HttpServerRequestUtil.prepareResponse(request, cRes);
+
+                    loggingHandler.setResponse(cRes);
 
                     if (cRes.headers().contains(DELTA_HEADER)) {
                         cRes.handler(data -> request.response().write(data));
@@ -345,9 +367,12 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
                                         JsonObject result = buildResultJsonObject(deltaResourcesContainer.getResourceNames(),
                                                 dataContainer.getCollectionName());
+                                        String responseBody = result.toString();
                                         request.response().putHeader(DELTA_HEADER,
                                                 "" + deltaResourcesContainer.getMaxUpdateId());
-                                        request.response().end(result.toString());
+                                        loggingHandler.appendResponsePayload(Buffer.buffer(responseBody));
+                                        loggingHandler.log();
+                                        request.response().end(responseBody);
                                     })).onFailure(event -> {
                                         log.error("Redis: handleCollectionGET failed", event);
                                         handleError(request, "error reading delta information");
