@@ -61,9 +61,9 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
     private RuleProvider ruleProvider;
 
-    private Vertx vertx;
-    private LoggingResourceManager loggingResourceManager;
-    private LogAppenderRepository logAppenderRepository;
+    private final Vertx vertx;
+    private final LoggingResourceManager loggingResourceManager;
+    private final LogAppenderRepository logAppenderRepository;
     private RuleFeaturesProvider ruleFeaturesProvider = new RuleFeaturesProvider(new ArrayList<>());
 
     public DeltaHandler(Vertx vertx, RedisProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
@@ -349,7 +349,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                                     log.trace("DeltaHandler: deltaResourceKeys for targetUri ({}): {}", targetUri, deltaResourceKeys);
                                 }
 
-                                if (deltaResourceKeys.size() > 0) {
+                                if (!deltaResourceKeys.isEmpty()) {
                                     if (log.isTraceEnabled()) {
                                         log.trace("DeltaHandler: targetUri ({}) using mget command.", targetUri);
                                     }
