@@ -69,7 +69,6 @@ class KafkaProducerRecordBuilder {
                 return Future.failedFuture(new ValidationException("Missing 'records' array"));
             }
             return vertx.executeBlocking(() -> {
-                assert !currentThread().getName().toUpperCase().contains("EVENTLOOP") : currentThread().getName();
                 long beginEpchMs = currentTimeMillis();
                 List<KafkaProducerRecord<String, String>> kafkaProducerRecords = new ArrayList<>(recordsArray.size());
                 for (int i = 0; i < recordsArray.size(); i++) {
