@@ -1,14 +1,22 @@
 package org.swisspush.gateleen.kafka;
 
+import io.vertx.core.Future;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
+import org.slf4j.Logger;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static java.lang.System.currentTimeMillis;
+import static java.lang.Thread.currentThread;
+import static org.slf4j.LoggerFactory.getLogger;
 
 /**
  * Creates {@link KafkaProducerRecord}s by parsing the request payload.
@@ -17,10 +25,21 @@ import java.util.List;
  */
 class KafkaProducerRecordBuilder {
 
+    private static final Logger log = getLogger(KafkaProducerRecordBuilder.class);
     private static final String RECORDS = "records";
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final String HEADERS = "headers";
+    private final Vertx vertx;
+    private final GateleenExceptionFactory exceptionFactory;
+
+    KafkaProducerRecordBuilder(
+        Vertx vertx,
+        GateleenExceptionFactory exceptionFactory
+    ) {
+        this.vertx = vertx;
+        this.exceptionFactory = exceptionFactory;
+    }
 
     /**
      * Builds a list of {@link KafkaProducerRecord}s based on the provided payload.
@@ -32,6 +51,38 @@ class KafkaProducerRecordBuilder {
      * @return A list of {@link KafkaProducerRecord}s created from the provided payload
      * @throws ValidationException when the payload is not valid (missing properties, wrong types, etc.)
      */
+    Future<List<KafkaProducerRecord<String, String>>> buildRecordsAsync(String topic, Buffer payload) {
+        return Future.<Void>succeededFuture().compose((Void v) -> {
+            JsonObject payloadObj;
+            try {
+                payloadObj = new JsonObject(payload);
+            } catch (DecodeException de) {
+                return Future.failedFuture(new ValidationException("Error while parsing payload", de));
+            }
+            JsonArray recordsArray;
+            try {
+                recordsArray = payloadObj.getJsonArray(RECORDS);
+            } catch (ClassCastException cce) {
+                return Future.failedFuture(new ValidationException("Property '" + RECORDS + "' must be of type JsonArray holding JsonObject objects"));
+            }
+            if (recordsArray == null) {
+                return Future.failedFuture(new ValidationException("Missing 'records' array"));
+            }
+            return vertx.executeBlocking(() -> {
+                long beginEpchMs = currentTimeMillis();
+                List<KafkaProducerRecord<String, String>> kafkaProducerRecords = new ArrayList<>(recordsArray.size());
+                for (int i = 0; i < recordsArray.size(); i++) {
+                    kafkaProducerRecords.add(fromRecordJsonObject(topic, recordsArray.getJsonObject(i)));
+                }
+                long durationMs = currentTimeMillis() - beginEpchMs;
+                log.debug("Serializing JSON did block thread for {}ms", durationMs);
+                return kafkaProducerRecords;
+            });
+        });
+    }
+
+    /** @deprecated Use {@link #buildRecordsAsync(String, Buffer)}. */
+    @Deprecated
     static List<KafkaProducerRecord<String, String>> buildRecords(String topic, Buffer payload) throws ValidationException {
         List<KafkaProducerRecord<String, String>> kafkaProducerRecords = new ArrayList<>();
         JsonObject payloadObj;
