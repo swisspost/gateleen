@@ -3,7 +3,6 @@ package org.swisspush.gateleen.hook;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.google.common.collect.ImmutableMap;
-import org.awaitility.Awaitility;
 import io.restassured.RestAssured;
 import io.restassured.http.Header;
 import io.restassured.http.Headers;
@@ -11,6 +10,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.awaitility.Awaitility;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,8 +23,8 @@ import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
-import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Awaitility.await;
 import static org.awaitility.Durations.FIVE_SECONDS;
 import static org.awaitility.Durations.TEN_SECONDS;
 import static org.hamcrest.CoreMatchers.*;
@@ -63,6 +63,7 @@ public class ListenerTest extends AbstractTest {
         // add a routing
         JsonObject rules = new JsonObject();
         rules = TestUtils.addRoutingRuleMainStorage(rules);
+        rules = TestUtils.addRoutingRuleQueuing(rules);
         rules = TestUtils.addRoutingRuleHooks(rules);
         TestUtils.putRoutingRules(rules);
     }
@@ -678,7 +679,7 @@ public class ListenerTest extends AbstractTest {
         String requestUrl = sourceUrl + TestUtils.getHookListenersUrlSuffix() + "testservice" + "/" + 1;
         String targetUrl = targetUrlBase + "/result";
 
-        String queueName = HookHandler.LISTENER_QUEUE_PREFIX + "-" + hookHandler.getUniqueListenerId(SERVER_ROOT + requestUrl);
+        String queueName = "hook-queue-expiry-test";
 
         String putRequest = sourceUrl + "/test1";
         String putTarget = targetUrl + "/test1";
@@ -689,7 +690,8 @@ public class ListenerTest extends AbstractTest {
         // ----
 
         // register Listener
-        TestUtils.registerListener(requestUrl, targetUrl, null, null, 5);
+        TestUtils.registerListener(requestUrl, targetUrl, null, null, 5,
+                null, null, null, queueName);
 
         // lock queue
         String lockRequestUrl = "queuing/locks/" + queueName;

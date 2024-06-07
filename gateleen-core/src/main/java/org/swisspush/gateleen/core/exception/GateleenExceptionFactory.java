@@ -36,6 +36,14 @@ public interface GateleenExceptionFactory {
 
     public Exception newException(String msg, Throwable cause);
 
+    /** Convenience overload for {@link #newIllegalStateException(String, Throwable)}. */
+    public default IllegalStateException newIllegalStateException(String msg) { return newIllegalStateException(msg, null); }
+
+    /** Convenience overload for {@link #newIllegalStateException(String, Throwable)}. */
+    public default IllegalStateException newIllegalStateException(Throwable cause) { return newIllegalStateException(null, cause); }
+
+    public IllegalStateException newIllegalStateException(String msg, Throwable cause);
+
     public ReplyException newReplyException(ReplyFailure failureType, int failureCode, String message);
 
 

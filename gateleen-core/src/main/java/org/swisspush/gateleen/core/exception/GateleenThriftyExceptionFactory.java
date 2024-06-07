@@ -17,6 +17,12 @@ class GateleenThriftyExceptionFactory implements GateleenExceptionFactory {
     }
 
     @Override
+    public IllegalStateException newIllegalStateException(String msg, Throwable cause) {
+        if (cause instanceof IllegalStateException) return (IllegalStateException) cause;
+        return new NoStackIllegalStateException(msg);
+    }
+
+    @Override
     public ReplyException newReplyException(ReplyFailure failureType, int failureCode, String message) {
         return new GateleenNoStackReplyException(failureType, failureCode, message);
     }

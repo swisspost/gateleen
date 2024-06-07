@@ -2,6 +2,7 @@ package org.swisspush.gateleen.kafka;
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceConsumer;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
@@ -24,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
+
+import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenThriftyExceptionFactory;
 
 /**
  * Handler class for all Kafka related requests.
@@ -42,20 +46,26 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     private final Logger log = LoggerFactory.getLogger(KafkaHandler.class);
 
     private final String streamingPath;
+    private final GateleenExceptionFactory exceptionFactory;
     private final KafkaProducerRepository repository;
     private final KafkaTopicExtractor topicExtractor;
     private final KafkaMessageSender kafkaMessageSender;
     private final Map<String, Object> properties;
+    private final KafkaProducerRecordBuilder kafkaProducerRecordBuilder;
     private KafkaMessageValidator kafkaMessageValidator;
 
     private boolean initialized = false;
 
+    /** @deprecated Use {@link #builder()} */
+    @Deprecated
     public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
                         KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath) {
         this(configurationResourceManager, null, repository, kafkaMessageSender,
                 configResourceUri, streamingPath);
     }
 
+    /** @deprecated Use {@link #builder()} */
+    @Deprecated
     public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator,
                         KafkaProducerRepository repository, KafkaMessageSender kafkaMessageSender, String configResourceUri,
                         String streamingPath) {
@@ -63,6 +73,8 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                 configResourceUri, streamingPath, new HashMap<>());
     }
 
+    /** @deprecated Use {@link #builder()} */
+    @Deprecated
     public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
     KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
 
@@ -70,10 +82,29 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                 configResourceUri, streamingPath, properties);
     }
 
+    /** @deprecated Use {@link #builder()} */
+    @Deprecated
     public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator, KafkaProducerRepository repository,
                         KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
+        this(Vertx.vertx(), newGateleenThriftyExceptionFactory(), configurationResourceManager,
+            kafkaMessageValidator, repository, kafkaMessageSender, configResourceUri, streamingPath,
+            properties);
+        log.warn("TODO: Do NOT use this DEPRECATED constructor! It creates instances that it should not create!");
+    }
 
+    public KafkaHandler(
+        Vertx vertx,
+        GateleenExceptionFactory exceptionFactory,
+        ConfigurationResourceManager configurationResourceManager,
+        KafkaMessageValidator kafkaMessageValidator,
+        KafkaProducerRepository repository,
+        KafkaMessageSender kafkaMessageSender,
+        String configResourceUri,
+        String streamingPath,
+        Map<String, Object> properties
+    ) {
         super(configurationResourceManager, configResourceUri, "gateleen_kafka_topic_configuration_schema");
+        this.exceptionFactory = exceptionFactory;
         this.repository = repository;
         this.kafkaMessageValidator = kafkaMessageValidator;
         this.kafkaMessageSender = kafkaMessageSender;
@@ -81,6 +112,11 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
         this.properties = properties;
 
         this.topicExtractor = new KafkaTopicExtractor(streamingPath);
+        this.kafkaProducerRecordBuilder = new KafkaProducerRecordBuilder(vertx, exceptionFactory);
+    }
+
+    public static KafkaHandlerBuilder builder() {
+        return new KafkaHandlerBuilder();
     }
 
     public Future<Void> initialize() {
@@ -140,31 +176,43 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
             }
 
             request.bodyHandler(payload -> {
-                try {
-                    log.debug("incoming kafka message payload: {}", payload);
-                    final List<KafkaProducerRecord<String, String>> kafkaProducerRecords = KafkaProducerRecordBuilder.buildRecords(topic, payload);
-                    maybeValidate(request, kafkaProducerRecords).onComplete(validationEvent -> {
-                        if(validationEvent.succeeded()) {
-                            if(validationEvent.result().isSuccess()) {
-                                kafkaMessageSender.sendMessages(optProducer.get().getLeft(), kafkaProducerRecords).onComplete(event -> {
-                                    if(event.succeeded()) {
-                                        RequestLoggerFactory.getLogger(KafkaHandler.class, request)
-                                                .info("Successfully sent {} message(s) to kafka topic '{}'", kafkaProducerRecords.size(), topic);
-                                        respondWith(StatusCode.OK, StatusCode.OK.getStatusMessage(), request);
-                                    } else {
-                                        respondWith(StatusCode.INTERNAL_SERVER_ERROR, event.cause().getMessage(), request);
-                                    }
-                                });
-                            } else {
-                                respondWith(StatusCode.BAD_REQUEST, validationEvent.result().getMessage(), request);
-                            }
+                log.debug("incoming kafka message payload: {}", payload);
+                // TODO refactor away this callback-hell (Counts for the COMPLETE method
+                //      surrounding this line, named 'KafkaHandler.handle()', NOT only
+                //      those lines below).
+                boolean[] isResponseSent = {false};
+                kafkaProducerRecordBuilder.buildRecordsAsync(topic, payload).compose((List<KafkaProducerRecord<String, String>> kafkaProducerRecords) -> {
+                    var fut =  maybeValidate(request, kafkaProducerRecords).compose(validationEvent -> {
+                        if(validationEvent.isSuccess()) {
+                            kafkaMessageSender.sendMessages(optProducer.get().getLeft(), kafkaProducerRecords).onComplete(event -> {
+                                if(event.succeeded()) {
+                                    RequestLoggerFactory.getLogger(KafkaHandler.class, request)
+                                            .info("Successfully sent {} message(s) to kafka topic '{}'", kafkaProducerRecords.size(), topic);
+                                    isResponseSent[0] = true;
+                                    respondWith(StatusCode.OK, StatusCode.OK.getStatusMessage(), request);
+                                } else {
+                                    isResponseSent[0] = true;
+                                    respondWith(StatusCode.INTERNAL_SERVER_ERROR, event.cause().getMessage(), request);
+                                }
+                            });
                         } else {
-                            respondWith(StatusCode.INTERNAL_SERVER_ERROR, validationEvent.cause().getMessage(), request);
+                            isResponseSent[0] = true;
+                            respondWith(StatusCode.BAD_REQUEST, validationEvent.getMessage(), request);
                         }
+                        return Future.succeededFuture();
                     });
-                } catch (ValidationException ve){
-                    respondWith(StatusCode.BAD_REQUEST, ve.getMessage(), request);
-                }
+                    assert fut != null;
+                    return fut;
+                }).onFailure((Throwable ex) -> {
+                    if (ex instanceof ValidationException && !isResponseSent[0]) {
+                        respondWith(StatusCode.BAD_REQUEST, ex.getMessage(), request);
+                        return;
+                    }
+                    log.error("TODO error handling", exceptionFactory.newException(ex));
+                    if (!isResponseSent[0]) {
+                        respondWith(StatusCode.INTERNAL_SERVER_ERROR, ex.getMessage(), request);
+                    }
+                });
             });
             return true;
         }
@@ -189,9 +237,13 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
 
     private Future<ValidationResult> maybeValidate(HttpServerRequest request, List<KafkaProducerRecord<String, String>> kafkaProducerRecords) {
         if(kafkaMessageValidator != null) {
-            return kafkaMessageValidator.validateMessages(request, kafkaProducerRecords);
+            var fut = kafkaMessageValidator.validateMessages(request, kafkaProducerRecords);
+            assert fut != null;
+            return fut;
         }
-        return Future.succeededFuture(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+        var fut = Future.succeededFuture(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+        assert fut != null;
+        return fut;
     }
 
     private void respondWith(StatusCode statusCode, String responseMessage, HttpServerRequest request) {

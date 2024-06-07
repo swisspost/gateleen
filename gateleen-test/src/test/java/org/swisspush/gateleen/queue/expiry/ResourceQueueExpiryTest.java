@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.queue.expiry;
 
 import io.restassured.RestAssured;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -36,6 +37,14 @@ public class ResourceQueueExpiryTest extends AbstractTest {
         RestAssured.requestSpecification.basePath(SERVER_ROOT + "/");
     }
 
+    private void initRoutingRules() {
+        // add a routing
+        JsonObject rules = new JsonObject();
+        rules = TestUtils.addRoutingRuleMainStorage(rules);
+        rules = TestUtils.addRoutingRuleQueuing(rules);
+        TestUtils.putRoutingRules(rules);
+    }
+
     /**
      * Checks if the GET request of the
      * given resource returns the wished body.
@@ -55,6 +64,7 @@ public class ResourceQueueExpiryTest extends AbstractTest {
     public void testQueueExpiry(TestContext context) {
         Async async = context.async();
         delete();
+        initRoutingRules();
 
         System.out.println("testQueueExpiry");
 
@@ -165,6 +175,7 @@ public class ResourceQueueExpiryTest extends AbstractTest {
     public void testQueueExpiryOverride_requestIsExpired_beforeRegularExpiryTime(TestContext context) {
         Async async = context.async();
         delete();
+        initRoutingRules();
 
         System.out.println("testQueueExpiry");
 
@@ -213,6 +224,7 @@ public class ResourceQueueExpiryTest extends AbstractTest {
     public void testQueueExpiryOverride_requestIsNotExpired_regularResourceExpiry(TestContext context) {
         Async async = context.async();
         delete();
+        initRoutingRules();
 
         System.out.println("testQueueExpiry");
 

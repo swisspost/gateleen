@@ -64,6 +64,8 @@ public class LoggingHandler {
     private static final String ADDRESS = "address";
     private static final String DEFAULT = "default";
 
+    public static final String SKIP_LOGGING_HEADER = "x-skip-request-log";
+
     private Map<String, org.apache.logging.log4j.Logger> loggers = new HashMap<>();
 
     private Logger log;
@@ -76,6 +78,12 @@ public class LoggingHandler {
         this.log = RequestLoggerFactory.getLogger(LoggingHandler.class, request);
         ((org.apache.logging.log4j.core.Logger) LogManager.getLogger(DEFAULT_LOGGER)).setAdditive(false);
         boolean stopValidation = false;
+
+        if(request.headers().get(SKIP_LOGGING_HEADER) != null) {
+            log.info("request will not be logged because of skip log request header");
+            return;
+        }
+
         for (Map<String, String> payloadFilter : loggingResource.getPayloadFilters()) {
             if (active || stopValidation) {
                 break;

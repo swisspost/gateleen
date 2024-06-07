@@ -6,6 +6,7 @@ import io.vertx.core.http.*;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
 
 /**
@@ -16,6 +17,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 public class LocalHttpServerResponse extends BufferBridge implements FastFailHttpServerResponse {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalHttpServerResponse.class);
+    private final GateleenExceptionFactory exceptionFactory;
     private int statusCode;
     private String statusMessage;
     private static final String EMPTY = "";
@@ -118,8 +120,9 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     };
 
 
-    public LocalHttpServerResponse(Vertx vertx) {
+    public LocalHttpServerResponse(Vertx vertx, GateleenExceptionFactory exceptionFactory) {
         super(vertx);
+        this.exceptionFactory = exceptionFactory;
         // Attach most simple possible exception handler to base.
         setExceptionHandler(thr -> logger.error("Processing of response failed.", thr));
     }
@@ -214,9 +217,10 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     public Future<Void> write(Buffer data) {
         // emulate Vertx's HttpServerResponseImpl
         if (!chunked && !headers.contains(HttpHeaders.CONTENT_LENGTH)) {
-            IllegalStateException ex = new IllegalStateException("You must set the Content-Length header to be the total size of the message "
+            IllegalStateException ex = exceptionFactory.newIllegalStateException(""
+                    + "You must set the Content-Length header to be the total size of the message "
                     + "body BEFORE sending any data if you are not using HTTP chunked encoding.");
-            logger.error("non-proper HttpServerResponse occured", ex);
+            logger.debug("non-proper HttpServerResponse occurred", ex);
             throw ex;
         }
         ensureBound();

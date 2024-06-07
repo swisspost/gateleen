@@ -14,8 +14,8 @@ import java.util.Set;
 
 import static org.awaitility.Awaitility.await;
 import static io.restassured.RestAssured.*;
-import static junit.framework.Assert.assertFalse;
-import static junit.framework.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.awaitility.Durations.*;
 import static org.hamcrest.CoreMatchers.*;
 
@@ -30,6 +30,7 @@ public class QueueTest extends AbstractTest {
         // add a routing
         JsonObject rules = new JsonObject();
         rules = TestUtils.addRoutingRuleMainStorage(rules);
+        rules = TestUtils.addRoutingRuleQueuing(rules);
         rules = TestUtils.addRoutingRuleCleanup(rules);
         TestUtils.putRoutingRules(rules);
     }
