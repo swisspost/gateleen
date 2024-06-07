@@ -53,6 +53,7 @@ class KafkaProducerRecordBuilder {
      */
     Future<List<KafkaProducerRecord<String, String>>> buildRecordsAsync(String topic, Buffer payload) {
         return Future.<Void>succeededFuture().compose((Void v) -> vertx.executeBlocking(() -> {
+            long beginEpchMs = currentTimeMillis();
             JsonObject payloadObj;
             try {
                 payloadObj = new JsonObject(payload);
@@ -68,13 +69,12 @@ class KafkaProducerRecordBuilder {
             if (recordsArray == null) {
                 throw new ValidationException("Missing 'records' array");
             }
-            long beginEpchMs = currentTimeMillis();
             List<KafkaProducerRecord<String, String>> kafkaProducerRecords = new ArrayList<>(recordsArray.size());
             for (int i = 0; i < recordsArray.size(); i++) {
                 kafkaProducerRecords.add(fromRecordJsonObject(topic, recordsArray.getJsonObject(i)));
             }
             long durationMs = currentTimeMillis() - beginEpchMs;
-            log.debug("Serializing JSON did block thread for {}ms", durationMs);
+            log.debug("Parsing and Serializing JSON did block thread for {}ms", durationMs);
             return kafkaProducerRecords;
         }));
     }
