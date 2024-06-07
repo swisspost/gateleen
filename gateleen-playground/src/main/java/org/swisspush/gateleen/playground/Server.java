@@ -215,7 +215,8 @@ public class Server extends AbstractVerticle {
 
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
 
-                deltaHandler = new DeltaHandler(redisProvider, selfClient, ruleProvider, true);
+                deltaHandler = new DeltaHandler(vertx, redisProvider, selfClient, ruleProvider, loggingResourceManager,
+                        logAppenderRepository, true);
                 expansionHandler = new ExpansionHandler(ruleProvider, selfClient, props, ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, exceptionFactory, SERVER_ROOT + "/v1/copy");
                 monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX, SERVER_ROOT + "/monitoring/rpr");

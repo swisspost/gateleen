@@ -1,9 +1,6 @@
 package org.swisspush.gateleen.delta;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
+import io.vertx.core.*;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -19,6 +16,8 @@ import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.logging.LogAppenderRepository;
+import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.routing.Router;
 import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleProvider;
@@ -36,6 +35,9 @@ public class DeltaHandlerTest {
     private RedisAPI redisAPI;
     private RedisProvider redisProvider;
     private RuleProvider ruleProvider;
+    private Vertx vertx;
+    private LoggingResourceManager loggingResourceManager;
+    private LogAppenderRepository logAppenderRepository;
     private Router router = mock(Router.class);
     private HttpServerRequest request;
     private HttpServerResponse response;
@@ -44,6 +46,9 @@ public class DeltaHandlerTest {
     @Before
     public void before() {
         redisAPI = mock(RedisAPI.class);
+        vertx = mock(Vertx.class);
+        loggingResourceManager = mock(LoggingResourceManager.class);
+        logAppenderRepository = mock(LogAppenderRepository.class);
 
         redisProvider = mock(RedisProvider.class);
         when(redisProvider.redis()).thenReturn(Future.succeededFuture(redisAPI));
@@ -69,7 +74,7 @@ public class DeltaHandlerTest {
 
     @Test
     public void testIsDeltaRequest(TestContext context) {
-        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
         deltaHandler.rulesChanged(List.of(
                 rule("/gateleen/server/res_1", false),
                 rule("/gateleen/server/res_2", true))
@@ -152,7 +157,7 @@ public class DeltaHandlerTest {
 
     @Test
     public void testDeltaNoExpiry() {
-        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
         deltaHandler.handle(request, router);
 
         verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555")), any());
@@ -163,7 +168,7 @@ public class DeltaHandlerTest {
     public void testDeltaWithExpiry() {
         requestHeaders.add("x-expire-after", "123");
 
-        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
         deltaHandler.handle(request, router);
 
         verify(redisAPI, times(1)).setex(eq("delta:resources:a:b:c"), eq("123"), eq("555"), any());
@@ -182,7 +187,7 @@ public class DeltaHandlerTest {
         ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
         when(request.response().end(bodyCaptor.capture())).thenReturn(Future.succeededFuture());
 
-        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider);
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
         deltaHandler.handle(request, router);
 
         context.assertEquals(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), statusCodeCaptor.getValue(), "StatusCode should be 500");
@@ -191,7 +196,7 @@ public class DeltaHandlerTest {
 
     @Test
     public void testRejectLimitOffsetParameters(TestContext context) {
-        DeltaHandler deltaHandler = new DeltaHandler(redisProvider, null, ruleProvider, true);
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository, true);
         final DummyHttpServerResponse response = new DummyHttpServerResponse();
         DeltaRequest request = new DeltaRequest(MultiMap.caseInsensitiveMultiMap()
                 .add("delta", "0")
