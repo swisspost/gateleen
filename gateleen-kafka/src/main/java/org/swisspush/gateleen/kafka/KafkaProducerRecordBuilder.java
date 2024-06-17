@@ -52,7 +52,7 @@ class KafkaProducerRecordBuilder {
      * @throws ValidationException when the payload is not valid (missing properties, wrong types, etc.)
      */
     Future<List<KafkaProducerRecord<String, String>>> buildRecordsAsync(String topic, Buffer payload) {
-        return Future.<Void>succeededFuture().compose((Void v) -> vertx.executeBlocking(() -> {
+        return vertx.executeBlocking(() -> {
             long beginEpchMs = currentTimeMillis();
             JsonObject payloadObj;
             try {
@@ -76,7 +76,7 @@ class KafkaProducerRecordBuilder {
             long durationMs = currentTimeMillis() - beginEpchMs;
             log.debug("Parsing and Serializing JSON did block thread for {}ms", durationMs);
             return kafkaProducerRecords;
-        }));
+        });
     }
 
     /** @deprecated Use {@link #buildRecordsAsync(String, Buffer)}. */
