@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.System.currentTimeMillis;
-import static java.lang.Thread.currentThread;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -52,7 +51,7 @@ class KafkaProducerRecordBuilder {
      * @throws ValidationException when the payload is not valid (missing properties, wrong types, etc.)
      */
     Future<List<KafkaProducerRecord<String, String>>> buildRecordsAsync(String topic, Buffer payload) {
-        return vertx.executeBlocking(() -> {
+        return Future.<Void>succeededFuture().compose((Void v) -> vertx.executeBlocking(() -> {
             long beginEpchMs = currentTimeMillis();
             JsonObject payloadObj;
             try {
@@ -76,7 +75,7 @@ class KafkaProducerRecordBuilder {
             long durationMs = currentTimeMillis() - beginEpchMs;
             log.debug("Parsing and Serializing JSON did block thread for {}ms", durationMs);
             return kafkaProducerRecords;
-        });
+        }));
     }
 
     /** @deprecated Use {@link #buildRecordsAsync(String, Buffer)}. */
