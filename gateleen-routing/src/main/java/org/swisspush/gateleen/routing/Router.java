@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpClientFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
@@ -84,6 +85,8 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private OAuthProvider oAuthProvider;
     private OAuthStrategy oAuthStrategy = null;
     private BasicAuthStrategy basicAuthStrategy;
+
+    private static GateleenExceptionFactory gateleenExceptionFactory = GateleenExceptionFactory.newGateleenThriftyExceptionFactory();
 
     /**
      * The multiplier applied to routes, typically the number of {@link Router} instances in a cluster.
@@ -324,7 +327,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                         vertx.eventBus());
             } else if (rule.getStorage() != null) {
                 forwarder = new StorageForwarder(vertx.eventBus(), rule, loggingResourceManager, logAppenderRepository,
-                        monitoringHandler);
+                        monitoringHandler, gateleenExceptionFactory);
             } else if (rule.getScheme().equals("local")) {
                 forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, logAppenderRepository,
                         monitoringHandler, userProfileUri, authStrategy);
