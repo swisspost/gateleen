@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.System.currentTimeMillis;
-import static java.lang.Thread.currentThread;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -52,33 +51,31 @@ class KafkaProducerRecordBuilder {
      * @throws ValidationException when the payload is not valid (missing properties, wrong types, etc.)
      */
     Future<List<KafkaProducerRecord<String, String>>> buildRecordsAsync(String topic, Buffer payload) {
-        return Future.<Void>succeededFuture().compose((Void v) -> {
+        return Future.<Void>succeededFuture().compose((Void v) -> vertx.executeBlocking(() -> {
+            long beginEpchMs = currentTimeMillis();
             JsonObject payloadObj;
             try {
                 payloadObj = new JsonObject(payload);
             } catch (DecodeException de) {
-                return Future.failedFuture(new ValidationException("Error while parsing payload", de));
+                throw new ValidationException("Error while parsing payload", de);
             }
             JsonArray recordsArray;
             try {
                 recordsArray = payloadObj.getJsonArray(RECORDS);
             } catch (ClassCastException cce) {
-                return Future.failedFuture(new ValidationException("Property '" + RECORDS + "' must be of type JsonArray holding JsonObject objects"));
+                throw new ValidationException("Property '" + RECORDS + "' must be of type JsonArray holding JsonObject objects");
             }
             if (recordsArray == null) {
-                return Future.failedFuture(new ValidationException("Missing 'records' array"));
+                throw new ValidationException("Missing 'records' array");
             }
-            return vertx.executeBlocking(() -> {
-                long beginEpchMs = currentTimeMillis();
-                List<KafkaProducerRecord<String, String>> kafkaProducerRecords = new ArrayList<>(recordsArray.size());
-                for (int i = 0; i < recordsArray.size(); i++) {
-                    kafkaProducerRecords.add(fromRecordJsonObject(topic, recordsArray.getJsonObject(i)));
-                }
-                long durationMs = currentTimeMillis() - beginEpchMs;
-                log.debug("Serializing JSON did block thread for {}ms", durationMs);
-                return kafkaProducerRecords;
-            });
-        });
+            List<KafkaProducerRecord<String, String>> kafkaProducerRecords = new ArrayList<>(recordsArray.size());
+            for (int i = 0; i < recordsArray.size(); i++) {
+                kafkaProducerRecords.add(fromRecordJsonObject(topic, recordsArray.getJsonObject(i)));
+            }
+            long durationMs = currentTimeMillis() - beginEpchMs;
+            log.debug("Parsing and Serializing JSON did block thread for {}ms", durationMs);
+            return kafkaProducerRecords;
+        }));
     }
 
     /** @deprecated Use {@link #buildRecordsAsync(String, Buffer)}. */
