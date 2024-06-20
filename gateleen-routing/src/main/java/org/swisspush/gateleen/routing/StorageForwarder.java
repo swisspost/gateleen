@@ -15,6 +15,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.cors.CORSHandler;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -40,13 +41,17 @@ public class StorageForwarder extends AbstractForwarder {
     private Pattern urlPattern;
     private String address;
     private CORSHandler corsHandler;
+    private GateleenExceptionFactory gateleenExceptionFactory;
 
-    public StorageForwarder(EventBus eventBus, Rule rule, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler) {
+    public StorageForwarder(EventBus eventBus, Rule rule, LoggingResourceManager loggingResourceManager,
+                            LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                            GateleenExceptionFactory gateleenExceptionFactory) {
         super(rule, loggingResourceManager, logAppenderRepository, monitoringHandler);
         this.eventBus = eventBus;
         this.address = Address.storageAddress() + "-" + rule.getStorage();
         urlPattern = Pattern.compile(rule.getUrlPattern());
         corsHandler = new CORSHandler();
+        this.gateleenExceptionFactory = gateleenExceptionFactory;
     }
 
     @Override
@@ -97,7 +102,7 @@ public class StorageForwarder extends AbstractForwarder {
                     response.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                     response.setStatusMessage(statusMessage);
                     response.end();
-                    log.error("Storage request failed", result.cause());
+                    log.error(statusMessage, gateleenExceptionFactory.newException(result.cause()));
                 } else {
                     Buffer buffer = result.result().body();
                     int headerLength = buffer.getInt(0);

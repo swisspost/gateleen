@@ -7,6 +7,7 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
+import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpClientFactory;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.logging.LogAppenderRepository;
@@ -52,6 +53,7 @@ public class RouterBuilder {
     private int routeMultiplier = Router.DEFAULT_ROUTER_MULTIPLIER;
 
     private OAuthProvider oAuthProvider;
+    private GateleenExceptionFactory exceptionFactory;
 
     RouterBuilder() {
         // PackagePrivate, as clients should use "Router.builder()" and not this class here directly.
@@ -65,6 +67,10 @@ public class RouterBuilder {
 
         if (defaultRouteTypes == null) {
             defaultRouteTypes = all();
+        }
+
+        if (this.exceptionFactory == null) {
+            this.exceptionFactory = GateleenExceptionFactory.newGateleenThriftyExceptionFactory();
         }
 
         Handler<Void>[] doneHandlersArray;
@@ -102,6 +108,7 @@ public class RouterBuilder {
                 httpClientFactory,
                 routeMultiplier,
                 oAuthProvider,
+                exceptionFactory,
                 doneHandlersArray
         );
         if (resourceLoggingEnabled) {
@@ -271,6 +278,11 @@ public class RouterBuilder {
     public RouterBuilder withRouteMultiplier(int routeMultiplier) {
         ensureNotBuilt();
         this.routeMultiplier = routeMultiplier;
+        return this;
+    }
+
+    public RouterBuilder withExceptionFactory(GateleenExceptionFactory exceptionFactory) {
+        this.exceptionFactory = exceptionFactory;
         return this;
     }
 }
