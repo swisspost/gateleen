@@ -57,6 +57,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private final String rulesUri;
     private final String userProfileUri;
     private final String serverUri;
+    private final GateleenExceptionFactory exceptionFactory;
     private io.vertx.ext.web.Router router;
     private final LoggingResourceManager loggingResourceManager;
     private final LogAppenderRepository logAppenderRepository;
@@ -85,8 +86,6 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private OAuthProvider oAuthProvider;
     private OAuthStrategy oAuthStrategy = null;
     private BasicAuthStrategy basicAuthStrategy;
-
-    private static GateleenExceptionFactory gateleenExceptionFactory = GateleenExceptionFactory.newGateleenThriftyExceptionFactory();
 
     /**
      * The multiplier applied to routes, typically the number of {@link Router} instances in a cluster.
@@ -120,6 +119,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
            HttpClientFactory httpClientFactory,
            int routeMultiplier,
            @Nullable OAuthProvider oAuthProvider,
+           GateleenExceptionFactory exceptionFactory,
            Handler<Void>... doneHandlers) {
         this.storage = storage;
         this.properties = properties;
@@ -138,6 +138,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.doneHandlers = doneHandlers;
         this.routeMultiplier = routeMultiplier;
         this.oAuthProvider = oAuthProvider;
+        this.exceptionFactory =  exceptionFactory;
 
         if (oAuthProvider != null) {
             this.oAuthStrategy = new OAuthStrategy(oAuthProvider);
@@ -327,7 +328,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                         vertx.eventBus());
             } else if (rule.getStorage() != null) {
                 forwarder = new StorageForwarder(vertx.eventBus(), rule, loggingResourceManager, logAppenderRepository,
-                        monitoringHandler, gateleenExceptionFactory);
+                        monitoringHandler, exceptionFactory);
             } else if (rule.getScheme().equals("local")) {
                 forwarder = new Forwarder(vertx, selfClient, rule, this.storage, loggingResourceManager, logAppenderRepository,
                         monitoringHandler, userProfileUri, authStrategy);
