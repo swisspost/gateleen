@@ -24,6 +24,10 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
+import static io.vertx.core.Future.failedFuture;
+import static io.vertx.core.Future.succeededFuture;
+import static io.vertx.core.buffer.Buffer.buffer;
+import static java.lang.System.currentTimeMillis;
 import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenThriftyExceptionFactory;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.FAILURE;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType.SUCCESS;
@@ -290,7 +294,18 @@ public class QueueProcessor {
             };
             request1.idleTimeout(120000); // avoids blocking other requests
             if (queuedRequest.getPayload() != null) {
-                request1.send(Buffer.buffer(queuedRequest.getPayload()), httpAsyncHandler);
+                vertx.<Buffer>executeBlocking(() -> {
+                    long beginEpchMs = currentTimeMillis();
+                    Buffer payload = buffer(queuedRequest.getPayload());
+                    long durationMs = currentTimeMillis() - beginEpchMs;
+                    if (durationMs > 16) logger.debug("Creating buffer of size {} took {}ms", payload.length(), durationMs);
+                    return payload;
+                }, false).compose((Buffer payload) -> {
+                    request1.send(payload, httpAsyncHandler);
+                    return succeededFuture();
+                }).onFailure((Throwable ex) -> {
+                    httpAsyncHandler.handle(failedFuture(ex));
+                });
             } else {
                 request1.send(httpAsyncHandler);
             }
