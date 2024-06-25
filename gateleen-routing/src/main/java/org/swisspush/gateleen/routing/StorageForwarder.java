@@ -102,7 +102,7 @@ public class StorageForwarder extends AbstractForwarder {
                     response.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                     response.setStatusMessage(statusMessage);
                     response.end();
-                    log.error(statusMessage, gateleenExceptionFactory.newException(result.cause()));
+                    log.error("{}", statusMessage, gateleenExceptionFactory.newException(result.cause()));
                 } else {
                     Buffer buffer = result.result().body();
                     int headerLength = buffer.getInt(0);
