@@ -68,8 +68,8 @@ public class StorageForwarder extends AbstractForwarder {
         monitoringHandler.updateRequestsMeter("localhost", ctx.request().uri());
         monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
         final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), ctx.request().uri());
-        log.debug("Forwarding request: {} to storage {} {} with rule {}", ctx.request().uri(), rule.getStorage(),
-                targetUri, rule.getRuleIdentifier());
+        log.debug("Forwarding {} request: {} to storage {} {} with rule {}", ctx.request().method(), ctx.request().uri(),
+                rule.getStorage(), targetUri, rule.getRuleIdentifier());
         final HeadersMultiMap requestHeaders = new HeadersMultiMap();
         requestHeaders.addAll(ctx.request().headers());
 
@@ -102,14 +102,14 @@ public class StorageForwarder extends AbstractForwarder {
                     response.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
                     response.setStatusMessage(statusMessage);
                     response.end();
-                    log.error(statusMessage, gateleenExceptionFactory.newException(result.cause()));
+                    log.error("{}", statusMessage, gateleenExceptionFactory.newException(result.cause()));
                 } else {
                     Buffer buffer = result.result().body();
                     int headerLength = buffer.getInt(0);
                     JsonObject responseJson = new JsonObject(buffer.getString(4, headerLength + 4));
                     JsonArray headers = responseJson.getJsonArray("headers");
                     MultiMap responseHeaders = null;
-                    if (headers != null && headers.size() > 0) {
+                    if (headers != null && !headers.isEmpty()) {
                         responseHeaders = JsonMultiMap.fromJson(headers);
 
                         setUniqueIdHeader(responseHeaders);
