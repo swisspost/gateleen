@@ -4,7 +4,7 @@
   "type": "object",
   "properties": {
     "methods": {
-      "description": "Restricts the HTTP methods concerned by this rule (`GET`, `PUT`, `POST`, `DELETE`).\nWhen absent, all methods are concerned.",
+      "description": "Restricts the HTTP methods concerned by this rule (`GET`, `PUT`, `POST`, `DELETE`). When absent, all methods are concerned.",
       "type": "array",
       "items": {
         "type": "string"
@@ -19,55 +19,56 @@
       "type": "string"
     },
     "pattern": {
-      "description": "Pattern for grouping the incoming uri",
+      "description": "Pattern for grouping the incoming URI",
       "type": "string"
     },
     "requests": {
       "type": "array",
-      "items": {"$ref": "#/definitions/Request"}
+      "items": { "$ref": "#/definitions/Request" }
     }
   },
   "additionalProperties": false,
   "definitions": {
     "HeaderFunction": {
-        "properties": {
-            "header": {
-                "description": "the request-header name to manipulate (set, remove or conditional set)",
-                "type": "string",
-                "minLength": 1
-            },
-            "value": {
-                "description": "the value to be set. null and empty string means 'remove the header'. value can contain other header names between single angular brackets which resolves to their values accordingly",
-                "type": [
-                    "null",
-                    "string"
-                ]
-            },
-            "mode": {
-                "description": "define a condition-mode. 'complete' sets the header value only if this header is not yet present. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
-                "type": "string",
-                "enum": [
-                    "complete",
-                    "override"
-                ]
-            }
+      "properties": {
+        "header": {
+          "description": "The request-header name to manipulate (set, remove or conditional set)",
+          "type": "string",
+          "minLength": 1
         },
-        "required": [
-            "header",
-            "value"
-        ]
+        "value": {
+          "description": "The value to be set. Null and empty string means 'remove the header'. Value can contain other header names between single angular brackets which resolves to their values accordingly",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "mode": {
+          "description": "Define a condition-mode. 'complete' sets the header value only if this header is not yet present. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
+          "type": "string",
+          "enum": [
+            "complete",
+            "override"
+          ]
+        }
+      },
+      "required": [
+        "header",
+        "value"
+      ]
     },
     "Request": {
       "oneOf": [
         { "required": ["payload"] },
         { "required": ["transform"] },
-        { "required": ["transformWithMetadata"] }
+        { "required": ["transformWithMetadata"] },
+        { "required": ["copy"] }
       ],
       "anyOf": [
         {
           "oneOf": [
-            {"required": ["dynamicHeaders"]},
-            {"required": ["headers"]}
+            { "required": ["dynamicHeaders"] },
+            { "required": ["headers"] }
           ]
         },
         {
@@ -91,24 +92,28 @@
           ]
         },
         "payload": {
-          "description": "The payload to send in requests body",
+          "description": "The payload to send in the request's body",
           "type": "object"
         },
         "transform": {
-          "description": "The jolt spec definition to transform the payload",
+          "description": "The JOLT spec definition to transform the payload",
           "type": "array"
         },
         "transformWithMetadata": {
-          "description": "The jolt spec definition to transform the payload and additional metadata",
+          "description": "The JOLT spec definition to transform the payload and additional metadata",
           "type": "array"
         },
-		"dynamicHeaders": {
-			"description": "Manipulate (set / remove / replace) request headers using HeaderFunctions - option to reference other header vales",
-			"type": "array",
-			"items": {
-				"$ref": "#/definitions/HeaderFunction"
-			}
-		},
+        "copy": {
+          "description": "Indicates that the original payload should be copied to the new destination",
+          "type": "boolean"
+        },
+        "dynamicHeaders": {
+          "description": "Manipulate (set / remove / replace) request headers using HeaderFunctions - option to reference other header values",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HeaderFunction"
+          }
+        },
         "headers": {
           "description": "Headers to send with the request",
           "type": "array",

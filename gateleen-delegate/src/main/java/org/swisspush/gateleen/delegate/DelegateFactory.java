@@ -24,8 +24,6 @@ import java.util.regex.Pattern;
 
 /**
  * DelegateFactory is used to create delegate objects from their text representation.
- *
- * @author https://github.com/ljucam [Mario Ljuca]
  */
 public class DelegateFactory {
     private static final Logger LOG = LoggerFactory.getLogger(DelegateFactory.class);
@@ -36,6 +34,7 @@ public class DelegateFactory {
     private static final String DYNAMIC_HEADERS = "dynamicHeaders";
     private static final String TRANSFORM = "transform";
     private static final String TRANSFORM_WITH_METADATA = "transformWithMetadata";
+    private static final String COPY = "copy";
 
     private final ClientRequestCreator clientRequestCreator;
 
@@ -46,11 +45,6 @@ public class DelegateFactory {
 
     /**
      * Creates a new instance of the DelegateFactory.
-     *
-     * @param clientRequestCreator
-     * @param properties
-     * @param delegatesSchema
-     * @param unmatchedDelegateStatusCode
      */
     public DelegateFactory(final ClientRequestCreator clientRequestCreator, final Map<String, Object> properties,
                            final String delegatesSchema, @Nullable StatusCode unmatchedDelegateStatusCode) {
@@ -61,12 +55,7 @@ public class DelegateFactory {
     }
 
     /**
-     * Tries to create a Delegate object out of the
-     * buffer.
-     *
-     * @param delegateName name of the delegate
-     * @param buffer buffer of the delegate
-     * @return a Delegate object
+     * Tries to create a Delegate object out of the buffer.
      */
     public Delegate parseDelegate(final String delegateName, final Buffer buffer) throws ValidationException {
         final String configString;
@@ -90,11 +79,6 @@ public class DelegateFactory {
 
     /**
      * Create the delegate out of the prepared string.
-     *
-     * @param delegateName name of the delegate
-     * @param configString the string rep. of the delegate
-     * @return the new delegate
-     * @throws ValidationException
      */
     private Delegate createDelegate(final String delegateName, final String configString) throws ValidationException {
         JsonObject delegateObject = new JsonObject(configString);
@@ -119,7 +103,11 @@ public class DelegateFactory {
                 LOG.trace("request of [{}] #: {}", delegateName, i);
             }
             JsonObject requestJsonObject = (JsonObject) delegateObject.getJsonArray(REQUESTS).getValue(i);
-            JoltSpec joltSpec = parsePayloadTransformSpec(requestJsonObject, delegateName);
+            boolean copy = requestJsonObject.getBoolean(COPY, false);
+            JoltSpec joltSpec = null;
+            if (!copy) {
+                joltSpec = parsePayloadTransformSpec(requestJsonObject, delegateName);
+            }
 
             HeaderFunction headerFunction;
             final JsonArray headerFunctionsArray = requestJsonObject.getJsonArray(DYNAMIC_HEADERS);
@@ -129,7 +117,7 @@ public class DelegateFactory {
                 headerFunction = HeaderFunctions.DO_NOTHING;
             }
 
-            requests.add(new DelegateRequest(requestJsonObject, joltSpec, headerFunction));
+            requests.add(new DelegateRequest(requestJsonObject, joltSpec, headerFunction, copy));
         }
 
         return new Delegate(clientRequestCreator, delegateName, pattern, methods, requests, unmatchedDelegateStatusCode);
