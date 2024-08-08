@@ -33,21 +33,21 @@ import java.util.regex.Pattern;
  * delegate.<br>
  * <code>PUT /gateleen/server/delegate/v1/delegates/user-zip-copy/definition</code>
  * <pre>
- {
- "methods": [ "PUT", "DELETE" ],
- "pattern": "([^/]*)/(.*)",
- "requests": [
- {
- "headers" : [],
- "uri": "/gateleen/server/copy",
- "method": "POST",
- "payload": {
- "source": "/gateleen/$1?expand=100&amp;zip=true",
- "destination": "/gateleen/zips/users/$1.zip"
- }
- }
- ]
- }
+    {
+        "methods": [ "PUT", "DELETE" ],
+        "pattern": "([^/]*)/(.*)",
+        "requests": [
+            {
+                 "headers" : [],
+                 "uri": "/gateleen/server/copy",
+                 "method": "POST",
+                 "payload": {
+                    "source": "/gateleen/$1?expand=100&amp;zip=true",
+                    "destination": "/gateleen/zips/users/$1.zip"
+                }
+            }
+        ]
+    }
 
  * </pre>
  * To trigger an execution, it suffice to perform a PUT request on the virtual collection <code>execution</code> within
