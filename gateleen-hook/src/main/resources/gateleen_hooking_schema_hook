@@ -51,15 +51,44 @@
                     },
                     "useOriginalPayload": {
                         "type": "boolean",
-                        "description": "If true, the original payload will be forwarded to the destination without transformation.",
+                        "description": "If true, the original payload will be forwarded without transformation.",
                         "default": false
                     },
                     "transform": {
                         "type": "object",
                         "description": "Transformation configuration for the payload if useOriginalPayload is false.",
                         "properties": {
-                            // Add necessary transformation properties here
-                        }
+                            "type": {
+                                "type": "string",
+                                "enum": ["json", "xml", "text"],
+                                "description": "The type of transformation to apply (e.g., converting to JSON, XML, or text)."
+                            },
+                            "operations": {
+                                "type": "array",
+                                "description": "List of transformation operations to apply to the payload.",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "operation": {
+                                            "type": "string",
+                                            "enum": ["replace", "remove", "add"],
+                                            "description": "The operation to perform on the payload (e.g., replace, remove, add)."
+                                        },
+                                        "path": {
+                                            "type": "string",
+                                            "description": "The JSON path or XPath to the element to be transformed."
+                                        },
+                                        "value": {
+                                            "type": ["string", "number", "boolean", "null"],
+                                            "description": "The value to be used in the transformation operation."
+                                        }
+                                    },
+                                    "required": ["operation", "path"],
+                                    "additionalProperties": false
+                                }
+                            }
+                        },
+                        "additionalProperties": false
                     },
                     "headers": {
                         "type": "array",
