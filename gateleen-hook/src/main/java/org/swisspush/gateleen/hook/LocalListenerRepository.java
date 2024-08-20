@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  * 
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, Set<Listener>>>implements ListenerRepository {
+public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, Set<Listener>>> implements ListenerRepository {
     private Logger log = LoggerFactory.getLogger(LocalListenerRepository.class);
 
     /*
@@ -27,7 +27,7 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
     private Map<String, Listener> listenerToUrlMap;
 
     /**
-     * Creates a new instance of the local in-memory LocalHookListenerRepository.
+     * Creates a new instance of the local in-memory LocalListenerRepository.
      */
     public LocalListenerRepository() {
         urlToListenersMap = new HashMap<>();
@@ -42,7 +42,7 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
          */
         removeListener(listener.getListenerId());
 
-        log.debug("Add listener {} for resource {} with id {}", listener.getListener(), listener.getMonitoredUrl(),
+        log.debug("Add listener {} for resource {} with id {}", listener.getListenerId(), listener.getMonitoredUrl(),
                 listener.getListenerId());
 
         /*
@@ -126,10 +126,7 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
     }
 
     private boolean doHeadersMatch(Listener listener, MultiMap headers) {
-        Pattern headersFilterPattern = listener.getHook().getHeadersFilterPattern();
-        if (headersFilterPattern != null) {
-            return HttpHeaderUtil.hasMatchingHeader(headers, headersFilterPattern);
-        }
-        return true;
+        return listener.getHook().getHeadersFilterPattern() == null ||
+                HttpHeaderUtil.hasMatchingHeader(headers, listener.getHook().getHeadersFilterPattern());
     }
 }

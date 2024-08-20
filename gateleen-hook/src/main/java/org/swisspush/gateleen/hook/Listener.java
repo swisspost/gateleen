@@ -30,49 +30,13 @@ public class Listener {
         this.listenerId = listenerId;
         this.monitoredUrl = monitoredUrl;
         this.listener = listener;
-        this.setHook(hook);
+        this.hook = hook;
     }
 
     /**
-     * Returns the listener segment of the url.
-     * 
-     * @return String
-     */
-    public String getListener() {
-        return listener;
-    }
-
-    /**
-     * Sets the listener segment of the url.
-     * 
-     * @param listener listener
-     */
-    public void setListener(String listener) {
-        this.listener = listener;
-    }
-
-    /**
-     * Returns the url the listener is hooked up.
-     * 
-     * @return String
-     */
-    public String getMonitoredUrl() {
-        return monitoredUrl;
-    }
-
-    /**
-     * Sets the url the listener is hooked up.
-     * 
-     * @param monitoredUrl monitoredUrl
-     */
-    public void setMonitoredUrl(String monitoredUrl) {
-        this.monitoredUrl = monitoredUrl;
-    }
-
-    /**
-     * Returns the listener id (eg. http/colin/123)
-     * 
-     * @return id of the listener
+     * Returns the listener ID.
+     *
+     * @return The listener ID.
      */
     public String getListenerId() {
         return listenerId;
@@ -88,11 +52,45 @@ public class Listener {
     }
 
     /**
-     * Returns the expire after time, for the
-     * request header.
-     * Can be <code>null</code> if not set.
-     * 
-     * @return expire after time
+     * Returns the monitored URL.
+     *
+     * @return The monitored URL.
+     */
+    public String getMonitoredUrl() {
+        return monitoredUrl;
+    }
+
+    /**
+     * Sets the monitored URL.
+     *
+     * @param monitoredUrl The monitored URL.
+     */
+    public void setMonitoredUrl(String monitoredUrl) {
+        this.monitoredUrl = monitoredUrl;
+    }
+
+    /**
+     * Returns the listener URL segment.
+     *
+     * @return The listener URL segment.
+     */
+    public String getListener() {
+        return listener;
+    }
+
+    /**
+     * Sets the listener URL segment.
+     *
+     * @param listener The listener URL segment.
+     */
+    public void setListener(String listener) {
+        this.listener = listener;
+    }
+
+    /**
+     * Returns the expiration time.
+     *
+     * @return The expiration time, or null if not set.
      */
     public Integer getExpireAfter() {
         return expireAfter;

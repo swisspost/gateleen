@@ -790,21 +790,6 @@ public class HookHandler implements LoggableResource {
                 path = request.uri().replace(listener.getMonitoredUrl(), "");
             }
 
-            String targetUri;
-
-            // internal
-            if (listener.getHook().getDestination().startsWith("/")) {
-                targetUri = listener.getListener() + path;
-                log.debug(" > internal target: {}", targetUri);
-            }
-            // external
-            else {
-                targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
-                log.debug(" > external target: {}", targetUri);
-            }
-
-            // Create a new multimap, copied from the original request,
-            // so that the original request is not overridden with the new values.
             HeadersMultiMap queueHeaders = new HeadersMultiMap();
             queueHeaders.addAll(request.headers());
 
@@ -831,28 +816,44 @@ public class HookHandler implements LoggableResource {
 
             QueueingStrategy queueingStrategy = listener.getHook().getQueueingStrategy();
 
-            if (queueingStrategy instanceof DefaultQueueingStrategy) {
-                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
-            } else if (queueingStrategy instanceof DiscardPayloadQueueingStrategy) {
-                if (HttpRequestHeader.containsHeader(queueHeaders, CONTENT_LENGTH)) {
-                    queueHeaders.set(CONTENT_LENGTH.getName(), "0");
+            // Process each destination
+            for (DestinationConfig destinationConfig : listener.getHook().getDestinations()) {
+                String targetUri;
+
+                // internal
+                if (destinationConfig.getDestinationUri().startsWith("/")) {
+                    targetUri = listener.getListener() + path;
+                    log.debug(" > internal target: {}", targetUri);
                 }
-                requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
-            } else if (queueingStrategy instanceof ReducedPropagationQueueingStrategy) {
-                if (reducedPropagationManager != null) {
-                    reducedPropagationManager.processIncomingRequest(request.method(), targetUri, queueHeaders, buffer,
-                            queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationIntervalMs(), handler);
+                // external
+                else {
+                    targetUri = destinationConfig.getDestinationUri() + path;
+                    log.debug(" > external target: {}", targetUri);
+                }
+
+                if (queueingStrategy instanceof DefaultQueueingStrategy) {
+                    requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, buffer.getBytes()), queue, handler);
+                } else if (queueingStrategy instanceof DiscardPayloadQueueingStrategy) {
+                    if (HttpRequestHeader.containsHeader(queueHeaders, CONTENT_LENGTH)) {
+                        queueHeaders.set(CONTENT_LENGTH.getName(), "0");
+                    }
+                    requestQueue.enqueue(new HttpRequest(request.method(), targetUri, queueHeaders, null), queue, handler);
+                } else if (queueingStrategy instanceof ReducedPropagationQueueingStrategy) {
+                    if (reducedPropagationManager != null) {
+                        reducedPropagationManager.processIncomingRequest(request.method(), targetUri, queueHeaders, buffer,
+                                queue, ((ReducedPropagationQueueingStrategy) queueingStrategy).getPropagationIntervalMs(), handler);
+                    } else {
+                        log.error("ReducedPropagationQueueingStrategy without configured ReducedPropagationManager. " +
+                                "Not going to handle (enqueue) anything!");
+                    }
                 } else {
-                    log.error("ReducedPropagationQueueingStrategy without configured ReducedPropagationManager. " +
-                            "Not going to handle (enqueue) anything!");
+                    log.error("QueueingStrategy '{}' is not handled. Could be an error, check the source code!",
+                            queueingStrategy.getClass().getSimpleName());
                 }
-            } else {
-                log.error("QueueingStrategy '{}' is not handled. Could be an error, check the source code!",
-                        queueingStrategy.getClass().getSimpleName());
             }
         }
 
-        // if for e.g. the beforListeners are empty,
+        // if for e.g. the beforeListeners are empty,
         // we have to ensure, that the original request
         // is executed. This way the after handler will
         // also be called properly.
@@ -1341,7 +1342,6 @@ public class HookHandler implements LoggableResource {
         JsonObject jsonHook = storageObject.getJsonObject(HOOK);
         JsonArray jsonMethods = jsonHook.getJsonArray(METHODS);
 
-
         HttpHook hook = new HttpHook(jsonHook.getString(DESTINATION));
         if (jsonMethods != null) {
             hook.setMethods(jsonMethods.getList());
@@ -1366,8 +1366,13 @@ public class HookHandler implements LoggableResource {
             }
         }
 
-        if (jsonHook.containsKey(FILTER)) {
-            hook.setFilter(jsonHook.getString(FILTER));
+        if (jsonHook.containsKey("destinations")) {
+            JsonArray jsonDestinations = jsonHook.getJsonArray("destinations");
+            for (int i = 0; i < jsonDestinations.size(); i++) {
+                JsonObject jsonDestination = jsonDestinations.getJsonObject(i);
+                DestinationConfig destinationConfig = DestinationConfig.fromJson(jsonDestination);
+                hook.getDestinations().add(destinationConfig);
+            }
         }
 
         if (jsonHook.getInteger(QUEUE_EXPIRE_AFTER) != null) {
@@ -1441,7 +1446,6 @@ public class HookHandler implements LoggableResource {
      * appropriate property in the hook object.
      * <p>
      * This is the same concept as in gateleen-routing:
-     * {@link org.swisspush.gateleen.routing.RuleFactory#setProxyOptions(Rule, JsonObject)}}
      */
     private void extractAndAddProxyOptionsToHook(final JsonObject jsonHook, final HttpHook hook) {
         JsonObject proxyOptions = jsonHook.getJsonObject("proxyOptions");
@@ -1455,7 +1459,6 @@ public class HookHandler implements LoggableResource {
      * appropriate list in the hook object.
      * <p>
      * This is the same concept as in gateleen-routing:
-     * {@link org.swisspush.gateleen.routing.RuleFactory#setStaticHeaders(Rule, JsonObject)}}
      */
     private void extractAndAddStaticHeadersToHook(final JsonObject jsonHook, final HttpHook hook) {
         final JsonArray headers = jsonHook.getJsonArray("headers");

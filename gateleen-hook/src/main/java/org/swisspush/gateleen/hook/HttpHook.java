@@ -41,6 +41,10 @@ public class HttpHook {
     private Integer maxWaitQueueSize = null;
     private ProxyOptions proxyOptions = null;
     private Integer timeout = null;
+
+    // New field for handling multiple destinations
+    private List<DestinationConfig> destinations = new ArrayList<>();
+
     /**
      * Creates a new hook.
      *
@@ -338,5 +342,25 @@ public class HttpHook {
      *
      * @param proxyOptions the custom proxy options to set
      */
-    public void setProxyOptions(ProxyOptions proxyOptions) { this.proxyOptions = proxyOptions; }
+    public void setProxyOptions(ProxyOptions proxyOptions) {
+        this.proxyOptions = proxyOptions;
+    }
+
+    /**
+     * Returns the list of destinations for the hook.
+     *
+     * @return a list of DestinationConfig objects
+     */
+    public List<DestinationConfig> getDestinations() {
+        return destinations;
+    }
+
+    /**
+     * Sets the list of destinations for the hook.
+     *
+     * @param destinations a list of DestinationConfig objects
+     */
+    public void setDestinations(List<DestinationConfig> destinations) {
+        this.destinations = destinations;
+    }
 }

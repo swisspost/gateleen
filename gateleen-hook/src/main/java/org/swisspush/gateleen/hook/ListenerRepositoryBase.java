@@ -7,8 +7,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Abstrac base class for all ListenerRepositires.
- * 
+ * Abstract base class for all ListenerRepositories.
+ *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
 public abstract class ListenerRepositoryBase<T> implements ListenerRepository {
@@ -44,12 +44,12 @@ public abstract class ListenerRepositoryBase<T> implements ListenerRepository {
     }
 
     /**
-     * Filters the given set of listener, to match the pattern defined in the
+     * Filters the given set of listeners to match the pattern defined in the
      * respective hook (if a pattern is defined).
-     * 
-     * @param set - a set of listeners, matching the first search criteria.
-     * @param url - the url, which should be checked, if a listener matches
-     * @return a filtered set of listeners, which matches the given url.
+     *
+     * @param set - a set of listeners matching the first search criteria.
+     * @param url - the url, which should be checked if a listener matches
+     * @return a filtered set of listeners which match the given url.
      */
     private Set<Listener> filter(Set<Listener> listeners, String url) {
         Set<Listener> filteredListener = new HashSet<>();

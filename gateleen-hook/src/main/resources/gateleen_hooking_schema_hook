@@ -1,193 +1,213 @@
 {
-	"$schema": "http://json-schema.org/draft-04/schema#",
-	"description": "Hook",
-	"properties": {
-		"methods": {
-			"type": "array",
-			"items": {
-				"type": "string",
-				"enum": [
-					"OPTIONS",
-					"GET",
-					"HEAD",
-					"POST",
-					"PUT",
-					"DELETE",
-					"PATCH"
-				]
-			}
-		},
-		"filter": {
-			"type": "string"
-		},
-		"staticHeaders": {
-			"type": "object",
-			"additionalProperties": {
-				"description": "we should only accept string - but for backward compatibility we must also accept other types (which are converted to stings in HookHandler)",
-				"type": ["string", "boolean", "number", "integer"]
-			}
-		},
-		"headers": {
-			"description": "Manipulate (set / remove / replace) request headers - option to reference other header vales",
-			"type": "array",
-			"items": {
-				"$ref": "#/definitions/HeaderFunction"
-			}
-		},
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "Hook",
+    "properties": {
+        "methods": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "OPTIONS",
+                    "GET",
+                    "HEAD",
+                    "POST",
+                    "PUT",
+                    "DELETE",
+                    "PATCH"
+                ]
+            }
+        },
+        "filter": {
+            "type": "string"
+        },
+        "staticHeaders": {
+            "type": "object",
+            "additionalProperties": {
+                "description": "we should only accept string - but for backward compatibility we must also accept other types (which are converted to strings in HookHandler)",
+                "type": ["string", "boolean", "number", "integer"]
+            }
+        },
+        "headers": {
+            "description": "Manipulate (set / remove / replace) request headers - option to reference other header values",
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/HeaderFunction"
+            }
+        },
         "headersFilter": {
             "description": "Also filter requests based on header values (besides url and http methods). RegEx can be used to define a filter",
             "type": "string",
             "minLength": 1
         },
-		"destination": {
-			"type": "string"
-		},
-        "translateStatus": {
-            "description": "Mapping to transform backend HTTP status.",
-            "type": "object",
-            "additionalProperties": {
-                "type": "integer"
+        "destinations": {
+            "description": "List of destinations to forward the request to.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "destination": {
+                        "type": "string",
+                        "description": "The destination URL to which the request will be forwarded."
+                    },
+                    "useOriginalPayload": {
+                        "type": "boolean",
+                        "description": "If true, the original payload will be forwarded to the destination without transformation.",
+                        "default": false
+                    },
+                    "transform": {
+                        "type": "object",
+                        "description": "Transformation configuration for the payload if useOriginalPayload is false.",
+                        "properties": {
+                            // Add necessary transformation properties here
+                        }
+                    },
+                    "headers": {
+                        "type": "array",
+                        "description": "Manipulate (set / remove / replace) request headers specifically for this destination.",
+                        "items": {
+                            "$ref": "#/definitions/HeaderFunction"
+                        }
+                    },
+                    "proxyOptions": {
+                        "description": "Custom proxy options for this specific destination.",
+                        "$ref": "#/definitions/ProxyOptions"
+                    },
+                    "timeout": {
+                        "description": "The request timeout applied in seconds for this specific destination.",
+                        "type": "integer",
+                        "default": 30
+                    }
+                },
+                "required": ["destination"]
             }
         },
-		"expireAfter": {
-			"description": "DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead",
-			"type": "integer",
-			"minimum": -1
-		},
-		"queueExpireAfter": {
-			"type": "integer",
-			"minimum": -1
-		},
-		"type": {
-			"type": "string",
-			"enum": [
-				"before",
-				"after"
-			]
-		},
-		"fullUrl": {
-			"type": "boolean"
-		},
-		"queueingStrategy": {
-			"type": "object",
-			"properties": {
-				"type": {
-					"type": "string",
-					"enum": [
-						"discardPayload",
-						"reducedPropagation"
-					]
-				},
-				"intervalMs": {
-					"type": "integer",
-					"minimum": 1
-				}
-			},
-			"additionalProperties": false
-		},
-		"connectionPoolSize": {
-			"description": "The maximum number of concurrent connections to the destination.",
-			"type": "integer",
-			"default": 50
-		},
-		"maxWaitQueueSize": {
-        	"description": "The maximum number of requests allowed in the wait queue.",
-        	"type": "integer",
-        	"default": -1
+        "expireAfter": {
+            "description": "DEPRECATED - Hooks don't manipulate or set the x-expire-after header any more. Use HeaderFunctions instead",
+            "type": "integer",
+            "minimum": -1
+        },
+        "queueExpireAfter": {
+            "type": "integer",
+            "minimum": -1
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "before",
+                "after"
+            ]
+        },
+        "fullUrl": {
+            "type": "boolean"
+        },
+        "queueingStrategy": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "discardPayload",
+                        "reducedPropagation"
+                    ]
+                },
+                "intervalMs": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            },
+            "additionalProperties": false
+        },
+        "connectionPoolSize": {
+            "description": "The maximum number of concurrent connections to the destination.",
+            "type": "integer",
+            "default": 50
+        },
+        "maxWaitQueueSize": {
+            "description": "The maximum number of requests allowed in the wait queue.",
+            "type": "integer",
+            "default": -1
+        },
+        "timeout": {
+            "description": "The request timeout applied in seconds.",
+            "type": "integer",
+            "default": 30
+        },
+        "collection": {
+            "description": "only used for route hook",
+            "type": "boolean"
+        },
+        "listable": {
+            "description": "only used for route hook",
+            "type": "boolean"
+        },
+        "proxyOptions": {
+            "description": "Custom proxy options for this rule (forwarding)",
+            "$ref": "#/definitions/ProxyOptions"
+        }
     },
-		"timeout": {
-			"description": "The request timeout applied in seconds.",
-			"type": "integer",
-			"default": 30
-		},
-		"collection": {
-			"description": "only used for route hook",
-			"type": "boolean"
-		},
-		"listable": {
-			"description": "only used for route hook",
-			"type": "boolean"
-		},
-		"proxyOptions": {
-			"description": "Custom proxy options for this rule (forwarding)",
-			"$ref": "#/definitions/ProxyOptions"
-		}
-	},
-	"additionalProperties": false,
-	"required": [
-		"destination"
-	],
-	"not": {
-		"title": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time",
-		"description": "Disallows use of deprecated 'staticHeaders' and new 'headers' at the same time",
-		"anyOf": [
-			{
-				"required": [
-					"staticHeaders",
-					"headers"
-				]
-			}
-		]
-	},
-	"definitions": {
-		"HeaderFunction": {
-			"properties": {
-				"header": {
-					"description": "the request-header name to manupulate (set, remove or conditional set)",
-					"type": "string",
-					"minLength": 1
-				},
-				"value": {
-					"description": "the value to be set. null and empty string means 'remove the header'. value can contain other header names between single angular brackets which resolves to their values accordingly",
-					"type": [
-						"null",
-						"string"
-					]
-				},
-				"mode": {
-					"description": "define a condition-mode. 'complete' sets the header value only if this header is not yet present. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
-					"type": "string",
-					"enum": [
-						"complete",
-						"override"
-					]
-				}
-			},
-			"required": [
-				"header",
-				"value"
-			]
-		},
-		"ProxyOptions": {
-			"properties": {
-				"type": {
-					"type": "string",
-					"enum": [
-						"HTTP",
-						"SOCKS4",
-						"SOCKS5"
-					]
-				},
-				"host": {
-					"type": "string"
-				},
-				"port": {
-					"type": "integer",
-					"minimum": 0,
-					"maximum": 65535
-				},
-				"username": {
-					"type": "string"
-				},
-				"password": {
-					"type": "string"
-				}
-			},
-			"required": [
-				"host",
-				"port"
-			],
-			"additionalProperties": false
-		}
-	}
+    "additionalProperties": false,
+    "required": [
+        "destinations"
+    ],
+    "definitions": {
+        "HeaderFunction": {
+            "properties": {
+                "header": {
+                    "description": "the request-header name to manipulate (set, remove or conditional set)",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "value": {
+                    "description": "the value to be set. null and empty string means 'remove the header'. value can contain other header names between single angular brackets which resolves to their values accordingly",
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "mode": {
+                    "description": "define a condition-mode. 'complete' sets the header value only if this header is not yet present. 'overwrite' sets the header value only if the header is already present. Ignored if value is null or empty string",
+                    "type": "string",
+                    "enum": [
+                        "complete",
+                        "override"
+                    ]
+                }
+            },
+            "required": [
+                "header",
+                "value"
+            ]
+        },
+        "ProxyOptions": {
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "HTTP",
+                        "SOCKS4",
+                        "SOCKS5"
+                    ]
+                },
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 65535
+                },
+                "username": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "host",
+                "port"
+            ],
+            "additionalProperties": false
+        }
+    }
 }
