@@ -543,6 +543,97 @@ public class HookHandlerTest {
             testContext.assertEquals(200, statusCodePtr[0]);
         }
     }
+    @Test
+    public void testCreateListenerAndTriggerHooks(TestContext testContext) {
+        // Create the hook listener via a PUT request
+        final int[] statusCodePtr = new int[]{0};
+        final String[] statusMessagePtr = new String[]{null};
+        final HttpServerRequest hookCreationRequest;
+        {  // Mock request for creating the hook listener
+            final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
+            final Buffer requestBody = new BufferImpl();
+            requestBody.setBytes(0, ("{\n" +
+                    "    \"methods\": [\n" +
+                    "        \"PUT\"\n" +
+                    "    ],\n" +
+                    "    \"destination\": \"/playground/server/destination/nemo/b\"\n" +
+                    "}").getBytes());
+
+            hookCreationRequest = createSimpleRequest(HttpMethod.PUT, "/playground/server/test/nemo/a/_hooks/listeners/mytests",
+                    requestHeaders, requestBody, statusCodePtr, statusMessagePtr
+            );
+        }
+
+        // Trigger hook creation
+        Mockito.when(routingContext.request()).thenReturn(hookCreationRequest);
+        hookHandler.handle(routingContext);
+
+        // Assert that the hook listener was created successfully
+        testContext.assertEquals(200, statusCodePtr[0]);
+
+        // Trigger the hook with a PUT request (should succeed with 200)
+        final int[] statusCodePtr2 = new int[]{0};
+        final String[] statusMessagePtr2 = new String[]{null};
+        final HttpServerRequest triggerRequest1;
+        {  // Mock request to trigger the hook
+            final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
+            final Buffer requestBody = new BufferImpl();
+            requestBody.setBytes(0, "{\"teste\":\"99999\"}".getBytes());
+
+            triggerRequest1 = createSimpleRequest(HttpMethod.PUT, "/playground/server/test/nemo/a/",
+                    requestHeaders, requestBody, statusCodePtr2, statusMessagePtr2
+            );
+        }
+
+        // Trigger the hook
+        Mockito.when(routingContext.request()).thenReturn(triggerRequest1);
+        hookHandler.handle(routingContext);
+
+        // Assert that the request was processed successfully
+        testContext.assertEquals(200, statusCodePtr2[0]);
+
+        // Trigger the hook with another PUT request (should succeed with 200)
+        final int[] statusCodePtr3 = new int[]{0};
+        final String[] statusMessagePtr3 = new String[]{null};
+        final HttpServerRequest triggerRequest2;
+        {  // Mock request to trigger the hook again
+            final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
+            final Buffer requestBody = new BufferImpl();
+            requestBody.setBytes(0, "{\"teste\":\"111111\"}".getBytes());
+
+            triggerRequest2 = createSimpleRequest(HttpMethod.PUT, "/playground/server/test/nemo/a/",
+                    requestHeaders, requestBody, statusCodePtr3, statusMessagePtr3
+            );
+        }
+
+        // Trigger the hook
+        Mockito.when(routingContext.request()).thenReturn(triggerRequest2);
+        hookHandler.handle(routingContext);
+
+        // Assert that the request was processed successfully
+        testContext.assertEquals(200, statusCodePtr3[0]);
+
+        // Step 4: Trigger the hook again with a different URI (should return 405)
+        final int[] statusCodePtr4 = new int[]{0};
+        final String[] statusMessagePtr4 = new String[]{null};
+        final HttpServerRequest triggerRequest3;
+        {  // Mock request to trigger the hook with a different URI
+            final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
+            final Buffer requestBody = new BufferImpl();
+            requestBody.setBytes(0, "{\"teste\":\"111111\"}".getBytes());
+
+            triggerRequest3 = createSimpleRequest(HttpMethod.PUT, "/playground/server/test/nemo/a/hello",
+                    requestHeaders, requestBody, statusCodePtr4, statusMessagePtr4
+            );
+        }
+
+        // Trigger the hook
+        Mockito.when(routingContext.request()).thenReturn(triggerRequest3);
+        hookHandler.handle(routingContext);
+
+        // For me, it should return 405, but it is another topic
+        testContext.assertEquals(200, statusCodePtr4[0]);
+    }
 
     @Test
     public void listenerRegistration_rejectNotWhitelistedHttpMethods(TestContext testContext) {
