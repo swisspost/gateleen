@@ -62,6 +62,11 @@
     "description": "CircuitBreaker API",
     "url": "http://localhost:7013/playground/server/queuecircuitbreaker/circuit/$1"
   },
+  "/playground/server/queuing/(.*)": {
+    "description": "Redisques API",
+    "metricName": "server-queuing-api",
+    "url": "http://localhost:7015/queuing/$1"
+  },
   "/playground/server/redisques/(.*)": {
     "description": "Redisques API",
     "url": "http://localhost:7015/queuing/$1"
