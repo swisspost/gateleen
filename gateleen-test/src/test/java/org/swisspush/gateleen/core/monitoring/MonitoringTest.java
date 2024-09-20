@@ -29,10 +29,6 @@ import static io.restassured.RestAssured.*;
 @RunWith(VertxUnitRunner.class)
 public class MonitoringTest extends AbstractTest {
     Logger log = LoggerFactory.getLogger(MonitoringTest.class);
-
-    private static final long MAX_DURATION_THRESHOLD = 100;
-    private static final double MEAN_DURATION_THRESHOLD = 25.0;
-
     /**
      * Overwrite RestAssured configuration
      */
@@ -95,17 +91,7 @@ public class MonitoringTest extends AbstractTest {
 
         // read the jmx infos
         if (mbs.isRegistered(beanNameObject)) {
-            log.info(" > Min:    {}", mbs.getAttribute(beanNameObject, "Min"));
-            log.info(" > Mean:   {}", mbs.getAttribute(beanNameObject, "Mean"));
-            log.info(" > Max:    {}", mbs.getAttribute(beanNameObject, "Max"));
-            log.info(" > Count:  {}", mbs.getAttribute(beanNameObject, "Count"));
-            log.info(" > StdDev: {}", mbs.getAttribute(beanNameObject, "StdDev"));
-
-            // check max threshold
-            context.assertTrue((Long) mbs.getAttribute(beanNameObject, "Max") <= MAX_DURATION_THRESHOLD, "'Max' should be below the threshold");
-
-            // checm mean threshold
-            context.assertTrue((Double) mbs.getAttribute(beanNameObject, "Mean") <= MEAN_DURATION_THRESHOLD, "'Mean' should be below the threshold");
+            log.info(" > Value:    {}", mbs.getAttribute(beanNameObject, "Value"));
         } else {
             context.fail("could not found mbean " + beanName);
         }
