@@ -14,11 +14,13 @@ public class DelegateRequest {
     private final JsonObject request;
     private final JoltSpec joltSpec;
     private final HeaderFunction headerFunction;
+    private final boolean copy;
 
-    public DelegateRequest(JsonObject request, JoltSpec joltSpec, HeaderFunction headerFunction) {
+    public DelegateRequest(JsonObject request, JoltSpec joltSpec, HeaderFunction headerFunction, boolean copy) {
         this.request = request;
         this.joltSpec = joltSpec;
         this.headerFunction = headerFunction;
+        this.copy = copy;
     }
 
     public JsonObject getRequest() {
@@ -31,5 +33,9 @@ public class DelegateRequest {
 
     public HeaderFunction getHeaderFunction() {
         return headerFunction;
+    }
+
+    public boolean isCopy() {
+        return copy;
     }
 }

@@ -36,6 +36,7 @@ public class Delegate {
     private static final String PAYLOAD = "payload";
     private static final String URI = "uri";
     private static final String METHOD = "method";
+    private static final String COPY = "copy";
     private static final int FIRST = 0;
     private static final int STATUS_CODE_2XX = 2;
 
@@ -239,7 +240,9 @@ public class Delegate {
     private Future<Buffer> generatePayload(String delegateExecutionRequestJsonPayload, MultiMap headers, DelegateRequest requestContainer, final Matcher matcher) {
         Promise<Buffer> promise = Promise.promise();
 
-        if (requestContainer.getJoltSpec() != null) {
+        if (requestContainer.isCopy()) {
+            promise.complete(Buffer.buffer(delegateExecutionRequestJsonPayload));
+        } else if (requestContainer.getJoltSpec() != null) {
             try {
                 if (delegateExecutionRequestJsonPayload != null) {
 
@@ -269,7 +272,7 @@ public class Delegate {
         } else {
             // matcher to replace wildcards with matching groups
             final JsonObject requestObject = requestContainer.getRequest();
-            // get the string represantion of the payload object
+            // get the string representation of the payload object
             String payloadStr;
             payloadStr = requestObject.getJsonObject(PAYLOAD).encode();
 
