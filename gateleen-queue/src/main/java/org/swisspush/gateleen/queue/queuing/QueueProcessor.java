@@ -292,7 +292,13 @@ public class QueueProcessor {
                     performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
                 });
             };
-            request1.idleTimeout(120000); // avoids blocking other requests
+
+            if (queuedRequest.getHeaders().get("x-timeout") != null && !queuedRequest.getHeaders().get("x-timeout").isEmpty()) {
+                request1.idleTimeout((long) (Long.parseLong(queuedRequest.getHeaders().get("x-timeout")) * 1.1));
+            } else {
+                request1.idleTimeout(120000); // avoids blocking other requests
+            }
+
             if (queuedRequest.getPayload() != null) {
                 vertx.<Buffer>executeBlocking(() -> {
                     long beginEpchMs = currentTimeMillis();
