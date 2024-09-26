@@ -437,6 +437,7 @@ public class RunConfig {
                 .address(Address.redisquesAddress())
                 .processorAddress(Address.queueProcessorAddress())
                 .httpRequestHandlerEnabled(true)
+                .enableQueueNameDecoding(false)
                 .httpRequestHandlerPort(7015)
                 .redisReconnectAttempts(-1)
                 .redisPoolRecycleTimeoutMs(-1)

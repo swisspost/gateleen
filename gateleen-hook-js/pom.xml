@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.swisspush.gateleen</groupId>
         <artifactId>gateleen</artifactId>
-        <version>2.1.10-SNAPSHOT</version>
+        <version>2.1.11-SNAPSHOT</version>
     </parent>
     <artifactId>gateleen-hook-js</artifactId>
     <packaging>jar</packaging>
@@ -81,7 +81,7 @@
                         <!-- we need node in phase generate-resources, so do this before-->
                         <phase>initialize</phase>
                         <configuration>
-                            <nodeVersion>v8.9.4</nodeVersion>
+                            <nodeVersion>v16.9.1</nodeVersion>
                             <npmVersion>6.14.8</npmVersion>
                             <nodeDownloadRoot>${nodeDownloadRoot}</nodeDownloadRoot>
                             <npmDownloadRoot>${npmDownloadRoot}</npmDownloadRoot>

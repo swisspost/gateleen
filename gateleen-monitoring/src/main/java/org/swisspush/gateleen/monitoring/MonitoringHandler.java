@@ -353,7 +353,7 @@ public class MonitoringHandler {
             if (metricName != null) {
                 double duration = (System.nanoTime() - startTime) / 1000000d;
                 vertx.eventBus().publish(getMonitoringAddress(),
-                        new JsonObject().put(METRIC_NAME, prefix + "routing." + metricName + ".duration").put(METRIC_ACTION, "update").put("n", duration));
+                        new JsonObject().put(METRIC_NAME, prefix + "routing." + metricName + ".duration").put(METRIC_ACTION, "set").put("n", duration));
             }
             updatePendingRequestCount(false);
         }
@@ -389,7 +389,7 @@ public class MonitoringHandler {
         vertx.eventBus().request(getRedisquesAddress(), buildGetQueueItemsCountOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
                 final long count = reply.result().body().getLong(VALUE);
-                vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "update").put("n", count));
+                vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "set").put("n", count));
             } else {
                 log.error("Error gathering queue size for queue '{}'", queue);
             }
