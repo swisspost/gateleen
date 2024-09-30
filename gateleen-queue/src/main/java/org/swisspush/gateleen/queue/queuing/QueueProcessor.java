@@ -18,6 +18,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
@@ -292,7 +293,17 @@ public class QueueProcessor {
                     performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
                 });
             };
-            request1.idleTimeout(120000); // avoids blocking other requests
+
+            long idleTimeout = 120_000;
+            String xTimeout = queuedRequest.getHeaders().get("x-timeout");
+            if (StringUtils.isNotEmpty(xTimeout)) {
+                // the microservice that enqueued the item has requested a specific timeout, use it instead of the default
+                idleTimeout = Long.parseLong(xTimeout);
+            }
+
+            logger.debug("performing request {} {} using idle timeout {}", queuedRequest.getMethod(), queuedRequest.getUri(), idleTimeout);
+            request1.idleTimeout(idleTimeout); // avoids to block the queue
+
             if (queuedRequest.getPayload() != null) {
                 vertx.<Buffer>executeBlocking(() -> {
                     long beginEpchMs = currentTimeMillis();
