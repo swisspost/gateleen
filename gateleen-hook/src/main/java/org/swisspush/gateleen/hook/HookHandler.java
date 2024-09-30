@@ -569,6 +569,14 @@ public class HookHandler implements LoggableResource {
             }
         }
 
+        HttpServerResponse response = ctx.response();
+        String queryParam = request.getParam("q");
+
+        if ((queryParam != null) && !queryParam.isEmpty()) {
+            this.handleHookSearch(queryParam,response);
+            return true;
+        }
+
         /*
          * 2) Check if we have to queue a request for listeners
          */
@@ -591,6 +599,39 @@ public class HookHandler implements LoggableResource {
             return true;
         }
     }
+
+    /**
+     * Handles hook search requests based on the 'destination' property.
+     * Searches in both routes and listeners.
+     *
+     * @param queryParam the RoutingContext of the request
+     */
+    public void handleHookSearch(String queryParam,HttpServerResponse response) {
+        JsonObject result = new JsonObject();
+        JsonArray matchingRoutes = new JsonArray();
+        JsonArray matchingListeners = new JsonArray();
+
+        // Search routes by destination
+        routeRepository.getRoutes().forEach((routeKey, route) -> {
+            if (route.getHook().getDestination().contains(queryParam)) {
+                matchingRoutes.add(routeKey);
+            }
+        });
+
+        // Search listeners by destination
+        listenerRepository.getListeners().forEach(listener -> {
+            if (listener.getHook().getDestination().contains(queryParam)) {
+                matchingListeners.add(listener.getListenerId());
+            }
+        });
+
+        // Build and send the response
+        result.put("routes", matchingRoutes);
+        result.put("listeners", matchingListeners);
+
+        response.putHeader("content-type", "application/json").end(result.encode());
+    }
+
 
     /**
      * Create a listing of routes in the given parent. This happens
