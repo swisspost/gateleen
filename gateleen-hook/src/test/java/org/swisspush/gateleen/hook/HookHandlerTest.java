@@ -15,6 +15,7 @@ import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,11 +32,13 @@ import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Router;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.Map;
 
 import static io.vertx.core.http.HttpMethod.PUT;
 import static org.junit.Assert.assertEquals;
@@ -639,6 +642,144 @@ public class HookHandlerTest {
 
         //clean up
         vertx.eventBus().request("gateleen.hook-route-remove", "pathToRouterResource");
+    }
+
+    @Test
+    public void testHookHandleSearchWithMatchingRoutesAndListeners(TestContext context) throws Exception {
+        // Mock the response
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        Mockito.when(response.putHeader(anyString(), anyString())).thenReturn(response);
+
+        // Mock the request and set the query parameter
+        HttpServerRequest request = Mockito.mock(HttpServerRequest.class);
+        Mockito.when(request.response()).thenReturn(response);
+        Mockito.when(request.getParam("q")).thenReturn("destination");
+
+        // Mock the route and listener
+        Route mockRoute = Mockito.mock(Route.class);
+        HttpHook mockHook = new HttpHook("destination/matching");
+        Mockito.when(mockRoute.getHook()).thenReturn(mockHook);
+
+        Listener mockListener = new Listener("listener1", "monitoredUrl", "destination/matching", mockHook);
+
+        // Mock repositories
+        ListenerRepository listenerRepository = Mockito.mock(ListenerRepository.class);
+        RouteRepository routeRepository = Mockito.mock(RouteRepository.class);
+
+        // Configure mocked behavior for repositories
+        Mockito.when(routeRepository.getRoutes()).thenReturn(Map.of("route1", mockRoute));
+        Mockito.when(listenerRepository.getListeners()).thenReturn(Collections.singletonList(mockListener));
+
+        // Create HookHandler instance
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler, "userProfilePath", HOOK_ROOT_URI, requestQueue,
+                false
+        );
+
+        // Use reflection to set private fields
+        setPrivateField(hookHandler, "listenerRepository", listenerRepository);
+        setPrivateField(hookHandler, "routeRepository", routeRepository);
+
+        // Call the method under test
+        hookHandler.handleHookSearch("destination", response);
+
+        // Capture the output and verify the response was sent correctly
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(response).end(captor.capture());
+
+        // Check the result
+        String capturedResult = captor.getValue();
+        JsonObject result = new JsonObject(capturedResult);
+        JsonArray routes = result.getJsonArray("routes");
+        JsonArray listeners = result.getJsonArray("listeners");
+
+        // Assert the expected results
+        context.assertTrue(routes.contains("route1"));
+        context.assertTrue(listeners.contains("listener1"));
+
+        // Verify the content-type header was set correctly
+        Mockito.verify(response).putHeader("content-type", "application/json");
+    }
+
+
+    private void setPrivateField(Object target, String fieldName, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    @Test
+    public void testHookHandleSearchWithNoMatchingRoutesOrListeners(TestContext context) throws Exception {
+        // Mock the response
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        Mockito.when(response.putHeader(anyString(), anyString())).thenReturn(response);
+
+        // Mock the request and set the query parameter
+        HttpServerRequest request = Mockito.mock(HttpServerRequest.class);
+        Mockito.when(request.response()).thenReturn(response);
+        Mockito.when(request.getParam("q")).thenReturn("destination");
+
+        // Mock the route and listener
+        Route mockRoute = Mockito.mock(Route.class);
+        HttpHook mockHook = new HttpHook("destination/matching");
+        Mockito.when(mockRoute.getHook()).thenReturn(mockHook);
+
+        Listener mockListener = new Listener("listener1", "monitoredUrl", "destination/matching", mockHook);
+
+        // Mock repositories
+        ListenerRepository listenerRepository = Mockito.mock(ListenerRepository.class);
+        RouteRepository routeRepository = Mockito.mock(RouteRepository.class);
+
+        // Configure mocked behavior for repositories with no matching routes or listeners
+        Mockito.when(routeRepository.getRoutes()).thenReturn(Map.of());
+        Mockito.when(listenerRepository.getListeners()).thenReturn(Collections.emptyList());
+
+        // Create HookHandler instance
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler, "userProfilePath", HOOK_ROOT_URI, requestQueue,
+                false
+        );
+
+        // Use reflection to set private fields
+        setPrivateField(hookHandler, "listenerRepository", listenerRepository);
+        setPrivateField(hookHandler, "routeRepository", routeRepository);
+
+        // Call the method under test
+        hookHandler.handleHookSearch("destination", response);
+
+        // Capture the output and verify the response was sent correctly
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(response).end(captor.capture());
+
+        // Check the result
+        String capturedResult = captor.getValue();
+        JsonObject result = new JsonObject(capturedResult);
+        JsonArray routes = result.getJsonArray("routes");
+        JsonArray listeners = result.getJsonArray("listeners");
+
+        // Assert that there are no matching routes or listeners
+        context.assertTrue(routes.isEmpty());
+        context.assertTrue(listeners.isEmpty());
+
+        // Verify the content-type header was set correctly
+        Mockito.verify(response).putHeader("content-type", "application/json");
+    }
+
+    @Test
+    public void testHookHandleSearchWithInvalidQueryParam(TestContext context) {
+        // Mocking the HttpServerResponse and request objects
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        Mockito.when(response.putHeader(anyString(), anyString())).thenReturn(response);
+
+        HttpServerRequest request = Mockito.mock(HttpServerRequest.class);
+        Mockito.when(request.response()).thenReturn(response);
+        Mockito.when(request.getParam("q")).thenReturn(null);
+
+        // Call hookHandleSearch
+        hookHandler.handleHookSearch(null, response);
+
+        // Verify that nothing is returned
+        Mockito.verify(response, Mockito.never()).end(any(Buffer.class));
     }
 
 

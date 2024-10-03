@@ -570,10 +570,14 @@ public class HookHandler implements LoggableResource {
         }
 
         HttpServerResponse response = ctx.response();
-        String queryParam = request.getParam("q");
+        String queryParam = null;
 
-        if ((queryParam != null) && !queryParam.isEmpty()) {
-            this.handleHookSearch(queryParam,response);
+        if (request.params() != null) {
+            queryParam = request.getParam("q");
+        }
+
+        if (queryParam != null && !queryParam.isEmpty()) {
+            this.handleHookSearch(queryParam, response);
             return true;
         }
 
