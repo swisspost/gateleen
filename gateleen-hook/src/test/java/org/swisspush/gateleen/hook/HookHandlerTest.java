@@ -768,6 +768,207 @@ public class HookHandlerTest {
         async.complete();
     }
 
+    @Test
+    public void testSearchMultipleListeners_Success(TestContext context) {
+        Vertx vertx = Vertx.vertx();
+        MockResourceStorage storage = new MockResourceStorage();
+        HttpClient httpClient = vertx.createHttpClient();
+
+        // Create mock implementation for RequestQueue
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        // Initialize HookHandler
+        String HOOK_LISTENER_STORAGE_PATH = "/_hooks/listeners/";
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler,
+                "userProfilePath", "/hookRootUri",
+                requestQueue, false, reducedPropagationManager);
+
+        // Add multiple listeners to the storage
+        JsonObject listener1 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x99")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x99"));
+        JsonObject listener2 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x100")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x100"));
+        JsonObject listener3 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x101")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x101"));
+
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x99", listener1.encode());
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x100", listener2.encode());
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x101", listener3.encode());
+
+        // Configure HttpServer for integration test
+        io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
+        router.route().handler(hookHandler::handle);
+
+        HttpServer server = vertx.createHttpServer();
+        server.requestHandler(router).listen(8080, ar -> {
+            if (ar.succeeded()) {
+                // Make a real HTTP request to the HookHandler
+                httpClient.request(HttpMethod.GET, 8080, "localhost", "/_hooks/listeners?q=x99")
+                        .compose(HttpClientRequest::send)
+                        .compose(response -> {
+                            context.assertEquals(200, response.statusCode());
+                            return response.body();
+                        })
+                        .onSuccess(body -> {
+                            JsonObject jsonResponse = new JsonObject(body.toString());
+                            context.assertTrue(jsonResponse.getJsonArray("listeners").contains("x99"));
+                            context.assertFalse(jsonResponse.getJsonArray("listeners").contains("x100"));
+                            context.async().complete();
+                        })
+                        .onFailure(context::fail);
+            } else {
+                context.fail(ar.cause());
+            }
+        });
+    }
+    @Test
+    public void testSearchSingleListener_Success(TestContext context) {
+        Vertx vertx = Vertx.vertx();
+        MockResourceStorage storage = new MockResourceStorage();
+        HttpClient httpClient = vertx.createHttpClient();
+
+        // Create mock implementation for RequestQueue
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        // Initialize HookHandler
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler,
+                "userProfilePath", "/hookRootUri/",
+                requestQueue, false, reducedPropagationManager);
+
+        // Insert a single listener to the storage
+        JsonObject listener1 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/listener1")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/listener1"));
+        storage.putMockData("/_hooks/listeners/listener1", listener1.encode());
+
+        // Configure HttpServer for integration test
+        io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
+        router.route().handler(hookHandler::handle);
+
+        HttpServer server = vertx.createHttpServer();
+        server.requestHandler(router).listen(8080, ar -> {
+            if (ar.succeeded()) {
+                // Make a real HTTP request to the HookHandler
+                httpClient.request(HttpMethod.GET, 8080, "localhost", "/_hooks/listeners?q=listener1")
+                        .compose(HttpClientRequest::send)
+                        .compose(response -> {
+                            context.assertEquals(200, response.statusCode());
+                            return response.body();
+                        })
+                        .onSuccess(body -> {
+                            JsonObject jsonResponse = new JsonObject(body.toString());
+                            context.assertTrue(jsonResponse.getJsonArray("listeners").contains("listener1"));
+                            context.async().complete();
+                        })
+                        .onFailure(context::fail);
+            } else {
+                context.fail(ar.cause());
+            }
+        });
+    }
+    @Test
+    public void testSearchListenerNotFound_MultipleListeners_Failure(TestContext context) {
+        Vertx vertx = Vertx.vertx();
+        MockResourceStorage storage = new MockResourceStorage();
+        HttpClient httpClient = vertx.createHttpClient();
+
+        // Create mock implementation for RequestQueue
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        // Initialize HookHandler
+        String HOOK_LISTENER_STORAGE_PATH = "/_hooks/listeners/";
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler,
+                "userProfilePath", "/hookRootUri",
+                requestQueue, false, reducedPropagationManager);
+
+        // Add multiple listeners to the storage
+        JsonObject listener2 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x100")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x100"));
+        JsonObject listener3 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x101")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x101"));
+
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x100", listener2.encode());
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x101", listener3.encode());
+
+        // Configure HttpServer for integration test
+        io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
+        router.route().handler(hookHandler::handle);
+
+        HttpServer server = vertx.createHttpServer();
+        server.requestHandler(router).listen(8080, ar -> {
+            if (ar.succeeded()) {
+                // Make a real HTTP request to the HookHandler
+                httpClient.request(HttpMethod.GET, 8080, "localhost", "/_hooks/listeners?q=x99")
+                        .compose(HttpClientRequest::send)
+                        .compose(response -> {
+                            context.assertEquals(200, response.statusCode());
+                            return response.body();
+                        })
+                        .onSuccess(body -> {
+                            JsonObject jsonResponse = new JsonObject(body.toString());
+                            context.assertFalse(jsonResponse.getJsonArray("listeners").contains("x99"));
+                            context.async().complete();
+                        })
+                        .onFailure(context::fail);
+            } else {
+                context.fail(ar.cause());
+            }
+        });
+    }
+    @Test
+    public void testSearchListenerNotFound_NoListeners_Failure(TestContext context) {
+        Vertx vertx = Vertx.vertx();
+        MockResourceStorage storage = new MockResourceStorage();
+        HttpClient httpClient = vertx.createHttpClient();
+
+        // Create mock implementation for RequestQueue
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        // Initialize HookHandler
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler,
+                "userProfilePath", "/hookRootUri/",
+                requestQueue, false, reducedPropagationManager);
+
+        // Configure HttpServer for integration test
+        io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
+        router.route().handler(hookHandler::handle);
+
+        HttpServer server = vertx.createHttpServer();
+        server.requestHandler(router).listen(8080, ar -> {
+            if (ar.succeeded()) {
+                // Make a real HTTP request to the HookHandler
+                httpClient.request(HttpMethod.GET, 8080, "localhost", "/_hooks/listeners?q=invalid")
+                        .compose(HttpClientRequest::send)
+                        .compose(response -> {
+                            context.assertEquals(200, response.statusCode());
+                            return response.body();
+                        })
+                        .onSuccess(body -> {
+                            JsonObject jsonResponse = new JsonObject(body.toString());
+                            context.assertFalse(jsonResponse.getJsonArray("listeners").contains("invalid"));
+                            context.async().complete();
+                        })
+                        .onFailure(context::fail);
+            } else {
+                context.fail(ar.cause());
+            }
+        });
+    }
 
     ///////////////////////////////////////////////////////////////////////////////
     // Helpers
