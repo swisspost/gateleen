@@ -70,6 +70,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -122,6 +123,13 @@ public class HookHandler implements LoggableResource {
     public static final String HOOK_TRIGGER_TYPE = "type";
     public static final String LISTABLE = "listable";
     public static final String COLLECTION = "collection";
+
+    private static final String CONTENT_TYPE_JSON = "application/json";
+    private static final String LISTENERS_KEY = "listeners";
+    private static final String ROUTES_KEY = "routes";
+    private static final String DESTINATION_KEY = "destination";
+    private static final String CONTENT_TYPE_HEADER = "content-type";
+
 
     private final Comparator<String> collectionContentComparator;
     private static final Logger log = LoggerFactory.getLogger(HookHandler.class);
@@ -569,6 +577,26 @@ public class HookHandler implements LoggableResource {
             }
         }
 
+        // 1. Check if the request method is GET
+        if (request.method() == HttpMethod.GET) {
+            String uri = request.uri();
+            String queryParam = request.getParam("q");
+
+            // 2. Check if the URI is for listeners or routes and has a query parameter
+            if (queryParam != null && !queryParam.isEmpty()) {
+                if (uri.contains(HOOK_LISTENER_STORAGE_PATH)) {
+                    handleListenerSearch(queryParam, request.response());
+                    return true;
+                } else if (uri.contains(HOOK_ROUTE_STORAGE_PATH)) {
+                    handleRouteSearch(queryParam, request.response());
+                    return true;
+                }
+            }
+            else {
+                return false;
+            }
+        }
+
         /*
          * 2) Check if we have to queue a request for listeners
          */
@@ -590,6 +618,46 @@ public class HookHandler implements LoggableResource {
         } else {
             return true;
         }
+    }
+
+    private void handleListenerSearch(String queryParam, HttpServerResponse response) {
+        handleSearch(
+                listenerRepository.getListeners().stream().collect(Collectors.toMap(Listener::getListenerId, listener -> listener)),
+                listener -> listener.getHook().getDestination(),
+                queryParam,
+                LISTENERS_KEY,
+                response
+        );
+    }
+
+    private void handleRouteSearch(String queryParam, HttpServerResponse response) {
+        handleSearch(
+                routeRepository.getRoutes(),
+                route -> route.getHook().getDestination(),
+                queryParam,
+                ROUTES_KEY,
+                response
+        );
+    }
+
+    private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerResponse response) {
+        JsonArray matchingResults = new JsonArray();
+
+        repository.forEach((key, value) -> {
+            String destination = getDestination.apply(value);
+            if (destination != null && destination.contains(queryParam)) {
+                matchingResults.add(key);
+            }
+        });
+
+        JsonObject result = new JsonObject();
+        result.put(resultKey, matchingResults);
+
+        // Set headers safely before writing the response
+        response.putHeader(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
+        response.write(result.encode());
+        response.end();
+
     }
 
     /**
