@@ -636,12 +636,29 @@ public class HookHandler implements LoggableResource {
         );
     }
 
+    /**
+     * Search the repository for items matching the query parameter.
+     * Returns a JSON response with the matched results.
+     * If any essential parameter (repository, response, getDestination) is null,
+     * a 400 Bad Request is returned.
+     *
+     * @param repository The items to search.
+     * @param getDestination Function to extract destinations.
+     * @param queryParam The query string to match.
+     * @param resultKey The key for the result in the response.
+     * @param response The HTTP response to return the results. Must not be null.
+     */
     private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerResponse response) {
+        if (repository == null || getDestination == null) {
+            response.setStatusCode(400).end(); // Bad request for missing parameters
+            return;
+        }
+
         JsonArray matchingResults = new JsonArray();
 
         repository.forEach((key, value) -> {
             String destination = getDestination.apply(value);
-            if (destination != null && destination.contains(queryParam)) {
+            if (destination != null && destination.contains(queryParam != null ? queryParam : "")) {
                 matchingResults.add(key);
             }
         });
@@ -649,16 +666,14 @@ public class HookHandler implements LoggableResource {
         JsonObject result = new JsonObject();
         result.put(resultKey, matchingResults);
 
-        String encodedResult = result.encode(); // Convert the result to a string
+        String encodedResult = result.encode();
 
-        // Set Content-Length header before sending the response
         response.putHeader(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
-        response.putHeader("Content-Length", String.valueOf(encodedResult.length())); // Set content length
-
-        // Write and end the response
+        response.putHeader("Content-Length", String.valueOf(encodedResult.length()));
         response.write(encodedResult);
         response.end();
     }
+
 
     /**
      * Create a listing of routes in the given parent. This happens
