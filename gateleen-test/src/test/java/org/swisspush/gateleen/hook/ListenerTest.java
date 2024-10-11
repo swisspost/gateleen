@@ -942,4 +942,35 @@ public class ListenerTest extends AbstractTest {
     private void checkGETBodyWithAwait(final String requestUrl, final String body) {
         await().atMost(TEN_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
     }
+    /**
+     * Test for hookHandleSearch with listener storage path and valid query param. <br />
+     * eg. register / unregister: http://localhost:7012/gateleen/server/listenertest/_hooks/listeners/listener/1 <br />
+     * requestUrl: http://localhost:7012/gateleen/server/listenertest/listener/test?q=testQuery
+     */
+    @Test
+    public void testHookHandleSearch_ListenerPathWithValidQueryParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "testQuery";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?q=" + queryParam;
+
+        // Register a listener
+        TestUtils.registerListener(requestUrlBase + listenerPath, targetUrlBase, new String[]{"GET", "POST"}, null);
+
+        // Send GET request
+        given().queryParam("q", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(200);
+
+        // Validate the response
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+
+        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+
+        async.complete();
+    }
+
 }
