@@ -581,7 +581,6 @@ public class HookHandler implements LoggableResource {
         if (request.method() == HttpMethod.GET) {
             String uri = request.uri();
             String queryParam = request.getParam("q");
-
             // 2. Check if the URI is for listeners or routes and has a query parameter
             if (queryParam != null && !queryParam.isEmpty()) {
                 if (uri.contains(HOOK_LISTENER_STORAGE_PATH)) {
@@ -591,9 +590,6 @@ public class HookHandler implements LoggableResource {
                     handleRouteSearch(queryParam, request.response());
                     return true;
                 }
-            }
-            else {
-                return false;
             }
         }
 
