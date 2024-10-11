@@ -583,10 +583,10 @@ public class HookHandler implements LoggableResource {
             String queryParam = request.getParam("q");
             // 2. Check if the URI is for listeners or routes and has a query parameter
             if (queryParam != null && !queryParam.isEmpty()) {
-                if (uri.contains(HOOK_LISTENER_STORAGE_PATH)) {
+                if (uri.contains(LISTENERS_KEY)) {
                     handleListenerSearch(queryParam, request.response());
                     return true;
-                } else if (uri.contains(HOOK_ROUTE_STORAGE_PATH)) {
+                } else if (uri.contains(ROUTES_KEY)) {
                     handleRouteSearch(queryParam, request.response());
                     return true;
                 }
@@ -649,11 +649,15 @@ public class HookHandler implements LoggableResource {
         JsonObject result = new JsonObject();
         result.put(resultKey, matchingResults);
 
-        // Set headers safely before writing the response
-        response.putHeader(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
-        response.write(result.encode());
-        response.end();
+        String encodedResult = result.encode(); // Convert the result to a string
 
+        // Set Content-Length header before sending the response
+        response.putHeader(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
+        response.putHeader("Content-Length", String.valueOf(encodedResult.length())); // Set content length
+
+        // Write and end the response
+        response.write(encodedResult);
+        response.end();
     }
 
     /**

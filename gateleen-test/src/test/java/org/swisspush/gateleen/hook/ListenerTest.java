@@ -995,13 +995,45 @@ public class ListenerTest extends AbstractTest {
         // Send GET request with non-matching query param
         given().queryParam("q", nonMatchingQueryParam)
                 .when().get(requestUrl)
-                .then().assertThat().statusCode(404); // Expecting 404 as no listener matches the query
+                .then().assertThat()
+                .statusCode(200) // Expecting 200 as the request is valid but no match found
+                .body("listeners", org.hamcrest.Matchers.empty()); // Expecting an empty list of listeners
 
-        // Validate that the response is not found
-        checkGETStatusCodeWithAwait(requestUrl, 404);
+        // Validate that the response is 200 and the result is an empty array
+        checkGETStatusCodeWithAwait(requestUrl, 200);
 
         // Unregister the listener
         TestUtils.unregisterListener(requestUrlBase + listenerPath);
+
+        async.complete();
+    }
+
+    /**
+     * Test for hookHandleSearch with listener storage path and valid query param but no listeners registered. <br />
+     * eg. register / unregister: http://localhost:7012/gateleen/server/listenertest/_hooks/listeners/listener/1 <br />
+     * requestUrl: http://localhost:7012/gateleen/server/listenertest/listener/test?q=someQuery
+     */
+    @Test
+    public void testHookHandleSearch_NoListenersRegistered(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "someQuery";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?q=" + queryParam;
+
+        // No listeners registered
+
+        // Send GET request with a query param
+        given().queryParam("q", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat()
+                .statusCode(200) // Expecting 200 as the request is valid but no listeners are registered
+                .body("listeners", org.hamcrest.Matchers.empty()); // Expecting an empty list of listeners
+
+        // Validate that the response is 200 and the result is an empty array
+        checkGETStatusCodeWithAwait(requestUrl, 200);
 
         async.complete();
     }
