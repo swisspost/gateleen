@@ -973,4 +973,37 @@ public class ListenerTest extends AbstractTest {
         async.complete();
     }
 
+    /**
+     * Test for hookHandleSearch with listener storage path and valid query param but no match found. <br />
+     * eg. register / unregister: http://localhost:7012/gateleen/server/listenertest/_hooks/listeners/listener/1 <br />
+     * requestUrl: http://localhost:7012/gateleen/server/listenertest/listener/test?q=nonMatchingQuery
+     */
+    @Test
+    public void testHookHandleSearch_ListenerPathWithNonMatchingQueryParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String nonMatchingQueryParam = "nonMatchingQuery";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?q=" + nonMatchingQueryParam;
+
+        // Register a listener with a different query param
+        String differentQueryParam = "differentQuery";
+        TestUtils.registerListener(requestUrlBase + listenerPath + "?q=" + differentQueryParam, targetUrlBase, new String[]{"GET", "POST"}, null);
+
+        // Send GET request with non-matching query param
+        given().queryParam("q", nonMatchingQueryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(404); // Expecting 404 as no listener matches the query
+
+        // Validate that the response is not found
+        checkGETStatusCodeWithAwait(requestUrl, 404);
+
+        // Unregister the listener
+        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+
+        async.complete();
+    }
+
 }
