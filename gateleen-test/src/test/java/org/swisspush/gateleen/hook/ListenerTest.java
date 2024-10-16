@@ -942,6 +942,7 @@ public class ListenerTest extends AbstractTest {
     private void checkGETBodyWithAwait(final String requestUrl, final String body) {
         await().atMost(TEN_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
     }
+
     /**
      * Test for hookHandleSearch with listener storage path and valid query param. <br />
      * eg. register / unregister: http://localhost:7012/gateleen/server/listenertest/_hooks/listeners/listener/1 <br />
