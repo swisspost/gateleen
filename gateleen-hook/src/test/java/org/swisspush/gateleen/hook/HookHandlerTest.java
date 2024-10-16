@@ -680,6 +680,7 @@ public class HookHandlerTest {
         when(request.method()).thenReturn(HttpMethod.GET);
         when(request.getParam("q")).thenReturn("");
         when(request.response()).thenReturn(response);
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
 
         RoutingContext routingContext = mock(RoutingContext.class);
         when(routingContext.request()).thenReturn(request);
@@ -746,27 +747,27 @@ public class HookHandlerTest {
         HttpServerRequest request = Mockito.mock(HttpServerRequest.class);
         HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
 
-        // Simulate a GET request without a query parameter
+        // Mock necessary methods
         Mockito.when(request.method()).thenReturn(HttpMethod.GET);
         Mockito.when(request.uri()).thenReturn("hookRootURI/registrations/listeners/");
-        Mockito.when(request.getParam("q")).thenReturn(null); // No query parameter
+        Mockito.when(request.getParam("q")).thenReturn(null); // No query param
         Mockito.when(request.response()).thenReturn(response);
+        Mockito.when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+
+        HttpClient selfClient = Mockito.mock(HttpClient.class);
+        Mockito.when(selfClient.request(Mockito.any(), Mockito.anyString())).thenReturn(Future.failedFuture(new Exception("Mocked failure")));
 
         Mockito.when(routingContext.request()).thenReturn(request);
 
-        // Async handler to check the result
-        Async async = context.async();
-
-        // Act: Call the hookHandler.handle method
+        // Act
         boolean handled = hookHandler.handle(routingContext);
 
-        // Assert that it was NOT handled (as the query param is missing)
+        // Assert
         context.assertFalse(handled);
-
-        // Verify that the response was NOT ended (because it shouldn't be processed)
         Mockito.verify(response, Mockito.never()).end();
-        async.complete();
     }
+
 
     @Test
     public void testSearchMultipleListeners_Success(TestContext context) {
