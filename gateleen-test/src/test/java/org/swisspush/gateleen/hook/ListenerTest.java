@@ -942,4 +942,155 @@ public class ListenerTest extends AbstractTest {
     private void checkGETBodyWithAwait(final String requestUrl, final String body) {
         await().atMost(TEN_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
     }
+
+    /**
+     * Test for hookHandleSearch with listener storage path and valid query param. <br />
+     * requestUrl: http://localhost:7012/playground/server/hooks/v1/registrations/listeners/?q=testQuery
+     */
+    @Test
+    public void testHookHandleSearch_ListenerPathWithValidQueryParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "testQuery";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?q=" + queryParam;
+
+        // Register a listener
+        TestUtils.registerListener(requestUrlBase + listenerPath, targetUrlBase, new String[]{"GET", "POST"}, null);
+
+        // Send GET request
+        given().queryParam("q", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(200);
+
+        // Validate the response
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+
+        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+
+        async.complete();
+    }
+
+    /**
+     * Test for hookHandleSearch with listener storage path and valid query param but no match found. <br />
+     * requestUrl: http://localhost:7012/playground/server/hooks/v1/registrations/listeners/?q=nonMatchingQuery
+     */
+    @Test
+    public void testHookHandleSearch_ListenerPathWithNonMatchingQueryParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String nonMatchingQueryParam = "nonMatchingQuery";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?q=" + nonMatchingQueryParam;
+
+        // Register a listener with a different query param
+        String differentQueryParam = "differentQuery";
+        TestUtils.registerListener(requestUrlBase + listenerPath + "?q=" + differentQueryParam, targetUrlBase, new String[]{"GET", "POST"}, null);
+
+        // Send GET request with non-matching query param
+        given().queryParam("q", nonMatchingQueryParam)
+                .when().get(requestUrl)
+                .then().assertThat()
+                .statusCode(200) // Expecting 200 as the request is valid but no match found
+                .body("listeners", org.hamcrest.Matchers.empty()); // Expecting an empty list of listeners
+
+        // Validate that the response is 200 and the result is an empty array
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+
+        // Unregister the listener
+        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+
+        async.complete();
+    }
+
+    /**
+     * Test for hookHandleSearch with listener storage path and valid query param but no listeners registered. <br />
+     * requestUrl: http://localhost:7012/playground/server/hooks/v1/registrations/listeners/?q=someQuery
+     */
+    @Test
+    public void testHookHandleSearch_NoListenersRegistered(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "someQuery";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?q=" + queryParam;
+
+        // No listeners registered
+
+        // Send GET request with a query param
+        given().queryParam("q", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat()
+                .statusCode(200) // Expecting 200 as the request is valid but no listeners are registered
+                .body("listeners", org.hamcrest.Matchers.empty()); // Expecting an empty list of listeners
+
+        // Validate that the response is 200 and the result is an empty array
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+
+        async.complete();
+    }
+
+
+    @Test
+    public void testHookHandleSearch_ListenerPathInvalidParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "testQuery";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?www=" + queryParam;
+
+        // Register a listener
+        TestUtils.registerListener(requestUrlBase + listenerPath, targetUrlBase, new String[]{"GET", "POST"}, null);
+
+        // Send GET request
+        given().queryParam("www", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(400);
+
+        // Validate the response
+        checkGETStatusCodeWithAwait(requestUrl, 400);
+
+        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+
+        async.complete();
+    }
+
+    /**
+     * Test for hookHandleSearch with listener storage path and no query parameter. <br />
+     * requestUrl: http://localhost:7012/playground/server/hooks/v1/registrations/listeners/?q=
+     */
+    @Test
+    public void testHookHandleSearch_NoQueryParameter(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?q=" + queryParam;
+
+        // Register a listener
+        TestUtils.registerListener(requestUrlBase + listenerPath, targetUrlBase, new String[]{"GET", "POST"}, null);
+
+        // Send GET request
+        given().queryParam("q", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(400);
+
+        // Validate the response
+        checkGETStatusCodeWithAwait(requestUrl, 400);
+
+        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+
+        async.complete();
+    }
+
 }

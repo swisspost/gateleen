@@ -240,10 +240,43 @@ hookHandler.enableResourceLogging(true);
 ```
 
 
+## Query-Based Listener and Route Search
 
+Gateleen allows searching for listeners and routes using the query parameter `q`. This simplifies filtering the registered hooks based on query parameters.
 
+### Listener Search with `q`
+Search for listeners based on a query parameter like this:
 
+```
+GET http://myserver:7012/gateleen/server/listenertest/_hooks/listeners/listener/1?q=testQuery
+```
 
+The response will contain the matching listeners. If no match is found, an empty list is returned:
 
+**Example response with matches:**
+```json
+{
+  "listeners": [
+    {
+      "destination": "/path/to/destination",
+      "methods": ["GET", "POST"]
+    }
+  ]
+}
+```
 
+**Example response with no matches:**
+```json
+{
+  "listeners": []
+}
+```
 
+### Route Search with `q`
+Similarly, you can search for routes using a query parameter:
+
+```
+GET http://myserver:7012/gateleen/server/listenertest/_hooks/routes?q=testRoute
+```
+
+The response contains the matching routes, or an empty list if no match is found.

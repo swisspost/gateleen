@@ -8,6 +8,7 @@ import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.HostAndPort;
+import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.RoutingContext;
@@ -15,13 +16,11 @@ import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
-import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
-import org.swisspush.gateleen.core.http.FastFailHttpServerRequest;
-import org.swisspush.gateleen.core.http.FastFailHttpServerResponse;
+import org.swisspush.gateleen.core.http.*;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.logging.LogAppenderRepository;
@@ -31,15 +30,18 @@ import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Router;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.Map;
 
 import static io.vertx.core.http.HttpMethod.PUT;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
 
 /**
@@ -69,15 +71,15 @@ public class HookHandlerTest {
     @Before
     public void setUp() {
         vertx = Vertx.vertx();
-        routingContext = Mockito.mock(RoutingContext.class);
-        httpClient = Mockito.mock(HttpClient.class);
-        Mockito.when(httpClient.request(any(HttpMethod.class), anyString())).thenReturn(Mockito.mock(Future.class));
+        routingContext = mock(RoutingContext.class);
+        httpClient = mock(HttpClient.class);
+        when(httpClient.request(any(HttpMethod.class), anyString())).thenReturn(mock(Future.class));
         storage = new MockResourceStorage();
-        loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
-        logAppenderRepository = Mockito.mock(LogAppenderRepository.class);
-        monitoringHandler = Mockito.mock(MonitoringHandler.class);
-        requestQueue = Mockito.mock(RequestQueue.class);
-        reducedPropagationManager = Mockito.mock(ReducedPropagationManager.class);
+        loggingResourceManager = mock(LoggingResourceManager.class);
+        logAppenderRepository = mock(LogAppenderRepository.class);
+        monitoringHandler = mock(MonitoringHandler.class);
+        requestQueue = mock(RequestQueue.class);
+        reducedPropagationManager = mock(ReducedPropagationManager.class);
 
 
         hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler,
@@ -133,7 +135,7 @@ public class HookHandlerTest {
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
 
         hookHandler.handle(routingContext);
 
@@ -160,7 +162,7 @@ public class HookHandlerTest {
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITH the payload
@@ -185,7 +187,7 @@ public class HookHandlerTest {
         String originalPayload = "{\"key\":123}";
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITHOUT the payload but with 'Content-Length : 0' header
@@ -197,7 +199,7 @@ public class HookHandlerTest {
         }), anyString(), any(Handler.class));
 
         PUTRequest putRequestWithoutContentLengthHeader = new PUTRequest(uri, originalPayload);
-        Mockito.when(routingContext.request()).thenReturn(putRequestWithoutContentLengthHeader);
+        when(routingContext.request()).thenReturn(putRequestWithoutContentLengthHeader);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITHOUT the payload and WITHOUT 'Content-Length' header
@@ -226,7 +228,7 @@ public class HookHandlerTest {
         String originalPayload = "{\"key\":123}";
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that no enqueue (or lockedEnqueue) has been called because no ReducedPropagationManager was configured
@@ -252,7 +254,7 @@ public class HookHandlerTest {
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         String targetUri = "/playground/server/push/v1/devices/" + deviceId + "/playground/server/tests/hooktest/abc123";
@@ -274,7 +276,7 @@ public class HookHandlerTest {
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITH the payload
@@ -301,7 +303,7 @@ public class HookHandlerTest {
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
         putRequest.addHeader("x-foo", "A");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITH the payload
@@ -326,7 +328,7 @@ public class HookHandlerTest {
         String originalPayload = "{\"key\":123}";
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that no enqueue has been called since the header did not match
@@ -369,7 +371,7 @@ public class HookHandlerTest {
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -405,7 +407,7 @@ public class HookHandlerTest {
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -440,7 +442,7 @@ public class HookHandlerTest {
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -471,7 +473,7 @@ public class HookHandlerTest {
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -502,7 +504,7 @@ public class HookHandlerTest {
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -536,7 +538,7 @@ public class HookHandlerTest {
         }
 
         // Trigger
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         { // Assert request got accepted.
@@ -572,7 +574,7 @@ public class HookHandlerTest {
             }
 
             // Trigger
-            Mockito.when(routingContext.request()).thenReturn(request);
+            when(routingContext.request()).thenReturn(request);
             hookHandler.handle(routingContext);
 
             { // Assert request got rejected.
@@ -641,6 +643,333 @@ public class HookHandlerTest {
         vertx.eventBus().request("gateleen.hook-route-remove", "pathToRouterResource");
     }
 
+    @Test
+    public void testHandleListenerSearch_Success() {
+        // Arrange
+        String queryParam = "validQueryParam";
+        String uri = "registrations/listeners/?q=" + queryParam;
+
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        HttpServerResponse response = mock(HttpServerResponse.class);
+
+        // Mock request and response behavior
+        when(request.uri()).thenReturn(uri);
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.getParam("q")).thenReturn(queryParam);
+        when(request.response()).thenReturn(response);
+
+        // Mock RoutingContext
+        RoutingContext routingContext = mock(RoutingContext.class);
+        when(routingContext.request()).thenReturn(request);
+
+        // Act
+        boolean result = hookHandler.handle(routingContext); // Calls the public `handle` method
+
+        // Assert
+        assertTrue(result); // Ensure the handler returns true for a valid listener search
+        verify(response, times(1)).end(); // Ensure `response.end()` was called
+    }
+    @Test
+    public void testHandleListenerSearch_MissingQueryParam() {
+        String uri = "registrations/listeners/?q=";
+
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        HttpServerResponse response = mock(HttpServerResponse.class);
+
+        when(request.uri()).thenReturn(uri);
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(request.getParam("q")).thenReturn("");
+        when(request.response()).thenReturn(response);
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+        RoutingContext routingContext = mock(RoutingContext.class);
+        when(routingContext.request()).thenReturn(request);
+
+        boolean result = hookHandler.handle(routingContext);
+
+        assertFalse(result);
+        verify(response, never()).end();
+    }
+
+    @Test
+    public void testHandleListenerWithStorageAndSearchSuccess(TestContext context) {
+        vertx = Vertx.vertx();
+        storage = new MockResourceStorage();
+        LoggingResourceManager loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
+        LogAppenderRepository logAppenderRepository = Mockito.mock(LogAppenderRepository.class);
+        MonitoringHandler monitoringHandler = Mockito.mock(MonitoringHandler.class);
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        hookHandler = new HookHandler(vertx, Mockito.mock(HttpClient.class), storage, loggingResourceManager, logAppenderRepository, monitoringHandler,
+                "userProfilePath", "hookRootURI/", requestQueue, false, null);
+        // Prepopulate storage with a listener resource
+        storage.putMockData("hookRootURI/registrations/listeners/listener1", "{ \"hook\": { \"destination\": \"/test/endpoint\" } }");
+
+        // Mock RoutingContext and its behavior
+        RoutingContext routingContext = Mockito.mock(RoutingContext.class);
+        HttpServerRequest request = Mockito.mock(HttpServerRequest.class);
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+
+        // Simulate a GET request with a query parameter
+        Mockito.when(request.method()).thenReturn(HttpMethod.GET);
+        Mockito.when(request.uri()).thenReturn("hookRootURI/registrations/listeners/?q=test");
+        Mockito.when(request.getParam("q")).thenReturn("test");
+        Mockito.when(request.response()).thenReturn(response);
+
+        Mockito.when(routingContext.request()).thenReturn(request);
+
+        // Async handler to check the result
+        Async async = context.async();
+
+        // Act: Call the hookHandler.handle method
+        boolean handled = hookHandler.handle(routingContext);
+
+        // Assert that it was handled
+        context.assertTrue(handled);
+
+        // Verify that the response ended correctly (simulating a successful response)
+        Mockito.verify(response, Mockito.times(1)).end();
+        async.complete();
+    }
+
+    @Test
+    public void testHandleListenerWithStorageAndSearchFailure(TestContext context) {
+        vertx = Vertx.vertx();
+        storage = new MockResourceStorage();
+        LoggingResourceManager loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
+        LogAppenderRepository logAppenderRepository = Mockito.mock(LogAppenderRepository.class);
+        MonitoringHandler monitoringHandler = Mockito.mock(MonitoringHandler.class);
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        hookHandler = new HookHandler(vertx, Mockito.mock(HttpClient.class), storage, loggingResourceManager, logAppenderRepository, monitoringHandler,
+                "userProfilePath", "hookRootURI/", requestQueue, false, null);
+        RoutingContext routingContext = Mockito.mock(RoutingContext.class);
+        HttpServerRequest request = Mockito.mock(HttpServerRequest.class);
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+
+        // Mock necessary methods
+        Mockito.when(request.method()).thenReturn(HttpMethod.GET);
+        Mockito.when(request.uri()).thenReturn("hookRootURI/registrations/listeners/");
+        Mockito.when(request.getParam("q")).thenReturn(null); // No query param
+        Mockito.when(request.response()).thenReturn(response);
+        Mockito.when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+
+        HttpClient selfClient = Mockito.mock(HttpClient.class);
+        Mockito.when(selfClient.request(Mockito.any(), Mockito.anyString())).thenReturn(Future.failedFuture(new Exception("Mocked failure")));
+
+        Mockito.when(routingContext.request()).thenReturn(request);
+
+        // Act
+        boolean handled = hookHandler.handle(routingContext);
+
+        // Assert
+        context.assertFalse(handled);
+        Mockito.verify(response, Mockito.never()).end();
+    }
+
+
+    @Test
+    public void testSearchMultipleListeners_Success(TestContext context) {
+        Vertx vertx = Vertx.vertx();
+        MockResourceStorage storage = new MockResourceStorage();
+        HttpClient httpClient = vertx.createHttpClient();
+
+        // Create mock implementation for RequestQueue
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        // Initialize HookHandler
+        String HOOK_LISTENER_STORAGE_PATH = "/_hooks/listeners/";
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler,
+                "userProfilePath", "/hookRootUri",
+                requestQueue, false, reducedPropagationManager);
+
+        // Add multiple listeners to the storage
+        JsonObject listener1 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x99")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x99"));
+        JsonObject listener2 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x100")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x100"));
+        JsonObject listener3 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x101")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x101"));
+
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x99", listener1.encode());
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x100", listener2.encode());
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x101", listener3.encode());
+
+        // Configure HttpServer for integration test
+        io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
+        router.route().handler(hookHandler::handle);
+
+        HttpServer server = vertx.createHttpServer();
+        server.requestHandler(router).listen(8080, ar -> {
+            if (ar.succeeded()) {
+                // Make a real HTTP request to the HookHandler
+                httpClient.request(HttpMethod.GET, 8080, "localhost", "/_hooks/listeners?q=x99")
+                        .compose(HttpClientRequest::send)
+                        .compose(response -> {
+                            context.assertEquals(200, response.statusCode());
+                            return response.body();
+                        })
+                        .onSuccess(body -> {
+                            JsonObject jsonResponse = new JsonObject(body.toString());
+                            context.assertTrue(jsonResponse.getJsonArray("listeners").contains("x99"));
+                            context.assertFalse(jsonResponse.getJsonArray("listeners").contains("x100"));
+                            context.async().complete();
+                        })
+                        .onFailure(context::fail);
+            } else {
+                context.fail(ar.cause());
+            }
+        });
+    }
+    @Test
+    public void testSearchSingleListener_Success(TestContext context) {
+        Vertx vertx = Vertx.vertx();
+        MockResourceStorage storage = new MockResourceStorage();
+        HttpClient httpClient = vertx.createHttpClient();
+
+        // Create mock implementation for RequestQueue
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        // Initialize HookHandler
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler,
+                "userProfilePath", "/hookRootUri/",
+                requestQueue, false, reducedPropagationManager);
+
+        // Insert a single listener to the storage
+        JsonObject listener1 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/listener1")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/listener1"));
+        storage.putMockData("/_hooks/listeners/listener1", listener1.encode());
+
+        // Configure HttpServer for integration test
+        io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
+        router.route().handler(hookHandler::handle);
+
+        HttpServer server = vertx.createHttpServer();
+        server.requestHandler(router).listen(8080, ar -> {
+            if (ar.succeeded()) {
+                // Make a real HTTP request to the HookHandler
+                httpClient.request(HttpMethod.GET, 8080, "localhost", "/_hooks/listeners?q=listener1")
+                        .compose(HttpClientRequest::send)
+                        .compose(response -> {
+                            context.assertEquals(200, response.statusCode());
+                            return response.body();
+                        })
+                        .onSuccess(body -> {
+                            JsonObject jsonResponse = new JsonObject(body.toString());
+                            context.assertTrue(jsonResponse.getJsonArray("listeners").contains("listener1"));
+                            context.async().complete();
+                        })
+                        .onFailure(context::fail);
+            } else {
+                context.fail(ar.cause());
+            }
+        });
+    }
+    @Test
+    public void testSearchListenerNotFound_MultipleListeners_Failure(TestContext context) {
+        Vertx vertx = Vertx.vertx();
+        MockResourceStorage storage = new MockResourceStorage();
+        HttpClient httpClient = vertx.createHttpClient();
+
+        // Create mock implementation for RequestQueue
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        // Initialize HookHandler
+        String HOOK_LISTENER_STORAGE_PATH = "/_hooks/listeners/";
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler,
+                "userProfilePath", "/hookRootUri",
+                requestQueue, false, reducedPropagationManager);
+
+        // Add multiple listeners to the storage
+        JsonObject listener2 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x100")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x100"));
+        JsonObject listener3 = new JsonObject()
+                .put("requesturl", "/playground/server/tests/hooktest/_hooks/listeners/http/push/x101")
+                .put("expirationTime", "2025-01-03T14:15:53.277")
+                .put("hook", new JsonObject().put("destination", "/playground/server/push/v1/devices/x101"));
+
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x100", listener2.encode());
+        storage.putMockData(HOOK_LISTENER_STORAGE_PATH + "x101", listener3.encode());
+
+        // Configure HttpServer for integration test
+        io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
+        router.route().handler(hookHandler::handle);
+
+        HttpServer server = vertx.createHttpServer();
+        server.requestHandler(router).listen(8080, ar -> {
+            if (ar.succeeded()) {
+                // Make a real HTTP request to the HookHandler
+                httpClient.request(HttpMethod.GET, 8080, "localhost", "/_hooks/listeners?q=x99")
+                        .compose(HttpClientRequest::send)
+                        .compose(response -> {
+                            context.assertEquals(200, response.statusCode());
+                            return response.body();
+                        })
+                        .onSuccess(body -> {
+                            JsonObject jsonResponse = new JsonObject(body.toString());
+                            context.assertFalse(jsonResponse.getJsonArray("listeners").contains("x99"));
+                            context.async().complete();
+                        })
+                        .onFailure(context::fail);
+            } else {
+                context.fail(ar.cause());
+            }
+        });
+    }
+    @Test
+    public void testSearchListenerNotFound_NoListeners_Failure(TestContext context) {
+        Vertx vertx = Vertx.vertx();
+        MockResourceStorage storage = new MockResourceStorage();
+        HttpClient httpClient = vertx.createHttpClient();
+
+        // Create mock implementation for RequestQueue
+        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
+
+        // Initialize HookHandler
+        HookHandler hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager,
+                logAppenderRepository, monitoringHandler,
+                "userProfilePath", "/hookRootUri/",
+                requestQueue, false, reducedPropagationManager);
+
+        // Configure HttpServer for integration test
+        io.vertx.ext.web.Router router = io.vertx.ext.web.Router.router(vertx);
+        router.route().handler(hookHandler::handle);
+
+        HttpServer server = vertx.createHttpServer();
+        server.requestHandler(router).listen(8080, ar -> {
+            if (ar.succeeded()) {
+                // Make a real HTTP request to the HookHandler
+                httpClient.request(HttpMethod.GET, 8080, "localhost", "/_hooks/listeners?q=invalid")
+                        .compose(HttpClientRequest::send)
+                        .compose(response -> {
+                            context.assertEquals(200, response.statusCode());
+                            return response.body();
+                        })
+                        .onSuccess(body -> {
+                            JsonObject jsonResponse = new JsonObject(body.toString());
+                            context.assertFalse(jsonResponse.getJsonArray("listeners").contains("invalid"));
+                            context.async().complete();
+                        })
+                        .onFailure(context::fail);
+            } else {
+                context.fail(ar.cause());
+            }
+        });
+    }
 
     ///////////////////////////////////////////////////////////////////////////////
     // Helpers
@@ -664,7 +993,7 @@ public class HookHandlerTest {
         };
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         latch.await();

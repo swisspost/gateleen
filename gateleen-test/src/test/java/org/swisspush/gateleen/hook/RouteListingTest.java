@@ -15,6 +15,7 @@ import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 
 import static io.restassured.RestAssured.*;
+import static org.swisspush.gateleen.TestUtils.checkGETStatusCodeWithAwait;
 
 /**
  * Test class for the hook route feature.
@@ -222,6 +223,92 @@ public class RouteListingTest extends AbstractTest {
         JsonArray array = body.getJsonArray(parentKey);
         Assert.assertEquals(expectedArray.length, array.size());
         Assert.assertThat(array, Matchers.contains(expectedArray));
+    }
+    /**
+     * Test for route listing with a valid query parameter.
+     */
+    @Test
+    public void testRouteListing_ValidQueryParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initSettings();
+
+        String queryParam = "testQuery";
+        String routePath = "/routes";
+        String requestUrl = requestUrlBase + routePath + "?q=" + queryParam;
+
+        // Register a route
+        TestUtils.registerRoute(requestUrlBase + routePath, targetUrlBase, new String[]{"GET", "POST"}, null, true, true);
+
+        // Send GET request with a valid query param
+        given().queryParam("q", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(200);
+
+        // Validate response
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+
+        TestUtils.unregisterRoute(requestUrlBase + routePath);
+
+        async.complete();
+    }
+
+    /**
+     * Test for route listing with a non-matching query parameter.
+     */
+    @Test
+    public void testRouteListing_NonMatchingQueryParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initSettings();
+
+        String nonMatchingQueryParam = "nonMatchingQuery";
+        String routePath = "/routes";
+        String requestUrl = requestUrlBase + routePath + "?q=" + nonMatchingQueryParam;
+
+        // Register a route with a different query param
+        String differentQueryParam = "differentQuery";
+        TestUtils.registerRoute(requestUrlBase + routePath + "?q=" + differentQueryParam, targetUrlBase, new String[]{"GET", "POST"}, null, true, true);
+
+        // Send GET request with non-matching query param
+        given().queryParam("q", nonMatchingQueryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(200)
+                .body("routes", Matchers.empty());
+
+        // Validate response
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+
+        TestUtils.unregisterRoute(requestUrlBase + routePath);
+
+        async.complete();
+    }
+
+    /**
+     * Test for route listing when no routes are registered.
+     */
+    @Test
+    public void testRouteListing_NoRoutesRegistered(TestContext context) {
+        Async async = context.async();
+        delete();
+        initSettings();
+
+        String queryParam = "someQuery";
+        String routePath = "/routes";
+        String requestUrl = requestUrlBase + routePath + "?q=" + queryParam;
+
+        // No routes registered
+
+        // Send GET request with a query param
+        given().queryParam("q", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(200)
+                .body("routes", Matchers.empty());
+
+        // Validate response
+        checkGETStatusCodeWithAwait(requestUrl, 200);
+
+        async.complete();
     }
 
 }

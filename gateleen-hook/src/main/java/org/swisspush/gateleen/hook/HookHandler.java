@@ -70,6 +70,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -89,7 +90,6 @@ public class HookHandler implements LoggableResource {
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
     public static final String LISTENER_QUEUE_PREFIX = "listener-hook";
     private static final String X_QUEUE = "x-queue";
-    private static final String X_EXPIRE_AFTER = "X-Expire-After";
     private static final String LISTENER_HOOK_TARGET_PATH = "listeners/";
 
     public static final String HOOKS_ROUTE_URI_PART = "/_hooks/route";
@@ -122,6 +122,12 @@ public class HookHandler implements LoggableResource {
     public static final String HOOK_TRIGGER_TYPE = "type";
     public static final String LISTABLE = "listable";
     public static final String COLLECTION = "collection";
+
+    private static final String CONTENT_TYPE_JSON = "application/json";
+    private static final String LISTENERS_KEY = "listeners";
+    private static final String ROUTES_KEY = "routes";
+    private static final String CONTENT_TYPE_HEADER = "content-type";
+
 
     private final Comparator<String> collectionContentComparator;
     private static final Logger log = LoggerFactory.getLogger(HookHandler.class);
@@ -541,13 +547,12 @@ public class HookHandler implements LoggableResource {
     public boolean handle(final RoutingContext ctx) {
         HttpServerRequest request = ctx.request();
         boolean consumed = false;
-
+        var requestUri = request.uri();
         /*
          * 1) Un- / Register Listener / Routes
          */
         var requestMethod = request.method();
         if (requestMethod == PUT) {
-            var requestUri = request.uri();
             if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
                 handleListenerRegistration(request);
                 return true;
@@ -558,7 +563,6 @@ public class HookHandler implements LoggableResource {
             }
         }
         if (requestMethod == DELETE) {
-            var requestUri = request.uri();
             if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
                 handleListenerUnregistration(request);
                 return true;
@@ -566,6 +570,27 @@ public class HookHandler implements LoggableResource {
             if (requestUri.contains(HOOKS_ROUTE_URI_PART)) {
                 handleRouteUnregistration(request);
                 return true;
+            }
+        }
+
+        // 1. Check if the request method is GET
+        if (request.method() == HttpMethod.GET) {
+            String queryParam = request.getParam("q");
+            // If the 'q' parameter exists, proceed with search handling
+            if (queryParam != null) {
+                // Check if the URI corresponds to listeners or routes
+                if (requestUri.contains(LISTENERS_KEY)) {
+                    handleListenerSearch(queryParam, request.response());
+                    return true;
+                } else if (requestUri.contains(ROUTES_KEY)) {
+                    handleRouteSearch(queryParam, request.response());
+                    return true;
+                }
+            }else{
+                if (!request.params().isEmpty()) {
+                    request.response().setStatusCode(400).end("Bad Request: Only the 'q' parameter is allowed");
+                    return true;
+                }
             }
         }
 
@@ -591,6 +616,66 @@ public class HookHandler implements LoggableResource {
             return true;
         }
     }
+
+    private void handleListenerSearch(String queryParam, HttpServerResponse response) {
+        handleSearch(
+                listenerRepository.getListeners().stream().collect(Collectors.toMap(Listener::getListenerId, listener -> listener)),
+                listener -> listener.getHook().getDestination(),
+                queryParam,
+                LISTENERS_KEY,
+                response
+        );
+    }
+
+    private void handleRouteSearch(String queryParam, HttpServerResponse response) {
+        handleSearch(
+                routeRepository.getRoutes(),
+                route -> route.getHook().getDestination(),
+                queryParam,
+                ROUTES_KEY,
+                response
+        );
+    }
+
+    /**
+     * Search the repository for items matching the query parameter.
+     * Returns a JSON response with the matched results.
+     * If any essential parameter (repository, response, getDestination) is null,
+     * a 400 Bad Request is returned.
+     *
+     * @param repository The items to search.
+     * @param getDestination Function to extract destinations.
+     * @param queryParam The query string to match.
+     * @param resultKey The key for the result in the response.
+     * @param response The HTTP response to return the results. Must not be null.
+     */
+    private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerResponse response) {
+
+        if (repository == null || getDestination == null || resultKey == null || queryParam.isEmpty()) {
+            response.setStatusCode(400).end("Bad Request: One or more required parameters are missing or null");
+            return;
+        }
+
+        JsonArray matchingResults = new JsonArray();
+
+        repository.forEach((key, value) -> {
+            String destination = getDestination.apply(value);
+            if (destination != null && destination.contains(queryParam)) {
+                matchingResults.add(key);
+            }
+        });
+
+        JsonObject result = new JsonObject();
+        result.put(resultKey, matchingResults);
+
+        String encodedResult = result.encode();
+
+        response.putHeader(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
+        response.putHeader("Content-Length", String.valueOf(encodedResult.length()));
+        response.write(encodedResult);
+        response.end();
+    }
+
 
     /**
      * Create a listing of routes in the given parent. This happens
