@@ -945,8 +945,7 @@ public class ListenerTest extends AbstractTest {
 
     /**
      * Test for hookHandleSearch with listener storage path and valid query param. <br />
-     * eg. register / unregister: http://localhost:7012/gateleen/server/listenertest/_hooks/listeners/listener/1 <br />
-     * requestUrl: http://localhost:7012/gateleen/server/listenertest/listener/test?q=testQuery
+     * requestUrl: http://localhost:7012/playground/server/hooks/v1/registrations/listeners/?q=testQuery
      */
     @Test
     public void testHookHandleSearch_ListenerPathWithValidQueryParam(TestContext context) {
@@ -976,8 +975,7 @@ public class ListenerTest extends AbstractTest {
 
     /**
      * Test for hookHandleSearch with listener storage path and valid query param but no match found. <br />
-     * eg. register / unregister: http://localhost:7012/gateleen/server/listenertest/_hooks/listeners/listener/1 <br />
-     * requestUrl: http://localhost:7012/gateleen/server/listenertest/listener/test?q=nonMatchingQuery
+     * requestUrl: http://localhost:7012/playground/server/hooks/v1/registrations/listeners/?q=nonMatchingQuery
      */
     @Test
     public void testHookHandleSearch_ListenerPathWithNonMatchingQueryParam(TestContext context) {
@@ -1011,8 +1009,7 @@ public class ListenerTest extends AbstractTest {
 
     /**
      * Test for hookHandleSearch with listener storage path and valid query param but no listeners registered. <br />
-     * eg. register / unregister: http://localhost:7012/gateleen/server/listenertest/_hooks/listeners/listener/1 <br />
-     * requestUrl: http://localhost:7012/gateleen/server/listenertest/listener/test?q=someQuery
+     * requestUrl: http://localhost:7012/playground/server/hooks/v1/registrations/listeners/?q=someQuery
      */
     @Test
     public void testHookHandleSearch_NoListenersRegistered(TestContext context) {
@@ -1035,6 +1032,63 @@ public class ListenerTest extends AbstractTest {
 
         // Validate that the response is 200 and the result is an empty array
         checkGETStatusCodeWithAwait(requestUrl, 200);
+
+        async.complete();
+    }
+
+
+    @Test
+    public void testHookHandleSearch_ListenerPathInvalidParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "testQuery";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?www=" + queryParam;
+
+        // Register a listener
+        TestUtils.registerListener(requestUrlBase + listenerPath, targetUrlBase, new String[]{"GET", "POST"}, null);
+
+        // Send GET request
+        given().queryParam("www", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(400);
+
+        // Validate the response
+        checkGETStatusCodeWithAwait(requestUrl, 400);
+
+        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+
+        async.complete();
+    }
+
+    /**
+     * Test for hookHandleSearch with listener storage path and no query parameter. <br />
+     * requestUrl: http://localhost:7012/playground/server/hooks/v1/registrations/listeners/?q=
+     */
+    @Test
+    public void testHookHandleSearch_NoQueryParameter(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "";
+        String listenerPath = "/_hooks/listeners";
+        String requestUrl = requestUrlBase + listenerPath + "?q=" + queryParam;
+
+        // Register a listener
+        TestUtils.registerListener(requestUrlBase + listenerPath, targetUrlBase, new String[]{"GET", "POST"}, null);
+
+        // Send GET request
+        given().queryParam("q", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(400);
+
+        // Validate the response
+        checkGETStatusCodeWithAwait(requestUrl, 400);
+
+        TestUtils.unregisterListener(requestUrlBase + listenerPath);
 
         async.complete();
     }
