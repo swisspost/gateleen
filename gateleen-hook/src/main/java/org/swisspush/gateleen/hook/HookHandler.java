@@ -90,7 +90,6 @@ public class HookHandler implements LoggableResource {
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
     public static final String LISTENER_QUEUE_PREFIX = "listener-hook";
     private static final String X_QUEUE = "x-queue";
-    private static final String X_EXPIRE_AFTER = "X-Expire-After";
     private static final String LISTENER_HOOK_TARGET_PATH = "listeners/";
 
     public static final String HOOKS_ROUTE_URI_PART = "/_hooks/route";
@@ -127,7 +126,6 @@ public class HookHandler implements LoggableResource {
     private static final String CONTENT_TYPE_JSON = "application/json";
     private static final String LISTENERS_KEY = "listeners";
     private static final String ROUTES_KEY = "routes";
-    private static final String DESTINATION_KEY = "destination";
     private static final String CONTENT_TYPE_HEADER = "content-type";
 
 
@@ -549,13 +547,12 @@ public class HookHandler implements LoggableResource {
     public boolean handle(final RoutingContext ctx) {
         HttpServerRequest request = ctx.request();
         boolean consumed = false;
-
+        var requestUri = request.uri();
         /*
          * 1) Un- / Register Listener / Routes
          */
         var requestMethod = request.method();
         if (requestMethod == PUT) {
-            var requestUri = request.uri();
             if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
                 handleListenerRegistration(request);
                 return true;
@@ -566,7 +563,6 @@ public class HookHandler implements LoggableResource {
             }
         }
         if (requestMethod == DELETE) {
-            var requestUri = request.uri();
             if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
                 handleListenerUnregistration(request);
                 return true;
@@ -579,15 +575,20 @@ public class HookHandler implements LoggableResource {
 
         // 1. Check if the request method is GET
         if (request.method() == HttpMethod.GET) {
-            String uri = request.uri();
             String queryParam = request.getParam("q");
-            // 2. Check if the URI is for listeners or routes and has a query parameter
-            if (queryParam != null && !queryParam.isEmpty()) {
-                if (uri.contains(LISTENERS_KEY)) {
+            // If the 'q' parameter exists, proceed with search handling
+            if (queryParam != null) {
+                // Check if the URI corresponds to listeners or routes
+                if (requestUri.contains(LISTENERS_KEY)) {
                     handleListenerSearch(queryParam, request.response());
                     return true;
-                } else if (uri.contains(ROUTES_KEY)) {
+                } else if (requestUri.contains(ROUTES_KEY)) {
                     handleRouteSearch(queryParam, request.response());
+                    return true;
+                }
+            }else{
+                if (!request.params().isEmpty()) {
+                    request.response().setStatusCode(400).end("Bad Request: Only the 'q' parameter is allowed");
                     return true;
                 }
             }
@@ -649,8 +650,9 @@ public class HookHandler implements LoggableResource {
      * @param response The HTTP response to return the results. Must not be null.
      */
     private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerResponse response) {
-        if (repository == null || getDestination == null) {
-            response.setStatusCode(400).end(); // Bad request for missing parameters
+
+        if (repository == null || getDestination == null || resultKey == null || queryParam.isEmpty()) {
+            response.setStatusCode(400).end("Bad Request: One or more required parameters are missing or null");
             return;
         }
 
@@ -658,7 +660,7 @@ public class HookHandler implements LoggableResource {
 
         repository.forEach((key, value) -> {
             String destination = getDestination.apply(value);
-            if (destination != null && destination.contains(queryParam != null ? queryParam : "")) {
+            if (destination != null && destination.contains(queryParam)) {
                 matchingResults.add(key);
             }
         });
