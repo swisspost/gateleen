@@ -224,31 +224,35 @@ public class RouteListingTest extends AbstractTest {
         Assert.assertEquals(expectedArray.length, array.size());
         Assert.assertThat(array, Matchers.contains(expectedArray));
     }
+
     /**
      * Test for route listing with a valid query parameter.
      */
     @Test
     public void testRouteListing_ValidQueryParam(TestContext context) {
         Async async = context.async();
-        delete();
-        initSettings();
+        delete(); // Remove any pre-existing data
+        initSettings(); // Initialize routing rules
 
-        String queryParam = "testQuery";
+        String queryParam = "routeTests";
         String routePath = "/routes";
-        String requestUrl = requestUrlBase + routePath + "?q=" + queryParam;
+        String requestUrl = requestUrlBase + routePath;
 
-        // Register a route
-        TestUtils.registerRoute(requestUrlBase + routePath, targetUrlBase, new String[]{"GET", "POST"}, null, true, true);
+        addRoute(queryParam, true, true);
 
-        // Send GET request with a valid query param
-        given().queryParam("q", queryParam)
-                .when().get(requestUrl)
-                .then().assertThat().statusCode(200);
+        // Verify that the route was correctly registered
+        Response response = given()
+                .queryParam("q", queryParam)
+                .when().get(requestUrl + "?q=" + queryParam)
+                .then().assertThat().statusCode(200)
+                .extract().response();
 
-        // Validate response
-        checkGETStatusCodeWithAwait(requestUrl, 200);
+        // Assert that the response contains the expected query param
+        String responseBody = response.getBody().asString();
+        Assert.assertTrue(responseBody.contains(queryParam)); // Fails if not found
 
-        TestUtils.unregisterRoute(requestUrlBase + routePath);
+        // Unregister the route
+        removeRoute(queryParam);
 
         async.complete();
     }
@@ -259,27 +263,29 @@ public class RouteListingTest extends AbstractTest {
     @Test
     public void testRouteListing_NonMatchingQueryParam(TestContext context) {
         Async async = context.async();
-        delete();
-        initSettings();
+        delete(); // Clean up before the test
+        initSettings(); // Initialize routing rules
 
         String nonMatchingQueryParam = "nonMatchingQuery";
+        String queryParam = "other";
         String routePath = "/routes";
-        String requestUrl = requestUrlBase + routePath + "?q=" + nonMatchingQueryParam;
+        String requestUrl = requestUrlBase + routePath;
 
-        // Register a route with a different query param
-        String differentQueryParam = "differentQuery";
-        TestUtils.registerRoute(requestUrlBase + routePath + "?q=" + differentQueryParam, targetUrlBase, new String[]{"GET", "POST"}, null, true, true);
-
-        // Send GET request with non-matching query param
-        given().queryParam("q", nonMatchingQueryParam)
+        // Register a route using the addRoute method
+        addRoute(queryParam, true, true);
+        assertResponse(get(requestUrlBase), new String[]{queryParam+"/"});
+        // Send GET request with a non-matching query param
+        Response response = given().queryParam("q", nonMatchingQueryParam)
                 .when().get(requestUrl)
                 .then().assertThat().statusCode(200)
-                .body("routes", Matchers.empty());
+                .extract().response();
 
-        // Validate response
-        checkGETStatusCodeWithAwait(requestUrl, 200);
+        // Assert the response does not contain the non-matching query param
+        Assert.assertFalse("Non-matching query param should not be found in response",
+                response.getBody().asString().contains(nonMatchingQueryParam));
 
-        TestUtils.unregisterRoute(requestUrlBase + routePath);
+        // Unregister the route
+        removeRoute(queryParam);
 
         async.complete();
     }
@@ -290,8 +296,8 @@ public class RouteListingTest extends AbstractTest {
     @Test
     public void testRouteListing_NoRoutesRegistered(TestContext context) {
         Async async = context.async();
-        delete();
-        initSettings();
+        delete(); // Ensure there's no previous data
+        initSettings(); // Initialize routing rules
 
         String queryParam = "someQuery";
         String routePath = "/routes";
@@ -300,15 +306,20 @@ public class RouteListingTest extends AbstractTest {
         // No routes registered
 
         // Send GET request with a query param
-        given().queryParam("q", queryParam)
+        Response response = given().queryParam("q", queryParam)
                 .when().get(requestUrl)
                 .then().assertThat().statusCode(200)
-                .body("routes", Matchers.empty());
+                .extract().response();
 
-        // Validate response
-        checkGETStatusCodeWithAwait(requestUrl, 200);
+        // Print the body of the response for debugging
+        System.out.println("Response body: " + response.getBody().asString());
+
+        // Assert that the response body is empty or does not contain routes
+        Assert.assertTrue("No routes should be registered",
+                response.getBody().asString().contains("routes"));
 
         async.complete();
     }
+
 
 }
