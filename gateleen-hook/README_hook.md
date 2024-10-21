@@ -257,10 +257,7 @@ The response will contain the matching listeners. If no match is found, an empty
 ```json
 {
   "listeners": [
-    {
-      "destination": "/path/to/destination",
-      "methods": ["GET", "POST"]
-    }
+    "first+playground+server+test+nemo+origin+b"
   ]
 }
 ```
