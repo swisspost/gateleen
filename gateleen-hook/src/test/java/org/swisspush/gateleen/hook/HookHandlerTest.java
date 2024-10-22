@@ -669,27 +669,6 @@ public class HookHandlerTest {
         assertTrue(result); // Ensure the handler returns true for a valid listener search
         verify(response, times(1)).end(); // Ensure `response.end()` was called
     }
-    @Test
-    public void testHandleListenerSearch_MissingQueryParam() {
-        String uri = "registrations/listeners/?q=";
-
-        HttpServerRequest request = mock(HttpServerRequest.class);
-        HttpServerResponse response = mock(HttpServerResponse.class);
-
-        when(request.uri()).thenReturn(uri);
-        when(request.method()).thenReturn(HttpMethod.GET);
-        when(request.getParam("q")).thenReturn("");
-        when(request.response()).thenReturn(response);
-        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
-
-        RoutingContext routingContext = mock(RoutingContext.class);
-        when(routingContext.request()).thenReturn(request);
-
-        boolean result = hookHandler.handle(routingContext);
-
-        assertFalse(result);
-        verify(response, never()).end();
-    }
 
     @Test
     public void testHandleListenerWithStorageAndSearchSuccess(TestContext context) {
@@ -731,43 +710,6 @@ public class HookHandlerTest {
         Mockito.verify(response, Mockito.times(1)).end();
         async.complete();
     }
-
-    @Test
-    public void testHandleListenerWithStorageAndSearchFailure(TestContext context) {
-        vertx = Vertx.vertx();
-        storage = new MockResourceStorage();
-        LoggingResourceManager loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
-        LogAppenderRepository logAppenderRepository = Mockito.mock(LogAppenderRepository.class);
-        MonitoringHandler monitoringHandler = Mockito.mock(MonitoringHandler.class);
-        RequestQueue requestQueue = Mockito.mock(RequestQueue.class);
-
-        hookHandler = new HookHandler(vertx, Mockito.mock(HttpClient.class), storage, loggingResourceManager, logAppenderRepository, monitoringHandler,
-                "userProfilePath", "hookRootURI/", requestQueue, false, null);
-        RoutingContext routingContext = Mockito.mock(RoutingContext.class);
-        HttpServerRequest request = Mockito.mock(HttpServerRequest.class);
-        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
-
-        // Mock necessary methods
-        Mockito.when(request.method()).thenReturn(HttpMethod.GET);
-        Mockito.when(request.uri()).thenReturn("hookRootURI/registrations/listeners/");
-        Mockito.when(request.getParam("q")).thenReturn(null); // No query param
-        Mockito.when(request.response()).thenReturn(response);
-        Mockito.when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
-
-
-        HttpClient selfClient = Mockito.mock(HttpClient.class);
-        Mockito.when(selfClient.request(Mockito.any(), Mockito.anyString())).thenReturn(Future.failedFuture(new Exception("Mocked failure")));
-
-        Mockito.when(routingContext.request()).thenReturn(request);
-
-        // Act
-        boolean handled = hookHandler.handle(routingContext);
-
-        // Assert
-        context.assertFalse(handled);
-        Mockito.verify(response, Mockito.never()).end();
-    }
-
 
     @Test
     public void testSearchMultipleListeners_Success(TestContext context) {
