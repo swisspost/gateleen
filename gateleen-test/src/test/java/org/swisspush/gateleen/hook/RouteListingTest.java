@@ -285,6 +285,16 @@ public class RouteListingTest extends AbstractTest {
         Assert.assertFalse("Non-matching query param should not be found in response",
                 response.getBody().asString().contains(nonMatchingQueryParam));
 
+        // Send GET request with a matching query param
+        response = given().queryParam("q", queryParam)
+                .when().get(requestUrl)
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Assert the response contain the matching query param
+        Assert.assertTrue("matching query param should be found in response",
+                response.getBody().asString().contains(queryParam));
+
         // Unregister the route
         removeRoute(queryParam);
 
