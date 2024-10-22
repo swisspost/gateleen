@@ -1123,4 +1123,58 @@ public class ListenerTest extends AbstractTest {
         async.complete();
     }
 
+    @Test
+    public void testHookHandleSearch_ReturnsTwoOutOfThreeListeners(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        // Settings for the three listeners
+        String subresource = "multiListenerTest";
+        String listenerName1 = "listenerOne";
+        String listenerName2 = "listenerTwo";
+        String listenerName3 = "NoMatchThree";
+
+        String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName1;
+        String registerUrlListener2 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName2;
+        String registerUrlListener3 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName3;
+
+        String targetListener1 = targetUrlBase + "/" + listenerName1;
+        String targetListener2 = targetUrlBase + "/" + listenerName2;
+        String targetListener3 = targetUrlBase + "/" + listenerName3;
+
+        String[] methodsListener = new String[]{"PUT", "DELETE", "POST"};
+
+        delete(registerUrlListener1);
+        delete(registerUrlListener2);
+        delete(registerUrlListener3);
+
+        // Adding the three listeners
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener, null, null,
+                null, null, "x-foo: (A|B)");
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener, null, null,
+                null, null, "x-foo: (A|B)");
+        TestUtils.registerListener(registerUrlListener3, targetListener3, methodsListener, null, null,
+                null, null, "x-foo: (A|B)");
+        // Perform a search for the listeners that should return only listenerOne and listenerTwo
+        Response response = given()
+                .queryParam("q", "listener")
+                .when().get(requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix())
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Assert that the search contains listenerOne and listenerTwo but not listenerThree
+        Assert.assertTrue(response.getBody().asString().contains(listenerName1));
+        Assert.assertTrue(response.getBody().asString().contains(listenerName2));
+        Assert.assertFalse(response.getBody().asString().contains(listenerName3));
+
+        // Unregister the listeners
+        TestUtils.unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener2);
+        TestUtils.unregisterListener(registerUrlListener3);
+
+        async.complete();
+    }
+
+
 }
