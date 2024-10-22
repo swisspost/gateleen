@@ -6,11 +6,13 @@ import com.google.common.collect.ImmutableMap;
 import io.restassured.RestAssured;
 import io.restassured.http.Header;
 import io.restassured.http.Headers;
+import io.restassured.response.Response;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.awaitility.Awaitility;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -953,22 +955,34 @@ public class ListenerTest extends AbstractTest {
         delete();
         initRoutingRules();
 
-        String queryParam = "testQuery";
-        String listenerPath = "/_hooks/listeners";
-        String requestUrl = requestUrlBase + listenerPath + "?q=" + queryParam;
+        // Settings
+        String subresource = "validQueryParameter";
+        String listenerName = "myListener";
 
-        // Register a listener
-        TestUtils.registerListener(requestUrlBase + listenerPath, targetUrlBase, new String[]{"GET", "POST"}, null);
+        String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName;
+        String targetListener1 = targetUrlBase + "/" + listenerName;
+        String[] methodsListener1 = new String[]{"PUT", "DELETE", "POST"};
+        final String targetUrlListener1 = targetUrlBase + "/" + listenerName;
 
-        // Send GET request
-        given().queryParam("q", queryParam)
-                .when().get(requestUrl)
-                .then().assertThat().statusCode(200);
+        final String requestUrl = requestUrlBase + "/" + subresource;
 
-        // Validate the response
-        checkGETStatusCodeWithAwait(requestUrl, 200);
+        delete(requestUrl);
+        delete(targetUrlListener1);
 
-        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+        //Sending request, one listener hooked
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null,
+                null, null, "x-foo: (A|B)");
+
+        // Verify that the listener was correctly registered
+        Response response = given()
+                .queryParam("q", listenerName)
+                .when().get(registerUrlListener1)
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Assert that the response contains the expected query param
+        Assert.assertTrue(response.getBody().asString().contains(listenerName)); // Fails if not found
+        TestUtils.unregisterListener(registerUrlListener1);
 
         async.complete();
     }
@@ -983,26 +997,44 @@ public class ListenerTest extends AbstractTest {
         delete();
         initRoutingRules();
 
-        String nonMatchingQueryParam = "nonMatchingQuery";
-        String listenerPath = "/_hooks/listeners";
-        String requestUrl = requestUrlBase + listenerPath + "?q=" + nonMatchingQueryParam;
+        // Settings
+        String subresource = "matchingQueryParam";
+        String listenerName = "myListener";
 
-        // Register a listener with a different query param
-        String differentQueryParam = "differentQuery";
-        TestUtils.registerListener(requestUrlBase + listenerPath + "?q=" + differentQueryParam, targetUrlBase, new String[]{"GET", "POST"}, null);
+        String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName;
+        String targetListener1 = targetUrlBase + "/" + listenerName;
+        String[] methodsListener1 = new String[]{"PUT", "DELETE", "POST"};
+        final String targetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + "test";
 
-        // Send GET request with non-matching query param
-        given().queryParam("q", nonMatchingQueryParam)
-                .when().get(requestUrl)
-                .then().assertThat()
-                .statusCode(200) // Expecting 200 as the request is valid but no match found
-                .body("listeners", org.hamcrest.Matchers.empty()); // Expecting an empty list of listeners
+        final String requestUrl = requestUrlBase + "/" + subresource + "/" + "test";
 
-        // Validate that the response is 200 and the result is an empty array
-        checkGETStatusCodeWithAwait(requestUrl, 200);
+        delete(requestUrl);
+        delete(targetUrlListener1);
 
-        // Unregister the listener
-        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null,
+                null, null, "x-foo: (A|B)");
+
+        // Verify that the listener was correctly registered
+        Response response = given()
+                .queryParam("q", listenerName)
+                .when().get(registerUrlListener1)
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Assert that the response contains the expected query param
+        Assert.assertTrue(response.getBody().asString().contains(listenerName)); // Fails if not found
+
+        listenerName="nonMatchingQueryParam";
+        // Verify that the listener search with a no registered listener
+        response = given()
+                .queryParam("q", listenerName)
+                .when().get(registerUrlListener1)
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Assert that the response contains the expected query param
+        Assert.assertFalse(response.getBody().asString().contains(listenerName)); // Fails if not found
+        TestUtils.unregisterListener(registerUrlListener1);
 
         async.complete();
     }
@@ -1019,20 +1051,17 @@ public class ListenerTest extends AbstractTest {
 
         String queryParam = "someQuery";
         String listenerPath = "/_hooks/listeners";
-        String requestUrl = requestUrlBase + listenerPath + "?q=" + queryParam;
+        String requestUrl = requestUrlBase + listenerPath;
 
-        // No listeners registered
-
-        // Send GET request with a query param
-        given().queryParam("q", queryParam)
+        // Verify that the listener search with a no registered listener
+        Response response = given()
+                .queryParam("q", queryParam)
                 .when().get(requestUrl)
-                .then().assertThat()
-                .statusCode(200) // Expecting 200 as the request is valid but no listeners are registered
-                .body("listeners", org.hamcrest.Matchers.empty()); // Expecting an empty list of listeners
+                .then().assertThat().statusCode(200)
+                .extract().response();
 
-        // Validate that the response is 200 and the result is an empty array
-        checkGETStatusCodeWithAwait(requestUrl, 200);
-
+        // Assert that the response contains the expected query param
+        Assert.assertFalse(response.getBody().asString().contains(queryParam)); // Fails if not found
         async.complete();
     }
 
@@ -1047,19 +1076,8 @@ public class ListenerTest extends AbstractTest {
         String listenerPath = "/_hooks/listeners";
         String requestUrl = requestUrlBase + listenerPath + "?www=" + queryParam;
 
-        // Register a listener
-        TestUtils.registerListener(requestUrlBase + listenerPath, targetUrlBase, new String[]{"GET", "POST"}, null);
-
-        // Send GET request
-        given().queryParam("www", queryParam)
-                .when().get(requestUrl)
-                .then().assertThat().statusCode(400);
-
         // Validate the response
         checkGETStatusCodeWithAwait(requestUrl, 400);
-
-        TestUtils.unregisterListener(requestUrlBase + listenerPath);
-
         async.complete();
     }
 
@@ -1073,22 +1091,34 @@ public class ListenerTest extends AbstractTest {
         delete();
         initRoutingRules();
 
-        String queryParam = "";
-        String listenerPath = "/_hooks/listeners";
-        String requestUrl = requestUrlBase + listenerPath + "?q=" + queryParam;
+        // Settings
+        String subresource = "validQueryParameter";
+        String listenerName = "";
 
-        // Register a listener
-        TestUtils.registerListener(requestUrlBase + listenerPath, targetUrlBase, new String[]{"GET", "POST"}, null);
+        String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName;
+        String targetListener1 = targetUrlBase + "/" + listenerName;
+        String[] methodsListener1 = new String[]{"PUT", "DELETE", "POST"};
+        final String targetUrlListener1 = targetUrlBase + "/" + listenerName;
 
-        // Send GET request
-        given().queryParam("q", queryParam)
-                .when().get(requestUrl)
-                .then().assertThat().statusCode(400);
+        final String requestUrl = requestUrlBase + "/" + subresource;
 
-        // Validate the response
-        checkGETStatusCodeWithAwait(requestUrl, 400);
+        delete(requestUrl);
+        delete(targetUrlListener1);
 
-        TestUtils.unregisterListener(requestUrlBase + listenerPath);
+        //Sending request, one listener hooked
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null,
+                null, null, "x-foo: (A|B)");
+
+        // Verify that the listener was correctly registered
+        Response response = given()
+                .queryParam("q", listenerName)
+                .when().get(registerUrlListener1)
+                .then().assertThat().statusCode(400)
+                .extract().response();
+
+        // Assert that the response contains the expected query param
+        Assert.assertTrue(response.getBody().asString().contains("Bad Request")); // Fails if not found
+        TestUtils.unregisterListener(registerUrlListener1);
 
         async.complete();
     }

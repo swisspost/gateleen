@@ -243,7 +243,7 @@ public class RouteListingTest extends AbstractTest {
         // Verify that the route was correctly registered
         Response response = given()
                 .queryParam("q", queryParam)
-                .when().get(requestUrl + "?q=" + queryParam)
+                .when().get(requestUrl )
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
@@ -274,6 +274,7 @@ public class RouteListingTest extends AbstractTest {
         // Register a route using the addRoute method
         addRoute(queryParam, true, true);
         assertResponse(get(requestUrlBase), new String[]{queryParam+"/"});
+
         // Send GET request with a non-matching query param
         Response response = given().queryParam("q", nonMatchingQueryParam)
                 .when().get(requestUrl)
@@ -301,7 +302,7 @@ public class RouteListingTest extends AbstractTest {
 
         String queryParam = "someQuery";
         String routePath = "/routes";
-        String requestUrl = requestUrlBase + routePath + "?q=" + queryParam;
+        String requestUrl = requestUrlBase + routePath;
 
         // No routes registered
 
@@ -311,12 +312,9 @@ public class RouteListingTest extends AbstractTest {
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
-        // Print the body of the response for debugging
-        System.out.println("Response body: " + response.getBody().asString());
-
         // Assert that the response body is empty or does not contain routes
-        Assert.assertTrue("No routes should be registered",
-                response.getBody().asString().contains("routes"));
+        Assert.assertFalse("No routes should be registered",
+                response.getBody().asString().contains(queryParam));
 
         async.complete();
     }
