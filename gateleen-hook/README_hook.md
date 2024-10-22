@@ -248,7 +248,7 @@ Gateleen allows searching for listeners and routes using the query parameter `q`
 Search for listeners based on a query parameter like this:
 
 ```
-GET http://myserver:7012/gateleen/server/listenertest/_hooks/listeners?q=test
+GET http://myserver:7012/playground/server/hooks/v1/registrations/listeners?q=test
 ```
 
 The response will contain the matching listeners. If no match is found, an empty list is returned:
@@ -273,7 +273,7 @@ The response will contain the matching listeners. If no match is found, an empty
 Similarly, you can search for routes using a query parameter:
 
 ```
-GET http://myserver:7012/gateleen/server/routetest/_hooks/routes?q=test
+GET http://myserver:7012/playground/server/hooks/v1/registrations/routes/?q=test
 ```
 
 The response contains the matching routes, or an empty list if no match is found.
