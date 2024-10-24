@@ -158,7 +158,8 @@ public class HookHandler implements LoggableResource {
     private int routeMultiplier;
 
     private final QueueSplitter queueSplitter;
-
+    private final String routeBase;
+    private final String listenerBase;
 
     /**
      * Creates a new HookHandler.
@@ -291,6 +292,8 @@ public class HookHandler implements LoggableResource {
         this.queueSplitter = queueSplitter;
         String hookSchema = ResourcesUtils.loadResource("gateleen_hooking_schema_hook", true);
         jsonSchemaHook = JsonSchemaFactory.getInstance().getSchema(hookSchema);
+        this.listenerBase = hookRootUri + HOOK_LISTENER_STORAGE_PATH;
+        this.routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
     }
 
     public void init() {
@@ -385,9 +388,6 @@ public class HookHandler implements LoggableResource {
     private void loadStoredRoutes(Handler<Void> readyHandler) {
         log.debug("loadStoredRoutes");
 
-        // load the names of the routes from the hookStorage
-        final String routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
-
         hookStorage.get(routeBase, buffer -> {
             if (buffer != null) {
                 JsonObject listOfRoutes = new JsonObject(buffer.toString());
@@ -432,8 +432,6 @@ public class HookHandler implements LoggableResource {
     private void loadStoredListeners(final Handler<Void> readyHandler) {
         log.debug("loadStoredListeners");
 
-        // load the names of the listener from the hookStorage
-        final String listenerBase = hookRootUri + HOOK_LISTENER_STORAGE_PATH;
         hookStorage.get(listenerBase, buffer -> {
             if (buffer != null) {
                 JsonObject listOfListeners = new JsonObject(buffer.toString());
@@ -575,20 +573,14 @@ public class HookHandler implements LoggableResource {
 
         // 1. Check if the request method is GET
         if (request.method() == HttpMethod.GET) {
-            String queryParam = request.getParam("q");
-            // If the 'q' parameter exists, proceed with search handling
-            if (queryParam != null) {
-                // Check if the URI corresponds to listeners or routes
-                if (requestUri.contains(LISTENERS_KEY)) {
+            if (!request.params().isEmpty()) {
+                String queryParam = request.getParam("q");
+                String normalizedRequestUri = requestUri.replaceAll("/$", "");
+                if (normalizedRequestUri.contains(listenerBase.replaceAll("/$", ""))) {
                     handleListenerSearch(queryParam, request.response());
                     return true;
-                } else if (requestUri.contains(ROUTES_KEY)) {
+                } else if (normalizedRequestUri.contains(routeBase.replaceAll("/$", ""))) {
                     handleRouteSearch(queryParam, request.response());
-                    return true;
-                }
-            }else{
-                if (!request.params().isEmpty()) {
-                    request.response().setStatusCode(400).end("Bad Request: Only the 'q' parameter is allowed");
                     return true;
                 }
             }
@@ -651,8 +643,8 @@ public class HookHandler implements LoggableResource {
      */
     private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerResponse response) {
 
-        if (repository == null || getDestination == null || resultKey == null || queryParam.isEmpty()) {
-            response.setStatusCode(400).end("Bad Request: One or more required parameters are missing or null");
+        if (repository == null || getDestination == null || resultKey == null || queryParam == null || queryParam.isEmpty()) {
+            response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode()).end("Bad Request: One or more required parameters are missing or null");
             return;
         }
 
@@ -671,9 +663,7 @@ public class HookHandler implements LoggableResource {
         String encodedResult = result.encode();
 
         response.putHeader(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
-        response.putHeader("Content-Length", String.valueOf(encodedResult.length()));
-        response.write(encodedResult);
-        response.end();
+        response.end(encodedResult);
     }
 
 
