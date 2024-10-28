@@ -74,8 +74,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static io.vertx.core.http.HttpMethod.DELETE;
-import static io.vertx.core.http.HttpMethod.PUT;
+import static io.vertx.core.http.HttpMethod.*;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 
 /**
@@ -572,17 +571,15 @@ public class HookHandler implements LoggableResource {
         }
 
         // 1. Check if the request method is GET
-        if (request.method() == HttpMethod.GET) {
-            if (!request.params().isEmpty()) {
-                String queryParam = request.getParam("q");
-                String normalizedRequestUri = requestUri.replaceAll("/$", "");
-                if (normalizedRequestUri.contains(listenerBase.replaceAll("/$", ""))) {
-                    handleListenerSearch(queryParam, request.response());
-                    return true;
-                } else if (normalizedRequestUri.contains(routeBase.replaceAll("/$", ""))) {
-                    handleRouteSearch(queryParam, request.response());
-                    return true;
-                }
+        if (requestMethod == GET && !request.params().isEmpty()) {
+            String queryParam = request.getParam("q");
+            String normalizedRequestUri = requestUri.replaceAll("/$", "");
+            if (normalizedRequestUri.contains(listenerBase.replaceAll("/$", ""))) {
+                handleListenerSearch(queryParam, request.response());
+                return true;
+            } else if (normalizedRequestUri.contains(routeBase.replaceAll("/$", ""))) {
+                handleRouteSearch(queryParam, request.response());
+                return true;
             }
         }
 
