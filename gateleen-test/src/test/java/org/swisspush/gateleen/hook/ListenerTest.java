@@ -43,6 +43,7 @@ public class ListenerTest extends AbstractTest {
     private final static int WIREMOCK_PORT = 8881;
     private String requestUrlBase;
     private String targetUrlBase;
+    private String searchUrlBase;
 
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(WIREMOCK_PORT);
@@ -56,6 +57,8 @@ public class ListenerTest extends AbstractTest {
 
         requestUrlBase = "/tests/gateleen/monitoredresource";
         targetUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/tests/gateleen/targetresource";
+        searchUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/hooks/v1/registrations/listeners";
+
     }
 
     /**
@@ -956,17 +959,16 @@ public class ListenerTest extends AbstractTest {
         initRoutingRules();
 
         // Settings
-        String subresource = "validQueryParameter";
+        String subresource = "matchingQueryParam";
         String listenerName = "myListener";
 
-        String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName;
+        String registerUrlListener1 = requestUrlBase + "/" + subresource  + TestUtils.getHookListenersUrlSuffix() + listenerName;
         String targetListener1 = targetUrlBase + "/" + listenerName;
         String[] methodsListener1 = new String[]{"PUT", "DELETE", "POST"};
         final String targetUrlListener1 = targetUrlBase + "/" + listenerName;
 
-        final String requestUrl = requestUrlBase + "/" + subresource;
 
-        delete(requestUrl);
+        delete(searchUrlBase);
         delete(targetUrlListener1);
 
         //Sending request, one listener hooked
@@ -976,11 +978,12 @@ public class ListenerTest extends AbstractTest {
         // Verify that the listener was correctly registered
         Response response = given()
                 .queryParam("q", listenerName)
-                .when().get(registerUrlListener1)
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
         // Assert that the response contains the expected query param
+        System.out.println(response.getBody().asString());
         Assert.assertTrue(response.getBody().asString().contains(listenerName)); // Fails if not found
         TestUtils.unregisterListener(registerUrlListener1);
 
@@ -1006,9 +1009,8 @@ public class ListenerTest extends AbstractTest {
         String[] methodsListener1 = new String[]{"PUT", "DELETE", "POST"};
         final String targetUrlListener1 = targetUrlBase + "/" + listenerName + "/" + "test";
 
-        final String requestUrl = requestUrlBase + "/" + subresource + "/" + "test";
 
-        delete(requestUrl);
+        delete(searchUrlBase);
         delete(targetUrlListener1);
 
         TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener1, null, null,
@@ -1017,7 +1019,7 @@ public class ListenerTest extends AbstractTest {
         // Verify that the listener was correctly registered
         Response response = given()
                 .queryParam("q", listenerName)
-                .when().get(registerUrlListener1)
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
@@ -1028,7 +1030,7 @@ public class ListenerTest extends AbstractTest {
         // Verify that the listener search with a no registered listener
         response = given()
                 .queryParam("q", listenerName)
-                .when().get(registerUrlListener1)
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
@@ -1050,13 +1052,12 @@ public class ListenerTest extends AbstractTest {
         initRoutingRules();
 
         String queryParam = "someQuery";
-        String listenerPath = "/_hooks/listeners";
-        String requestUrl = requestUrlBase + listenerPath;
+        String listenerPath = "/hooks/listeners";
 
         // Verify that the listener search with a no registered listener
         Response response = given()
                 .queryParam("q", queryParam)
-                .when().get(requestUrl)
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
@@ -1074,7 +1075,7 @@ public class ListenerTest extends AbstractTest {
 
         String queryParam = "testQuery";
         String listenerPath = "/_hooks/listeners";
-        String requestUrl = requestUrlBase + listenerPath + "?www=" + queryParam;
+        String requestUrl = searchUrlBase+ "?www=" + queryParam;
 
         // Validate the response
         checkGETStatusCodeWithAwait(requestUrl, 400);
@@ -1100,9 +1101,7 @@ public class ListenerTest extends AbstractTest {
         String[] methodsListener1 = new String[]{"PUT", "DELETE", "POST"};
         final String targetUrlListener1 = targetUrlBase + "/" + listenerName;
 
-        final String requestUrl = requestUrlBase + "/" + subresource;
-
-        delete(requestUrl);
+        delete(searchUrlBase);
         delete(targetUrlListener1);
 
         //Sending request, one listener hooked
@@ -1112,7 +1111,7 @@ public class ListenerTest extends AbstractTest {
         // Verify that the listener was correctly registered
         Response response = given()
                 .queryParam("q", listenerName)
-                .when().get(registerUrlListener1)
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(400)
                 .extract().response();
 
@@ -1159,7 +1158,7 @@ public class ListenerTest extends AbstractTest {
         // Perform a search for the listeners that should return only listenerOne and listenerTwo
         Response response = given()
                 .queryParam("q", "listener")
-                .when().get(requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix())
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(200)
                 .extract().response();
 

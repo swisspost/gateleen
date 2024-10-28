@@ -27,7 +27,7 @@ public class RouteListingTest extends AbstractTest {
     private String requestUrlBase;
     private String targetUrlBase;
     private String parentKey;
-
+    private String searchUrlBase;
 
     /**
      * Overwrite RestAssured configuration
@@ -39,6 +39,7 @@ public class RouteListingTest extends AbstractTest {
         parentKey = "routesource";
         requestUrlBase = "/tests/gateleen/" + parentKey;
         targetUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/tests/gateleen/routetarget";
+        searchUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/hooks/v1/registrations/routes";
     }
 
 
@@ -236,14 +237,14 @@ public class RouteListingTest extends AbstractTest {
 
         String queryParam = "routeTests";
         String routePath = "/routes";
-        String requestUrl = requestUrlBase + routePath;
+
 
         addRoute(queryParam, true, true);
 
         // Verify that the route was correctly registered
         Response response = given()
                 .queryParam("q", queryParam)
-                .when().get(requestUrl )
+                .when().get(searchUrlBase )
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
@@ -268,16 +269,23 @@ public class RouteListingTest extends AbstractTest {
 
         String nonMatchingQueryParam = "nonMatchingQuery";
         String queryParam = "other";
-        String routePath = "/routes";
-        String requestUrl = requestUrlBase + routePath;
 
         // Register a route using the addRoute method
         addRoute(queryParam, true, true);
         assertResponse(get(requestUrlBase), new String[]{queryParam+"/"});
 
         // Send GET request with a non-matching query param
-        Response response = given().queryParam("q", nonMatchingQueryParam)
-                .when().get(requestUrl)
+        Response response = given().queryParam("q", queryParam)
+                .when().get(searchUrlBase)
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        Assert.assertTrue("Query param should be found in response",
+                response.getBody().asString().contains(queryParam));
+
+        // Send GET request with a non-matching query param
+         response = given().queryParam("q", nonMatchingQueryParam)
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
@@ -287,7 +295,7 @@ public class RouteListingTest extends AbstractTest {
 
         // Send GET request with a matching query param
         response = given().queryParam("q", queryParam)
-                .when().get(requestUrl)
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
@@ -311,14 +319,10 @@ public class RouteListingTest extends AbstractTest {
         initSettings(); // Initialize routing rules
 
         String queryParam = "someQuery";
-        String routePath = "/routes";
-        String requestUrl = requestUrlBase + routePath;
-
         // No routes registered
-
         // Send GET request with a query param
         Response response = given().queryParam("q", queryParam)
-                .when().get(requestUrl)
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
