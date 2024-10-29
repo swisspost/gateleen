@@ -1,12 +1,10 @@
 package org.swisspush.gateleen.hook;
 
-import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.http.*;
-import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.HostAndPort;
@@ -19,7 +17,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,13 +31,11 @@ import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Router;
 
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.Map;
 
 import static io.vertx.core.http.HttpMethod.PUT;
 import static org.junit.Assert.*;
@@ -55,9 +50,6 @@ import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
  */
 @RunWith(VertxUnitRunner.class)
 public class HookHandlerTest {
-
-    public static final String CONTENT_TYPE_HEADER = "Content-Type";
-    public static final String CONTENT_TYPE_JSON = "application/json";
     private static final String HOOK_ROOT_URI = "hookRootURI/";
     private static final Logger logger = LoggerFactory.getLogger(HookHandlerTest.class);
     private Vertx vertx;
@@ -118,7 +110,28 @@ public class HookHandlerTest {
         return config;
     }
 
-    private JsonObject buildListenerConfigWithHeadersFilter(JsonObject queueingStrategy, String deviceId, String headersFilter){
+    private JsonObject buildRouteConfig(String routeId) {
+        JsonObject config = new JsonObject();
+        config.put("requesturl", "/playground/server/tests/"+ routeId+"/_hooks/routes/http/push/" );
+        config.put("expirationTime", "2017-01-03T14:15:53.277");
+
+        JsonObject hook = new JsonObject();
+        hook.put("destination", "/playground/server/push/v1/routes/" + routeId);
+        hook.put("methods", new JsonArray(Collections.singletonList("PUT")));
+        hook.put("timeout", 42);
+        hook.put("connectionPoolSize", 10);
+        JsonObject staticHeaders = new JsonObject();
+        staticHeaders.put("x-custom-header", "route-header-value");
+        hook.put("staticHeaders", staticHeaders);
+        config.put("hook", hook);
+        return config;
+    }
+    private void setRouteStorageEntryAndTriggerUpdate(JsonObject routeConfig) {
+        storage.putMockData("pathToRouteResource", routeConfig.encode());
+        vertx.eventBus().request("gateleen.hook-route-insert", "pathToRouteResource");
+    }
+
+    private JsonObject buildListenerConfigWithHeadersFilter(JsonObject queueingStrategy, String deviceId, String headersFilter) {
         JsonObject config = buildListenerConfig(queueingStrategy, deviceId);
         config.getJsonObject("hook").put("headersFilter", headersFilter);
         return config;
@@ -400,13 +413,13 @@ public class HookHandlerTest {
             final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
             final Buffer requestBody = new BufferImpl();
             requestBody.setBytes(0, ("{" +
-                "    \"methods\": [ \"PUT\" , \"DELETE\" ]," +
-                "    \"destination\": \"/an/example/destination/\"," +
-                "    \"timeout\": 42" +
-                "}").getBytes());
+                    "    \"methods\": [ \"PUT\" , \"DELETE\" ]," +
+                    "    \"destination\": \"/an/example/destination/\"," +
+                    "    \"timeout\": 42" +
+                    "}").getBytes());
 
             request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/route/http/my-service/my-hook",
-                requestHeaders, requestBody, statusCodePtr, statusMessagePtr
+                    requestHeaders, requestBody, statusCodePtr, statusMessagePtr
             );
         }
 
@@ -647,158 +660,20 @@ public class HookHandlerTest {
         vertx.eventBus().request("gateleen.hook-route-remove", "pathToRouterResource");
     }
 
-    @Test
-    public void testHandleGETRequestWithRouteSearch() {
-        // Mocking necessary components
-        HttpServerRequest mockRequest = mock(HttpServerRequest.class);
-        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
-        RoutingContext routingContext = mock(RoutingContext.class);
-
-        // Setting up a real MultiMap to simulate parameters
-        MultiMap params = MultiMap.caseInsensitiveMultiMap();
-        params.add("q", "routeId");
-
-        // Configuring mocks
-        when(routingContext.request()).thenReturn(mockRequest);
-        when(mockRequest.method()).thenReturn(HttpMethod.GET);
-        when(mockRequest.uri()).thenReturn("/hookRootURI/registrations/routes");
-        when(mockRequest.response()).thenReturn(mockResponse);
-        when(mockRequest.params()).thenReturn(params);
-
-        // Capture status code and response from mockResponse
-        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
-        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
-        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
-
-        // Execute the method
-        boolean result = hookHandler.handle(routingContext);
-
-        // Verifications
-        verify(mockRequest, times(1)).method();
-        verify(mockRequest, times(1)).uri();
-        assertTrue(result);
-
-        // Check the 'q' parameter value and expected status code
-        assertEquals("routeId", params.get("q"));
-        verify(mockResponse).setStatusCode(200);
-
-        // Verify the captured JSON response content
-        String jsonResponse = responseCaptor.getValue();
-        assertNotNull(jsonResponse);
-        assertTrue(jsonResponse.contains("\"routes\":"));
-
-        // Additional debug output
-        System.out.println("Parameter 'q' in params: " + params.get("q"));
-        System.out.println("Response body: " + jsonResponse);
-    }
-
-    @Test
-    public void testHandleGETRequestWithoutSearchParams() {
-        // Mocking necessary components
-        HttpServerRequest mockRequest = mock(HttpServerRequest.class);
-        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
-        RoutingContext routingContext = mock(RoutingContext.class);
-
-        // Setting up an empty MultiMap to simulate no parameters
-        MultiMap params = MultiMap.caseInsensitiveMultiMap();
-
-        // Configuring mocks
-        when(routingContext.request()).thenReturn(mockRequest);
-        when(mockRequest.method()).thenReturn(HttpMethod.GET);
-        when(mockRequest.uri()).thenReturn("/hookRootURI/registrations/listeners");
-        when(mockRequest.response()).thenReturn(mockResponse);
-        when(mockRequest.params()).thenReturn(params);
-
-        // Capture status code and response from mockResponse
-        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
-        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
-        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
-
-        // Execute the method
-        boolean result = hookHandler.handle(routingContext);
-
-        // Verifications
-        verify(mockRequest, times(1)).method();
-        verify(mockRequest, times(1)).uri();
-        assertTrue(result);
-
-        // Check that the parameters MultiMap is empty
-        assertTrue(params.isEmpty());
-        verify(mockResponse).setStatusCode(400);
-
-        // Verify captured response content
-        String jsonResponse = responseCaptor.getValue();
-        assertNotNull(jsonResponse);
-        assertTrue(jsonResponse.contains("Bad Request"));
-
-        // Additional debug output
-        System.out.println("Params is empty: " + params.isEmpty());
-        System.out.println("Response body: " + jsonResponse);
-    }
-
-    @Test
-    public void testHandleGETRequestWithInvalidParam() {
-        // Mocking necessary components
-        HttpServerRequest mockRequest = mock(HttpServerRequest.class);
-        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
-        RoutingContext routingContext = mock(RoutingContext.class);
-
-        // Setting up a real MultiMap to simulate an invalid parameter
-        MultiMap params = MultiMap.caseInsensitiveMultiMap();
-        params.add("invalid", "value");
-
-        // Configuring mocks
-        when(routingContext.request()).thenReturn(mockRequest);
-        when(mockRequest.method()).thenReturn(HttpMethod.GET);
-        when(mockRequest.uri()).thenReturn("/hookRootURI/registrations/listeners");
-        when(mockRequest.response()).thenReturn(mockResponse);
-        when(mockRequest.params()).thenReturn(params);
-
-        // Capture status code and response from mockResponse
-        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
-        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
-        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
-
-        // Execute the method
-        boolean result = hookHandler.handle(routingContext);
-
-        // Verifications
-        verify(mockRequest, times(1)).method();
-        verify(mockRequest, times(1)).uri();
-        assertTrue(result);
-
-        // Expecting status code 400 due to invalid parameter
-        verify(mockResponse).setStatusCode(400);
-
-        // Verify captured response content
-        String jsonResponse = responseCaptor.getValue();
-        assertNotNull(jsonResponse);
-        assertTrue(jsonResponse.contains("Bad Request"));
-
-        // Additional debug output
-        System.out.println("Invalid params: " + params);
-        System.out.println("Response body: " + jsonResponse);
-    }
 
     @Test
     public void testHandleGETRequestWithEmptyParam() {
-        // Mocking necessary components
-        HttpServerRequest mockRequest = mock(HttpServerRequest.class);
+        // Define URI and configures the request with an empty 'q' parameter
+        String uri = "/hookRootURI/registrations/listeners";
         HttpServerResponse mockResponse = mock(HttpServerResponse.class);
+        GETRequest request = new GETRequest(uri, mockResponse);
+        request.addParameter("q", ""); // Empty parameter to simulate bad request
+
+        // Mock RoutingContext
         RoutingContext routingContext = mock(RoutingContext.class);
+        when(routingContext.request()).thenReturn(request);
 
-        // Setting up a real MultiMap to simulate an empty 'q' parameter
-        MultiMap params = MultiMap.caseInsensitiveMultiMap();
-        params.add("q", "");
-
-        // Configuring mocks
-        when(routingContext.request()).thenReturn(mockRequest);
-        when(mockRequest.method()).thenReturn(HttpMethod.GET);
-        when(mockRequest.uri()).thenReturn("/hookRootURI/registrations/listeners");
-        when(mockRequest.response()).thenReturn(mockResponse);
-        when(mockRequest.params()).thenReturn(params);
-
-        // Capture status code and response from mockResponse
+        // Capture response content
         ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
         when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
         when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
@@ -807,22 +682,171 @@ public class HookHandlerTest {
         boolean result = hookHandler.handle(routingContext);
 
         // Verifications
-        verify(mockRequest, times(1)).method();
-        verify(mockRequest, times(1)).uri();
-        assertTrue(result);
-
-        // Expecting status code 400 due to empty 'q' parameter
-        verify(mockResponse).setStatusCode(400);
+        verify(mockResponse).setStatusCode(400); // Verify status 400 due to empty 'q' parameter
+        assertTrue(result); // Ensure the handler returned true
 
         // Verify captured response content
         String jsonResponse = responseCaptor.getValue();
         assertNotNull(jsonResponse);
-        assertTrue(jsonResponse.contains("Bad Request"));
-
-        // Additional debug output
-        System.out.println("Empty 'q' param: " + params.get("q"));
-        System.out.println("Response body: " + jsonResponse);
+        assertTrue(jsonResponse.contains("Bad Request")); // Confirm the response contains "Bad Request"
     }
+
+
+    @Test
+    public void testHandleGETRequestWithListenersSearchSingleResult() throws InterruptedException {
+        // Define URI and configure GET request with specific search parameter
+        String singleListener= "mySingleListener";
+        String uri = "/hookRootURI/registrations/listeners";
+        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
+        GETRequest request = new GETRequest(uri, mockResponse);
+        request.addParameter("q", singleListener);
+
+
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, singleListener, "x-foo: (A|B)"));
+        // wait a moment to let the listener be registered
+        Thread.sleep(500);
+        // Mock RoutingContext and configure response capture
+        RoutingContext routingContext = mock(RoutingContext.class);
+        when(routingContext.request()).thenReturn(request);
+
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the handler
+        boolean result = hookHandler.handle(routingContext);
+        assertTrue(result);
+
+        // Validate JSON response content for matching listener
+        String jsonResponse = responseCaptor.getValue();
+        assertNotNull(jsonResponse);
+        assertTrue(jsonResponse.contains(singleListener));
+    }
+
+    @Test
+    public void testHandleGETRequestWithListenersSearchMultipleResults() throws InterruptedException {
+        // Define the URI and set up the GET request with a broader search parameter for multiple listeners
+        String uri = "/hookRootURI/registrations/listeners";
+        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
+        GETRequest request = new GETRequest(uri, mockResponse);
+        request.addParameter("q", "listener"); // Search parameter that should match multiple listeners
+
+        // Add multiple listeners to the MockResourceStorage using the expected configuration and register them
+        String listenerId1 = "listener112222";
+        String listenerId2 = "listener222133";
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, listenerId1, "x-foo: (A|B)"));
+        Thread.sleep(500);
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, listenerId2, "x-foo: (A|B)"));
+        Thread.sleep(500);
+
+        // Mock the RoutingContext and set up the response capture
+        RoutingContext routingContext = mock(RoutingContext.class);
+        when(routingContext.request()).thenReturn(request);
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the handler
+        boolean result = hookHandler.handle(routingContext);
+        assertTrue(result);
+
+        // Validate the JSON response content for multiple matching listeners
+        String jsonResponse = responseCaptor.getValue();
+        assertNotNull(jsonResponse);
+        assertTrue(jsonResponse.contains(listenerId1));
+        assertTrue(jsonResponse.contains(listenerId2));
+    }
+
+
+    @Test
+    public void testHandleGETRequestWithRoutesSearchEmptyResult() {
+        // Define URI and configure request with specific 'q' parameter for routes search
+        String uri = "/hookRootURI/registrations/routes";
+        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
+        GETRequest request = new GETRequest(uri, mockResponse);
+        request.addParameter("q", "routeNotFound"); // Parameter that should result in no matches
+
+        // No routes are added to MockResourceStorage to simulate empty result
+        storage.putMockData("hookRootURI/registrations/routes", new JsonArray().encode());
+
+        // Mock RoutingContext and configure response capture
+        RoutingContext routingContext = mock(RoutingContext.class);
+        when(routingContext.request()).thenReturn(request);
+
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the handler
+        boolean result = hookHandler.handle(routingContext);
+
+        // Verifications
+        assertTrue(result);
+
+        // Verify response content with empty result
+        String jsonResponse = responseCaptor.getValue();
+        assertNotNull(jsonResponse);
+        assertEquals("{\"routes\":[]}", jsonResponse);
+    }
+    @Test
+    public void testHandleGETRequestWithRoutesSearchMultipleResults() throws InterruptedException {
+        // Define the URI and set up the GET request with a broad search parameter for multiple routes
+        String uri = "/hookRootURI/registrations/routes";
+        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
+        GETRequest request = new GETRequest(uri, mockResponse);
+        request.addParameter("q", "route"); // Search parameter that should match multiple routes
+
+        // Add multiple routes to the MockResourceStorage using the expected configuration and register them
+        String routeId1 = "route12345";
+        String routeId2 = "route67890";
+        setRouteStorageEntryAndTriggerUpdate(buildRouteConfig(routeId1));
+        Thread.sleep(500);
+        setRouteStorageEntryAndTriggerUpdate(buildRouteConfig( routeId2));
+        Thread.sleep(500);
+
+        // Mock the RoutingContext and set up the response capture
+        RoutingContext routingContext = mock(RoutingContext.class);
+        when(routingContext.request()).thenReturn(request);
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the handler
+        boolean result = hookHandler.handle(routingContext);
+        assertTrue(result);
+
+        // Validate the JSON response content for multiple matching routes
+        String jsonResponse = responseCaptor.getValue();
+        assertNotNull(jsonResponse);
+        assertTrue(jsonResponse.contains(routeId1));
+        assertTrue(jsonResponse.contains(routeId2));
+    }
+
+    @Test
+    public void testHandleListenerWithStorageAndEmptyList() {
+        // Set up the URI for listeners registration
+        String uri = "hookRootURI/registrations/listeners";
+        HttpServerResponse response = mock(HttpServerResponse.class);
+        GETRequest request = new GETRequest(uri,response) ;
+        // Add a valid query parameter for the listener search
+        request.addParameter("q", "validQueryParam");
+
+        // Capture the response output
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        RoutingContext routingContext = mock(RoutingContext.class);
+        when(routingContext.request()).thenReturn(request);
+
+        // Execute the handler and validate the response
+        boolean result = hookHandler.handle(routingContext);
+
+        assertTrue(result); // Ensure the handler returned true
+        verify(response).end(responseCaptor.capture());
+        // Validate the response JSON for an empty listener list
+        String actualResponse = responseCaptor.getValue();
+        assertNotNull(actualResponse);
+        assertEquals("{\"listeners\":[]}", actualResponse); // Response should contain an empty list
+    }
+
 
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -1097,6 +1121,7 @@ public class HookHandlerTest {
             headers.add(headerName, headerValue);
         }
     }
+
     private static class Request extends DummyHttpServerRequest {
         private MultiMap headers;
         private HttpMethod httpMethod;
@@ -1110,22 +1135,93 @@ public class HookHandlerTest {
             this.response = response;
         }
 
-        @Override public HttpMethod method() {
+        @Override
+        public HttpMethod method() {
             return httpMethod;
         }
-        @Override public String uri() {
+
+        @Override
+        public String uri() {
             return uri;
         }
-        @Override public HttpServerResponse response() { return response; }
-        @Override public MultiMap headers() { return headers; }
-        @Override public HttpServerRequest pause() { return this; }
-        @Override public HttpServerRequest resume() { return this; }
+
+        @Override
+        public HttpServerResponse response() {
+            return response;
+        }
+
+        @Override
+        public MultiMap headers() {
+            return headers;
+        }
+
+        @Override
+        public HttpServerRequest pause() {
+            return this;
+        }
+
+        @Override
+        public HttpServerRequest resume() {
+            return this;
+        }
     }
 
     private static class Response extends DummyHttpServerResponse {
         private MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
         @Override
-        public MultiMap headers() { return headers; }
+        public MultiMap headers() {
+            return headers;
+        }
+    }
+
+    static class GETRequest extends DummyHttpServerRequest {
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        MultiMap params = MultiMap.caseInsensitiveMultiMap();
+        private HttpServerResponse response;
+        private String uri;
+
+        public GETRequest(String uri, HttpServerResponse response) {
+            this.uri = uri;
+            this.response = response;
+        }
+
+        @Override
+        public HttpMethod method() {
+            return HttpMethod.GET;
+        }
+
+        @Override
+        public String uri() {
+            return uri;
+        }
+
+        @Override
+        public MultiMap headers() {
+            return headers;
+        }
+
+        @Override
+        public MultiMap params() {
+            return params;
+        }
+
+        @Override
+        public HttpServerResponse response() {
+            return response;
+        }
+
+        @Override
+        public String getParam(String paramName) {
+            return params.get(paramName);
+        }
+
+        public void addHeader(String headerName, String headerValue) {
+            headers.add(headerName, headerValue);
+        }
+
+        public void addParameter(String paramName, String paramValue) {
+            params.add(paramName, paramValue);
+        }
     }
 }
