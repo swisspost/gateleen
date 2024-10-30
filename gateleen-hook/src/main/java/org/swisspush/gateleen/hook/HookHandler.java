@@ -570,7 +570,6 @@ public class HookHandler implements LoggableResource {
             }
         }
 
-        // 1. Check if the request method is GET
         if (requestMethod == GET && !request.params().isEmpty()) {
             String queryParam = request.getParam("q");
             String normalizedRequestUri = requestUri.replaceAll("/$", "");
@@ -628,11 +627,10 @@ public class HookHandler implements LoggableResource {
 
     /**
      * Search the repository for items matching the query parameter.
-     * Returns a JSON response with the matched results.
-     * If any essential parameter (repository, response, getDestination) is null,
-     * a 400 Bad Request is returned.
-     *
-     * @param repository The items to search.
+     * Output a JSON response with the matched results.
+     * If parameter queryParam is empty or null a 400 Bad Request is returned.
+     * All params cannot be null
+     * @param repository The items to search .
      * @param getDestination Function to extract destinations.
      * @param queryParam The query string to match.
      * @param resultKey The key for the result in the response.
@@ -640,7 +638,7 @@ public class HookHandler implements LoggableResource {
      */
     private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerResponse response) {
 
-        if (repository == null || getDestination == null || resultKey == null || queryParam == null || queryParam.isEmpty()) {
+        if (queryParam == null || queryParam.isEmpty()) {
             response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode()).end("Bad Request: One or more required parameters are missing or null");
             return;
         }

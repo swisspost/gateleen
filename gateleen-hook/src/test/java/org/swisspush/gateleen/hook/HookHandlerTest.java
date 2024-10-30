@@ -8,7 +8,6 @@ import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.HostAndPort;
-import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.RoutingContext;
@@ -120,6 +119,7 @@ public class HookHandlerTest {
         hook.put("methods", new JsonArray(Collections.singletonList("PUT")));
         hook.put("timeout", 42);
         hook.put("connectionPoolSize", 10);
+
         JsonObject staticHeaders = new JsonObject();
         staticHeaders.put("x-custom-header", "route-header-value");
         hook.put("staticHeaders", staticHeaders);
@@ -662,7 +662,7 @@ public class HookHandlerTest {
 
 
     @Test
-    public void testHandleGETRequestWithEmptyParam() {
+    public void testHandleGETRequestWithEmptyParam(TestContext testContext) {
         // Define URI and configures the request with an empty 'q' parameter
         String uri = "/hookRootURI/registrations/listeners";
         HttpServerResponse mockResponse = mock(HttpServerResponse.class);
@@ -670,7 +670,6 @@ public class HookHandlerTest {
         request.addParameter("q", ""); // Empty parameter to simulate bad request
 
         // Mock RoutingContext
-        RoutingContext routingContext = mock(RoutingContext.class);
         when(routingContext.request()).thenReturn(request);
 
         // Capture response content
@@ -678,17 +677,17 @@ public class HookHandlerTest {
         when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
         when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
 
-        // Execute the method
+        // Execute the Handler
         boolean result = hookHandler.handle(routingContext);
 
-        // Verifications
-        verify(mockResponse).setStatusCode(400); // Verify status 400 due to empty 'q' parameter
-        assertTrue(result); // Ensure the handler returned true
-
+        // Verify status 400 due to empty 'q' parameter
+        verify(mockResponse).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        testContext.assertTrue(result);
         // Verify captured response content
         String jsonResponse = responseCaptor.getValue();
-        assertNotNull(jsonResponse);
-        assertTrue(jsonResponse.contains("Bad Request")); // Confirm the response contains "Bad Request"
+        testContext.assertNotNull(jsonResponse);
+        // Confirm the response contains "Bad Request"
+        testContext.assertTrue(jsonResponse.contains("Bad Request"));
     }
 
 
@@ -706,7 +705,6 @@ public class HookHandlerTest {
         // wait a moment to let the listener be registered
         Thread.sleep(500);
         // Mock RoutingContext and configure response capture
-        RoutingContext routingContext = mock(RoutingContext.class);
         when(routingContext.request()).thenReturn(request);
 
         ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
@@ -740,7 +738,6 @@ public class HookHandlerTest {
         Thread.sleep(500);
 
         // Mock the RoutingContext and set up the response capture
-        RoutingContext routingContext = mock(RoutingContext.class);
         when(routingContext.request()).thenReturn(request);
         ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
         when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
@@ -764,13 +761,12 @@ public class HookHandlerTest {
         String uri = "/hookRootURI/registrations/routes";
         HttpServerResponse mockResponse = mock(HttpServerResponse.class);
         GETRequest request = new GETRequest(uri, mockResponse);
-        request.addParameter("q", "routeNotFound"); // Parameter that should result in no matches
+        request.addParameter("q", "routeNotFound");
 
         // No routes are added to MockResourceStorage to simulate empty result
         storage.putMockData("hookRootURI/registrations/routes", new JsonArray().encode());
 
         // Mock RoutingContext and configure response capture
-        RoutingContext routingContext = mock(RoutingContext.class);
         when(routingContext.request()).thenReturn(request);
 
         ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
@@ -805,7 +801,6 @@ public class HookHandlerTest {
         Thread.sleep(500);
 
         // Mock the RoutingContext and set up the response capture
-        RoutingContext routingContext = mock(RoutingContext.class);
         when(routingContext.request()).thenReturn(request);
         ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
         when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
@@ -828,19 +823,18 @@ public class HookHandlerTest {
         String uri = "hookRootURI/registrations/listeners";
         HttpServerResponse response = mock(HttpServerResponse.class);
         GETRequest request = new GETRequest(uri,response) ;
-        // Add a valid query parameter for the listener search
         request.addParameter("q", "validQueryParam");
 
         // Capture the response output
         ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
-        RoutingContext routingContext = mock(RoutingContext.class);
         when(routingContext.request()).thenReturn(request);
 
         // Execute the handler and validate the response
         boolean result = hookHandler.handle(routingContext);
 
-        assertTrue(result); // Ensure the handler returned true
+        assertTrue(result);
         verify(response).end(responseCaptor.capture());
+
         // Validate the response JSON for an empty listener list
         String actualResponse = responseCaptor.getValue();
         assertNotNull(actualResponse);
@@ -1119,59 +1113,6 @@ public class HookHandlerTest {
 
         public void addHeader(String headerName, String headerValue) {
             headers.add(headerName, headerValue);
-        }
-    }
-
-    private static class Request extends DummyHttpServerRequest {
-        private MultiMap headers;
-        private HttpMethod httpMethod;
-        private String uri;
-        private HttpServerResponse response;
-
-        public Request(HttpMethod httpMethod, String uri, MultiMap headers, HttpServerResponse response) {
-            this.httpMethod = httpMethod;
-            this.uri = uri;
-            this.headers = headers;
-            this.response = response;
-        }
-
-        @Override
-        public HttpMethod method() {
-            return httpMethod;
-        }
-
-        @Override
-        public String uri() {
-            return uri;
-        }
-
-        @Override
-        public HttpServerResponse response() {
-            return response;
-        }
-
-        @Override
-        public MultiMap headers() {
-            return headers;
-        }
-
-        @Override
-        public HttpServerRequest pause() {
-            return this;
-        }
-
-        @Override
-        public HttpServerRequest resume() {
-            return this;
-        }
-    }
-
-    private static class Response extends DummyHttpServerResponse {
-        private MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-
-        @Override
-        public MultiMap headers() {
-            return headers;
         }
     }
 
