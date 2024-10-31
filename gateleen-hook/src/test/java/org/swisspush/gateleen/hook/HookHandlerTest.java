@@ -78,7 +78,7 @@ public class HookHandlerTest {
         requestQueue = mock(RequestQueue.class);
         reducedPropagationManager = mock(ReducedPropagationManager.class);
         hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, logAppenderRepository,
-                monitoringHandler, "userProfilePath", "hookRootURI/", requestQueue, false, reducedPropagationManager);
+                monitoringHandler, "userProfilePath", HOOK_ROOT_URI, requestQueue, false, reducedPropagationManager);
         hookHandler.init();
     }
 
