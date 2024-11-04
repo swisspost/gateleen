@@ -313,22 +313,63 @@ public class RouteListingTest extends AbstractTest {
      * Test for route listing when no routes are registered.
      */
     @Test
-    public void testRouteListing_NoRoutesRegistered(TestContext context) {
+    public void testSearchRouteListing_WhenNoRoutesRegistered(TestContext context) {
         Async async = context.async();
         delete(); // Ensure there's no previous data
         initSettings(); // Initialize routing rules
 
         String queryParam = "someQuery";
-        // No routes registered
-        // Send GET request with a query param
+
+        // Send GET request with a query param when no routes are registered
         Response response = given().queryParam("q", queryParam)
                 .when().get(searchUrlBase)
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
-        // Assert that the response body is empty or does not contain routes
-        Assert.assertFalse("No routes should be registered",
-                response.getBody().asString().contains(queryParam));
+        // Parse response body as JSON
+        JsonObject jsonResponse = new JsonObject(response.getBody().asString());
+
+        // Validate that "routes" exists and is an empty array
+        Assert.assertTrue("Expected 'routes' to be an empty array",
+                jsonResponse.containsKey("routes") && jsonResponse.getJsonArray("routes").isEmpty());
+
+        async.complete();
+    }
+
+    @Test
+    public void testRouteListing_WithAndWithoutQueryParam_SingleMatch(TestContext context) {
+        Async async = context.async();
+        delete(); // Clear any existing data before starting the test
+        initSettings(); // Initialize routing rules
+
+        String routeName = "singleRoute";
+        addRoute(routeName, true, true); // Add a route that will be the only matching result
+
+        // Perform search without 'q' parameter
+        Response responseWithoutParam = get(searchUrlBase)
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Perform search with 'q' parameter matching the route name
+        Response responseWithParam = given().queryParam("q", routeName)
+                .when().get(searchUrlBase)
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Extract response bodies as strings for comparison
+        String responseBodyWithoutParam = responseWithoutParam.getBody().asString();
+        String responseBodyWithParam = responseWithParam.getBody().asString();
+
+        // Verify that both responses are identical
+        Assert.assertEquals("Responses should be identical with and without 'q' when only one matching route exists",
+                responseBodyWithoutParam, responseBodyWithParam);
+
+        // Ensure the route name is present in both responses
+        Assert.assertTrue(responseBodyWithoutParam.contains(routeName));
+        Assert.assertTrue(responseBodyWithParam.contains(routeName));
+
+        // Clean up by removing the registered route after the test
+        removeRoute(routeName);
 
         async.complete();
     }

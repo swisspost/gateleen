@@ -841,6 +841,91 @@ public class HookHandlerTest {
         assertEquals("{\"listeners\":[]}", actualResponse); // Response should contain an empty list
     }
 
+    @Test
+    public void testHandleGETRequestWithExtraParam(TestContext testContext) {
+        // Define URI and configure the request with an extra parameter besides 'q'
+        String uri = "/hookRootURI/registrations/listeners";
+        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
+        GETRequest request = new GETRequest(uri, mockResponse);
+        request.addParameter("q", "validQueryParam");
+        request.addParameter("extra", "notAllowedParam"); // Extra parameter, not allowed
+
+        // Mock the RoutingContext
+        when(routingContext.request()).thenReturn(request);
+
+        // Capture the response content
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the Handler
+        boolean result = hookHandler.handle(routingContext);
+
+        // Verify status 400 due to the extra parameter
+        verify(mockResponse).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        testContext.assertTrue(result);
+
+        // Verify captured response content
+        String jsonResponse = responseCaptor.getValue();
+        testContext.assertNotNull(jsonResponse);
+        // Confirm that the response contains "Bad Request"
+        testContext.assertTrue(jsonResponse.contains("Bad Request"));
+    }
+
+    @Test
+    public void testHandleGETRequestWithTrailingSlash(TestContext testContext) {
+        // Define URI with trailing slash and configure the request
+        String uri = "/hookRootURI/registrations/listeners/";
+        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
+        GETRequest request = new GETRequest(uri, mockResponse);
+        request.addParameter("q", "validQueryParam");
+
+        // Mock the RoutingContext
+        when(routingContext.request()).thenReturn(request);
+
+        // Capture the response content
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the Handler
+        boolean result = hookHandler.handle(routingContext);
+
+        // Verify the result contains an empty listeners list
+        testContext.assertTrue(result);
+        String jsonResponse = responseCaptor.getValue();
+        testContext.assertNotNull(jsonResponse);
+        testContext.assertEquals("{\"listeners\":[]}", jsonResponse);
+    }
+
+    @Test
+    public void testHandleGETRequestWithInvalidParam(TestContext testContext) {
+        // Define URI with an invalid parameter different from 'q'
+        String uri = "/hookRootURI/registrations/listeners";
+        HttpServerResponse mockResponse = mock(HttpServerResponse.class);
+        GETRequest request = new GETRequest(uri, mockResponse);
+        request.addParameter("invalidParam", "someValue"); // Invalid parameter, not 'q'
+
+        // Mock the RoutingContext
+        when(routingContext.request()).thenReturn(request);
+
+        // Capture the response content
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the Handler
+        boolean result = hookHandler.handle(routingContext);
+
+        // Verify status 400 due to invalid parameter
+        verify(mockResponse).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        testContext.assertTrue(result);
+
+        // Verify captured response content
+        String jsonResponse = responseCaptor.getValue();
+        testContext.assertNotNull(jsonResponse);
+        // Confirm that the response contains "Bad Request"
+        testContext.assertTrue(jsonResponse.contains("Bad Request"));
+    }
 
 
     ///////////////////////////////////////////////////////////////////////////////
