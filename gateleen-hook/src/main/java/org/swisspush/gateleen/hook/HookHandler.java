@@ -159,6 +159,8 @@ public class HookHandler implements LoggableResource {
     private final QueueSplitter queueSplitter;
     private final String routeBase;
     private final String listenerBase;
+    private final String normalizedRouteBase;
+    private final String normalizedListenerBase;
 
     /**
      * Creates a new HookHandler.
@@ -293,6 +295,9 @@ public class HookHandler implements LoggableResource {
         jsonSchemaHook = JsonSchemaFactory.getInstance().getSchema(hookSchema);
         this.listenerBase = hookRootUri + HOOK_LISTENER_STORAGE_PATH;
         this.routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
+        this.normalizedListenerBase = this.listenerBase.replaceAll("/+$", "");
+        this.normalizedRouteBase = this.routeBase.replaceAll("/+$", "");
+
     }
 
     public void init() {
@@ -544,7 +549,7 @@ public class HookHandler implements LoggableResource {
     public boolean handle(final RoutingContext ctx) {
         HttpServerRequest request = ctx.request();
         boolean consumed = false;
-        var requestUri = request.uri();
+        var requestUri = request.uri().replaceAll("/+$", "");;
         /*
          * 1) Un- / Register Listener / Routes
          */
@@ -572,11 +577,15 @@ public class HookHandler implements LoggableResource {
 
         if (requestMethod == GET && !request.params().isEmpty()) {
             String queryParam = request.getParam("q");
-            String normalizedRequestUri = requestUri.replaceAll("/$", "");
-            if (normalizedRequestUri.contains(listenerBase.replaceAll("/$", ""))) {
+            if (request.params().size() > 1 || (queryParam == null) || (queryParam.isEmpty())) {
+                request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode())
+                        .end("Bad Request: Only the 'q' parameter is allowed and can't be empty or null");
+                return true;
+            }
+            if (requestUri.contains(normalizedListenerBase)) {
                 handleListenerSearch(queryParam, request.response());
                 return true;
-            } else if (normalizedRequestUri.contains(routeBase.replaceAll("/$", ""))) {
+            } else if (requestUri.contains(normalizedRouteBase)) {
                 handleRouteSearch(queryParam, request.response());
                 return true;
             }
@@ -617,7 +626,7 @@ public class HookHandler implements LoggableResource {
 
     private void handleRouteSearch(String queryParam, HttpServerResponse response) {
         handleSearch(
-                routeRepository.getRoutes(),
+                routeRepository.getRoutes().entrySet().stream().collect(Collectors.toMap(entry -> entry.getValue().getHookIdentify(), Map.Entry::getValue)),
                 route -> route.getHook().getDestination(),
                 queryParam,
                 ROUTES_KEY,
@@ -637,18 +646,12 @@ public class HookHandler implements LoggableResource {
      * @param response The HTTP response to return the results. Must not be null.
      */
     private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerResponse response) {
-
-        if (queryParam == null || queryParam.isEmpty()) {
-            response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode()).end("Bad Request: One or more required parameters are missing or null");
-            return;
-        }
-
         JsonArray matchingResults = new JsonArray();
 
         repository.forEach((key, value) -> {
             String destination = getDestination.apply(value);
             if (destination != null && destination.contains(queryParam)) {
-                matchingResults.add(key);
+                matchingResults.add(convertToStoragePattern(key));
             }
         });
 
@@ -1490,7 +1493,7 @@ public class HookHandler implements LoggableResource {
             target = hook.getDestination();
         } else {
             String urlPattern = hookRootUri + LISTENER_HOOK_TARGET_PATH + target;
-            routeRepository.addRoute(urlPattern, createRoute(urlPattern, hook));
+            routeRepository.addRoute(urlPattern, createRoute(urlPattern, hook, requestUrl));
 
             if (log.isTraceEnabled()) {
                 log.trace("external target, add route for urlPattern: {}", urlPattern);
@@ -1672,18 +1675,39 @@ public class HookHandler implements LoggableResource {
         }
 
         boolean mustCreateNewRoute = true;
+
+
         Route existingRoute = routeRepository.getRoutes().get(routedUrl);
         if (existingRoute != null) {
             mustCreateNewRoute = mustCreateNewRouteForHook(existingRoute, hook);
         }
         if (mustCreateNewRoute) {
-            routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook));
+            routeRepository.addRoute(routedUrl, createRoute(routedUrl , hook, requestUrl));
         } else {
             // see comment in #mustCreateNewRouteForHook()
             existingRoute.getRule().setHeaderFunction(hook.getHeaderFunction());
             existingRoute.getHook().setExpirationTime(hook.getExpirationTime().orElse(null));
         }
         monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+    }
+
+    /**
+     * Extracts the route name segment from the given request URL after the HOOKS_ROUTE_URI_PART.
+     * Returns an empty string if there is no route segment to extract.
+     *
+     * @param requestUrl the full URL of the request
+     * @return the extracted route name or an empty string if no route name is present
+     */
+    private String extractRouteName(String requestUrl) {
+        int startIdx = requestUrl.indexOf(HOOKS_ROUTE_URI_PART);
+        if (requestUrl.isEmpty() || startIdx == -1) {
+            return "";
+        }
+        startIdx += HOOKS_ROUTE_URI_PART.length();
+        if (startIdx < requestUrl.length()) {
+            return requestUrl.substring(startIdx);
+        }
+        return "";
     }
 
     /**
@@ -1730,9 +1754,9 @@ public class HookHandler implements LoggableResource {
      * @param hook       hook
      * @return Route
      */
-    private Route createRoute(String urlPattern, HttpHook hook) {
+    private Route createRoute(String urlPattern, HttpHook hook, String hookIdentify) {
         return new Route(vertx, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler,
-                userProfilePath, hook, urlPattern, selfClient);
+                userProfilePath, hook, urlPattern, selfClient,hookIdentify);
     }
 
     /**

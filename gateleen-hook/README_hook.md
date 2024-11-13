@@ -244,11 +244,13 @@ hookHandler.enableResourceLogging(true);
 
 Gateleen allows searching for listeners and routes using the query parameter `q`. This simplifies filtering the registered hooks based on query parameters.
 
+The search will be based on the value registered of the destination property
+
 ### Listener Search with `q`
 Search for listeners based on a query parameter like this:
 
 ```
-GET http://myserver:7012/playground/server/hooks/v1/registrations/listeners?q=test
+GET http://myserver:7012/playground/server/hooks/v1/registrations/listeners?q=mylistener
 ```
 
 The response will contain the matching listeners. If no match is found, an empty list is returned:
@@ -257,7 +259,7 @@ The response will contain the matching listeners. If no match is found, an empty
 ```json
 {
   "listeners": [
-    "first+playground+server+test+nemo+origin+b"
+    "first+playground+server+test+nemo+origin+mylistener"
   ]
 }
 ```
@@ -273,7 +275,23 @@ The response will contain the matching listeners. If no match is found, an empty
 Similarly, you can search for routes using a query parameter:
 
 ```
-GET http://myserver:7012/playground/server/hooks/v1/registrations/routes/?q=test
+GET http://myserver:7012/playground/server/hooks/v1/registrations/routes/?q=myroute
 ```
 
 The response contains the matching routes, or an empty list if no match is found.
+
+**Example response with matches:**
+```json
+{
+  "routes": [
+    "first+playground+server+test+nemo+origin+myroute"
+  ]
+}
+
+```
+**Example response with no matches:**
+```json
+{
+  "routes": []
+}
+```

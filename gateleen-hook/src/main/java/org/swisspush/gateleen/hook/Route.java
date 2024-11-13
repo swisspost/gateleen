@@ -49,6 +49,7 @@ public class Route {
     private MonitoringHandler monitoringHandler;
     private String userProfilePath;
     private ResourceStorage storage;
+    private String hookIdentify;
 
     private String urlPattern;
     private HttpHook httpHook;
@@ -79,7 +80,7 @@ public class Route {
      * @param urlPattern - this can be a listener or a normal urlPattern (eg. for a route)
      */
     public Route(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
-                 MonitoringHandler monitoringHandler, String userProfilePath, HttpHook httpHook, String urlPattern, HttpClient selfClient) {
+                 MonitoringHandler monitoringHandler, String userProfilePath, HttpHook httpHook, String urlPattern, HttpClient selfClient, String hookIdentify) {
         this.vertx = vertx;
         this.storage = storage;
         this.loggingResourceManager = loggingResourceManager;
@@ -89,6 +90,7 @@ public class Route {
         this.httpHook = httpHook;
         this.urlPattern = urlPattern;
         this.selfClient = selfClient;
+        this.hookIdentify = hookIdentify;
 
         createRule();
 
@@ -272,5 +274,9 @@ public class Route {
      */
     public HttpHook getHook() {
         return httpHook;
+    }
+
+    public String getHookIdentify() {
+        return hookIdentify;
     }
 }
