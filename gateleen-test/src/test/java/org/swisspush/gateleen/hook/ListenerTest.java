@@ -47,7 +47,6 @@ public class ListenerTest extends AbstractTest {
     private String defaultRegisterUrlListener;
     private String defaultTargetListener;
     private String[] defaultMethodsListener;
-    private final String defaultQueryParam = "defaultQueryParam";
     private final String defaultListenerName = "defaultListener";
 
     @Rule
@@ -65,7 +64,8 @@ public class ListenerTest extends AbstractTest {
         targetUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/tests/gateleen/targetresource";
         searchUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/hooks/v1/registrations/listeners";
 
-        defaultRegisterUrlListener = requestUrlBase + "/" + defaultQueryParam  + TestUtils.getHookListenersUrlSuffix() + defaultListenerName;
+        String defaultQueryParam = "defaultQueryParam";
+        defaultRegisterUrlListener = requestUrlBase + "/" + defaultQueryParam + TestUtils.getHookListenersUrlSuffix() + defaultListenerName;
         defaultTargetListener = targetUrlBase + "/" + defaultListenerName;
         defaultMethodsListener = new String[]{"PUT", "DELETE", "POST"};
 
@@ -1050,7 +1050,7 @@ public class ListenerTest extends AbstractTest {
         initRoutingRules();
 
         String queryParam = "testQuery";
-        String requestUrl = searchUrlBase+ "?q=" + queryParam+"&www=" + queryParam;;
+        String requestUrl = searchUrlBase+ "?q=" + queryParam+"&www=" + queryParam;
 
         // Validate the response
         checkGETStatusCodeWithAwait(requestUrl, 400);
