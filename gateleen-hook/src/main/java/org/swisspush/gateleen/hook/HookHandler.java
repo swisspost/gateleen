@@ -577,11 +577,11 @@ public class HookHandler implements LoggableResource {
 
         if (requestMethod == GET && !request.params().isEmpty()) {
             String queryParam = request.getParam("q");
-            if (requestUri.contains(normalizedListenerBase) && checkValidParams(request,queryParam)) {
-                handleListenerSearch(queryParam, request.response());
+            if (requestUri.contains(normalizedListenerBase) ) {
+                handleListenerSearch(queryParam, request);
                 return true;
-            } else if (requestUri.contains(normalizedRouteBase) && checkValidParams(request,queryParam)) {
-                handleRouteSearch(queryParam, request.response());
+            } else if (requestUri.contains(normalizedRouteBase) ) {
+                handleRouteSearch(queryParam, request);
                 return true;
             }
         }
@@ -609,32 +609,23 @@ public class HookHandler implements LoggableResource {
         }
     }
 
-    private boolean checkValidParams (HttpServerRequest request, String queryParam){
-        if (request.params().size() > 1 || (queryParam == null) || (queryParam.isEmpty())) {
-            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode())
-                    .end("Bad Request: Only the 'q' parameter is allowed and can't be empty or null");
-            return true;
-        }
-        return false;
-    }
-
-    private void handleListenerSearch(String queryParam, HttpServerResponse response) {
+    private void handleListenerSearch(String queryParam, HttpServerRequest request) {
         handleSearch(
                 listenerRepository.getListeners().stream().collect(Collectors.toMap(Listener::getListenerId, listener -> listener)),
                 listener -> listener.getHook().getDestination(),
                 queryParam,
                 LISTENERS_KEY,
-                response
+                request
         );
     }
 
-    private void handleRouteSearch(String queryParam, HttpServerResponse response) {
+    private void handleRouteSearch(String queryParam, HttpServerRequest request) {
         handleSearch(
                 routeRepository.getRoutes().entrySet().stream().collect(Collectors.toMap(entry -> entry.getValue().getHookIdentify(), Map.Entry::getValue)),
                 route -> route.getHook().getDestination(),
                 queryParam,
                 ROUTES_KEY,
-                response
+                request
         );
     }
 
@@ -647,9 +638,14 @@ public class HookHandler implements LoggableResource {
      * @param getDestination Function to extract destinations.
      * @param queryParam The query string to match.
      * @param resultKey The key for the result in the response.
-     * @param response The HTTP response to return the results. Must not be null.
+     * @param request The HTTP request to make a specific validations and return the results.
      */
-    private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerResponse response) {
+    private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerRequest request) {
+        if (request.params().size() > 1 || (queryParam == null) || (queryParam.isEmpty())) {
+            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode())
+                    .end("Bad Request: Only the 'q' parameter is allowed and can't be empty or null");
+            return ;
+        }
 
         JsonArray matchingResults = new JsonArray();
         repository.forEach((key, value) -> {
@@ -664,9 +660,10 @@ public class HookHandler implements LoggableResource {
 
         String encodedResult = result.encode();
 
-        response.putHeader(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
-        response.end(encodedResult);
+        request.response().putHeader(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
+        request.response().end(encodedResult);
     }
+
 
 
     /**
