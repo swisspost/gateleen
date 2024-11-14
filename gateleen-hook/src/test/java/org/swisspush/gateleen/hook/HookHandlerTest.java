@@ -896,7 +896,7 @@ public class HookHandlerTest {
     @Test
     public void testHandleGETRequestWithTrailingSlash(TestContext testContext) {
         // Define URI with trailing slash and configure the request
-        GETRequest request = new GETRequest(HOOK_LISTENER_URI, mockResponse);
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI+"/", mockResponse);
         request.addParameter("q", "validQueryParam");
 
         // Mock the RoutingContext
