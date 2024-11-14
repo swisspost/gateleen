@@ -239,8 +239,6 @@ public class RouteListingTest extends AbstractTest {
                 response.getBody().asString().contains(queryParam));
 
         response = searchWithQueryParam("q", nonMatchingQueryParam, 200);
-        Assert.assertFalse("Non-matching query param should not be found in response",
-                response.getBody().asString().contains(nonMatchingQueryParam));
         JsonObject jsonResponse = new JsonObject(response.getBody().asString());
         Assert.assertTrue("Expected 'routes' to be an empty array",
                 jsonResponse.containsKey("routes") && jsonResponse.getJsonArray("routes").isEmpty());
