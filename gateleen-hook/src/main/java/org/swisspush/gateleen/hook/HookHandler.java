@@ -549,7 +549,7 @@ public class HookHandler implements LoggableResource {
     public boolean handle(final RoutingContext ctx) {
         HttpServerRequest request = ctx.request();
         boolean consumed = false;
-        var requestUri = request.uri().replaceAll("/+$", "");;
+        var requestUri = request.uri().replaceAll("/+$", "");
         /*
          * 1) Un- / Register Listener / Routes
          */
@@ -577,15 +577,10 @@ public class HookHandler implements LoggableResource {
 
         if (requestMethod == GET && !request.params().isEmpty()) {
             String queryParam = request.getParam("q");
-            if (request.params().size() > 1 || (queryParam == null) || (queryParam.isEmpty())) {
-                request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode())
-                        .end("Bad Request: Only the 'q' parameter is allowed and can't be empty or null");
-                return true;
-            }
-            if (requestUri.contains(normalizedListenerBase)) {
+            if (requestUri.contains(normalizedListenerBase) && checkValidParams(request,queryParam)) {
                 handleListenerSearch(queryParam, request.response());
                 return true;
-            } else if (requestUri.contains(normalizedRouteBase)) {
+            } else if (requestUri.contains(normalizedRouteBase) && checkValidParams(request,queryParam)) {
                 handleRouteSearch(queryParam, request.response());
                 return true;
             }
@@ -612,6 +607,15 @@ public class HookHandler implements LoggableResource {
         } else {
             return true;
         }
+    }
+
+    private boolean checkValidParams (HttpServerRequest request, String queryParam){
+        if (request.params().size() > 1 || (queryParam == null) || (queryParam.isEmpty())) {
+            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode())
+                    .end("Bad Request: Only the 'q' parameter is allowed and can't be empty or null");
+            return true;
+        }
+        return false;
     }
 
     private void handleListenerSearch(String queryParam, HttpServerResponse response) {
@@ -646,8 +650,8 @@ public class HookHandler implements LoggableResource {
      * @param response The HTTP response to return the results. Must not be null.
      */
     private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerResponse response) {
-        JsonArray matchingResults = new JsonArray();
 
+        JsonArray matchingResults = new JsonArray();
         repository.forEach((key, value) -> {
             String destination = getDestination.apply(value);
             if (destination != null && destination.contains(queryParam)) {
@@ -1689,25 +1693,6 @@ public class HookHandler implements LoggableResource {
             existingRoute.getHook().setExpirationTime(hook.getExpirationTime().orElse(null));
         }
         monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
-    }
-
-    /**
-     * Extracts the route name segment from the given request URL after the HOOKS_ROUTE_URI_PART.
-     * Returns an empty string if there is no route segment to extract.
-     *
-     * @param requestUrl the full URL of the request
-     * @return the extracted route name or an empty string if no route name is present
-     */
-    private String extractRouteName(String requestUrl) {
-        int startIdx = requestUrl.indexOf(HOOKS_ROUTE_URI_PART);
-        if (requestUrl.isEmpty() || startIdx == -1) {
-            return "";
-        }
-        startIdx += HOOKS_ROUTE_URI_PART.length();
-        if (startIdx < requestUrl.length()) {
-            return requestUrl.substring(startIdx);
-        }
-        return "";
     }
 
     /**
