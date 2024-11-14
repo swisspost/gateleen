@@ -31,12 +31,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.CollectionContentComparator;
-import org.swisspush.gateleen.core.util.HttpHeaderUtil;
-import org.swisspush.gateleen.core.util.HttpRequestHeader;
-import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
-import org.swisspush.gateleen.core.util.ResourcesUtils;
-import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
 import org.swisspush.gateleen.hook.queueingstrategy.DiscardPayloadQueueingStrategy;
 import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
@@ -576,12 +571,11 @@ public class HookHandler implements LoggableResource {
         }
 
         if (requestMethod == GET && !request.params().isEmpty()) {
-            String queryParam = request.getParam("q");
             if (requestUri.contains(normalizedListenerBase) ) {
-                handleListenerSearch(queryParam, request);
+                handleListenerSearch(request);
                 return true;
             } else if (requestUri.contains(normalizedRouteBase) ) {
-                handleRouteSearch(queryParam, request);
+                handleRouteSearch(request);
                 return true;
             }
         }
@@ -609,21 +603,19 @@ public class HookHandler implements LoggableResource {
         }
     }
 
-    private void handleListenerSearch(String queryParam, HttpServerRequest request) {
+    private void handleListenerSearch(HttpServerRequest request) {
         handleSearch(
                 listenerRepository.getListeners().stream().collect(Collectors.toMap(Listener::getListenerId, listener -> listener)),
                 listener -> listener.getHook().getDestination(),
-                queryParam,
                 LISTENERS_KEY,
                 request
         );
     }
 
-    private void handleRouteSearch(String queryParam, HttpServerRequest request) {
+    private void handleRouteSearch(HttpServerRequest request) {
         handleSearch(
                 routeRepository.getRoutes().entrySet().stream().collect(Collectors.toMap(entry -> entry.getValue().getHookIdentify(), Map.Entry::getValue)),
                 route -> route.getHook().getDestination(),
-                queryParam,
                 ROUTES_KEY,
                 request
         );
@@ -636,12 +628,12 @@ public class HookHandler implements LoggableResource {
      * All params cannot be null
      * @param repository The items to search .
      * @param getDestination Function to extract destinations.
-     * @param queryParam The query string to match.
      * @param resultKey The key for the result in the response.
      * @param request The HTTP request to make a specific validations and return the results.
      */
-    private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String queryParam, String resultKey, HttpServerRequest request) {
-        if (request.params().size() > 1 || (queryParam == null) || (queryParam.isEmpty())) {
+    private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String resultKey, HttpServerRequest request) {
+        String queryParam = request.getParam("q");
+        if (request.params().size() > 1 || StringUtils.isEmpty(queryParam)) {
             request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode())
                     .end("Bad Request: Only the 'q' parameter is allowed and can't be empty or null");
             return ;
@@ -1738,7 +1730,7 @@ public class HookHandler implements LoggableResource {
      */
     private Route createRoute(String urlPattern, HttpHook hook, String hookIdentify) {
         return new Route(vertx, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler,
-                userProfilePath, hook, urlPattern, selfClient,hookIdentify);
+                userProfilePath, hook, urlPattern, selfClient, hookIdentify);
     }
 
     /**

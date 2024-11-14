@@ -195,40 +195,6 @@ public class RouteListingTest extends AbstractTest {
         async.complete();
     }
 
-    private void removeRoute(String name) {
-        String route = requestUrlBase + "/" + name + TestUtils.getHookRouteUrlSuffix();
-        TestUtils.unregisterRoute(route);
-    }
-
-    private void addRoute(String name, boolean collection, boolean listable) {
-        String route = requestUrlBase + "/" + name + TestUtils.getHookRouteUrlSuffix();
-        String target = targetUrlBase + "/" + name;
-        String[] methods = new String[]{"GET", "PUT", "DELETE", "POST"};
-
-        // just for security reasons (unregister route)
-        TestUtils.unregisterRoute(route);
-
-        TestUtils.registerRoute(route, target, methods, null, collection, listable);
-   }
-
-    private void assertResponse(final Response response, final String[] expectedArray) {
-        Assert.assertEquals(200, response.statusCode());
-        String bodyString = response.getBody().asString();
-        System.out.println("BODY => " + bodyString + " <=");
-        JsonObject body = new JsonObject(bodyString);
-        JsonArray array = body.getJsonArray(parentKey);
-        Assert.assertEquals(expectedArray.length, array.size());
-        Assert.assertThat(array, Matchers.contains(expectedArray));
-    }
-
-    private Response searchWithQueryParam(String searchParam, String queryParam, int expectedStatusCode ) {
-        return given()
-                .queryParam(searchParam, queryParam)
-                .when().get(searchUrlBase )
-                .then().assertThat().statusCode(expectedStatusCode)
-                .extract().response();
-    }
-
     @Test
     public void testHookHandleSearch_WithValidAndInvalidSearchParam(TestContext context) {
         Async async = context.async();
@@ -268,18 +234,16 @@ public class RouteListingTest extends AbstractTest {
         addRoute(queryParam, true, true);
         assertResponse(get(requestUrlBase), new String[]{queryParam+"/"});
 
-        // Send GET request with a non-matching query param
         Response response = searchWithQueryParam("q", queryParam, 200);
-
         Assert.assertTrue("Query param should be found in response",
                 response.getBody().asString().contains(queryParam));
 
-        // Send GET request with a non-matching query param
         response = searchWithQueryParam("q", nonMatchingQueryParam, 200);
-
-        // Assert the response does not contain the non-matching query param
         Assert.assertFalse("Non-matching query param should not be found in response",
                 response.getBody().asString().contains(nonMatchingQueryParam));
+        JsonObject jsonResponse = new JsonObject(response.getBody().asString());
+        Assert.assertTrue("Expected 'routes' to be an empty array",
+                jsonResponse.containsKey("routes") && jsonResponse.getJsonArray("routes").isEmpty());
 
         removeRoute(queryParam);
         async.complete();
@@ -338,5 +302,39 @@ public class RouteListingTest extends AbstractTest {
         removeRoute(routeName);
 
         async.complete();
+    }
+
+    private void removeRoute(String name) {
+        String route = requestUrlBase + "/" + name + TestUtils.getHookRouteUrlSuffix();
+        TestUtils.unregisterRoute(route);
+    }
+
+    private void addRoute(String name, boolean collection, boolean listable) {
+        String route = requestUrlBase + "/" + name + TestUtils.getHookRouteUrlSuffix();
+        String target = targetUrlBase + "/" + name;
+        String[] methods = new String[]{"GET", "PUT", "DELETE", "POST"};
+
+        // just for security reasons (unregister route)
+        TestUtils.unregisterRoute(route);
+
+        TestUtils.registerRoute(route, target, methods, null, collection, listable);
+   }
+
+    private void assertResponse(final Response response, final String[] expectedArray) {
+        Assert.assertEquals(200, response.statusCode());
+        String bodyString = response.getBody().asString();
+        System.out.println("BODY => " + bodyString + " <=");
+        JsonObject body = new JsonObject(bodyString);
+        JsonArray array = body.getJsonArray(parentKey);
+        Assert.assertEquals(expectedArray.length, array.size());
+        Assert.assertThat(array, Matchers.contains(expectedArray));
+    }
+
+    private Response searchWithQueryParam(String searchParam, String queryParam, int expectedStatusCode ) {
+        return given()
+                .queryParam(searchParam, queryParam)
+                .when().get(searchUrlBase )
+                .then().assertThat().statusCode(expectedStatusCode)
+                .extract().response();
     }
 }

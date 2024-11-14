@@ -888,92 +888,6 @@ public class ListenerTest extends AbstractTest {
         async.complete();
     }
 
-    /**
-     * Checks if the DELETE request gets a response
-     * with the given status code.
-     *
-     * @param requestUrl
-     * @param statusCode
-     */
-    private void checkDELETEStatusCode(String requestUrl, int statusCode) {
-        delete(requestUrl).then().assertThat().statusCode(statusCode);
-    }
-
-    /**
-     * Checks if the DELETE request gets a response
-     * with the given status code.
-     *
-     * @param requestUrl
-     * @param statusCode
-     * @param headers
-     */
-    private void checkDELETEStatusCode(String requestUrl, int statusCode, Headers headers) {
-        with().headers(headers).delete(requestUrl).then().assertThat().statusCode(statusCode);
-    }
-
-    /**
-     * Checks if the PUT request gets a response
-     * with the given status code.
-     *
-     * @param requestUrl
-     * @param body
-     * @param statusCode
-     */
-    private void checkPUTStatusCode(String requestUrl, String body, int statusCode) {
-        with().body(body).put(requestUrl).then().assertThat().statusCode(statusCode);
-    }
-
-    /**
-     * Checks if the PUT request gets a response
-     * with the given status code.
-     *
-     * @param requestUrl
-     * @param body
-     * @param statusCode
-     * @param headers
-     */
-    private void checkPUTStatusCode(String requestUrl, String body, int statusCode, Headers headers) {
-        with().headers(headers).body(body).put(requestUrl).then().assertThat().statusCode(statusCode);
-    }
-
-    /**
-     * Checks if the GET request for the
-     * resource gets a response with
-     * the given status code.
-     *
-     * @param request
-     * @param statusCode
-     */
-    private void checkGETStatusCodeWithAwait(final String request, final Integer statusCode) {
-        await().atMost(FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
-    }
-
-    /**
-     * Checks if the GET request of the
-     * given resource returns the wished body.
-     *
-     * @param requestUrl
-     * @param body
-     */
-    private void checkGETBodyWithAwait(final String requestUrl, final String body) {
-        await().atMost(TEN_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
-    }
-
-    private Response searchWithQueryParam(String searchParam, String queryParam, int expectedStatusCode ) {
-        return given()
-                .queryParam(searchParam, queryParam)
-                .when().get(searchUrlBase )
-                .then().assertThat().statusCode(expectedStatusCode)
-                .extract().response();
-    }
-    private void registerDefaultListener() {
-        delete();
-        initRoutingRules();
-        delete(searchUrlBase);
-        delete(defaultTargetListener);
-        TestUtils.registerListener(defaultRegisterUrlListener, defaultTargetListener, defaultMethodsListener, null, null,
-                null, null, "x-foo: (A|B)");
-    }
     @Test
     public void testSearchListenerWithValidAndInvalidSearchParam(TestContext context) {
         Async async = context.async();
@@ -984,7 +898,7 @@ public class ListenerTest extends AbstractTest {
 
         Response response = searchWithQueryParam("q",defaultListenerName,200);
 
-        Assert.assertTrue(response.getBody().asString().contains(defaultListenerName)); // Fails if not found
+        Assert.assertTrue(response.getBody().asString().contains(defaultListenerName));
         TestUtils.unregisterListener(defaultRegisterUrlListener);
 
         async.complete();
@@ -1023,7 +937,6 @@ public class ListenerTest extends AbstractTest {
         // Parse response body as JSON
         JsonObject jsonResponse = new JsonObject(response.getBody().asString());
 
-        // Assert that the response contains the expected query param
         Assert.assertTrue("Expected 'listeners' to be an empty array",
                 jsonResponse.containsKey("listeners") && jsonResponse.getJsonArray("listeners").isEmpty());
         async.complete();
@@ -1066,13 +979,13 @@ public class ListenerTest extends AbstractTest {
         registerDefaultListener();
 
         Response response = given()
-                    .queryParam("q", defaultListenerName)
-                    .when().get(searchUrlBase +"/")
-                    .then().assertThat().statusCode(200)
-                    .extract().response();
+                .queryParam("q", defaultListenerName)
+                .when().get(searchUrlBase +"/")
+                .then().assertThat().statusCode(200)
+                .extract().response();
 
         // Assert that the response contains the expected query param
-        Assert.assertTrue(response.getBody().asString().contains(defaultListenerName)); // Fails if not found
+        Assert.assertTrue(response.getBody().asString().contains(defaultListenerName));
 
         TestUtils.unregisterListener(defaultRegisterUrlListener);
 
@@ -1088,8 +1001,7 @@ public class ListenerTest extends AbstractTest {
 
         Response response = searchWithQueryParam("q","",400);
 
-        // Assert that the response contains the expected query param
-        Assert.assertTrue(response.getBody().asString().contains("Bad Request")); // Fails if not found
+        Assert.assertTrue(response.getBody().asString().contains("Bad Request"));
         TestUtils.unregisterListener(defaultRegisterUrlListener);
 
         async.complete();
@@ -1184,5 +1096,90 @@ public class ListenerTest extends AbstractTest {
         // Clean up by removing the registered listener after the test
         TestUtils.unregisterListener(defaultRegisterUrlListener);
         async.complete();
+    }
+
+    /**
+     * Checks if the DELETE request gets a response
+     * with the given status code.
+     *
+     * @param requestUrl
+     * @param statusCode
+     */
+    private void checkDELETEStatusCode(String requestUrl, int statusCode) {
+        delete(requestUrl).then().assertThat().statusCode(statusCode);
+    }
+
+    /**
+     * Checks if the DELETE request gets a response
+     * with the given status code.
+     *
+     * @param requestUrl
+     * @param statusCode
+     * @param headers
+     */
+    private void checkDELETEStatusCode(String requestUrl, int statusCode, Headers headers) {
+        with().headers(headers).delete(requestUrl).then().assertThat().statusCode(statusCode);
+    }
+
+    /**
+     * Checks if the PUT request gets a response
+     * with the given status code.
+     *
+     * @param requestUrl
+     * @param body
+     * @param statusCode
+     */
+    private void checkPUTStatusCode(String requestUrl, String body, int statusCode) {
+        with().body(body).put(requestUrl).then().assertThat().statusCode(statusCode);
+    }
+
+    /**
+     * Checks if the PUT request gets a response
+     * with the given status code.
+     *
+     * @param requestUrl
+     * @param body
+     * @param statusCode
+     * @param headers
+     */
+    private void checkPUTStatusCode(String requestUrl, String body, int statusCode, Headers headers) {
+        with().headers(headers).body(body).put(requestUrl).then().assertThat().statusCode(statusCode);
+    }
+
+    /**
+     * Checks if the GET request for the
+     * resource gets a response with
+     * the given status code.
+     *
+     * @param request
+     * @param statusCode
+     */
+    private void checkGETStatusCodeWithAwait(final String request, final Integer statusCode) {
+        await().atMost(FIVE_SECONDS).until(() -> String.valueOf(when().get(request).getStatusCode()), equalTo(String.valueOf(statusCode)));
+    }
+
+    /**
+     * Checks if the GET request of the
+     * given resource returns the wished body.
+     *
+     * @param requestUrl
+     * @param body
+     */
+    private void checkGETBodyWithAwait(final String requestUrl, final String body) {
+        await().atMost(TEN_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
+    }
+
+    private Response searchWithQueryParam(String searchParam, String queryParam, int expectedStatusCode ) {
+        return given()
+                .queryParam(searchParam, queryParam)
+                .when().get(searchUrlBase )
+                .then().assertThat().statusCode(expectedStatusCode)
+                .extract().response();
+    }
+    private void registerDefaultListener() {
+        delete();
+        initRoutingRules();
+        TestUtils.registerListener(defaultRegisterUrlListener, defaultTargetListener, defaultMethodsListener, null, null,
+                null, null, "x-foo: (A|B)");
     }
 }

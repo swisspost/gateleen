@@ -703,7 +703,7 @@ public class HookHandlerTest {
 
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, singleListener, "x-foo: (A|B)"));
         // wait a moment to let the listener be registered
-        Thread.sleep(500);
+        Thread.sleep(200);
         // Mock RoutingContext and configure response capture
         when(routingContext.request()).thenReturn(request);
 
@@ -727,15 +727,18 @@ public class HookHandlerTest {
         String uri = "/hookRootURI/registrations/listeners";
         HttpServerResponse mockResponse = mock(HttpServerResponse.class);
         GETRequest request = new GETRequest(uri, mockResponse);
-        request.addParameter("q", "listener"); // Search parameter that should match multiple listeners
+        request.addParameter("q", "myListener"); // Search parameter that should match multiple listeners
 
         // Add multiple listeners to the MockResourceStorage using the expected configuration and register them
-        String listenerId1 = "listener112222";
-        String listenerId2 = "listener222133";
+        String listenerId1 = "myListener112222";
+        String listenerId2 = "myListener222133";
+        String notMatchListener = "notMatchListener";
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, listenerId1, "x-foo: (A|B)"));
-        Thread.sleep(500);
+        Thread.sleep(200);
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, listenerId2, "x-foo: (A|B)"));
-        Thread.sleep(500);
+        Thread.sleep(200);
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, notMatchListener, "x-foo: (A|B)"));
+        Thread.sleep(200);
 
         // Mock the RoutingContext and set up the response capture
         when(routingContext.request()).thenReturn(request);
@@ -752,6 +755,7 @@ public class HookHandlerTest {
         assertNotNull(jsonResponse);
         assertTrue(jsonResponse.contains(listenerId1));
         assertTrue(jsonResponse.contains(listenerId2));
+        assertFalse(jsonResponse.contains(notMatchListener));
     }
 
 
@@ -790,15 +794,18 @@ public class HookHandlerTest {
         String uri = "/hookRootURI/registrations/routes";
         HttpServerResponse mockResponse = mock(HttpServerResponse.class);
         GETRequest request = new GETRequest(uri, mockResponse);
-        request.addParameter("q", "route"); // Search parameter that should match multiple routes
+        request.addParameter("q", "valid"); // Search parameter that should match multiple routes
 
         // Add multiple routes to the MockResourceStorage using the expected configuration and register them
-        String routeId1 = "route12345";
-        String routeId2 = "route67890";
+        String routeId1 = "valid12345";
+        String routeId2 = "valid67890";
+        String notPreset = "notPreset";
         setRouteStorageEntryAndTriggerUpdate(buildRouteConfig(routeId1));
-        Thread.sleep(500);
+        Thread.sleep(200);
         setRouteStorageEntryAndTriggerUpdate(buildRouteConfig( routeId2));
-        Thread.sleep(500);
+        Thread.sleep(200);
+        setRouteStorageEntryAndTriggerUpdate(buildRouteConfig( notPreset));
+        Thread.sleep(200);
 
         // Mock the RoutingContext and set up the response capture
         when(routingContext.request()).thenReturn(request);
@@ -815,6 +822,7 @@ public class HookHandlerTest {
         assertNotNull(jsonResponse);
         assertTrue(jsonResponse.contains(routeId1));
         assertTrue(jsonResponse.contains(routeId2));
+        assertFalse(jsonResponse.contains(notPreset));
     }
 
     @Test
@@ -1240,10 +1248,6 @@ public class HookHandlerTest {
         @Override
         public String getParam(String paramName) {
             return params.get(paramName);
-        }
-
-        public void addHeader(String headerName, String headerValue) {
-            headers.add(headerName, headerValue);
         }
 
         public void addParameter(String paramName, String paramValue) {
