@@ -6,11 +6,13 @@ import com.google.common.collect.ImmutableMap;
 import io.restassured.RestAssured;
 import io.restassured.http.Header;
 import io.restassured.http.Headers;
+import io.restassured.response.Response;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.awaitility.Awaitility;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,9 +43,15 @@ public class ListenerTest extends AbstractTest {
     private final static int WIREMOCK_PORT = 8881;
     private String requestUrlBase;
     private String targetUrlBase;
+    private String searchUrlBase;
+    private String defaultRegisterUrlListener;
+    private String defaultTargetListener;
+    private String[] defaultMethodsListener;
+    private final String defaultListenerName = "defaultListener";
 
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(WIREMOCK_PORT);
+
 
     /**
      * Overwrite RestAssured configuration
@@ -54,6 +62,12 @@ public class ListenerTest extends AbstractTest {
 
         requestUrlBase = "/tests/gateleen/monitoredresource";
         targetUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/tests/gateleen/targetresource";
+        searchUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/hooks/v1/registrations/listeners";
+
+        String defaultQueryParam = "defaultQueryParam";
+        defaultRegisterUrlListener = requestUrlBase + "/" + defaultQueryParam + TestUtils.getHookListenersUrlSuffix() + defaultListenerName;
+        defaultTargetListener = targetUrlBase + "/" + defaultListenerName;
+        defaultMethodsListener = new String[]{"PUT", "DELETE", "POST"};
     }
 
     /**
@@ -872,6 +886,216 @@ public class ListenerTest extends AbstractTest {
         async.complete();
     }
 
+    @Test
+    public void testSearchListenerWithValidAndInvalidSearchParam(TestContext context) {
+        Async async = context.async();
+        registerDefaultListener();
+
+        searchWithQueryParam("wq", defaultListenerName, 400);
+        searchWithQueryParam("q", "", 400);
+
+        Response response = searchWithQueryParam("q",defaultListenerName,200);
+
+        Assert.assertTrue(response.getBody().asString().contains(defaultListenerName));
+        TestUtils.unregisterListener(defaultRegisterUrlListener);
+
+        async.complete();
+    }
+
+    @Test
+    public void testSearchListenerWithNonMatchingQueryParam(TestContext context) {
+        Async async = context.async();
+
+        registerDefaultListener();
+        // Verify that the listener was correctly registered
+        Response response = searchWithQueryParam("q",defaultListenerName,200);
+        Assert.assertTrue(response.getBody().asString().contains(defaultListenerName));
+
+        String localListenerName="nonMatchingQueryParam";
+        // Verify that the listener search with a no registered listener
+        response = searchWithQueryParam("q",localListenerName,200);
+        Assert.assertFalse(response.getBody().asString().contains(localListenerName));
+
+        TestUtils.unregisterListener(defaultRegisterUrlListener);
+
+        async.complete();
+    }
+
+    @Test
+    public void testHookHandleSearch_NoListenersRegistered(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "someQuery";
+
+        // Verify that the listener search with a no registered listener
+        Response response = searchWithQueryParam("q",queryParam,200);
+
+        // Parse response body as JSON
+        JsonObject jsonResponse = new JsonObject(response.getBody().asString());
+
+        Assert.assertTrue("Expected 'listeners' to be an empty array",
+                jsonResponse.containsKey("listeners") && jsonResponse.getJsonArray("listeners").isEmpty());
+        async.complete();
+    }
+
+    @Test
+    public void testHookHandleSearch_ListenerPathInvalidParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "testQuery";
+        String requestUrl = searchUrlBase+ "?www=" + queryParam;
+
+        // Validate the response
+        checkGETStatusCodeWithAwait(requestUrl, 400);
+        async.complete();
+    }
+
+    @Test
+    public void testHookHandleSearch_ListenerTwoParam(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String queryParam = "testQuery";
+        String requestUrl = searchUrlBase+ "?q=" + queryParam+"&www=" + queryParam;
+
+        // Validate the response
+        checkGETStatusCodeWithAwait(requestUrl, 400);
+        async.complete();
+    }
+
+    @Test
+    public void testHookHandleSearch_UseSlashInSearchUrlBase(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        registerDefaultListener();
+
+        Response response = given()
+                .queryParam("q", defaultListenerName)
+                .when().get(searchUrlBase +"/")
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Assert that the response contains the expected query param
+        Assert.assertTrue(response.getBody().asString().contains(defaultListenerName));
+
+        TestUtils.unregisterListener(defaultRegisterUrlListener);
+
+        async.complete();
+    }
+
+    @Test
+    public void testHookHandleSearch_EmptyQueryParameter(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+        registerDefaultListener();
+
+        Response response = searchWithQueryParam("q","",400);
+
+        Assert.assertTrue(response.getBody().asString().contains("Only the 'q' parameter is allowed and can't be empty or null"));
+        TestUtils.unregisterListener(defaultRegisterUrlListener);
+
+        async.complete();
+    }
+
+    @Test
+    public void testHookHandleSearch_ReturnsTwoOutOfThreeListeners(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        // Settings for the three listeners
+        String subresource = "multiListenerTest";
+        String listenerName1 = "listenerOne";
+        String listenerName2 = "listenerTwo";
+        String listenerName3 = "NoMatchThree";
+
+        String registerUrlListener1 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName1;
+        String registerUrlListener2 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName2;
+        String registerUrlListener3 = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName3;
+
+        String targetListener1 = targetUrlBase + "/" + listenerName1;
+        String targetListener2 = targetUrlBase + "/" + listenerName2;
+        String targetListener3 = targetUrlBase + "/" + listenerName3;
+
+        String[] methodsListener = new String[]{"PUT", "DELETE", "POST"};
+
+        delete(registerUrlListener1);
+        delete(registerUrlListener2);
+        delete(registerUrlListener3);
+
+        // Adding the three listeners
+        TestUtils.registerListener(registerUrlListener1, targetListener1, methodsListener, null, null,
+                null, null, "x-foo: (A|B)");
+        TestUtils.registerListener(registerUrlListener2, targetListener2, methodsListener, null, null,
+                null, null, "x-foo: (A|B)");
+        TestUtils.registerListener(registerUrlListener3, targetListener3, methodsListener, null, null,
+                null, null, "x-foo: (A|B)");
+        // Perform a search for the listeners that should return only listenerOne and listenerTwo
+        // added in searchUrlBase a '/' to validate if also works
+        Response response = given()
+                .queryParam("q", "listener")
+                .when().get(searchUrlBase+"/")
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Assert that the search contains listenerOne and listenerTwo but not listenerThree
+        Assert.assertTrue(response.getBody().asString().contains(listenerName1));
+        Assert.assertTrue(response.getBody().asString().contains(listenerName2));
+        Assert.assertFalse(response.getBody().asString().contains(listenerName3));
+
+        // Unregister the listeners
+        TestUtils.unregisterListener(registerUrlListener1);
+        TestUtils.unregisterListener(registerUrlListener2);
+        TestUtils.unregisterListener(registerUrlListener3);
+
+        async.complete();
+    }
+
+    /**
+     * Test to verify that the search for listeners returns identical results
+     * when performed with and without a query parameter if only one matching listener exists.
+     * Registers a listener and performs searches, confirming that both responses match.
+     */
+    @Test
+    public void testSearchListener_IdenticalResultsWithAndWithoutQueryParam(TestContext context) {
+        Async async = context.async();
+        registerDefaultListener();
+
+        // Perform search with 'q' parameter matching the listener name
+        Response responseWithParam = searchWithQueryParam("q",defaultListenerName,200);
+
+        // Perform search without 'q' parameter
+        Response responseWithoutParam = given().when().get(searchUrlBase)
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Extract response bodies as strings for comparison
+        String responseBodyWithoutParam = responseWithoutParam.getBody().asString();
+        String responseBodyWithParam = responseWithParam.getBody().asString();
+
+        // Verify that both responses are identical
+        Assert.assertEquals("Responses should be identical with and without 'q' when only one matching listener exists",
+                responseBodyWithoutParam, responseBodyWithParam);
+
+        // Ensure the listener name is present in both responses
+        Assert.assertTrue("Listener name should be present in response without parameter",
+                responseBodyWithoutParam.contains(defaultListenerName));
+        Assert.assertTrue("Listener name should be present in response with parameter",
+                responseBodyWithParam.contains(defaultListenerName));
+
+        // Clean up by removing the registered listener after the test
+        TestUtils.unregisterListener(defaultRegisterUrlListener);
+        async.complete();
+    }
+
     /**
      * Checks if the DELETE request gets a response
      * with the given status code.
@@ -941,5 +1165,19 @@ public class ListenerTest extends AbstractTest {
      */
     private void checkGETBodyWithAwait(final String requestUrl, final String body) {
         await().atMost(TEN_SECONDS).until(() -> when().get(requestUrl).then().extract().body().asString(), equalTo(body));
+    }
+
+    private Response searchWithQueryParam(String searchParam, String queryParam, int expectedStatusCode ) {
+        return given()
+                .queryParam(searchParam, queryParam)
+                .when().get(searchUrlBase)
+                .then().assertThat().statusCode(expectedStatusCode)
+                .extract().response();
+    }
+    private void registerDefaultListener() {
+        delete();
+        initRoutingRules();
+        TestUtils.registerListener(defaultRegisterUrlListener, defaultTargetListener, defaultMethodsListener, null, null,
+                null, null, "x-foo: (A|B)");
     }
 }

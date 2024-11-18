@@ -15,14 +15,13 @@ import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
-import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
-import org.swisspush.gateleen.core.http.FastFailHttpServerRequest;
-import org.swisspush.gateleen.core.http.FastFailHttpServerResponse;
+import org.swisspush.gateleen.core.http.*;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.hook.reducedpropagation.ReducedPropagationManager;
 import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -38,8 +37,9 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 import static io.vertx.core.http.HttpMethod.PUT;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
 
 /**
@@ -49,8 +49,9 @@ import static org.swisspush.gateleen.core.util.HttpRequestHeader.*;
  */
 @RunWith(VertxUnitRunner.class)
 public class HookHandlerTest {
-
     private static final String HOOK_ROOT_URI = "hookRootURI/";
+    private static final String HOOK_LISTENER_URI = "/"+ HOOK_ROOT_URI + "registrations/listeners";
+    String HOOK_ROUTE_URI = "/"+ HOOK_ROOT_URI + "registrations/routes";
     private static final Logger logger = LoggerFactory.getLogger(HookHandlerTest.class);
     private Vertx vertx;
     private HttpClient httpClient;
@@ -64,24 +65,23 @@ public class HookHandlerTest {
     private HookHandler hookHandler;
 
     private RoutingContext routingContext;
-
+    private HttpServerResponse mockResponse;
 
     @Before
     public void setUp() {
         vertx = Vertx.vertx();
-        routingContext = Mockito.mock(RoutingContext.class);
-        httpClient = Mockito.mock(HttpClient.class);
-        Mockito.when(httpClient.request(any(HttpMethod.class), anyString())).thenReturn(Mockito.mock(Future.class));
+        routingContext = mock(RoutingContext.class);
+        httpClient = mock(HttpClient.class);
+        when(httpClient.request(any(HttpMethod.class), anyString())).thenReturn(mock(Future.class));
         storage = new MockResourceStorage();
-        loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
-        logAppenderRepository = Mockito.mock(LogAppenderRepository.class);
-        monitoringHandler = Mockito.mock(MonitoringHandler.class);
-        requestQueue = Mockito.mock(RequestQueue.class);
-        reducedPropagationManager = Mockito.mock(ReducedPropagationManager.class);
-
-
-        hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler,
-                "userProfilePath", HOOK_ROOT_URI, requestQueue, false, reducedPropagationManager);
+        loggingResourceManager = mock(LoggingResourceManager.class);
+        logAppenderRepository = mock(LogAppenderRepository.class);
+        monitoringHandler = mock(MonitoringHandler.class);
+        requestQueue = mock(RequestQueue.class);
+        reducedPropagationManager = mock(ReducedPropagationManager.class);
+        mockResponse = mock(HttpServerResponse.class);
+        hookHandler = new HookHandler(vertx, httpClient, storage, loggingResourceManager, logAppenderRepository,
+                monitoringHandler, "userProfilePath", HOOK_ROOT_URI, requestQueue, false, reducedPropagationManager);
         hookHandler.init();
     }
 
@@ -112,7 +112,29 @@ public class HookHandlerTest {
         return config;
     }
 
-    private JsonObject buildListenerConfigWithHeadersFilter(JsonObject queueingStrategy, String deviceId, String headersFilter){
+    private JsonObject buildRouteConfig(String routeId) {
+        JsonObject config = new JsonObject();
+        config.put("requesturl", "/playground/server/tests/"+ routeId+"/_hooks/routes/http/push/" );
+        config.put("expirationTime", "2017-01-03T14:15:53.277");
+
+        JsonObject hook = new JsonObject();
+        hook.put("destination", "/playground/server/push/v1/routes/" + routeId);
+        hook.put("methods", new JsonArray(Collections.singletonList("PUT")));
+        hook.put("timeout", 42);
+        hook.put("connectionPoolSize", 10);
+
+        JsonObject staticHeaders = new JsonObject();
+        staticHeaders.put("x-custom-header", "route-header-value");
+        hook.put("staticHeaders", staticHeaders);
+        config.put("hook", hook);
+        return config;
+    }
+    private void setRouteStorageEntryAndTriggerUpdate(JsonObject routeConfig) {
+        storage.putMockData("pathToRouteResource", routeConfig.encode());
+        vertx.eventBus().request("gateleen.hook-route-insert", "pathToRouteResource");
+    }
+
+    private JsonObject buildListenerConfigWithHeadersFilter(JsonObject queueingStrategy, String deviceId, String headersFilter) {
         JsonObject config = buildListenerConfig(queueingStrategy, deviceId);
         config.getJsonObject("hook").put("headersFilter", headersFilter);
         return config;
@@ -133,7 +155,7 @@ public class HookHandlerTest {
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
 
         hookHandler.handle(routingContext);
 
@@ -160,7 +182,7 @@ public class HookHandlerTest {
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITH the payload
@@ -185,7 +207,7 @@ public class HookHandlerTest {
         String originalPayload = "{\"key\":123}";
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITHOUT the payload but with 'Content-Length : 0' header
@@ -197,7 +219,7 @@ public class HookHandlerTest {
         }), anyString(), any(Handler.class));
 
         PUTRequest putRequestWithoutContentLengthHeader = new PUTRequest(uri, originalPayload);
-        Mockito.when(routingContext.request()).thenReturn(putRequestWithoutContentLengthHeader);
+        when(routingContext.request()).thenReturn(putRequestWithoutContentLengthHeader);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITHOUT the payload and WITHOUT 'Content-Length' header
@@ -226,7 +248,7 @@ public class HookHandlerTest {
         String originalPayload = "{\"key\":123}";
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that no enqueue (or lockedEnqueue) has been called because no ReducedPropagationManager was configured
@@ -252,7 +274,7 @@ public class HookHandlerTest {
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         String targetUri = "/playground/server/push/v1/devices/" + deviceId + "/playground/server/tests/hooktest/abc123";
@@ -274,7 +296,7 @@ public class HookHandlerTest {
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITH the payload
@@ -301,7 +323,7 @@ public class HookHandlerTest {
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
         putRequest.addHeader("x-foo", "A");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that enqueue has been called WITH the payload
@@ -326,7 +348,7 @@ public class HookHandlerTest {
         String originalPayload = "{\"key\":123}";
         PUTRequest putRequest = new PUTRequest(uri, originalPayload);
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         // verify that no enqueue has been called since the header did not match
@@ -369,7 +391,7 @@ public class HookHandlerTest {
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -394,18 +416,18 @@ public class HookHandlerTest {
             final MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
             final Buffer requestBody = new BufferImpl();
             requestBody.setBytes(0, ("{" +
-                "    \"methods\": [ \"PUT\" , \"DELETE\" ]," +
-                "    \"destination\": \"/an/example/destination/\"," +
-                "    \"timeout\": 42" +
-                "}").getBytes());
+                    "    \"methods\": [ \"PUT\" , \"DELETE\" ]," +
+                    "    \"destination\": \"/an/example/destination/\"," +
+                    "    \"timeout\": 42" +
+                    "}").getBytes());
 
             request = createSimpleRequest(HttpMethod.PUT, "/gateleen/example/_hooks/route/http/my-service/my-hook",
-                requestHeaders, requestBody, statusCodePtr, statusMessagePtr
+                    requestHeaders, requestBody, statusCodePtr, statusMessagePtr
             );
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -440,7 +462,7 @@ public class HookHandlerTest {
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -471,7 +493,7 @@ public class HookHandlerTest {
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -502,7 +524,7 @@ public class HookHandlerTest {
         }
 
         // Trigger work
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         // Assert request was ok
@@ -536,7 +558,7 @@ public class HookHandlerTest {
         }
 
         // Trigger
-        Mockito.when(routingContext.request()).thenReturn(request);
+        when(routingContext.request()).thenReturn(request);
         hookHandler.handle(routingContext);
 
         { // Assert request got accepted.
@@ -572,7 +594,7 @@ public class HookHandlerTest {
             }
 
             // Trigger
-            Mockito.when(routingContext.request()).thenReturn(request);
+            when(routingContext.request()).thenReturn(request);
             hookHandler.handle(routingContext);
 
             { // Assert request got rejected.
@@ -642,6 +664,283 @@ public class HookHandlerTest {
     }
 
 
+    @Test
+    public void testHandleGETRequestWithEmptyParam(TestContext testContext) {
+        // Define URI and configures the request with an empty 'q' parameter
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI, mockResponse);
+        request.addParameter("q", ""); // Empty parameter to simulate bad request
+
+        // Mock RoutingContext
+        when(routingContext.request()).thenReturn(request);
+
+        // Capture response content
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the Handler
+        boolean result = hookHandler.handle(routingContext);
+
+        // Verify status 400 due to empty 'q' parameter
+        verify(mockResponse).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        testContext.assertTrue(result);
+        // Verify captured response content
+        String jsonResponse = responseCaptor.getValue();
+        testContext.assertNotNull(jsonResponse);
+        // Confirm the response contains "Bad Request"
+        testContext.assertTrue(jsonResponse.contains("Only the 'q' parameter is allowed and can't be empty or null"));
+    }
+
+    @Test
+    public void testHandleGETRequestWithNoParam(TestContext testContext) {
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI, mockResponse);
+        when(routingContext.request()).thenReturn(request);
+
+        boolean result = hookHandler.handle(routingContext);
+
+        testContext.assertFalse(result);
+    }
+
+    @Test
+    public void testHandleGETRequestWithWrongRoute(TestContext testContext) {
+        String wrongUri = "/hookRootURI/registrati/listeners";
+        GETRequest request = new GETRequest(wrongUri, mockResponse);
+        request.addParameter("q", "value");
+        when(routingContext.request()).thenReturn(request);
+
+        boolean result = hookHandler.handle(routingContext);
+
+        testContext.assertFalse(result);
+    }
+
+    @Test
+    public void testHandleGETRequestWithListenersSearchSingleResult() throws InterruptedException {
+        // Define URI and configure GET request with specific search parameter
+        String singleListener= "mySingleListener";
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI, mockResponse);
+        request.addParameter("q", singleListener);
+
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, singleListener, "x-foo: (A|B)"));
+        // wait a moment to let the listener be registered
+        Thread.sleep(200);
+        // Mock RoutingContext and configure response capture
+        when(routingContext.request()).thenReturn(request);
+
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the handler
+        boolean result = hookHandler.handle(routingContext);
+        assertTrue(result);
+
+        // Validate JSON response content for matching listener
+        String jsonResponse = responseCaptor.getValue();
+        assertNotNull(jsonResponse);
+        assertTrue(jsonResponse.contains(singleListener));
+    }
+
+    @Test
+    public void testHandleGETRequestWithListenersSearchMultipleResults() throws InterruptedException {
+        // Define the URI and set up the GET request with a broader search parameter for multiple listeners
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI, mockResponse);
+        request.addParameter("q", "myListener"); // Search parameter that should match multiple listeners
+
+        // Add multiple listeners to the MockResourceStorage using the expected configuration and register them
+        String listenerId1 = "myListener112222";
+        String listenerId2 = "myListener222133";
+        String notMatchListener = "notMatchListener";
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, listenerId1, "x-foo: (A|B)"));
+        Thread.sleep(200);
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, listenerId2, "x-foo: (A|B)"));
+        Thread.sleep(200);
+        setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, notMatchListener, "x-foo: (A|B)"));
+        Thread.sleep(200);
+
+        // Mock the RoutingContext and set up the response capture
+        when(routingContext.request()).thenReturn(request);
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the handler
+        boolean result = hookHandler.handle(routingContext);
+        assertTrue(result);
+
+        // Validate the JSON response content for multiple matching listeners
+        String jsonResponse = responseCaptor.getValue();
+        assertNotNull(jsonResponse);
+        assertTrue(jsonResponse.contains(listenerId1));
+        assertTrue(jsonResponse.contains(listenerId2));
+        assertFalse(jsonResponse.contains(notMatchListener));
+    }
+
+    @Test
+    public void testHandleGETRequestWithRoutesSearchEmptyResult() {
+        // Define URI and configure request with specific 'q' parameter for routes search
+        GETRequest request = new GETRequest(HOOK_ROUTE_URI, mockResponse);
+        request.addParameter("q", "routeNotFound");
+
+        // No routes are added to MockResourceStorage to simulate empty result
+        storage.putMockData(HOOK_ROUTE_URI, new JsonArray().encode());
+
+        // Mock RoutingContext and configure response capture
+        when(routingContext.request()).thenReturn(request);
+
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the handler
+        boolean result = hookHandler.handle(routingContext);
+
+        // Verifications
+        assertTrue(result);
+
+        // Verify response content with empty result
+        String actualResponse = responseCaptor.getValue();
+        assertNotNull(actualResponse);
+        JsonObject jsonResponse = new JsonObject(actualResponse);
+        assertTrue("Expected 'routes' to be an empty array",
+                jsonResponse.containsKey("routes") && jsonResponse.getJsonArray("routes").isEmpty());
+    }
+
+    @Test
+    public void testHandleGETRequestWithRoutesSearchMultipleResults() throws InterruptedException {
+        // Define the URI and set up the GET request with a broad search parameter for multiple routes
+        GETRequest request = new GETRequest(HOOK_ROUTE_URI, mockResponse);
+        request.addParameter("q", "valid"); // Search parameter that should match multiple routes
+
+        // Add multiple routes to the MockResourceStorage using the expected configuration and register them
+        String routeId1 = "valid12345";
+        String routeId2 = "valid67890";
+        String notPreset = "notPreset";
+        setRouteStorageEntryAndTriggerUpdate(buildRouteConfig(routeId1));
+        Thread.sleep(200);
+        setRouteStorageEntryAndTriggerUpdate(buildRouteConfig( routeId2));
+        Thread.sleep(200);
+        setRouteStorageEntryAndTriggerUpdate(buildRouteConfig( notPreset));
+        Thread.sleep(200);
+
+        // Mock the RoutingContext and set up the response capture
+        when(routingContext.request()).thenReturn(request);
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the handler
+        boolean result = hookHandler.handle(routingContext);
+        assertTrue(result);
+
+        // Validate the JSON response content for multiple matching routes
+        String jsonResponse = responseCaptor.getValue();
+        assertNotNull(jsonResponse);
+        assertTrue(jsonResponse.contains(routeId1));
+        assertTrue(jsonResponse.contains(routeId2));
+        assertFalse(jsonResponse.contains(notPreset));
+    }
+
+    @Test
+    public void testHandleListenerWithStorageAndEmptyList() {
+        // Set up the URI for listeners registration
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI,mockResponse) ;
+        request.addParameter("q", "validQueryParam");
+
+        // Capture the response output
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(routingContext.request()).thenReturn(request);
+
+        // Execute the handler and validate the response
+        boolean result = hookHandler.handle(routingContext);
+
+        assertTrue(result);
+        verify(mockResponse).end(responseCaptor.capture());
+
+        // Validate the response JSON for an empty listener list
+        String actualResponse = responseCaptor.getValue();
+        assertEmptyResult(actualResponse);
+    }
+
+    @Test
+    public void testHandleGETRequestWithExtraParam(TestContext testContext) {
+        // Define URI and configure the request with an extra parameter besides 'q'
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI, mockResponse);
+        request.addParameter("q", "validQueryParam");
+        request.addParameter("extra", "notAllowedParam"); // Extra parameter, not allowed
+
+        // Mock the RoutingContext
+        when(routingContext.request()).thenReturn(request);
+
+        // Capture the response content
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the Handler
+        boolean result = hookHandler.handle(routingContext);
+
+        // Verify status 400 due to the extra parameter
+        verify(mockResponse).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        testContext.assertTrue(result);
+
+        // Verify captured response content
+        String jsonResponse = responseCaptor.getValue();
+        testContext.assertNotNull(jsonResponse);
+        // Confirm that the response contains "Bad Request"
+        testContext.assertTrue(jsonResponse.contains("Only the 'q' parameter is allowed and can't be empty or null"));
+    }
+
+    @Test
+    public void testHandleGETRequestWithTrailingSlash(TestContext testContext) {
+        // Define URI with trailing slash and configure the request
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI + "/", mockResponse);
+        request.addParameter("q", "validQueryParam");
+
+        // Mock the RoutingContext
+        when(routingContext.request()).thenReturn(request);
+
+        // Capture the response content
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the Handler
+        boolean result = hookHandler.handle(routingContext);
+
+        // Verify the result contains an empty listeners list
+        testContext.assertTrue(result);
+        String jsonResponse = responseCaptor.getValue();
+        assertEmptyResult(jsonResponse);
+    }
+
+    @Test
+    public void testHandleGETRequestWithInvalidParam(TestContext testContext) {
+        // Define URI with an invalid parameter different from 'q'
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI, mockResponse);
+        request.addParameter("invalidParam", "someValue"); // Invalid parameter, not 'q'
+
+        // Mock the RoutingContext
+        when(routingContext.request()).thenReturn(request);
+
+        // Capture the response content
+        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
+        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
+        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
+
+        // Execute the Handler
+        boolean result = hookHandler.handle(routingContext);
+
+        // Verify status 400 due to invalid parameter
+        verify(mockResponse).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+        testContext.assertTrue(result);
+
+        // Verify captured response content
+        String jsonResponse = responseCaptor.getValue();
+        testContext.assertNotNull(jsonResponse);
+        // Confirm that the response contains "Bad Request"
+        testContext.assertTrue(jsonResponse.contains("Only the 'q' parameter is allowed and can't be empty or null"));
+    }
+
+
     ///////////////////////////////////////////////////////////////////////////////
     // Helpers
     ///////////////////////////////////////////////////////////////////////////////
@@ -664,7 +963,7 @@ public class HookHandlerTest {
         };
         putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
 
-        Mockito.when(routingContext.request()).thenReturn(putRequest);
+        when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
         latch.await();
@@ -878,6 +1177,13 @@ public class HookHandlerTest {
         return buffer;
     }
 
+    private static void assertEmptyResult(String actualResponse) {
+        assertNotNull(actualResponse);
+        JsonObject jsonResponse = new JsonObject(actualResponse);
+        assertTrue("Expected 'listeners' to be an empty array",
+                jsonResponse.containsKey("listeners") && jsonResponse.getJsonArray("listeners").isEmpty());
+    }
+
     static class PUTRequest extends DummyHttpServerRequest {
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
 
@@ -912,6 +1218,52 @@ public class HookHandlerTest {
 
         public void addHeader(String headerName, String headerValue) {
             headers.add(headerName, headerValue);
+        }
+    }
+
+    static class GETRequest extends DummyHttpServerRequest {
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        MultiMap params = MultiMap.caseInsensitiveMultiMap();
+        private final HttpServerResponse response;
+        private final String uri;
+
+        public GETRequest(String uri, HttpServerResponse response) {
+            this.uri = uri;
+            this.response = response;
+        }
+
+        @Override
+        public HttpMethod method() {
+            return HttpMethod.GET;
+        }
+
+        @Override
+        public String uri() {
+            return uri;
+        }
+
+        @Override
+        public MultiMap headers() {
+            return headers;
+        }
+
+        @Override
+        public MultiMap params() {
+            return params;
+        }
+
+        @Override
+        public HttpServerResponse response() {
+            return response;
+        }
+
+        @Override
+        public String getParam(String paramName) {
+            return params.get(paramName);
+        }
+
+        public void addParameter(String paramName, String paramValue) {
+            params.add(paramName, paramValue);
         }
     }
 }

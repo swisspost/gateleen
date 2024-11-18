@@ -26,7 +26,7 @@ public class RouteListingTest extends AbstractTest {
     private String requestUrlBase;
     private String targetUrlBase;
     private String parentKey;
-
+    private String searchUrlBase;
 
     /**
      * Overwrite RestAssured configuration
@@ -38,6 +38,7 @@ public class RouteListingTest extends AbstractTest {
         parentKey = "routesource";
         requestUrlBase = "/tests/gateleen/" + parentKey;
         targetUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/tests/gateleen/routetarget";
+        searchUrlBase = "http://localhost:" + MAIN_PORT + SERVER_ROOT + "/hooks/v1/registrations/routes";
     }
 
 
@@ -194,8 +195,112 @@ public class RouteListingTest extends AbstractTest {
         async.complete();
     }
 
+    @Test
+    public void testHookHandleSearch_WithValidAndInvalidSearchParam(TestContext context) {
+        Async async = context.async();
+        delete(); // Remove any pre-existing data
+        initSettings(); // Initialize routing rules
 
+        String queryParam = "routeTests";
 
+        addRoute(queryParam, true, true);
+
+        // Verify that the route was correctly registered
+        searchWithQueryParam("w", queryParam, 400);
+        searchWithQueryParam("q", "", 400);
+
+        // Verify that the route was correctly registered
+        Response response = searchWithQueryParam("q", queryParam, 200);
+
+        // Assert that the response contains the expected query param
+        String responseBody = response.getBody().asString();
+        Assert.assertTrue(responseBody.contains(queryParam));
+        // Unregister the route
+        removeRoute(queryParam);
+
+        async.complete();
+    }
+
+    @Test
+    public void testHookHandleSearch_RouteNonMatchingQueryParam(TestContext context) {
+        Async async = context.async();
+        delete(); // Clean up before the test
+        initSettings(); // Initialize routing rules
+
+        String nonMatchingQueryParam = "nonMatchingQuery";
+        String queryParam = "other";
+
+        // Register a route using the addRoute method
+        addRoute(queryParam, true, true);
+        assertResponse(get(requestUrlBase), new String[]{queryParam+"/"});
+
+        Response response = searchWithQueryParam("q", queryParam, 200);
+        Assert.assertTrue("Query param should be found in response",
+                response.getBody().asString().contains(queryParam));
+
+        response = searchWithQueryParam("q", nonMatchingQueryParam, 200);
+        JsonObject jsonResponse = new JsonObject(response.getBody().asString());
+        Assert.assertTrue("Expected 'routes' to be an empty array",
+                jsonResponse.containsKey("routes") && jsonResponse.getJsonArray("routes").isEmpty());
+
+        removeRoute(queryParam);
+        async.complete();
+    }
+
+    @Test
+    public void testHookHandleSearch_RouteWhenNoRoutesRegistered(TestContext context) {
+        Async async = context.async();
+        delete(); // Ensure there's no previous data
+        initSettings(); // Initialize routing rules
+
+        String queryParam = "someQuery";
+
+        // Send GET request with a query param when no routes are registered
+        Response response = searchWithQueryParam("q", queryParam, 200);
+
+        // Parse response body as JSON
+        JsonObject jsonResponse = new JsonObject(response.getBody().asString());
+        // Validate that "routes" exists and is an empty array
+        Assert.assertTrue("Expected 'routes' to be an empty array",
+                jsonResponse.containsKey("routes") && jsonResponse.getJsonArray("routes").isEmpty());
+
+        async.complete();
+    }
+
+    @Test
+    public void testHookHandleSearch_ReturnsIdenticalResultsWithAndWithoutSearchQueryParam(TestContext context) {
+        Async async = context.async();
+        delete(); // Clear any existing data before starting the test
+        initSettings(); // Initialize routing rules
+
+        String routeName = "GenericSingleRoute";
+        addRoute(routeName, true, true); // Add a route that will be the only matching result
+
+        // Perform search without 'q' parameter
+        Response responseWithoutParam = get(searchUrlBase)
+                .then().assertThat().statusCode(200)
+                .extract().response();
+
+        // Perform search with 'q' parameter matching the route name
+        Response responseWithParam = searchWithQueryParam("q", routeName, 200);
+
+        // Extract response bodies as strings for comparison
+        String responseBodyWithoutParam = responseWithoutParam.getBody().asString();
+        String responseBodyWithParam = responseWithParam.getBody().asString();
+
+        // Verify that both responses are identical
+        Assert.assertEquals("Responses should be identical with and without 'q' when only one matching route exists",
+                responseBodyWithoutParam, responseBodyWithParam);
+
+        // Ensure the route name is present in both responses
+        Assert.assertTrue(responseBodyWithoutParam.contains(routeName));
+        Assert.assertTrue(responseBodyWithParam.contains(routeName));
+
+        // Clean up by removing the registered route after the test
+        removeRoute(routeName);
+
+        async.complete();
+    }
 
     private void removeRoute(String name) {
         String route = requestUrlBase + "/" + name + TestUtils.getHookRouteUrlSuffix();
@@ -213,7 +318,6 @@ public class RouteListingTest extends AbstractTest {
         TestUtils.registerRoute(route, target, methods, null, collection, listable);
    }
 
-
     private void assertResponse(final Response response, final String[] expectedArray) {
         Assert.assertEquals(200, response.statusCode());
         String bodyString = response.getBody().asString();
@@ -224,4 +328,11 @@ public class RouteListingTest extends AbstractTest {
         Assert.assertThat(array, Matchers.contains(expectedArray));
     }
 
+    private Response searchWithQueryParam(String queryParamName, String queryParamValue, int expectedStatusCode ) {
+        return given()
+                .queryParam(queryParamName, queryParamValue)
+                .when().get(searchUrlBase)
+                .then().assertThat().statusCode(expectedStatusCode)
+                .extract().response();
+    }
 }
