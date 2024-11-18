@@ -999,7 +999,7 @@ public class ListenerTest extends AbstractTest {
 
         Response response = searchWithQueryParam("q","",400);
 
-        Assert.assertTrue(response.getBody().asString().contains("Bad Request"));
+        Assert.assertTrue(response.getBody().asString().contains("Only the 'q' parameter is allowed and can't be empty or null"));
         TestUtils.unregisterListener(defaultRegisterUrlListener);
 
         async.complete();
