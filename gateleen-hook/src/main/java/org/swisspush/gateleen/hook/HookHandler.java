@@ -10,12 +10,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.*;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
@@ -120,8 +115,6 @@ public class HookHandler implements LoggableResource {
     private static final String CONTENT_TYPE_JSON = "application/json";
     private static final String LISTENERS_KEY = "listeners";
     private static final String ROUTES_KEY = "routes";
-    private static final String CONTENT_TYPE_HEADER = "content-type";
-
 
     private final Comparator<String> collectionContentComparator;
     private static final Logger log = LoggerFactory.getLogger(HookHandler.class);
@@ -544,7 +537,7 @@ public class HookHandler implements LoggableResource {
     public boolean handle(final RoutingContext ctx) {
         HttpServerRequest request = ctx.request();
         boolean consumed = false;
-        var requestUri = request.uri().replaceAll("/+$", "");
+        var requestUri = request.uri();
         /*
          * 1) Un- / Register Listener / Routes
          */
@@ -614,7 +607,7 @@ public class HookHandler implements LoggableResource {
 
     private void handleRouteSearch(HttpServerRequest request) {
         handleSearch(
-                routeRepository.getRoutes().entrySet().stream().collect(Collectors.toMap(entry -> entry.getValue().getHookIdentify(), Map.Entry::getValue)),
+                routeRepository.getRoutes().entrySet().stream().collect(Collectors.toMap(entry -> entry.getValue().getHookDisplayText(), Map.Entry::getValue)),
                 route -> route.getHook().getDestination(),
                 ROUTES_KEY,
                 request
@@ -634,8 +627,9 @@ public class HookHandler implements LoggableResource {
     private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String resultKey, HttpServerRequest request) {
         String queryParam = request.getParam("q");
         if (request.params().size() > 1 || StringUtils.isEmpty(queryParam)) {
-            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode())
-                    .end("Bad Request: Only the 'q' parameter is allowed and can't be empty or null");
+            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+            request.response().end("Only the 'q' parameter is allowed and can't be empty or null");
             return ;
         }
 
@@ -652,11 +646,9 @@ public class HookHandler implements LoggableResource {
 
         String encodedResult = result.encode();
 
-        request.response().putHeader(CONTENT_TYPE_HEADER, CONTENT_TYPE_JSON);
+        request.response().putHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE_JSON);
         request.response().end(encodedResult);
     }
-
-
 
     /**
      * Create a listing of routes in the given parent. This happens
@@ -1669,13 +1661,12 @@ public class HookHandler implements LoggableResource {
 
         boolean mustCreateNewRoute = true;
 
-
         Route existingRoute = routeRepository.getRoutes().get(routedUrl);
         if (existingRoute != null) {
             mustCreateNewRoute = mustCreateNewRouteForHook(existingRoute, hook);
         }
         if (mustCreateNewRoute) {
-            routeRepository.addRoute(routedUrl, createRoute(routedUrl , hook, requestUrl));
+            routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook, requestUrl));
         } else {
             // see comment in #mustCreateNewRouteForHook()
             existingRoute.getRule().setHeaderFunction(hook.getHeaderFunction());
@@ -1726,11 +1717,12 @@ public class HookHandler implements LoggableResource {
      *
      * @param urlPattern urlPattern
      * @param hook       hook
+     * @param hookDisplayText text used for display only like in API
      * @return Route
      */
-    private Route createRoute(String urlPattern, HttpHook hook, String hookIdentify) {
+    private Route createRoute(String urlPattern, HttpHook hook, String hookDisplayText) {
         return new Route(vertx, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler,
-                userProfilePath, hook, urlPattern, selfClient, hookIdentify);
+                userProfilePath, hook, urlPattern, selfClient, hookDisplayText);
     }
 
     /**

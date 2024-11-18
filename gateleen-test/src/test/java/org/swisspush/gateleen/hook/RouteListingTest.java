@@ -328,10 +328,10 @@ public class RouteListingTest extends AbstractTest {
         Assert.assertThat(array, Matchers.contains(expectedArray));
     }
 
-    private Response searchWithQueryParam(String searchParam, String queryParam, int expectedStatusCode ) {
+    private Response searchWithQueryParam(String queryParamName, String queryParamValue, int expectedStatusCode ) {
         return given()
-                .queryParam(searchParam, queryParam)
-                .when().get(searchUrlBase )
+                .queryParam(queryParamName, queryParamValue)
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(expectedStatusCode)
                 .extract().response();
     }

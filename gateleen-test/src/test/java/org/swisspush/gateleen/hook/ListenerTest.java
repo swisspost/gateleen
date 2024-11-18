@@ -68,8 +68,6 @@ public class ListenerTest extends AbstractTest {
         defaultRegisterUrlListener = requestUrlBase + "/" + defaultQueryParam + TestUtils.getHookListenersUrlSuffix() + defaultListenerName;
         defaultTargetListener = targetUrlBase + "/" + defaultListenerName;
         defaultMethodsListener = new String[]{"PUT", "DELETE", "POST"};
-
-
     }
 
     /**
@@ -1172,7 +1170,7 @@ public class ListenerTest extends AbstractTest {
     private Response searchWithQueryParam(String searchParam, String queryParam, int expectedStatusCode ) {
         return given()
                 .queryParam(searchParam, queryParam)
-                .when().get(searchUrlBase )
+                .when().get(searchUrlBase)
                 .then().assertThat().statusCode(expectedStatusCode)
                 .extract().response();
     }

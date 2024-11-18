@@ -688,7 +688,7 @@ public class HookHandlerTest {
         String jsonResponse = responseCaptor.getValue();
         testContext.assertNotNull(jsonResponse);
         // Confirm the response contains "Bad Request"
-        testContext.assertTrue(jsonResponse.contains("Bad Request"));
+        testContext.assertTrue(jsonResponse.contains("Only the 'q' parameter is allowed and can't be empty or null"));
     }
 
     @Test
@@ -719,7 +719,6 @@ public class HookHandlerTest {
         String singleListener= "mySingleListener";
         GETRequest request = new GETRequest(HOOK_LISTENER_URI, mockResponse);
         request.addParameter("q", singleListener);
-
 
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfigWithHeadersFilter(null, singleListener, "x-foo: (A|B)"));
         // wait a moment to let the listener be registered
@@ -775,7 +774,6 @@ public class HookHandlerTest {
         assertTrue(jsonResponse.contains(listenerId2));
         assertFalse(jsonResponse.contains(notMatchListener));
     }
-
 
     @Test
     public void testHandleGETRequestWithRoutesSearchEmptyResult() {
@@ -861,7 +859,6 @@ public class HookHandlerTest {
         // Validate the response JSON for an empty listener list
         String actualResponse = responseCaptor.getValue();
         assertEmptyResult(actualResponse);
-
     }
 
     @Test
@@ -890,13 +887,13 @@ public class HookHandlerTest {
         String jsonResponse = responseCaptor.getValue();
         testContext.assertNotNull(jsonResponse);
         // Confirm that the response contains "Bad Request"
-        testContext.assertTrue(jsonResponse.contains("Bad Request"));
+        testContext.assertTrue(jsonResponse.contains("Only the 'q' parameter is allowed and can't be empty or null"));
     }
 
     @Test
     public void testHandleGETRequestWithTrailingSlash(TestContext testContext) {
         // Define URI with trailing slash and configure the request
-        GETRequest request = new GETRequest(HOOK_LISTENER_URI+"/", mockResponse);
+        GETRequest request = new GETRequest(HOOK_LISTENER_URI + "/", mockResponse);
         request.addParameter("q", "validQueryParam");
 
         // Mock the RoutingContext
@@ -940,7 +937,7 @@ public class HookHandlerTest {
         String jsonResponse = responseCaptor.getValue();
         testContext.assertNotNull(jsonResponse);
         // Confirm that the response contains "Bad Request"
-        testContext.assertTrue(jsonResponse.contains("Bad Request"));
+        testContext.assertTrue(jsonResponse.contains("Only the 'q' parameter is allowed and can't be empty or null"));
     }
 
 
