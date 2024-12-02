@@ -80,7 +80,7 @@
         <rest-assured.version>4.4.0</rest-assured.version>
         <redisques.version>3.1.0</redisques.version>
         <rest-storage.version>3.1.1</rest-storage.version>
-        <springframework.version>5.3.27</springframework.version>
+        <springframework.version>6.1.14</springframework.version>
         <slf4j.version>2.0.10</slf4j.version>
         <quartz.version>2.3.2</quartz.version>
         <vertx.version>4.5.2</vertx.version>
