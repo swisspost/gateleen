@@ -21,6 +21,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
 
+import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -44,17 +45,17 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
     private boolean logConfigurationResourceChanges = false;
 
     public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
-                                    MonitoringHandler monitoringHandler, String schedulersUri) {
+                                    @Nullable MonitoringHandler monitoringHandler, String schedulersUri) {
         this(vertx, redisProvider, storage, monitoringHandler, schedulersUri, null);
     }
 
     public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
-                                    MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props) {
+                                    @Nullable MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props) {
         this(vertx, redisProvider, storage, monitoringHandler, schedulersUri, props, Address.redisquesAddress());
     }
 
     public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
-                                    MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props,
+                                    @Nullable MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props,
                                     String redisquesAddress) {
         this(vertx, redisProvider, newGateleenThriftyExceptionFactory(), storage, monitoringHandler, schedulersUri, props, redisquesAddress, Collections.emptyMap());
     }
@@ -64,7 +65,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         RedisProvider redisProvider,
         GateleenExceptionFactory exceptionFactory,
         ResourceStorage storage,
-        MonitoringHandler monitoringHandler,
+        @Nullable MonitoringHandler monitoringHandler,
         String schedulersUri,
         Map<String, Object> props,
         String redisquesAddress,

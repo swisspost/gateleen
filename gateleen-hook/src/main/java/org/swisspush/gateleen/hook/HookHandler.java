@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -59,6 +61,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -150,6 +153,10 @@ public class HookHandler implements LoggableResource {
     private final String normalizedRouteBase;
     private final String normalizedListenerBase;
 
+    private final AtomicLong listenerCount = new AtomicLong(0);
+    private final AtomicLong routesCount = new AtomicLong(0);
+    private MeterRegistry meterRegistry;
+
     /**
      * Creates a new HookHandler.
      *
@@ -162,7 +169,7 @@ public class HookHandler implements LoggableResource {
      * @param hookRootUri            hookRootUri
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri) {
         this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 new QueueClient(vertx, monitoringHandler));
@@ -182,14 +189,14 @@ public class HookHandler implements LoggableResource {
      * @param requestQueue           requestQueue
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
         this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false);
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
         this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false, null);
@@ -210,7 +217,7 @@ public class HookHandler implements LoggableResource {
      * @param reducedPropagationManager reducedPropagationManager
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        @Nullable ReducedPropagationManager reducedPropagationManager) {
         this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
@@ -218,7 +225,7 @@ public class HookHandler implements LoggableResource {
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, @Nullable Handler doneHandler, ResourceStorage hookStorage) {
         this(vertx, selfClient, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
@@ -226,7 +233,7 @@ public class HookHandler implements LoggableResource {
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, @Nullable Handler doneHandler, ResourceStorage hookStorage,
                        int routeMultiplier) {
@@ -256,7 +263,7 @@ public class HookHandler implements LoggableResource {
      *                                  parallel operation.
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, @Nullable Handler doneHandler, ResourceStorage hookStorage,
                        int routeMultiplier, @Nonnull QueueSplitter queueSplitter) {
@@ -317,6 +324,16 @@ public class HookHandler implements LoggableResource {
         initMethods.forEach(handlerConsumer -> handlerConsumer.accept(readyHandler));
     }
 
+    public void setMeterRegistry(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+        if(meterRegistry != null) {
+            Gauge.builder("gateleen.listener.count", listenerCount, AtomicLong::get)
+                    .description("Amount of listener hooks currently registered").register(meterRegistry);
+            Gauge.builder("gateleen.routes.count", routesCount, AtomicLong::get)
+                    .description("Amount of route hooks currently registered").register(meterRegistry);
+        }
+    }
+
     @Override
     public void enableResourceLogging(boolean resourceLoggingEnabled) {
         this.logHookConfigurationResourceChanges = resourceLoggingEnabled;
@@ -361,8 +378,15 @@ public class HookHandler implements LoggableResource {
                     routeRepository.removeRoute(key);
                 }
             }
-            monitoringHandler.updateListenerCount(listenerRepository.size());
-            monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+            if(meterRegistry != null) {
+                listenerCount.set(listenerRepository.size());
+                routesCount.set(routeRepository.getRoutes().size());
+            }
+
+            if(monitoringHandler != null) {
+                monitoringHandler.updateListenerCount(listenerRepository.size());
+                monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+            }
             log.trace("done");
         });
 
@@ -1352,7 +1376,12 @@ public class HookHandler implements LoggableResource {
         log.debug("Unregister route {}", routedUrl);
 
         routeRepository.removeRoute(routedUrl);
-        monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+        if(meterRegistry != null) {
+            routesCount.set(routeRepository.getRoutes().size());
+        }
+        if(monitoringHandler != null) {
+            monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+        }
     }
 
     /**
@@ -1367,7 +1396,12 @@ public class HookHandler implements LoggableResource {
 
         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + getListenerUrlSegment(requestUrl));
         listenerRepository.removeListener(listenerId);
-        monitoringHandler.updateListenerCount(listenerRepository.size());
+        if(meterRegistry != null) {
+            listenerCount.set(listenerRepository.size());
+        }
+        if(monitoringHandler != null) {
+            monitoringHandler.updateListenerCount(listenerRepository.size());
+        }
     }
 
     /**
@@ -1491,7 +1525,12 @@ public class HookHandler implements LoggableResource {
 
         // create and add a new listener (or update an already existing listener)
         listenerRepository.addListener(new Listener(listenerId, getMonitoredUrlSegment(requestUrl), target, hook));
-        monitoringHandler.updateListenerCount(listenerRepository.size());
+        if(meterRegistry != null) {
+            listenerCount.set(listenerRepository.size());
+        }
+        if(monitoringHandler != null) {
+            monitoringHandler.updateListenerCount(listenerRepository.size());
+        }
     }
 
     /**
@@ -1672,7 +1711,12 @@ public class HookHandler implements LoggableResource {
             existingRoute.getRule().setHeaderFunction(hook.getHeaderFunction());
             existingRoute.getHook().setExpirationTime(hook.getExpirationTime().orElse(null));
         }
-        monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+        if(meterRegistry != null) {
+            routesCount.set(routeRepository.getRoutes().size());
+        }
+        if(monitoringHandler != null) {
+            monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+        }
     }
 
     /**
@@ -1721,8 +1765,10 @@ public class HookHandler implements LoggableResource {
      * @return Route
      */
     private Route createRoute(String urlPattern, HttpHook hook, String hookDisplayText) {
-        return new Route(vertx, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler,
+        Route route = new Route(vertx, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler,
                 userProfilePath, hook, urlPattern, selfClient, hookDisplayText);
+        route.setMeterRegistry(meterRegistry);
+        return route;
     }
 
     /**

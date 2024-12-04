@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.routing;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.*;
@@ -64,10 +66,12 @@ public class Forwarder extends AbstractForwarder {
     private static final int STATUS_CODE_2XX = 2;
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
+    private Counter localForwardCounter;
+    private Counter externalForwardCounter;
 
     public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage,
-                     LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
-                     String userProfilePath, @Nullable AuthStrategy authStrategy) {
+                     LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
+                     @Nullable MonitoringHandler monitoringHandler, String userProfilePath, @Nullable AuthStrategy authStrategy) {
         super(rule, loggingResourceManager, logAppenderRepository, monitoringHandler);
         this.vertx = vertx;
         this.client = client;
@@ -80,6 +84,29 @@ public class Forwarder extends AbstractForwarder {
         this.target = rule.getHost() + ":" + rule.getPort();
         this.userProfilePath = userProfilePath;
         this.authStrategy = authStrategy;
+    }
+
+    /**
+     * Sets the MeterRegistry for this Forwarder.
+     * If the provided MeterRegistry is not null, it initializes the forwardCounter
+     * with the appropriate metric name, description, and tags.
+     *
+     * @param meterRegistry the MeterRegistry to set
+     */
+    @Override
+    public void setMeterRegistry(MeterRegistry meterRegistry) {
+        if (meterRegistry != null) {
+            localForwardCounter = Counter.builder(FORWARDER_METRIC_NAME)
+                    .description(FORWARDER_METRIC_DESCRIPTION)
+                    .tag(FORWARDER_METRIC_TAG_TYPE, "local")
+                    .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
+                    .register(meterRegistry);
+            externalForwardCounter = Counter.builder(FORWARDER_METRIC_NAME)
+                    .description(FORWARDER_METRIC_DESCRIPTION)
+                    .tag(FORWARDER_METRIC_TAG_TYPE, "external")
+                    .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
+                    .register(meterRegistry);
+        }
     }
 
     private Map<String, String> createProfileHeaderValues(JsonObject profile, Logger log) {
@@ -148,15 +175,20 @@ public class Forwarder extends AbstractForwarder {
             port = rule.getPort();
         }
         target = rule.getHost() + ":" + port;
-        monitoringHandler.updateRequestsMeter(target, req.uri());
-        monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getMetricName());
+
+        handleForwardMetrics(target);
+
+        if (monitoringHandler != null) {
+            monitoringHandler.updateRequestsMeter(target, req.uri());
+            monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getMetricName());
+        }
         final String targetUri = urlPattern.matcher(req.uri()).replaceFirst(rule.getPath()).replaceAll("\\/\\/", "/");
         log.debug("Forwarding request: {} to {}://{} with rule {}", req.uri(), rule.getScheme(), target + targetUri, rule.getRuleIdentifier());
         final String userId = extractUserId(req, log);
         req.pause(); // pause the request to avoid problems with starting another async request (storage)
 
         maybeAuthenticate(rule).onComplete(event -> {
-            if(event.failed()) {
+            if (event.failed()) {
                 req.resume();
                 log.error("Failed to authenticate request. Cause: {}", event.cause().getMessage());
                 respondError(req, StatusCode.UNAUTHORIZED);
@@ -182,6 +214,13 @@ public class Forwarder extends AbstractForwarder {
                 handleRequest(req, bodyData, targetUri, log, null, authHeader, afterHandler);
             }
         });
+    }
+
+    private void handleForwardMetrics(String target) {
+        Counter counter = isRequestToExternalTarget(target) ? externalForwardCounter : localForwardCounter;
+        if (counter != null) {
+            counter.increment();
+        }
     }
 
     /**
@@ -240,8 +279,12 @@ public class Forwarder extends AbstractForwarder {
 
         final String uniqueId = req.headers().get("x-rp-unique_id");
         final String timeout = req.headers().get("x-timeout");
-        final long startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());
+        Long startTime = null;
+        if (monitoringHandler != null) {
+            startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());
+        }
 
+        Long finalStartTime = startTime;
         client.request(req.method(), port, rule.getHost(), targetUri, new Handler<>() {
             @Override
             public void handle(AsyncResult<HttpClientRequest> event) {
@@ -256,7 +299,7 @@ public class Forwarder extends AbstractForwarder {
                     return;
                 }
                 HttpClientRequest cReq = event.result();
-                final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, startTime, afterHandler);
+                final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, finalStartTime, afterHandler);
                 cReq.response(cResHandler);
 
                 if (timeout != null) {
@@ -290,7 +333,7 @@ public class Forwarder extends AbstractForwarder {
                     return;
                 }
 
-                installExceptionHandler(req, targetUri, startTime, cReq);
+                installExceptionHandler(req, targetUri, finalStartTime, cReq);
 
                 /*
                  * If no bodyData is available
@@ -421,9 +464,11 @@ public class Forwarder extends AbstractForwarder {
         }
     }
 
-    private void installExceptionHandler(final HttpServerRequest req, final String targetUri, final long startTime, HttpClientRequest cReq) {
+    private void installExceptionHandler(final HttpServerRequest req, final String targetUri, final Long startTime, HttpClientRequest cReq) {
         cReq.exceptionHandler(exception -> {
-            monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
+            if (monitoringHandler != null && startTime != null) {
+                monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
+            }
             if (exception instanceof TimeoutException) {
                 error("Timeout", req, targetUri);
                 respondError(req, StatusCode.TIMEOUT);
@@ -445,7 +490,7 @@ public class Forwarder extends AbstractForwarder {
         });
     }
 
-    private Handler<AsyncResult<HttpClientResponse>> getAsyncHttpClientResponseHandler(final HttpServerRequest req, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap, final LoggingHandler loggingHandler, final long startTime, @Nullable final Handler<Void> afterHandler) {
+    private Handler<AsyncResult<HttpClientResponse>> getAsyncHttpClientResponseHandler(final HttpServerRequest req, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap, final LoggingHandler loggingHandler, @Nullable final Long startTime, @Nullable final Handler<Void> afterHandler) {
         return asyncResult -> {
             HttpClientResponse cRes = asyncResult.result();
             if (asyncResult.failed()) {
@@ -462,7 +507,9 @@ public class Forwarder extends AbstractForwarder {
                 }
                 return;
             }
-            monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
+            if (monitoringHandler != null) {
+                monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
+            }
             loggingHandler.setResponse(cRes);
             req.response().setStatusCode(cRes.statusCode());
             req.response().setStatusMessage(cRes.statusMessage());

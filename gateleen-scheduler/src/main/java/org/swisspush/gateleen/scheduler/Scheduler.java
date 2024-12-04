@@ -15,6 +15,7 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 
+import javax.annotation.Nullable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
@@ -48,17 +49,17 @@ public class Scheduler {
     private Logger log;
 
     public Scheduler(
-        Vertx vertx,
-        String redisquesAddress,
-        RedisProvider redisProvider,
-        GateleenExceptionFactory exceptionFactory,
-        String name,
-        String cronExpression,
-        List<HttpRequest> requests,
-        MonitoringHandler monitoringHandler,
-        int maxRandomOffset,
-        boolean executeOnStartup,
-        boolean executeOnReload
+            Vertx vertx,
+            String redisquesAddress,
+            RedisProvider redisProvider,
+            GateleenExceptionFactory exceptionFactory,
+            String name,
+            String cronExpression,
+            List<HttpRequest> requests,
+            @Nullable MonitoringHandler monitoringHandler,
+            int maxRandomOffset,
+            boolean executeOnStartup,
+            boolean executeOnReload
     ) throws ParseException {
         this.vertx = vertx;
         this.redisquesAddress = redisquesAddress;
@@ -138,7 +139,9 @@ public class Scheduler {
 
     private void trigger() {
         for (final HttpRequest request : requests) {
-            monitoringHandler.updateEnqueue();
+            if (monitoringHandler != null) {
+                monitoringHandler.updateEnqueue();
+            }
 
             if (log.isTraceEnabled()) {
                 log.trace("Triggering request " + request.toJsonObject().encodePrettily());
@@ -156,7 +159,7 @@ public class Scheduler {
                 if (event.failed()) {
                     if (log.isWarnEnabled()) {
                         log.warn("Could not enqueue request '{}' '{}'", queueName, request.getUri(),
-                            exceptionFactory.newException("eventBus.request('" + redisquesAddress + "', enqueOp) failed", event.cause()));
+                                exceptionFactory.newException("eventBus.request('" + redisquesAddress + "', enqueOp) failed", event.cause()));
                     }
                     return;
                 }

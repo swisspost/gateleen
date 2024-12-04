@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.routing;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -62,6 +63,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private final LoggingResourceManager loggingResourceManager;
     private final LogAppenderRepository logAppenderRepository;
     private final MonitoringHandler monitoringHandler;
+    private final MeterRegistry meterRegistry;
     private final Logger log = LoggerFactory.getLogger(Router.class);
     private final Logger cleanupLogger = LoggerFactory.getLogger(Router.class.getName() + "Cleanup");
     private final Vertx vertx;
@@ -108,7 +110,8 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
            final Map<String, Object> properties,
            LoggingResourceManager loggingResourceManager,
            LogAppenderRepository logAppenderRepository,
-           MonitoringHandler monitoringHandler,
+           @Nullable MonitoringHandler monitoringHandler,
+           MeterRegistry meterRegistry,
            HttpClient selfClient,
            String serverPath,
            String rulesPath,
@@ -126,6 +129,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.loggingResourceManager = loggingResourceManager;
         this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;
+        this.meterRegistry = meterRegistry;
         this.selfClient = selfClient;
         this.vertx = vertx;
         this.sharedData = vertx.sharedData().getLocalMap(ROUTER_STATE_MAP);
@@ -322,7 +326,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
              * is null.
              */
             AuthStrategy authStrategy = selectAuthStrategy(rule);
-            Handler<RoutingContext> forwarder;
+            AbstractForwarder forwarder;
             if (rule.getPath() == null) {
                 forwarder = new NullForwarder(rule, loggingResourceManager, logAppenderRepository, monitoringHandler,
                         vertx.eventBus());
@@ -338,6 +342,8 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                         monitoringHandler, userProfileUri, authStrategy);
                 newClients.add(client);
             }
+
+            forwarder.setMeterRegistry(meterRegistry);
 
             if (rule.getMethods() == null) {
                 log.info("Installing {} forwarder for all methods: {}", rule.getScheme().toUpperCase(), rule.getUrlPattern());

@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.routing;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
@@ -17,6 +19,8 @@ import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
+import javax.annotation.Nullable;
+
 /**
  * Consumes requests without forwarding them anywhere.
  *
@@ -25,10 +29,29 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 public class NullForwarder extends AbstractForwarder {
 
     private EventBus eventBus;
+    private Counter forwardCounter;
 
-    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler, EventBus eventBus) {
+    public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler, EventBus eventBus) {
         super(rule, loggingResourceManager, logAppenderRepository, monitoringHandler);
         this.eventBus = eventBus;
+    }
+
+    /**
+     * Sets the MeterRegistry for this NullForwarder.
+     * If the provided MeterRegistry is not null, it initializes the forwardCounter
+     * with the appropriate metric name, description, and tags.
+     *
+     * @param meterRegistry the MeterRegistry to set
+     */
+    @Override
+    public void setMeterRegistry(MeterRegistry meterRegistry) {
+        if(meterRegistry != null) {
+            forwardCounter = Counter.builder(FORWARDER_METRIC_NAME)
+                    .description(FORWARDER_METRIC_DESCRIPTION)
+                    .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
+                    .tag(FORWARDER_METRIC_TAG_TYPE, "null")
+                    .register(meterRegistry);
+        }
     }
 
     @Override
@@ -40,7 +63,13 @@ public class NullForwarder extends AbstractForwarder {
             return;
         }
 
-        monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
+        if(forwardCounter != null) {
+            forwardCounter.increment();
+        }
+
+        if(monitoringHandler != null) {
+            monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
+        }
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, ctx.request(), eventBus);
         log.debug("Not forwarding request: {} with rule {}", ctx.request().uri(), rule.getRuleIdentifier());
         final HeadersMultiMap requestHeaders = new HeadersMultiMap();

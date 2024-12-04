@@ -135,3 +135,30 @@ Examples:
 }
 ```
 Each request header entry is validated in the format `<KEY>: <VALUE>`, so you are able to filter for request header names and values.
+
+## Micrometer metrics
+The routing feature is monitored with micrometer. The following metrics are available:
+* gateleen_forwarded_requests_total
+
+Additional tags are provided to split the forward count into sub counts.
+
+| tag        | description                                                                                                       |
+|------------|-------------------------------------------------------------------------------------------------------------------|
+| metricName | The `metricName` property from the corresponding routing rule. With this, you are able to count requests per rule |
+| type       | Describes where the request was forwarded to. Possible values are `local`, `external` and `null`                  |
+
+
+Example metrics:
+
+```
+# HELP gateleen_forwarded_requests_total Number of forwarded requests
+# TYPE gateleen_forwarded_requests_total counter
+gateleen_forwarded_requests_total{metricName="infotool_v1_informations",type="external",} 678765.0
+gateleen_forwarded_requests_total{metricName="amp-mutation",type="local",} 8875.0
+gateleen_forwarded_requests_total{metricName="edds-profile-houseservice-v2",type="storage",} 7777.0
+gateleen_forwarded_requests_total{metricName="password-reset",type="external",} 4.0
+gateleen_forwarded_requests_total{metricName="inventory-v1-session-start",type="external",} 0.0
+gateleen_forwarded_requests_total{metricName="edds-azb-catdir",type="null",} 5577.0
+```
+
+To enable the metrics, set a `MeterRegistry` instance by calling `withMeterRegistry(MeterRegistry meterRegistry)` method in `RouterBuilder` class.

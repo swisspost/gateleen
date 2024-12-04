@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.hook;
 
-import io.vertx.codegen.annotations.Nullable;
+import javax.annotation.Nullable;
+
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -80,7 +82,7 @@ public class Route {
      * @param urlPattern - this can be a listener or a normal urlPattern (eg. for a route)
      */
     public Route(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager,
-                 LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler, String userProfilePath,
+                 LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler, String userProfilePath,
                  HttpHook httpHook, String urlPattern, HttpClient selfClient, String hookDisplayText) {
         this.vertx = vertx;
         this.storage = storage;
@@ -98,6 +100,10 @@ public class Route {
         createHttpClient();
 
         createForwarder();
+    }
+
+    public void setMeterRegistry(MeterRegistry meterRegistry) {
+        forwarder.setMeterRegistry(meterRegistry);
     }
 
     /**

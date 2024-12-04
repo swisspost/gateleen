@@ -14,6 +14,8 @@ import org.swisspush.gateleen.queue.duplicate.DuplicateCheckHandler;
 import org.swisspush.gateleen.queue.queuing.splitter.NoOpQueueSplitter;
 import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
 
+import javax.annotation.Nullable;
+
 import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
 
 /**
@@ -42,7 +44,7 @@ public class QueuingHandler implements Handler<Buffer> {
             Vertx vertx,
             RedisProvider redisProvider,
             HttpServerRequest request,
-            MonitoringHandler monitoringHandler
+            @Nullable MonitoringHandler monitoringHandler
     ) {
         this(vertx, redisProvider, request, new QueueClient(vertx, monitoringHandler), new NoOpQueueSplitter());
     }
@@ -51,7 +53,7 @@ public class QueuingHandler implements Handler<Buffer> {
             Vertx vertx,
             RedisProvider redisProvider,
             HttpServerRequest request,
-            MonitoringHandler monitoringHandler,
+            @Nullable MonitoringHandler monitoringHandler,
             QueueSplitter queueSplitter
     ) {
         this(
