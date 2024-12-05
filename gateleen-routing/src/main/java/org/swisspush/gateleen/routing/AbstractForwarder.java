@@ -23,8 +23,10 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
     protected final MonitoringHandler monitoringHandler;
     protected final String metricNameTag;
 
-    public static final String FORWARDER_METRIC_NAME = "gateleen.forwarded.requests";
-    public static final String FORWARDER_METRIC_DESCRIPTION = "gateleen.forwarded.requests";
+    public static final String FORWARDER_COUNT_METRIC_NAME = "gateleen.forwarded";
+    public static final String FORWARDER_COUNT_METRIC_DESCRIPTION = "Amount of forwarded requests";
+    public static final String FORWARDS_METRIC_NAME = "gateleen.forwarded.seconds";
+    public static final String FORWARDS_METRIC_DESCRIPTION = "Durations of forwarded requests";
     public static final String FORWARDER_METRIC_TAG_TYPE = "type";
     public static final String FORWARDER_METRIC_TAG_METRICNAME = "metricName";
     public static final String FORWARDER_NO_METRICNAME = "no-metric-name";
@@ -43,10 +45,10 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
     protected boolean doHeadersFilterMatch(final HttpServerRequest request) {
         final Logger log = RequestLoggerFactory.getLogger(getClass(), request);
 
-        if(rule.getHeadersFilterPattern() != null){
+        if (rule.getHeadersFilterPattern() != null) {
             log.debug("Looking for request headers with pattern {}", rule.getHeadersFilterPattern().pattern());
             boolean matchFound = HttpHeaderUtil.hasMatchingHeader(request.headers(), rule.getHeadersFilterPattern());
-            if(matchFound) {
+            if (matchFound) {
                 log.debug("Matching request headers found");
             } else {
                 log.debug("No matching request headers found. Looking for the next routing rule");
@@ -79,11 +81,10 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
         }
     }
 
-    protected boolean isRequestToExternalTarget(String target) {
-        boolean isInternalRequest = false;
-        if (target != null) {
-            isInternalRequest = target.contains("localhost") || target.contains("127.0.0.1");
+    protected String getRequestTarget(String target) {
+        if (target != null && (target.contains("localhost") || target.contains("127.0.0.1"))) {
+            return "local";
         }
-        return !isInternalRequest;
+        return "external";
     }
 }

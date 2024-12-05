@@ -46,8 +46,8 @@ public class NullForwarder extends AbstractForwarder {
     @Override
     public void setMeterRegistry(MeterRegistry meterRegistry) {
         if(meterRegistry != null) {
-            forwardCounter = Counter.builder(FORWARDER_METRIC_NAME)
-                    .description(FORWARDER_METRIC_DESCRIPTION)
+            forwardCounter = Counter.builder(FORWARDER_COUNT_METRIC_NAME)
+                    .description(FORWARDER_COUNT_METRIC_DESCRIPTION)
                     .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
                     .tag(FORWARDER_METRIC_TAG_TYPE, "null")
                     .register(meterRegistry);

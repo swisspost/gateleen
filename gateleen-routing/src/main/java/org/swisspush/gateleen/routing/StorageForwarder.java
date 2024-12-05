@@ -2,6 +2,7 @@ package org.swisspush.gateleen.routing;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -47,6 +48,10 @@ public class StorageForwarder extends AbstractForwarder {
     private GateleenExceptionFactory gateleenExceptionFactory;
 
     private Counter forwardCounter;
+    private Timer forwardTimer;
+    private MeterRegistry meterRegistry;
+
+    private static final String TYPE_STORAGE = "storage";
 
     public StorageForwarder(EventBus eventBus, Rule rule, LoggingResourceManager loggingResourceManager,
                             LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
@@ -68,11 +73,19 @@ public class StorageForwarder extends AbstractForwarder {
      */
     @Override
     public void setMeterRegistry(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
         if (meterRegistry != null) {
-            forwardCounter = Counter.builder(FORWARDER_METRIC_NAME)
-                    .description(FORWARDER_METRIC_DESCRIPTION)
+            forwardCounter = Counter.builder(FORWARDER_COUNT_METRIC_NAME)
+                    .description(FORWARDER_COUNT_METRIC_DESCRIPTION)
                     .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
-                    .tag(FORWARDER_METRIC_TAG_TYPE, "storage")
+                    .tag(FORWARDER_METRIC_TAG_TYPE, TYPE_STORAGE)
+                    .register(meterRegistry);
+
+            forwardTimer = Timer.builder(FORWARDS_METRIC_NAME)
+                    .description(FORWARDS_METRIC_DESCRIPTION)
+                    .publishPercentiles(0.75, 0.95)
+                    .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
+                    .tag(FORWARDER_METRIC_TAG_TYPE, TYPE_STORAGE)
                     .register(meterRegistry);
         }
     }
@@ -90,7 +103,9 @@ public class StorageForwarder extends AbstractForwarder {
 
         Long startTime = null;
 
-        if (forwardCounter != null) {
+        Timer.Sample timerSample = null;
+        if(meterRegistry != null) {
+            timerSample = Timer.start(meterRegistry);
             forwardCounter.increment();
         }
 
@@ -124,6 +139,9 @@ public class StorageForwarder extends AbstractForwarder {
             requestBuffer.appendBuffer(buffer);
         });
         Long finalStartTime = startTime;
+
+        Timer.Sample finalTimerSample = timerSample;
+
         ctx.request().endHandler(event ->
                 eventBus.request(address, requestBuffer, new DeliveryOptions().setSendTimeout(10000),
                         (Handler<AsyncResult<Message<Buffer>>>) result -> {
@@ -131,6 +149,11 @@ public class StorageForwarder extends AbstractForwarder {
                             if (monitoringHandler != null) {
                                 monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), finalStartTime, ctx.request().uri());
                             }
+
+                            if(finalTimerSample != null) {
+                                finalTimerSample.stop(forwardTimer);
+                            }
+
                             if (result.failed()) {
                                 String statusMessage = "Storage request for " + ctx.request().uri() + " failed with message: " + result.cause().getMessage();
                                 response.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
