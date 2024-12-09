@@ -1,5 +1,8 @@
 package org.swisspush.gateleen.routing;
 
+import javax.annotation.Nullable;
+
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.web.RoutingContext;
@@ -18,21 +21,34 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
     protected final LoggingResourceManager loggingResourceManager;
     protected final LogAppenderRepository logAppenderRepository;
     protected final MonitoringHandler monitoringHandler;
+    protected final String metricNameTag;
 
-    public AbstractForwarder(Rule rule, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler) {
+    public static final String FORWARDER_COUNT_METRIC_NAME = "gateleen.forwarded";
+    public static final String FORWARDER_COUNT_METRIC_DESCRIPTION = "Amount of forwarded requests";
+    public static final String FORWARDS_METRIC_NAME = "gateleen.forwarded.seconds";
+    public static final String FORWARDS_METRIC_DESCRIPTION = "Durations of forwarded requests";
+    public static final String FORWARDER_METRIC_TAG_TYPE = "type";
+    public static final String FORWARDER_METRIC_TAG_METRICNAME = "metricName";
+    public static final String FORWARDER_NO_METRICNAME = "no-metric-name";
+
+    public AbstractForwarder(Rule rule, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler) {
         this.rule = rule;
         this.loggingResourceManager = loggingResourceManager;
         this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;
+
+        this.metricNameTag = rule.getMetricName() != null ? rule.getMetricName() : FORWARDER_NO_METRICNAME;
     }
+
+    protected abstract void setMeterRegistry(MeterRegistry meterRegistry);
 
     protected boolean doHeadersFilterMatch(final HttpServerRequest request) {
         final Logger log = RequestLoggerFactory.getLogger(getClass(), request);
 
-        if(rule.getHeadersFilterPattern() != null){
+        if (rule.getHeadersFilterPattern() != null) {
             log.debug("Looking for request headers with pattern {}", rule.getHeadersFilterPattern().pattern());
             boolean matchFound = HttpHeaderUtil.hasMatchingHeader(request.headers(), rule.getHeadersFilterPattern());
-            if(matchFound) {
+            if (matchFound) {
                 log.debug("Matching request headers found");
             } else {
                 log.debug("No matching request headers found. Looking for the next routing rule");
@@ -63,5 +79,12 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
             log = (log != null) ? log : RequestLoggerFactory.getLogger(AbstractForwarder.class, req);
             log.warn("IllegalStateException while sending error response for {}", req.uri(), ex);
         }
+    }
+
+    protected String getRequestTarget(String target) {
+        if (target != null && (target.contains("localhost") || target.contains("127.0.0.1"))) {
+            return "local";
+        }
+        return "external";
     }
 }

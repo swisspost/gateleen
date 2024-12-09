@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.expansion;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -27,10 +29,7 @@ import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleFeaturesProvider;
 import org.swisspush.gateleen.routing.RuleProvider;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
@@ -89,6 +88,10 @@ public class ExpansionHandler implements RuleChangesObserver {
     private static final int DECREMENT_BY_ONE = 1;
     private static final int MAX_RECURSION_LEVEL = 0;
 
+    private static final String EXPAND_REQUEST_METRIC = "gateleen.expand.requests";
+    private static final String STORAGE_EXPAND_REQUEST_METRIC = "gateleen.storage.expand.requests";
+    private static final String LEVEL = "level";
+
     public static final String MAX_EXPANSION_LEVEL_SOFT_PROPERTY = "max.expansion.level.soft";
     public static final String MAX_EXPANSION_LEVEL_HARD_PROPERTY = "max.expansion.level.hard";
     public static final String MAX_SUBREQUEST_PROPERTY = "max.expansion.subrequests";
@@ -122,6 +125,9 @@ public class ExpansionHandler implements RuleChangesObserver {
     private List<String> parameter_to_remove_after_initial_request;
 
     private RuleFeaturesProvider ruleFeaturesProvider = new RuleFeaturesProvider(new ArrayList<>());
+
+    private final Map<Integer, Counter> counterMap = new HashMap<>();
+    private Counter storageExpandCounter;
 
     /**
      * Creates a new instance of the ExpansionHandler.
@@ -174,6 +180,26 @@ public class ExpansionHandler implements RuleChangesObserver {
 
     public int getMaxSubRequestCount() {
         return maxSubRequestCount;
+    }
+
+    public void setMeterRegistry(MeterRegistry meterRegistry) {
+        counterMap.clear();
+        if(meterRegistry != null) {
+            counterMap.put(0, Counter.builder(EXPAND_REQUEST_METRIC).tag(LEVEL, "0").register(meterRegistry));
+            counterMap.put(1, Counter.builder(EXPAND_REQUEST_METRIC).tag(LEVEL, "1").register(meterRegistry));
+            counterMap.put(2, Counter.builder(EXPAND_REQUEST_METRIC).tag(LEVEL, "2").register(meterRegistry));
+            counterMap.put(3, Counter.builder(EXPAND_REQUEST_METRIC).tag(LEVEL, "3").register(meterRegistry));
+            counterMap.put(4, Counter.builder(EXPAND_REQUEST_METRIC).tag(LEVEL, "4").register(meterRegistry));
+
+            storageExpandCounter = Counter.builder(STORAGE_EXPAND_REQUEST_METRIC).register(meterRegistry);
+        }
+    }
+
+    private void incrementExpandReqCount(int level) {
+        Counter counter = counterMap.get(level);
+        if(counter != null) {
+            counter.increment();
+        }
     }
 
     /**
@@ -363,6 +389,8 @@ public class ExpansionHandler implements RuleChangesObserver {
         log.debug("constructed uri for request: {}", targetUri);
 
         Integer finalExpandLevel = expandLevel;
+        incrementExpandReqCount(finalExpandLevel);
+
         httpClient.request(HttpMethod.GET, targetUri).onComplete(asyncReqResult -> {
             if (asyncReqResult.failed()) {
                 log.warn("Failed request to {}: {}", targetUri, asyncReqResult.cause());
@@ -505,6 +533,11 @@ public class ExpansionHandler implements RuleChangesObserver {
         Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
         HttpMethod reqMethod = HttpMethod.POST;
         String reqUri = targetUri + "?storageExpand=true";
+
+        if(storageExpandCounter != null) {
+            storageExpandCounter.increment();
+        }
+
         httpClient.request(reqMethod, reqUri).onComplete(asyncResult -> {
             if (asyncResult.failed()) {
                 log.warn("Failed request to {}", reqUri, asyncResult.cause());

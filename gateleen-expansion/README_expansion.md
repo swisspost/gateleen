@@ -121,3 +121,27 @@ This allows you to create one octet-stream containing each json resource in the 
 Basically it works exactly the same way as the default expand feature works, except that it does not set an eTag for the request.
 
 > <font color="orange">Attention: </font> No eTag header is created / returned when this feature is used!
+
+### Micrometer metrics
+The expansion feature is monitored with micrometer. The following metrics are available:
+* gateleen_expand_requests_total
+* gateleen_storage_expand_requests_total
+
+For `expand_requests_total` additional tags are provided to specify the expand level.
+
+Example metrics:
+
+```
+# HELP gateleen_expand_requests_total  
+# TYPE gateleen_expand_requests_total counter
+gateleen_expand_requests_total{level="1",} 23677.0
+gateleen_expand_requests_total{level="2",} 2350.0
+gateleen_expand_requests_total{level="3",} 77.0
+gateleen_expand_requests_total{level="4",} 0.0
+gateleen_expand_requests_total{level="0",} 0.0
+# HELP gateleen_storage_expand_requests_total  
+# TYPE gateleen_storage_expand_requests_total counter
+gateleen_storage_expand_requests_total 37.0
+```
+
+To enable the metrics, set a `MeterRegistry` instance by calling `setMeterRegistry(MeterRegistry meterRegistry)` method in `ExpansionHandler` class.

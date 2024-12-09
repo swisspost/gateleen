@@ -70,6 +70,31 @@ public class QueueClientTest {
     }
 
     @Test
+    public void testEnqueueFutureNotUpdatingMonitoringHandlerWhenNotProvided(TestContext context){
+        Async async = context.async();
+
+        // create a QueueClient without monitoringHandler
+        queueClient = new QueueClient(vertx, null);
+
+        /*
+         * consume event bus messages directed to redisques and verify message content.
+         * reply with 'success' for enqueuing
+         */
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.enqueue, "myQueue");
+            message.reply(new JsonObject().put(STATUS, OK));
+        });
+
+        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        queueClient.enqueueFuture(request, "myQueue").onComplete(event -> {
+            context.assertTrue(event.succeeded());
+            async.complete();
+        });
+
+        Mockito.verifyNoInteractions(monitoringHandler);
+    }
+
+    @Test
     public void testEnqueueFutureNotUpdatingMonitoringHandlerOnRedisquesFail(TestContext context){
         Async async = context.async();
 

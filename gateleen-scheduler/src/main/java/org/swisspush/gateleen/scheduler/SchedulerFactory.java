@@ -15,6 +15,7 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
 import org.swisspush.gateleen.validation.Validator;
 
+import javax.annotation.Nullable;
 import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -54,7 +55,7 @@ public class SchedulerFactory {
         Vertx vertx,
         RedisProvider redisProvider,
         GateleenExceptionFactory exceptionFactory,
-        MonitoringHandler monitoringHandler,
+        @Nullable MonitoringHandler monitoringHandler,
         String schedulersSchema,
         String redisquesAddress
     ) {

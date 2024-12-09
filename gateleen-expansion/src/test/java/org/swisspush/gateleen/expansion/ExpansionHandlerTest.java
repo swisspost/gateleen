@@ -46,7 +46,6 @@ public class ExpansionHandlerTest {
     public void setUp() {
         vertx = Vertx.vertx();
         httpClient = Mockito.mock(HttpClient.class);
-    //    Mockito.when(httpClient.request(any(HttpMethod.class), anyString(), Matchers.<Handler<HttpClientResponse>>any())).thenReturn(Mockito.mock(HttpClientRequest.class));
         storage = new MockResourceStorage();
     }
 

@@ -135,3 +135,46 @@ Examples:
 }
 ```
 Each request header entry is validated in the format `<KEY>: <VALUE>`, so you are able to filter for request header names and values.
+
+## Micrometer metrics
+The routing feature is monitored with micrometer. The following metrics are available:
+* gateleen_forwarded_total
+* gateleen_forwarded_seconds
+* gateleen_forwarded_seconds_max
+* gateleen_forwarded_seconds_count
+* gateleen_forwarded_seconds_sum
+
+Additional tags are provided to split the forward count into sub counts.
+
+| tag        | description                                                                                                       |
+|------------|-------------------------------------------------------------------------------------------------------------------|
+| metricName | The `metricName` property from the corresponding routing rule. With this, you are able to count requests per rule |
+| type       | Describes where the request was forwarded to. Possible values are `local`, `external` and `null`                  |      
+| quantile   | Values of `0.75` and `0.95` for percentile durations of requests                                                  |
+
+
+Example metrics:
+
+```
+# HELP gateleen_forwarded_total Amount of forwarded requests
+# TYPE gateleen_forwarded_total counter
+gateleen_forwarded_total{metricName="storage-resources",type="storage",} 67565.0
+gateleen_forwarded_total{metricName="infotool_v1_informations",type="external",} 655.0
+gateleen_forwarded_total{metricName="infotool-v1",type="storage",} 4320.0
+# HELP gateleen_forwarded_seconds_max Durations of forwarded requests
+# TYPE gateleen_forwarded_seconds_max gauge
+gateleen_forwarded_seconds_max{metricName="storage-resources",type="storage",} 8.5515
+gateleen_forwarded_seconds_max{metricName="infotool_v1_informations",type="external",} 3.456
+# HELP gateleen_forwarded_seconds Durations of forwarded requests
+# TYPE gateleen_forwarded_seconds summary
+gateleen_forwarded_seconds{metricName="storage-resources",type="storage",quantile="0.75",} 6.2158
+gateleen_forwarded_seconds{metricName="storage-resources",type="storage",quantile="0.95",} 8.2123
+gateleen_forwarded_seconds_count{metricName="storage-resources",type="storage",} 67565.0
+gateleen_forwarded_seconds_sum{metricName="storage-resources",type="storage",} 656434.0
+gateleen_forwarded_seconds{metricName="infotool_v1_informations",type="external",quantile="0.75",} 4.2365
+gateleen_forwarded_seconds{metricName="infotool_v1_informations",type="external",quantile="0.95",} 4.8998
+gateleen_forwarded_seconds_count{metricName="infotool_v1_informations",type="external",} 7567.0
+gateleen_forwarded_seconds_sum{metricName="infotool_v1_informations",type="external",} 256324.0
+```
+
+To enable the metrics, set a `MeterRegistry` instance by calling `withMeterRegistry(MeterRegistry meterRegistry)` method in `RouterBuilder` class.

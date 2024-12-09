@@ -27,6 +27,10 @@
             <artifactId>gateleen-monitoring</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
 
         <!-- TEST dependencies -->
         <dependency>
