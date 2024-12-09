@@ -25,6 +25,8 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
+import javax.annotation.Nullable;
+
 import static io.vertx.core.Future.failedFuture;
 import static io.vertx.core.Future.succeededFuture;
 import static io.vertx.core.buffer.Buffer.buffer;
@@ -49,18 +51,18 @@ public class QueueProcessor {
 
     private Logger log = LoggerFactory.getLogger(QueueProcessor.class);
 
-    public QueueProcessor(final Vertx vertx, final HttpClient httpClient, final MonitoringHandler monitoringHandler) {
+    public QueueProcessor(final Vertx vertx, final HttpClient httpClient, @Nullable final MonitoringHandler monitoringHandler) {
         this(vertx, httpClient, monitoringHandler, null);
     }
 
-    public QueueProcessor(final Vertx vertx, final HttpClient httpClient, final MonitoringHandler monitoringHandler, QueueCircuitBreaker queueCircuitBreaker) {
+    public QueueProcessor(final Vertx vertx, final HttpClient httpClient, @Nullable final MonitoringHandler monitoringHandler, QueueCircuitBreaker queueCircuitBreaker) {
         this(vertx, httpClient, monitoringHandler, queueCircuitBreaker, newGateleenThriftyExceptionFactory(), true);
     }
 
     public QueueProcessor(
         Vertx vertx,
         HttpClient httpClient,
-        MonitoringHandler monitoringHandler,
+        @Nullable MonitoringHandler monitoringHandler,
         QueueCircuitBreaker queueCircuitBreaker,
         GateleenExceptionFactory exceptionFactory,
         boolean immediatelyStartQueueProcessing
@@ -275,7 +277,9 @@ public class QueueProcessor {
                     }
                     message.reply(new JsonObject().put(STATUS, OK));
                     performCircuitBreakerActions(queueName, queuedRequest, SUCCESS, state);
-                    monitoringHandler.updateDequeue();
+                    if(monitoringHandler != null) {
+                        monitoringHandler.updateDequeue();
+                    }
                 } else if (QueueRetryUtil.retryQueueItem(queuedRequest.getHeaders(), statusCode, logger)) {
                     logger.info("Failed queued request to {}: {} {}", queuedRequest.getUri(), statusCode, response.statusMessage());
                     message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, statusCode + " " + response.statusMessage()));

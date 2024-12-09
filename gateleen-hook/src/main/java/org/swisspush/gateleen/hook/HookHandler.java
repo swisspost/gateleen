@@ -5,17 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.*;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonArray;
@@ -31,12 +28,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
-import org.swisspush.gateleen.core.util.CollectionContentComparator;
-import org.swisspush.gateleen.core.util.HttpHeaderUtil;
-import org.swisspush.gateleen.core.util.HttpRequestHeader;
-import org.swisspush.gateleen.core.util.HttpServerRequestUtil;
-import org.swisspush.gateleen.core.util.ResourcesUtils;
-import org.swisspush.gateleen.core.util.StatusCode;
+import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.hook.queueingstrategy.DefaultQueueingStrategy;
 import org.swisspush.gateleen.hook.queueingstrategy.DiscardPayloadQueueingStrategy;
 import org.swisspush.gateleen.hook.queueingstrategy.QueueingStrategy;
@@ -69,12 +61,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static io.vertx.core.http.HttpMethod.DELETE;
-import static io.vertx.core.http.HttpMethod.PUT;
+import static io.vertx.core.http.HttpMethod.*;
 import static org.swisspush.gateleen.core.util.HttpRequestHeader.CONTENT_LENGTH;
 
 /**
@@ -89,7 +82,6 @@ public class HookHandler implements LoggableResource {
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
     public static final String LISTENER_QUEUE_PREFIX = "listener-hook";
     private static final String X_QUEUE = "x-queue";
-    private static final String X_EXPIRE_AFTER = "X-Expire-After";
     private static final String LISTENER_HOOK_TARGET_PATH = "listeners/";
 
     public static final String HOOKS_ROUTE_URI_PART = "/_hooks/route";
@@ -123,6 +115,10 @@ public class HookHandler implements LoggableResource {
     public static final String LISTABLE = "listable";
     public static final String COLLECTION = "collection";
 
+    private static final String CONTENT_TYPE_JSON = "application/json";
+    private static final String LISTENERS_KEY = "listeners";
+    private static final String ROUTES_KEY = "routes";
+
     private final Comparator<String> collectionContentComparator;
     private static final Logger log = LoggerFactory.getLogger(HookHandler.class);
 
@@ -152,7 +148,14 @@ public class HookHandler implements LoggableResource {
     private int routeMultiplier;
 
     private final QueueSplitter queueSplitter;
+    private final String routeBase;
+    private final String listenerBase;
+    private final String normalizedRouteBase;
+    private final String normalizedListenerBase;
 
+    private final AtomicLong listenerCount = new AtomicLong(0);
+    private final AtomicLong routesCount = new AtomicLong(0);
+    private MeterRegistry meterRegistry;
 
     /**
      * Creates a new HookHandler.
@@ -166,7 +169,7 @@ public class HookHandler implements LoggableResource {
      * @param hookRootUri            hookRootUri
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri) {
         this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 new QueueClient(vertx, monitoringHandler));
@@ -186,14 +189,14 @@ public class HookHandler implements LoggableResource {
      * @param requestQueue           requestQueue
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue) {
         this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false);
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes) {
         this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
                 requestQueue, false, null);
@@ -214,7 +217,7 @@ public class HookHandler implements LoggableResource {
      * @param reducedPropagationManager reducedPropagationManager
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage storage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        @Nullable ReducedPropagationManager reducedPropagationManager) {
         this(vertx, selfClient, storage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
@@ -222,7 +225,7 @@ public class HookHandler implements LoggableResource {
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, @Nullable Handler doneHandler, ResourceStorage hookStorage) {
         this(vertx, selfClient, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler, userProfilePath, hookRootUri,
@@ -230,7 +233,7 @@ public class HookHandler implements LoggableResource {
     }
 
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, @Nullable Handler doneHandler, ResourceStorage hookStorage,
                        int routeMultiplier) {
@@ -260,7 +263,7 @@ public class HookHandler implements LoggableResource {
      *                                  parallel operation.
      */
     public HookHandler(Vertx vertx, HttpClient selfClient, final ResourceStorage userProfileStorage,
-                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, MonitoringHandler monitoringHandler,
+                       LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
                        String userProfilePath, String hookRootUri, RequestQueue requestQueue, boolean listableRoutes,
                        ReducedPropagationManager reducedPropagationManager, @Nullable Handler doneHandler, ResourceStorage hookStorage,
                        int routeMultiplier, @Nonnull QueueSplitter queueSplitter) {
@@ -285,6 +288,11 @@ public class HookHandler implements LoggableResource {
         this.queueSplitter = queueSplitter;
         String hookSchema = ResourcesUtils.loadResource("gateleen_hooking_schema_hook", true);
         jsonSchemaHook = JsonSchemaFactory.getInstance().getSchema(hookSchema);
+        this.listenerBase = hookRootUri + HOOK_LISTENER_STORAGE_PATH;
+        this.routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
+        this.normalizedListenerBase = this.listenerBase.replaceAll("/+$", "");
+        this.normalizedRouteBase = this.routeBase.replaceAll("/+$", "");
+
     }
 
     public void init() {
@@ -314,6 +322,16 @@ public class HookHandler implements LoggableResource {
         };
 
         initMethods.forEach(handlerConsumer -> handlerConsumer.accept(readyHandler));
+    }
+
+    public void setMeterRegistry(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+        if(meterRegistry != null) {
+            Gauge.builder("gateleen.listener.count", listenerCount, AtomicLong::get)
+                    .description("Amount of listener hooks currently registered").register(meterRegistry);
+            Gauge.builder("gateleen.routes.count", routesCount, AtomicLong::get)
+                    .description("Amount of route hooks currently registered").register(meterRegistry);
+        }
     }
 
     @Override
@@ -360,8 +378,15 @@ public class HookHandler implements LoggableResource {
                     routeRepository.removeRoute(key);
                 }
             }
-            monitoringHandler.updateListenerCount(listenerRepository.size());
-            monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+            if(meterRegistry != null) {
+                listenerCount.set(listenerRepository.size());
+                routesCount.set(routeRepository.getRoutes().size());
+            }
+
+            if(monitoringHandler != null) {
+                monitoringHandler.updateListenerCount(listenerRepository.size());
+                monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+            }
             log.trace("done");
         });
 
@@ -378,9 +403,6 @@ public class HookHandler implements LoggableResource {
      */
     private void loadStoredRoutes(Handler<Void> readyHandler) {
         log.debug("loadStoredRoutes");
-
-        // load the names of the routes from the hookStorage
-        final String routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
 
         hookStorage.get(routeBase, buffer -> {
             if (buffer != null) {
@@ -426,8 +448,6 @@ public class HookHandler implements LoggableResource {
     private void loadStoredListeners(final Handler<Void> readyHandler) {
         log.debug("loadStoredListeners");
 
-        // load the names of the listener from the hookStorage
-        final String listenerBase = hookRootUri + HOOK_LISTENER_STORAGE_PATH;
         hookStorage.get(listenerBase, buffer -> {
             if (buffer != null) {
                 JsonObject listOfListeners = new JsonObject(buffer.toString());
@@ -541,13 +561,12 @@ public class HookHandler implements LoggableResource {
     public boolean handle(final RoutingContext ctx) {
         HttpServerRequest request = ctx.request();
         boolean consumed = false;
-
+        var requestUri = request.uri();
         /*
          * 1) Un- / Register Listener / Routes
          */
         var requestMethod = request.method();
         if (requestMethod == PUT) {
-            var requestUri = request.uri();
             if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
                 handleListenerRegistration(request);
                 return true;
@@ -558,13 +577,22 @@ public class HookHandler implements LoggableResource {
             }
         }
         if (requestMethod == DELETE) {
-            var requestUri = request.uri();
             if (requestUri.contains(HOOKS_LISTENERS_URI_PART)) {
                 handleListenerUnregistration(request);
                 return true;
             }
             if (requestUri.contains(HOOKS_ROUTE_URI_PART)) {
                 handleRouteUnregistration(request);
+                return true;
+            }
+        }
+
+        if (requestMethod == GET && !request.params().isEmpty()) {
+            if (requestUri.contains(normalizedListenerBase) ) {
+                handleListenerSearch(request);
+                return true;
+            } else if (requestUri.contains(normalizedRouteBase) ) {
+                handleRouteSearch(request);
                 return true;
             }
         }
@@ -590,6 +618,60 @@ public class HookHandler implements LoggableResource {
         } else {
             return true;
         }
+    }
+
+    private void handleListenerSearch(HttpServerRequest request) {
+        handleSearch(
+                listenerRepository.getListeners().stream().collect(Collectors.toMap(Listener::getListenerId, listener -> listener)),
+                listener -> listener.getHook().getDestination(),
+                LISTENERS_KEY,
+                request
+        );
+    }
+
+    private void handleRouteSearch(HttpServerRequest request) {
+        handleSearch(
+                routeRepository.getRoutes().entrySet().stream().collect(Collectors.toMap(entry -> entry.getValue().getHookDisplayText(), Map.Entry::getValue)),
+                route -> route.getHook().getDestination(),
+                ROUTES_KEY,
+                request
+        );
+    }
+
+    /**
+     * Search the repository for items matching the query parameter.
+     * Output a JSON response with the matched results.
+     * If parameter queryParam is empty or null a 400 Bad Request is returned.
+     * All params cannot be null
+     * @param repository The items to search .
+     * @param getDestination Function to extract destinations.
+     * @param resultKey The key for the result in the response.
+     * @param request The HTTP request to make a specific validations and return the results.
+     */
+    private <T> void handleSearch(Map<String, T> repository, Function<T, String> getDestination, String resultKey, HttpServerRequest request) {
+        String queryParam = request.getParam("q");
+        if (request.params().size() > 1 || StringUtils.isEmpty(queryParam)) {
+            request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+            request.response().end("Only the 'q' parameter is allowed and can't be empty or null");
+            return ;
+        }
+
+        JsonArray matchingResults = new JsonArray();
+        repository.forEach((key, value) -> {
+            String destination = getDestination.apply(value);
+            if (destination != null && destination.contains(queryParam)) {
+                matchingResults.add(convertToStoragePattern(key));
+            }
+        });
+
+        JsonObject result = new JsonObject();
+        result.put(resultKey, matchingResults);
+
+        String encodedResult = result.encode();
+
+        request.response().putHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE_JSON);
+        request.response().end(encodedResult);
     }
 
     /**
@@ -1294,7 +1376,12 @@ public class HookHandler implements LoggableResource {
         log.debug("Unregister route {}", routedUrl);
 
         routeRepository.removeRoute(routedUrl);
-        monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+        if(meterRegistry != null) {
+            routesCount.set(routeRepository.getRoutes().size());
+        }
+        if(monitoringHandler != null) {
+            monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+        }
     }
 
     /**
@@ -1309,7 +1396,12 @@ public class HookHandler implements LoggableResource {
 
         routeRepository.removeRoute(hookRootUri + LISTENER_HOOK_TARGET_PATH + getListenerUrlSegment(requestUrl));
         listenerRepository.removeListener(listenerId);
-        monitoringHandler.updateListenerCount(listenerRepository.size());
+        if(meterRegistry != null) {
+            listenerCount.set(listenerRepository.size());
+        }
+        if(monitoringHandler != null) {
+            monitoringHandler.updateListenerCount(listenerRepository.size());
+        }
     }
 
     /**
@@ -1420,7 +1512,7 @@ public class HookHandler implements LoggableResource {
             target = hook.getDestination();
         } else {
             String urlPattern = hookRootUri + LISTENER_HOOK_TARGET_PATH + target;
-            routeRepository.addRoute(urlPattern, createRoute(urlPattern, hook));
+            routeRepository.addRoute(urlPattern, createRoute(urlPattern, hook, requestUrl));
 
             if (log.isTraceEnabled()) {
                 log.trace("external target, add route for urlPattern: {}", urlPattern);
@@ -1433,7 +1525,12 @@ public class HookHandler implements LoggableResource {
 
         // create and add a new listener (or update an already existing listener)
         listenerRepository.addListener(new Listener(listenerId, getMonitoredUrlSegment(requestUrl), target, hook));
-        monitoringHandler.updateListenerCount(listenerRepository.size());
+        if(meterRegistry != null) {
+            listenerCount.set(listenerRepository.size());
+        }
+        if(monitoringHandler != null) {
+            monitoringHandler.updateListenerCount(listenerRepository.size());
+        }
     }
 
     /**
@@ -1602,18 +1699,24 @@ public class HookHandler implements LoggableResource {
         }
 
         boolean mustCreateNewRoute = true;
+
         Route existingRoute = routeRepository.getRoutes().get(routedUrl);
         if (existingRoute != null) {
             mustCreateNewRoute = mustCreateNewRouteForHook(existingRoute, hook);
         }
         if (mustCreateNewRoute) {
-            routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook));
+            routeRepository.addRoute(routedUrl, createRoute(routedUrl, hook, requestUrl));
         } else {
             // see comment in #mustCreateNewRouteForHook()
             existingRoute.getRule().setHeaderFunction(hook.getHeaderFunction());
             existingRoute.getHook().setExpirationTime(hook.getExpirationTime().orElse(null));
         }
-        monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+        if(meterRegistry != null) {
+            routesCount.set(routeRepository.getRoutes().size());
+        }
+        if(monitoringHandler != null) {
+            monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
+        }
     }
 
     /**
@@ -1658,11 +1761,14 @@ public class HookHandler implements LoggableResource {
      *
      * @param urlPattern urlPattern
      * @param hook       hook
+     * @param hookDisplayText text used for display only like in API
      * @return Route
      */
-    private Route createRoute(String urlPattern, HttpHook hook) {
-        return new Route(vertx, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler,
-                userProfilePath, hook, urlPattern, selfClient);
+    private Route createRoute(String urlPattern, HttpHook hook, String hookDisplayText) {
+        Route route = new Route(vertx, userProfileStorage, loggingResourceManager, logAppenderRepository, monitoringHandler,
+                userProfilePath, hook, urlPattern, selfClient, hookDisplayText);
+        route.setMeterRegistry(meterRegistry);
+        return route;
     }
 
     /**

@@ -14,6 +14,8 @@ import org.swisspush.gateleen.queue.duplicate.DuplicateCheckHandler;
 import org.swisspush.gateleen.queue.queuing.splitter.NoOpQueueSplitter;
 import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
 
+import javax.annotation.Nullable;
+
 import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
 
 /**
@@ -24,6 +26,7 @@ import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
 public class QueuingHandler implements Handler<Buffer> {
 
     public static final String QUEUE_HEADER = "x-queue";
+    public static final String ORIGINALLY_QUEUED_HEADER = "x-originally-queued";
     public static final String DUPLICATE_CHECK_HEADER = "x-duplicate-check";
 
     private final RequestQueue requestQueue;
@@ -42,7 +45,7 @@ public class QueuingHandler implements Handler<Buffer> {
             Vertx vertx,
             RedisProvider redisProvider,
             HttpServerRequest request,
-            MonitoringHandler monitoringHandler
+            @Nullable MonitoringHandler monitoringHandler
     ) {
         this(vertx, redisProvider, request, new QueueClient(vertx, monitoringHandler), new NoOpQueueSplitter());
     }
@@ -51,7 +54,7 @@ public class QueuingHandler implements Handler<Buffer> {
             Vertx vertx,
             RedisProvider redisProvider,
             HttpServerRequest request,
-            MonitoringHandler monitoringHandler,
+            @Nullable MonitoringHandler monitoringHandler,
             QueueSplitter queueSplitter
     ) {
         this(
@@ -83,6 +86,9 @@ public class QueuingHandler implements Handler<Buffer> {
         final MultiMap headers = request.headers();
         // Remove the queue header to avoid feedback loop
         headers.remove(QUEUE_HEADER);
+
+        // Add a header to indicate that this request was initially queued
+        headers.add(ORIGINALLY_QUEUED_HEADER, "true");
 
         if (headers.names().contains(DUPLICATE_CHECK_HEADER)) {
             DuplicateCheckHandler.checkDuplicateRequest(redisProvider, request.uri(), buffer, headers.get(DUPLICATE_CHECK_HEADER), requestIsDuplicate -> {

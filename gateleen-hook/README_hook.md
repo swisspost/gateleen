@@ -163,7 +163,7 @@ PUT http://myserver:7012/gateleen/everything/_hooks/listeners/http/myexample
     "destination": "/gateleen/example/thePosition",
     "filter": "/gateleen/everything/.*/position.*",
     "headers": [
-        { "header":"X-Expire-After", "value":"3600", mode:"complete"}
+        { "header":"X-Expire-After", "value":"3600", "mode":"complete"}
     ],
     "headersFilter": "x-foo: (A|B)"
 }
@@ -240,10 +240,76 @@ hookHandler.enableResourceLogging(true);
 ```
 
 
+## Query-Based Listener and Route Search
 
+Gateleen allows searching for listeners and routes using the query parameter `q`. This simplifies filtering the registered hooks based on query parameters.
 
+The search will be based on the value registered of the destination property
 
+### Listener Search with `q`
+Search for listeners based on a query parameter like this:
 
+```
+GET http://myserver:7012/playground/server/hooks/v1/registrations/listeners?q=mylistener
+```
 
+The response will contain the matching listeners. If no match is found, an empty list is returned:
 
+**Example response with matches:**
+```json
+{
+  "listeners": [
+    "first+playground+server+test+nemo+origin+mylistener"
+  ]
+}
+```
 
+**Example response with no matches:**
+```json
+{
+  "listeners": []
+}
+```
+
+### Route Search with `q`
+Similarly, you can search for routes using a query parameter:
+
+```
+GET http://myserver:7012/playground/server/hooks/v1/registrations/routes/?q=myroute
+```
+
+The response contains the matching routes, or an empty list if no match is found.
+
+**Example response with matches:**
+```json
+{
+  "routes": [
+    "first+playground+server+test+nemo+origin+myroute"
+  ]
+}
+
+```
+**Example response with no matches:**
+```json
+{
+  "routes": []
+}
+```
+
+## Micrometer metrics
+The hook feature is monitored with micrometer. The following metrics are available:
+* gateleen_listener_count
+* gateleen_routes_count
+
+Example metrics:
+
+```
+# HELP gateleen_listener_count Amount of listener hooks currently registered
+# TYPE gateleen_listener_count gauge
+gateleen_listener_count 577.0
+# HELP gateleen_routes_count Amount of route hooks currently registered
+# TYPE gateleen_routes_count gauge
+gateleen_routes_count 15.0
+```
+
+To enable the metrics, set a `MeterRegistry` instance by calling `setMeterRegistry(MeterRegistry meterRegistry)` method in `HookHandler` class.

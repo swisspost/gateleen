@@ -13,6 +13,8 @@ import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
+import javax.annotation.Nullable;
+
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
 /**
@@ -32,7 +34,7 @@ public class QueueClient implements RequestQueue {
      * @param vertx             vertx
      * @param monitoringHandler monitoringHandler
      */
-    public QueueClient(Vertx vertx, MonitoringHandler monitoringHandler) {
+    public QueueClient(Vertx vertx, @Nullable MonitoringHandler monitoringHandler) {
         this.vertx = vertx;
         this.monitoringHandler = monitoringHandler;
     }
@@ -109,7 +111,7 @@ public class QueueClient implements RequestQueue {
         vertx.eventBus().request(getRedisquesAddress(), buildLockedEnqueueOperation(queue,
                 queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode(), lockRequestedBy),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
-                    if (OK.equals(event.result().body().getString(STATUS))) {
+                    if (OK.equals(event.result().body().getString(STATUS)) && monitoringHandler != null) {
                         monitoringHandler.updateLastUsedQueueSizeInformation(queue);
                         monitoringHandler.updateEnqueue();
                     }
@@ -172,8 +174,10 @@ public class QueueClient implements RequestQueue {
                 queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                     if (OK.equals(event.result().body().getString(STATUS))) {
-                        monitoringHandler.updateLastUsedQueueSizeInformation(queue);
-                        monitoringHandler.updateEnqueue();
+                        if(monitoringHandler != null) {
+                            monitoringHandler.updateLastUsedQueueSizeInformation(queue);
+                            monitoringHandler.updateEnqueue();
+                        }
                         promise.complete();
                     } else {
                         promise.fail(event.result().body().getString(MESSAGE));
@@ -216,8 +220,10 @@ public class QueueClient implements RequestQueue {
         vertx.eventBus().request(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
                     if (OK.equals(event.result().body().getString(STATUS))) {
-                        monitoringHandler.updateLastUsedQueueSizeInformation(queue);
-                        monitoringHandler.updateEnqueue();
+                        if(monitoringHandler != null) {
+                            monitoringHandler.updateLastUsedQueueSizeInformation(queue);
+                            monitoringHandler.updateEnqueue();
+                        }
 
                         if (request != null) {
                             ResponseStatusCodeLogUtil.info(request, StatusCode.ACCEPTED, QueueClient.class);

@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.hook;
 
-import io.vertx.codegen.annotations.Nullable;
+import javax.annotation.Nullable;
+
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -49,6 +51,7 @@ public class Route {
     private MonitoringHandler monitoringHandler;
     private String userProfilePath;
     private ResourceStorage storage;
+    private String hookDisplayText;
 
     private String urlPattern;
     private HttpHook httpHook;
@@ -78,8 +81,9 @@ public class Route {
      * @param httpHook httpHook
      * @param urlPattern - this can be a listener or a normal urlPattern (eg. for a route)
      */
-    public Route(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
-                 MonitoringHandler monitoringHandler, String userProfilePath, HttpHook httpHook, String urlPattern, HttpClient selfClient) {
+    public Route(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager,
+                 LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler, String userProfilePath,
+                 HttpHook httpHook, String urlPattern, HttpClient selfClient, String hookDisplayText) {
         this.vertx = vertx;
         this.storage = storage;
         this.loggingResourceManager = loggingResourceManager;
@@ -89,12 +93,17 @@ public class Route {
         this.httpHook = httpHook;
         this.urlPattern = urlPattern;
         this.selfClient = selfClient;
+        this.hookDisplayText = hookDisplayText;
 
         createRule();
 
         createHttpClient();
 
         createForwarder();
+    }
+
+    public void setMeterRegistry(MeterRegistry meterRegistry) {
+        forwarder.setMeterRegistry(meterRegistry);
     }
 
     /**
@@ -272,5 +281,9 @@ public class Route {
      */
     public HttpHook getHook() {
         return httpHook;
+    }
+
+    public String getHookDisplayText() {
+        return hookDisplayText;
     }
 }

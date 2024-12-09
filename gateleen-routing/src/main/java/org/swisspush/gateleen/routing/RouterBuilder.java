@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.routing;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
@@ -37,6 +38,7 @@ public class RouterBuilder {
     private LoggingResourceManager loggingResourceManager;
     private LogAppenderRepository logAppenderRepository;
     private MonitoringHandler monitoringHandler;
+    private MeterRegistry meterRegistry;
     private HttpClient selfClient;
     private String serverPath;
     private String rulesPath;
@@ -98,6 +100,7 @@ public class RouterBuilder {
                 loggingResourceManager,
                 logAppenderRepository,
                 monitoringHandler,
+                meterRegistry,
                 selfClient,
                 serverPath,
                 rulesPath,
@@ -180,6 +183,12 @@ public class RouterBuilder {
     public RouterBuilder withMonitoringHandler(MonitoringHandler monitoringHandler) {
         ensureNotBuilt();
         this.monitoringHandler = monitoringHandler;
+        return this;
+    }
+
+    public RouterBuilder withMeterRegistry(MeterRegistry meterRegistry) {
+        ensureNotBuilt();
+        this.meterRegistry = meterRegistry;
         return this;
     }
 
