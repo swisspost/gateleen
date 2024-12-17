@@ -313,7 +313,6 @@ public class Forwarder extends AbstractForwarder {
                 }
                 HttpClientRequest cReq = event.result();
                 final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, finalStartTime, finalTimerSample, afterHandler);
-                cReq.response(cResHandler);
 
                 if (timeout != null) {
                     cReq.idleTimeout(Long.parseLong(timeout));
@@ -358,7 +357,7 @@ public class Forwarder extends AbstractForwarder {
                  */
                 if (bodyData == null) {
 
-                    // Gateleen internal requests (e.g. from scedulers or delegates) often have neither "Content-Length" nor "Transfer-Encoding: chunked"
+                    // Gateleen internal requests (e.g. from schedulers or delegates) often have neither "Content-Length" nor "Transfer-Encoding: chunked"
                     // header - so we must wait for a body buffer to know: Is there a body or not? Only looking on the headers and/or the http-method is not
                     // sustainable to know "has body or not"
                     // But: if there is a body, then we need to either setChunked or a Content-Length header (otherwise Vertx complains with an Exception)
