@@ -84,6 +84,7 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
         JsonObject info = new JsonObject();
         info.put("failRatio", 99);
         info.put("circuit", "/path/of/circuit");
+        info.put("metric", "my-metric-1");
         result.put("info", info);
 
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitInformation(anyString()))
@@ -97,6 +98,34 @@ public class QueueCircuitBreakerHttpRequestHandlerTest {
                     context.assertEquals(QueueCircuitState.HALF_OPEN.name(), payload.getString(STATUS));
                     context.assertEquals(99, payload.getJsonObject("info").getInteger("failRatio"));
                     context.assertEquals("/path/of/circuit", payload.getJsonObject("info").getString("circuit"));
+                    context.assertEquals("my-metric-1", payload.getJsonObject("info").getString("metric"));
+                    async.complete();
+                });
+    }
+
+    @Test
+    public void testGetQueueCircuitInformationSuccessWithoutMetricName(TestContext context) {
+        Async async = context.async();
+
+        JsonObject result = new JsonObject();
+        result.put("status", QueueCircuitState.HALF_OPEN.name());
+        JsonObject info = new JsonObject();
+        info.put("failRatio", 99);
+        info.put("circuit", "/path/of/circuit");
+        result.put("info", info);
+
+        Mockito.when(queueCircuitBreakerStorage.getQueueCircuitInformation(anyString()))
+                .thenReturn(Future.succeededFuture(result));
+
+        vertx.eventBus().request(HTTP_REQUEST_API_ADDRESS, QueueCircuitBreakerAPI.buildGetCircuitInformationOperation("someCircuit"),
+                (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+                    JsonObject replyBody = reply.result().body();
+                    context.assertEquals(OK, replyBody.getString(STATUS));
+                    JsonObject payload = replyBody.getJsonObject(VALUE);
+                    context.assertEquals(QueueCircuitState.HALF_OPEN.name(), payload.getString(STATUS));
+                    context.assertEquals(99, payload.getJsonObject("info").getInteger("failRatio"));
+                    context.assertEquals("/path/of/circuit", payload.getJsonObject("info").getString("circuit"));
+                    context.assertNull(payload.getJsonObject("info").getString("metric"));
                     async.complete();
                 });
     }

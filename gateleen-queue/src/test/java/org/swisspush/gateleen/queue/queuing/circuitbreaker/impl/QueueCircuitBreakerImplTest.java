@@ -176,7 +176,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.succeededFuture(QueueCircuitState.CLOSED));
@@ -206,7 +206,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.succeededFuture(QueueCircuitState.OPEN));
@@ -229,7 +229,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.getQueueCircuitState(any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.succeededFuture(QueueCircuitState.CLOSED));
@@ -274,7 +274,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.updateStatistics(any(PatternAndCircuitHash.class),
                 anyString(), anyLong(), anyInt(), anyLong(), anyLong(), anyLong(), any(QueueResponseType.class)))
@@ -311,7 +311,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.updateStatistics(any(PatternAndCircuitHash.class),
                 anyString(), anyLong(), anyInt(), anyLong(), anyLong(), anyLong(), any(QueueResponseType.class)))
@@ -334,7 +334,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.lockQueue(anyString(), any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.succeededFuture());
@@ -360,7 +360,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.lockQueue(anyString(), any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.succeededFuture());
@@ -387,7 +387,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.lockQueue(anyString(), any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.failedFuture("queue could not be locked"));
@@ -544,7 +544,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.closeCircuit(any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.succeededFuture());
@@ -563,7 +563,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.closeCircuit(any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.failedFuture("unable to close circuit"));
@@ -614,7 +614,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.reOpenCircuit(any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.succeededFuture());
@@ -633,7 +633,7 @@ public class QueueCircuitBreakerImplTest {
         HttpRequest req = new HttpRequest(HttpMethod.PUT, "/playground/circuitBreaker/test", MultiMap.caseInsensitiveMultiMap(), null);
 
         Mockito.when(ruleToCircuitMapping.getCircuitFromRequestUri(anyString()))
-                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash"));
+                .thenReturn(new PatternAndCircuitHash(Pattern.compile("/someCircuit"), "someCircuitHash", "my-metric-1"));
 
         Mockito.when(queueCircuitBreakerStorage.reOpenCircuit(any(PatternAndCircuitHash.class)))
                 .thenReturn(Future.failedFuture("unable to re-open circuit"));

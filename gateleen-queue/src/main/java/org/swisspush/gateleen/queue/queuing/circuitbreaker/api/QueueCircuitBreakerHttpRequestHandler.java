@@ -291,7 +291,7 @@ public class QueueCircuitBreakerHttpRequestHandler implements Handler<HttpServer
 
     private void handleCloseCircuit(Message<JsonObject> message) {
         String circuitHash = message.body().getJsonObject(PAYLOAD).getString(CIRCUIT_HASH);
-        PatternAndCircuitHash patternAndCircuitHash = new PatternAndCircuitHash(null, circuitHash);
+        PatternAndCircuitHash patternAndCircuitHash = new PatternAndCircuitHash(null, circuitHash, null);
         storage.closeCircuit(patternAndCircuitHash).onComplete(event -> {
             if (event.failed()) {
                 message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, event.cause().getMessage()));

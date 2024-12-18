@@ -303,6 +303,7 @@ The result will be a json object with the circuit information like the example b
   "status": "closed",
   "info": {
     "failRatio": 15,
+    "metric": "server-tests",
     "circuit": "/playground/server/tests/(.*)"
   }
 }
@@ -323,6 +324,7 @@ The result will be a json object with the information of all circuits like the e
   "myCircuitHash": {
     "infos": {
       "failRatio": 15,
+      "metric": "server-tests",
       "circuit": "/playground/server/tests/(.*)"
     },
     "status": "closed"

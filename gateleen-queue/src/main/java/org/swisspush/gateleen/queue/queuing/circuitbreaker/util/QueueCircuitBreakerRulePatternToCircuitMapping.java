@@ -66,7 +66,7 @@ public class QueueCircuitBreakerRulePatternToCircuitMapping {
         try {
             Pattern pattern = Pattern.compile(rule.getUrlPattern());
             String circuitHash = HashCodeGenerator.createHashCode(rule.getUrlPattern());
-            return new PatternAndCircuitHash(pattern, circuitHash);
+            return new PatternAndCircuitHash(pattern, circuitHash, rule.getMetricName());
         } catch (Exception e) {
             log.error("Could not compile the regex:{} to a pattern.", rule.getUrlPattern());
             return null;
