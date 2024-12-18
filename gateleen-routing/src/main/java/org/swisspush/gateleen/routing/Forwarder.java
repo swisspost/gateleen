@@ -313,6 +313,7 @@ public class Forwarder extends AbstractForwarder {
                 }
                 HttpClientRequest cReq = event.result();
                 final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, finalStartTime, finalTimerSample, afterHandler);
+                cReq.response(cResHandler);
 
                 if (timeout != null) {
                     cReq.idleTimeout(Long.parseLong(timeout));
@@ -443,16 +444,16 @@ public class Forwarder extends AbstractForwarder {
                         // Setting the endHandler would then lead to an Exception
                         // see also https://github.com/eclipse-vertx/vert.x/issues/2763
                         // so we now check if the request already is ended before installing an endHandler
-                        cReq.send(cResHandler);
+                        cReq.send();
                     } else {
-                        req.endHandler(v -> cReq.send(cResHandler));
+                        req.endHandler(v -> cReq.send());
                         pump.start();
                     }
                 } else {
                     loggingHandler.appendRequestPayload(bodyData);
                     // we already have the body complete in-memory - so we can use Content-Length header and avoid chunked transfer
                     cReq.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(bodyData.length()));
-                    cReq.send(bodyData, cResHandler);
+                    cReq.send(bodyData);
                 }
 
                 loggingHandler.request(cReq.headers());
