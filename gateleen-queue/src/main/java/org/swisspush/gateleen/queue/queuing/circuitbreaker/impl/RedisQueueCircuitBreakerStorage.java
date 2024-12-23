@@ -38,6 +38,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public static final String STORAGE_OPEN_CIRCUITS = STORAGE_PREFIX + "open-circuits";
     public static final String STORAGE_QUEUES_TO_UNLOCK = STORAGE_PREFIX + "queues-to-unlock";
     public static final String FIELD_STATE = "state";
+    public static final String FIELD_STATUS = "status";
     public static final String FIELD_FAILRATIO = "failRatio";
     public static final String FIELD_CIRCUIT = "circuit";
     public static final String FIELD_METRICNAME = "metric";
@@ -111,7 +112,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                     String circuit = Objects.toString(event.result().get(2), null);
                     String metric = Objects.toString(event.result().get(3), null);
                     JsonObject result = new JsonObject();
-                    result.put("status", state.name().toLowerCase());
+                    result.put(FIELD_STATUS, state.name().toLowerCase());
                     JsonObject info = new JsonObject();
                     if (failRatioStr != null) {
                         info.put(FIELD_FAILRATIO, Integer.valueOf(failRatioStr));

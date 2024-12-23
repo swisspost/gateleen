@@ -80,4 +80,14 @@ public class LockUtil {
             }
         });
     }
+
+    /**
+     * Calculate the lock expiry time. This is a simple helper to work with the lock expiry time.
+     *
+     * @param taskInterval the interval of the task
+     * @return the calculated lock expiry time
+     */
+    public static long calcLockExpiry(long taskInterval) {
+        return taskInterval <= 1 ? 1 : taskInterval / 2;
+    }
 }
