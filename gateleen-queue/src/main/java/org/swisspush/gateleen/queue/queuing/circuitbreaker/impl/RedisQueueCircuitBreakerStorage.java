@@ -40,6 +40,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public static final String FIELD_STATE = "state";
     public static final String FIELD_FAILRATIO = "failRatio";
     public static final String FIELD_CIRCUIT = "circuit";
+    public static final String FIELD_METRICNAME = "metricName";
 
     private final LuaScriptState openCircuitLuaScriptState;
     private final LuaScriptState closeCircuitLuaScriptState;
@@ -99,7 +100,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public Future<JsonObject> getQueueCircuitInformation(String circuitHash) {
         Promise<JsonObject> promise = Promise.promise();
         redisProvider.redis().onSuccess(redisAPI -> redisAPI.hmget(Arrays.asList(buildInfosKey(circuitHash), FIELD_STATE,
-                FIELD_FAILRATIO, FIELD_CIRCUIT), event -> {
+                FIELD_FAILRATIO, FIELD_CIRCUIT, FIELD_METRICNAME), event -> {
             if (event.failed()) {
                 promise.fail(event.cause());
             } else {
@@ -108,6 +109,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                             QueueCircuitState.CLOSED);
                     String failRatioStr = Objects.toString(event.result().get(1), null);
                     String circuit = Objects.toString(event.result().get(2), null);
+                    String metric = Objects.toString(event.result().get(3), null);
                     JsonObject result = new JsonObject();
                     result.put("status", state.name().toLowerCase());
                     JsonObject info = new JsonObject();
@@ -116,6 +118,9 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                     }
                     if (circuit != null) {
                         info.put(FIELD_CIRCUIT, circuit);
+                    }
+                    if (StringUtils.isNotEmptyTrimmed(metric)) {
+                        info.put(FIELD_METRICNAME, metric);
                     }
                     result.put("info", info);
                     promise.complete(result);
@@ -156,6 +161,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
                 patternAndCircuitHash.getPattern().pattern(),
+                patternAndCircuitHash.getMetricName() != null ? patternAndCircuitHash.getMetricName() : "",
                 patternAndCircuitHash.getCircuitHash(),
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),

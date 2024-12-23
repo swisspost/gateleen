@@ -1,6 +1,7 @@
 local stateField = "state"
 local failRatioField = "failRatio"
 local circuitField = "circuit"
+local metricNameField = "metricName"
 local circuitInfoKey = KEYS[1]
 local circuitSuccessKey = KEYS[2]
 local circuitFailureKey = KEYS[3]
@@ -10,12 +11,13 @@ local allCircuitsKey = KEYS[6]
 
 local requestID = ARGV[1]
 local circuit = ARGV[2]
-local circuitHash = ARGV[3]
-local requestTS = tonumber(ARGV[4])
-local errorThresholdPercentage = tonumber(ARGV[5])
-local entriesMaxAgeMS = tonumber(ARGV[6])
-local minQueueSampleCount = tonumber(ARGV[7])
-local maxQueueSampleCount = tonumber(ARGV[8])
+local metricName = ARGV[3]
+local circuitHash = ARGV[4]
+local requestTS = tonumber(ARGV[5])
+local errorThresholdPercentage = tonumber(ARGV[6])
+local entriesMaxAgeMS = tonumber(ARGV[7])
+local minQueueSampleCount = tonumber(ARGV[8])
+local maxQueueSampleCount = tonumber(ARGV[9])
 
 local return_value = "OK"
 local minScore = requestTS - entriesMaxAgeMS
@@ -24,6 +26,8 @@ local minScore = requestTS - entriesMaxAgeMS
 redis.call('zadd',circuitKeyToUpdate,requestTS,requestID)
 -- write circuit pattern to infos
 redis.call('hsetnx',circuitInfoKey, circuitField, circuit)
+-- write metricName to infos
+redis.call('hsetnx',circuitInfoKey, metricNameField, metricName)
 -- add circuit to all circuits set
 redis.call('sadd',allCircuitsKey,circuitHash)
 

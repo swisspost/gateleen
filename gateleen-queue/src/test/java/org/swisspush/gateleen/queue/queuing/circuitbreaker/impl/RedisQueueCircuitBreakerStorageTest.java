@@ -18,7 +18,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.PatternAndCircuitHash;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
@@ -41,7 +40,13 @@ import static org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCirc
 @RunWith(VertxUnitRunner.class)
 public class RedisQueueCircuitBreakerStorageTest {
 
-    private static Vertx vertx;
+    private static final String INFO = "info";
+    private static final String INFOS = "infos";
+    private static final String FAIL_RATIO = "failRatio";
+    private static final String STATUS = "status";
+    private static final String CIRCUIT = "circuit";
+    private static final String METRIC_NAME = "metricName";
+
     private Jedis jedis;
     private static RedisQueueCircuitBreakerStorage storage;
 
@@ -50,7 +55,7 @@ public class RedisQueueCircuitBreakerStorageTest {
 
     @BeforeClass
     public static void setupStorage(){
-        vertx = Vertx.vertx();
+        Vertx vertx = Vertx.vertx();
         RedisAPI redisAPI = RedisAPI.api(new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions(), TracingPolicy.IGNORE));
         storage = new RedisQueueCircuitBreakerStorage(() -> Future.succeededFuture(redisAPI), newGateleenWastefulExceptionFactory());
     }
@@ -68,7 +73,7 @@ public class RedisQueueCircuitBreakerStorageTest {
     @Test
     public void testGetQueueCircuitState(TestContext context){
         Async async = context.async();
-        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/someCircuit", "someCircuitHash");
+        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/someCircuit", "someCircuitHash", "my-metric-1");
         storage.getQueueCircuitState(patternAndCircuitHash).onComplete(event -> {
             context.assertEquals(CLOSED, event.result());
             writeQueueCircuitStateToDatabase("someCircuitHash", HALF_OPEN);
@@ -99,20 +104,53 @@ public class RedisQueueCircuitBreakerStorageTest {
         storage.getQueueCircuitInformation(hash).onComplete(event -> {
             context.assertTrue(event.succeeded());
             JsonObject result = event.result();
-            context.assertEquals(CLOSED.name().toLowerCase(), result.getString("status"));
-            context.assertTrue(result.containsKey("info"));
-            context.assertFalse(result.getJsonObject("info").containsKey("failRatio"));
-            context.assertFalse(result.getJsonObject("info").containsKey("circuit"));
+            context.assertEquals(CLOSED.name().toLowerCase(), result.getString(STATUS));
+            context.assertTrue(result.containsKey(INFO));
+            context.assertFalse(result.getJsonObject(INFO).containsKey(FAIL_RATIO));
+            context.assertFalse(result.getJsonObject(INFO).containsKey(CIRCUIT));
+            context.assertFalse(result.getJsonObject(INFO).containsKey(METRIC_NAME));
 
-            writeQueueCircuit(hash, HALF_OPEN, "/some/circuit/path", 99);
+            writeQueueCircuit(hash, HALF_OPEN, "/some/circuit/path", "my-metric-1", 99);
 
             storage.getQueueCircuitInformation(hash).onComplete(event1 -> {
                 context.assertTrue(event1.succeeded());
                 JsonObject result1 = event1.result();
-                context.assertEquals(HALF_OPEN.name().toLowerCase(), result1.getString("status"));
-                context.assertTrue(result1.containsKey("info"));
-                context.assertEquals(99, result1.getJsonObject("info").getInteger("failRatio"));
-                context.assertEquals("/some/circuit/path", result1.getJsonObject("info").getString("circuit"));
+                context.assertEquals(HALF_OPEN.name().toLowerCase(), result1.getString(STATUS));
+                context.assertTrue(result1.containsKey(INFO));
+                context.assertEquals(99, result1.getJsonObject(INFO).getInteger(FAIL_RATIO));
+                context.assertEquals("/some/circuit/path", result1.getJsonObject(INFO).getString(CIRCUIT));
+                context.assertEquals("my-metric-1", result1.getJsonObject(INFO).getString(METRIC_NAME));
+                async.complete();
+            });
+        });
+    }
+
+    @Test
+    public void testGetQueueCircuitInformationWithoutMetricName(TestContext context){
+        Async async = context.async();
+        String hash = "someCircuitHash";
+        storage.getQueueCircuitInformation(hash).onComplete(event -> {
+            context.assertTrue(event.succeeded());
+            JsonObject result = event.result();
+            context.assertEquals(CLOSED.name().toLowerCase(), result.getString(STATUS));
+            context.assertTrue(result.containsKey(INFO));
+            context.assertFalse(result.getJsonObject(INFO).containsKey(FAIL_RATIO));
+            context.assertFalse(result.getJsonObject(INFO).containsKey(CIRCUIT));
+            context.assertFalse(result.getJsonObject(INFO).containsKey(METRIC_NAME));
+
+            writeQueueCircuit(hash, HALF_OPEN, "/some/circuit/path", null, 99);
+
+            storage.getQueueCircuitInformation(hash).onComplete(event1 -> {
+                context.assertTrue(event1.succeeded());
+                JsonObject result1 = event1.result();
+                context.assertEquals(HALF_OPEN.name().toLowerCase(), result1.getString(STATUS));
+                context.assertTrue(result1.containsKey(INFO));
+                context.assertEquals(99, result1.getJsonObject(INFO).getInteger(FAIL_RATIO));
+                context.assertEquals("/some/circuit/path", result1.getJsonObject(INFO).getString(CIRCUIT));
+
+                // metric name should not be part of the result
+                context.assertFalse(result.getJsonObject(INFO).containsKey(METRIC_NAME));
+
                 async.complete();
             });
         });
@@ -131,9 +169,9 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertFalse(jedis.exists(infosKey(hash3)));
 
         // prepare
-        writeQueueCircuit(hash1, HALF_OPEN, "/path/to/hash_1", 60);
-        writeQueueCircuit(hash2, CLOSED, "/path/to/hash_2", 20);
-        writeQueueCircuit(hash3, OPEN, "/path/to/hash_3", 99);
+        writeQueueCircuit(hash1, HALF_OPEN, "/path/to/hash_1", "metric-1", 60);
+        writeQueueCircuit(hash2, CLOSED, "/path/to/hash_2",null, 20);
+        writeQueueCircuit(hash3, OPEN, "/path/to/hash_3","metric-3", 99);
 
         context.assertTrue(jedis.exists(infosKey(hash1)));
         context.assertTrue(jedis.exists(infosKey(hash2)));
@@ -143,22 +181,25 @@ public class RedisQueueCircuitBreakerStorageTest {
 
         context.assertEquals(HALF_OPEN.name().toLowerCase(), jedis.hget(infosKey(hash1), FIELD_STATE).toLowerCase());
         context.assertEquals("/path/to/hash_1", jedis.hget(infosKey(hash1), FIELD_CIRCUIT));
+        context.assertEquals("metric-1", jedis.hget(infosKey(hash1), FIELD_METRICNAME));
         context.assertEquals("60", jedis.hget(infosKey(hash1), FIELD_FAILRATIO));
 
         context.assertEquals(CLOSED.name().toLowerCase(), jedis.hget(infosKey(hash2), FIELD_STATE).toLowerCase());
         context.assertEquals("/path/to/hash_2", jedis.hget(infosKey(hash2), FIELD_CIRCUIT));
+        context.assertNull(jedis.hget(infosKey(hash2), FIELD_METRICNAME));
         context.assertEquals("20", jedis.hget(infosKey(hash2), FIELD_FAILRATIO));
 
         context.assertEquals(OPEN.name().toLowerCase(), jedis.hget(infosKey(hash3), FIELD_STATE).toLowerCase());
         context.assertEquals("/path/to/hash_3", jedis.hget(infosKey(hash3), FIELD_CIRCUIT));
+        context.assertEquals("metric-3", jedis.hget(infosKey(hash3), FIELD_METRICNAME));
         context.assertEquals("99", jedis.hget(infosKey(hash3), FIELD_FAILRATIO));
 
         storage.getAllCircuits().onComplete(event -> {
             context.assertTrue(event.succeeded());
             JsonObject result = event.result();
-            assertJsonObjectContents(context, result, hash1, HALF_OPEN, "/path/to/hash_1", 60);
-            assertJsonObjectContents(context, result, hash2, CLOSED, "/path/to/hash_2", 20);
-            assertJsonObjectContents(context, result, hash3, OPEN, "/path/to/hash_3", 99);
+            assertJsonObjectContents(context, result, hash1, HALF_OPEN, "/path/to/hash_1", "metric-1", 60);
+            assertJsonObjectContents(context, result, hash2, CLOSED, "/path/to/hash_2",null, 20);
+            assertJsonObjectContents(context, result, hash3, OPEN, "/path/to/hash_3", "metric-3",99);
             async.complete();
         });
     }
@@ -181,7 +222,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         Async async = context.async();
         String circuitHash = "anotherCircuitHash";
 
-        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash);
+        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash, "my-metric-1");
 
         context.assertFalse(jedis.exists(key(circuitHash, QueueResponseType.SUCCESS)));
         context.assertFalse(jedis.exists(key(circuitHash, QueueResponseType.FAILURE)));
@@ -222,7 +263,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         Async async = context.async();
         String circuitHash = "anotherCircuitHash";
 
-        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash);
+        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash, "my-metric-1");
 
         context.assertFalse(jedis.exists(key(circuitHash, QueueResponseType.SUCCESS)));
         context.assertFalse(jedis.exists(key(circuitHash, QueueResponseType.FAILURE)));
@@ -244,11 +285,11 @@ public class RedisQueueCircuitBreakerStorageTest {
 
             storage.getQueueCircuitState(patternAndCircuitHash).onComplete(event1 -> {
                 context.assertEquals(CLOSED, event1.result());
-                assertStateAndErroPercentage(context, circuitHash, CLOSED, 66);
+                assertStateAndErrorPercentage(context, circuitHash, CLOSED, 66);
                 context.assertFalse(jedis.exists(STORAGE_OPEN_CIRCUITS));
                 storage.updateStatistics(patternAndCircuitHash, "req_4", 4, errorThreshold, entriesMaxAgeMS, minQueueSampleCount, maxQueueSampleCount, QueueResponseType.FAILURE).onComplete(event2 -> {
                     storage.getQueueCircuitState(patternAndCircuitHash).onComplete(event3 -> {
-                        assertStateAndErroPercentage(context, circuitHash, OPEN, 75);
+                        assertStateAndErrorPercentage(context, circuitHash, OPEN, 75);
                         context.assertEquals(OPEN, event3.result());
                         context.assertTrue(jedis.exists(STORAGE_OPEN_CIRCUITS));
                         assertHashInOpenCircuitsSet(context, circuitHash, 1);
@@ -268,7 +309,7 @@ public class RedisQueueCircuitBreakerStorageTest {
 
         context.assertFalse(jedis.exists(queuesKey(circuitHash)));
 
-        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash);
+        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash, "my-metric-1");
         storage.lockQueue("someQueue", patternAndCircuitHash).onComplete(event -> {
             context.assertTrue(jedis.exists(queuesKey(circuitHash)));
             context.assertEquals(1L, jedis.zcard(queuesKey(circuitHash)));
@@ -352,7 +393,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertEquals(1L, jedis.scard(STORAGE_OPEN_CIRCUITS));
         context.assertEquals(0L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
 
-        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash);
+        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash, "my-metric-2");
         storage.closeCircuit(patternAndCircuitHash).onComplete(event -> {
             context.assertTrue(event.succeeded());
 
@@ -370,7 +411,7 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertEquals("queue_3", jedis.lpop(STORAGE_QUEUES_TO_UNLOCK));
 
             context.assertTrue(jedis.exists(infosKey(circuitHash)));
-            assertStateAndErroPercentage(context, circuitHash, CLOSED, 0);
+            assertStateAndErrorPercentage(context, circuitHash, CLOSED, 0);
 
             context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
             context.assertEquals(4L, jedis.scard(STORAGE_ALL_CIRCUITS));
@@ -437,7 +478,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertEquals(1L, jedis.scard(STORAGE_OPEN_CIRCUITS));
         context.assertEquals(0L, jedis.llen(STORAGE_QUEUES_TO_UNLOCK));
 
-        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash);
+        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash, "my-metric-2");
         storage.closeAndRemoveCircuit(patternAndCircuitHash).onComplete(event -> {
             context.assertTrue(event.succeeded());
 
@@ -517,7 +558,7 @@ public class RedisQueueCircuitBreakerStorageTest {
             for (int index = 1; index <= 5; index++) {
                 String hash = "hash_" + index;
                 context.assertFalse(jedis.exists(queuesKey(hash)));
-                assertStateAndErroPercentage(context, hash, CLOSED, 0);
+                assertStateAndErrorPercentage(context, hash, CLOSED, 0);
                 context.assertFalse(jedis.exists(key(hash, QueueResponseType.SUCCESS)));
                 context.assertFalse(jedis.exists(key(hash, QueueResponseType.FAILURE)));
                 context.assertFalse(jedis.exists(queuesKey(hash)));
@@ -583,7 +624,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertEquals(4L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
         context.assertEquals(5L, jedis.scard(STORAGE_OPEN_CIRCUITS));
 
-        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash);
+        PatternAndCircuitHash patternAndCircuitHash = buildPatternAndCircuitHash("/anotherCircuit", circuitHash, "my-metric-2");
         storage.reOpenCircuit(patternAndCircuitHash).onComplete(event -> {
             context.assertTrue(event.succeeded());
 
@@ -591,7 +632,7 @@ public class RedisQueueCircuitBreakerStorageTest {
             context.assertTrue(jedis.exists(STORAGE_HALFOPEN_CIRCUITS));
             context.assertTrue(jedis.exists(STORAGE_OPEN_CIRCUITS));
 
-            assertStateAndErroPercentage(context, circuitHash, OPEN, 50);
+            assertStateAndErrorPercentage(context, circuitHash, OPEN, 50);
 
             context.assertEquals(3L, jedis.scard(STORAGE_HALFOPEN_CIRCUITS));
             Set<String> halfOpenCircuits = jedis.smembers(STORAGE_HALFOPEN_CIRCUITS);
@@ -812,8 +853,8 @@ public class RedisQueueCircuitBreakerStorageTest {
         }
     }
 
-    private PatternAndCircuitHash buildPatternAndCircuitHash(String pattern, String circuitHash){
-        return new PatternAndCircuitHash(Pattern.compile(pattern), circuitHash);
+    private PatternAndCircuitHash buildPatternAndCircuitHash(String pattern, String circuitHash, String metricName){
+        return new PatternAndCircuitHash(Pattern.compile(pattern), circuitHash, metricName);
     }
 
     private String key(String circuitHash, QueueResponseType queueResponseType){
@@ -828,9 +869,12 @@ public class RedisQueueCircuitBreakerStorageTest {
         return STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX;
     }
 
-    private void writeQueueCircuit(String circuitHash, QueueCircuitState state, String circuit, int failPercentage){
+    private void writeQueueCircuit(String circuitHash, QueueCircuitState state, String circuit, String metricName, int failPercentage){
         writeQueueCircuitField(circuitHash, FIELD_STATE, state.name().toLowerCase());
         writeQueueCircuitField(circuitHash, FIELD_CIRCUIT, circuit);
+        if(metricName != null){
+            writeQueueCircuitField(circuitHash, FIELD_METRICNAME, metricName);
+        }
         writeQueueCircuitField(circuitHash, FIELD_FAILRATIO, String.valueOf(failPercentage));
         jedis.sadd(STORAGE_ALL_CIRCUITS, circuitHash);
     }
@@ -856,7 +900,7 @@ public class RedisQueueCircuitBreakerStorageTest {
         context.assertEquals(state.name().toLowerCase(), stateFromDb);
     }
 
-    private void assertStateAndErroPercentage(TestContext context, String circuitHash, QueueCircuitState state, int percentage){
+    private void assertStateAndErrorPercentage(TestContext context, String circuitHash, QueueCircuitState state, int percentage){
         assertState(context, circuitHash, state);
         String percentageAsString = jedis.hget(STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX, FIELD_FAILRATIO);
         context.assertEquals(percentage, Integer.valueOf(percentageAsString));
@@ -882,15 +926,23 @@ public class RedisQueueCircuitBreakerStorageTest {
         }
     }
 
-    private void assertJsonObjectContents(TestContext context, JsonObject result, String hash, QueueCircuitState status, String circuit, int failRatio){
+    private void assertJsonObjectContents(TestContext context, JsonObject result, String hash, QueueCircuitState status, String circuit, String metricName, int failRatio){
         context.assertTrue(result.containsKey(hash));
-        context.assertTrue(result.getJsonObject(hash).containsKey("status"));
-        context.assertEquals(status.name().toLowerCase(), result.getJsonObject(hash).getString("status"));
-        context.assertTrue(result.getJsonObject(hash).containsKey("infos"));
-        context.assertTrue(result.getJsonObject(hash).getJsonObject("infos").containsKey("circuit"));
-        context.assertEquals(circuit, result.getJsonObject(hash).getJsonObject("infos").getString("circuit"));
-        context.assertTrue(result.getJsonObject(hash).getJsonObject("infos").containsKey("failRatio"));
-        context.assertEquals(failRatio, result.getJsonObject(hash).getJsonObject("infos").getInteger("failRatio"));
+        context.assertTrue(result.getJsonObject(hash).containsKey(STATUS));
+        context.assertEquals(status.name().toLowerCase(), result.getJsonObject(hash).getString(STATUS));
+        context.assertTrue(result.getJsonObject(hash).containsKey(INFOS));
+        context.assertTrue(result.getJsonObject(hash).getJsonObject(INFOS).containsKey(CIRCUIT));
+        context.assertEquals(circuit, result.getJsonObject(hash).getJsonObject(INFOS).getString(CIRCUIT));
+
+        if(metricName != null){
+            context.assertTrue(result.getJsonObject(hash).getJsonObject(INFOS).containsKey(METRIC_NAME));
+            context.assertEquals(metricName, result.getJsonObject(hash).getJsonObject(INFOS).getString(METRIC_NAME));
+        } else {
+            context.assertFalse(result.getJsonObject(hash).getJsonObject(INFOS).containsKey(METRIC_NAME));
+        }
+
+        context.assertTrue(result.getJsonObject(hash).getJsonObject(INFOS).containsKey(FAIL_RATIO));
+        context.assertEquals(failRatio, result.getJsonObject(hash).getJsonObject(INFOS).getInteger(FAIL_RATIO));
     }
 
     private void addToQueuesToUnlock(String queueToUnlock){

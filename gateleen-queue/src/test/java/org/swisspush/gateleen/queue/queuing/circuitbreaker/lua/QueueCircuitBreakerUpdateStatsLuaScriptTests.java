@@ -46,9 +46,9 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         assertThat(jedis.exists(allCircuitsKey), is(false));
 
         // adding 3 failing requests
-        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_1", "url_pattern", 0, 50, 10, 4, 10);
-        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_2", "url_pattern", 1, 50, 10, 4, 10);
-        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_3", "url_pattern", 2, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_1", "url_pattern", "metric-1", 0, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_2", "url_pattern", "metric-1",1, 50, 10, 4, 10);
+        evalScriptUpdateQueueCircuitBreakerStats(update_fail, "req_3", "url_pattern","metric-1", 2, 50, 10, 4, 10);
 
         // asserts
         assertThat(jedis.exists(circuitInfoKey), is(true));
@@ -256,6 +256,13 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
     private Object evalScriptUpdateQueueCircuitBreakerStats(String circuitKeyToUpdate, String uniqueRequestID,
                                                             String circuit, long timestamp, int errorThresholdPercentage,
                                                             long entriesMaxAgeMS, long minQueueSampleCount, long maxQueueSampleCount) {
+        return evalScriptUpdateQueueCircuitBreakerStats(circuitKeyToUpdate, uniqueRequestID, circuit, null, timestamp, errorThresholdPercentage,
+                entriesMaxAgeMS, minQueueSampleCount, maxQueueSampleCount);
+    }
+
+    private Object evalScriptUpdateQueueCircuitBreakerStats(String circuitKeyToUpdate, String uniqueRequestID,
+                                                            String circuit, String metricName, long timestamp, int errorThresholdPercentage,
+                                                            long entriesMaxAgeMS, long minQueueSampleCount, long maxQueueSampleCount) {
 
         String script = readScript(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT.getFilename());
         List<String> keys = Arrays.asList(
@@ -270,6 +277,7 @@ public class QueueCircuitBreakerUpdateStatsLuaScriptTests extends AbstractLuaScr
         List<String> arguments = Arrays.asList(
                 uniqueRequestID,
                 circuit,
+                metricName != null ? metricName : "",
                 circuit+"Hash",
                 String.valueOf(timestamp),
                 String.valueOf(errorThresholdPercentage),
