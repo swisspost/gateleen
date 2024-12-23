@@ -54,8 +54,6 @@ public class PatternAndCircuitHash {
 
     @Override
     public int hashCode() {
-        int result = pattern.hashCode();
-        result = 31 * result + circuitHash.hashCode();
-        return result;
+        return Objects.hash(pattern, circuitHash);
     }
 }

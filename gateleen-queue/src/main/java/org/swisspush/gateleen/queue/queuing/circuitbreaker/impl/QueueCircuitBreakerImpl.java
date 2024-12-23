@@ -452,7 +452,7 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
                         failedFutures.add(event1.cause().getMessage());
                     }
                     if (futureCounter.get() == 0) {
-                        if (failedFutures.size() > 0) {
+                        if (!failedFutures.isEmpty()) {
                             promise.fail("The following queues could not be unlocked: " + failedFutures);
                         } else {
                             promise.complete((long) queuesToUnlock.size());

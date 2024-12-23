@@ -22,6 +22,11 @@ import static org.swisspush.gateleen.core.util.LockUtil.acquireLock;
 import static org.swisspush.gateleen.core.util.LockUtil.calcLockExpiry;
 import static org.swisspush.gateleen.queue.queuing.circuitbreaker.impl.RedisQueueCircuitBreakerStorage.*;
 
+/**
+ * Class responsible for collecting metrics for the Queue Circuit Breaker.
+ *
+ * @author https://github.com/mcweba [Marc-Andre Weber]
+ */
 public class QueueCircuitBreakerMetricsCollector {
 
     private final Logger log = LoggerFactory.getLogger(QueueCircuitBreakerMetricsCollector.class);
@@ -40,6 +45,16 @@ public class QueueCircuitBreakerMetricsCollector {
     private final Map<String, AtomicInteger> circuitStateMap = new HashMap<>();
     private final Map<String, AtomicInteger> circuitFailRatioMap = new HashMap<>();
 
+    /**
+     * Constructor for QueueCircuitBreakerMetricsCollector.
+     *
+     * @param vertx Vertx instance
+     * @param lock Lock instance
+     * @param queueCircuitBreakerStorage Storage for circuit breaker data
+     * @param meterRegistry Meter registry for metrics
+     * @param exceptionFactory Exception factory
+     * @param metricCollectionIntervalSeconds Interval for metric collection in seconds
+     */
     public QueueCircuitBreakerMetricsCollector(Vertx vertx, Lock lock, QueueCircuitBreakerStorage queueCircuitBreakerStorage,
                                                MeterRegistry meterRegistry, GateleenExceptionFactory exceptionFactory,
                                                long metricCollectionIntervalSeconds) {
@@ -50,15 +65,19 @@ public class QueueCircuitBreakerMetricsCollector {
 
         this.metricCollectionIntervalMs = metricCollectionIntervalSeconds * 1000;
 
-        vertx.setPeriodic(metricCollectionIntervalMs, event -> {
-            collectMetrics().onFailure(event1 -> log.error("Could not collect metrics. Message: {}", event1.getMessage()));
-        });
+        vertx.setPeriodic(metricCollectionIntervalMs, event -> collectMetrics()
+                .onFailure(event1 -> log.error("Could not collect metrics. Message: {}", event1.getMessage())));
     }
 
+    /**
+     * Collects metrics for the Queue Circuit Breaker.
+     *
+     * @return Future representing the completion of the metric collection
+     */
     public Future<Void> collectMetrics() {
         log.debug("Collecting metrics");
         Promise<Void> promise = Promise.promise();
-        final String token = createToken(COLLECT_METRICS_TASK_LOCK);
+        final String token = createToken();
         acquireLock(lock, COLLECT_METRICS_TASK_LOCK, token, calcLockExpiry(metricCollectionIntervalMs), log).onComplete(lockEvent -> {
             if (lockEvent.succeeded()) {
                 if (lockEvent.result()) {
@@ -116,8 +135,8 @@ public class QueueCircuitBreakerMetricsCollector {
         getCircuitFailRatioMeter(metricName).set(failRatio);
     }
 
-    private String createToken(String appendix) {
-        return Address.instanceAddress() + "_" + System.currentTimeMillis() + "_" + appendix;
+    private String createToken() {
+        return Address.instanceAddress() + "_" + System.currentTimeMillis() + "_" + COLLECT_METRICS_TASK_LOCK;
     }
 
     private AtomicInteger getCircuitStateMeter(String metricName) {
@@ -143,9 +162,6 @@ public class QueueCircuitBreakerMetricsCollector {
     }
 
     private Integer circuitStateToValue(QueueCircuitState queueCircuitState) {
-        if (queueCircuitState == null) {
-            return null;
-        }
         switch (queueCircuitState) {
             case CLOSED:
                 return 0;

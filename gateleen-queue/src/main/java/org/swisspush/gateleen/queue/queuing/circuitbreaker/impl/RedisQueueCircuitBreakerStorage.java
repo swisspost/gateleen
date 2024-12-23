@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
-import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
@@ -247,7 +246,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         Future<Void> closeOpenCircuitsFuture = closeCircuitsByKey(STORAGE_OPEN_CIRCUITS);
         Future<Void> closeHalfOpenCircuitsFuture = closeCircuitsByKey(STORAGE_HALFOPEN_CIRCUITS);
 
-        CompositeFuture.all(closeOpenCircuitsFuture, closeHalfOpenCircuitsFuture).onComplete(event -> {
+        Future.all(closeOpenCircuitsFuture, closeHalfOpenCircuitsFuture).onComplete(event -> {
             if (event.succeeded()) {
                 promise.complete();
             } else {
@@ -262,14 +261,14 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         Promise<Void> promise = Promise.promise();
         redisProvider.redis().onSuccess(redisAPI -> redisAPI.smembers(key, event -> {
             if (event.succeeded()) {
-                List<Future> promises = new ArrayList<>();
+                List<Future<Void>> promises = new ArrayList<>();
                 for (Response circuit : event.result()) {
                     promises.add(closeCircuit(circuit.toString(), false));
                 }
-                if (promises.size() == 0) {
+                if (promises.isEmpty()) {
                     promise.complete();
                 } else {
-                    CompositeFuture.all(promises).onComplete(event1 -> {
+                    Future.all(promises).onComplete(event1 -> {
                         if (event1.succeeded()) {
                             promise.complete();
                         } else {
