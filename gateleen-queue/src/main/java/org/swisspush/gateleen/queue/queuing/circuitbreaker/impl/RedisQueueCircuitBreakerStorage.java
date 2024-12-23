@@ -41,7 +41,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public static final String FIELD_STATUS = "status";
     public static final String FIELD_FAILRATIO = "failRatio";
     public static final String FIELD_CIRCUIT = "circuit";
-    public static final String FIELD_METRICNAME = "metric";
+    public static final String FIELD_METRICNAME = "metricName";
 
     private final LuaScriptState openCircuitLuaScriptState;
     private final LuaScriptState closeCircuitLuaScriptState;

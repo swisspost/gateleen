@@ -1,7 +1,7 @@
 local stateField = "state"
 local failRatioField = "failRatio"
 local circuitField = "circuit"
-local metricField = "metric"
+local metricNameField = "metricName"
 
 local allCircuitsKey = KEYS[1]
 
@@ -9,7 +9,7 @@ local circuitInfoKeyPrefix = ARGV[1]
 local circuitInfoKeySuffix = ARGV[2]
 
 local function getCircuitInfos(circuit)
-    return redis.call('hmget',circuitInfoKeyPrefix..circuit..circuitInfoKeySuffix,stateField,circuitField,metricField,failRatioField)
+    return redis.call('hmget',circuitInfoKeyPrefix..circuit..circuitInfoKeySuffix,stateField,circuitField,metricNameField,failRatioField)
 end
 
 local function string_not_empty(s)
@@ -30,7 +30,7 @@ for k, circuit in ipairs(allCircuits) do
         result[circuit].infos.circuit = fields[2]
     end
     if string_not_empty(fields[3]) then
-        result[circuit].infos.metric = fields[3]
+        result[circuit].infos.metricName = fields[3]
     end
     if string_not_empty(fields[4]) then
         result[circuit].infos.failRatio = tonumber(fields[4])
