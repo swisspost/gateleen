@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.queue.queuing.circuitbreaker.impl;
 
-import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.json.JsonObject;
@@ -38,6 +37,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public static final String STORAGE_OPEN_CIRCUITS = STORAGE_PREFIX + "open-circuits";
     public static final String STORAGE_QUEUES_TO_UNLOCK = STORAGE_PREFIX + "queues-to-unlock";
     public static final String FIELD_STATE = "state";
+    public static final String FIELD_STATUS = "status";
     public static final String FIELD_FAILRATIO = "failRatio";
     public static final String FIELD_CIRCUIT = "circuit";
     public static final String FIELD_METRICNAME = "metricName";
@@ -111,7 +111,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                     String circuit = Objects.toString(event.result().get(2), null);
                     String metric = Objects.toString(event.result().get(3), null);
                     JsonObject result = new JsonObject();
-                    result.put("status", state.name().toLowerCase());
+                    result.put(FIELD_STATUS, state.name().toLowerCase());
                     JsonObject info = new JsonObject();
                     if (failRatioStr != null) {
                         info.put(FIELD_FAILRATIO, Integer.valueOf(failRatioStr));
@@ -246,7 +246,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         Future<Void> closeOpenCircuitsFuture = closeCircuitsByKey(STORAGE_OPEN_CIRCUITS);
         Future<Void> closeHalfOpenCircuitsFuture = closeCircuitsByKey(STORAGE_HALFOPEN_CIRCUITS);
 
-        CompositeFuture.all(closeOpenCircuitsFuture, closeHalfOpenCircuitsFuture).onComplete(event -> {
+        Future.all(closeOpenCircuitsFuture, closeHalfOpenCircuitsFuture).onComplete(event -> {
             if (event.succeeded()) {
                 promise.complete();
             } else {
@@ -261,14 +261,14 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         Promise<Void> promise = Promise.promise();
         redisProvider.redis().onSuccess(redisAPI -> redisAPI.smembers(key, event -> {
             if (event.succeeded()) {
-                List<Future> promises = new ArrayList<>();
+                List<Future<Void>> promises = new ArrayList<>();
                 for (Response circuit : event.result()) {
                     promises.add(closeCircuit(circuit.toString(), false));
                 }
-                if (promises.size() == 0) {
+                if (promises.isEmpty()) {
                     promise.complete();
                 } else {
-                    CompositeFuture.all(promises).onComplete(event1 -> {
+                    Future.all(promises).onComplete(event1 -> {
                         if (event1.succeeded()) {
                             promise.complete();
                         } else {

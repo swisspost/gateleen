@@ -34,6 +34,20 @@ public class LockUtilTest {
     }
 
     @Test
+    public void testCalculateLockExpiry(TestContext context) {
+        context.assertEquals(1L, LockUtil.calcLockExpiry(1));
+        context.assertEquals(1L, LockUtil.calcLockExpiry(0));
+        context.assertEquals(1L, LockUtil.calcLockExpiry(-20));
+        context.assertEquals(1L, LockUtil.calcLockExpiry(2));
+        context.assertEquals(1L, LockUtil.calcLockExpiry(3));
+        context.assertEquals(2L, LockUtil.calcLockExpiry(4));
+        context.assertEquals(4L, LockUtil.calcLockExpiry(8));
+        context.assertEquals(32L, LockUtil.calcLockExpiry(64));
+        context.assertEquals(750L, LockUtil.calcLockExpiry(1500));
+        context.assertEquals(5000L, LockUtil.calcLockExpiry(10001));
+    }
+
+    @Test
     public void testAcquireLockWithoutLockImplementationDefined(TestContext context) {
         Async async = context.async();
         LockUtil.acquireLock(null, "someLock", "someToken", 100, log).onComplete(event -> {
