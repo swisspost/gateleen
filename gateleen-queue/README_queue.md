@@ -473,6 +473,36 @@ Also you have to enable the logging on the [QueueCircuitBreakerConfigurationReso
 queueCircuitBreakerConfigurationResourceManager.enableResourceLogging(true);
 ```
 
+### Micrometer metrics
+The Queue Circuit Breaker feature is monitored with micrometer. The following metrics are available:
+* gateleen_circuitbreaker_status
+  * 0 = closed, 1 = half_open, 2 = open
+* gateleen_circuitbreaker_failratio
+
+An Additional tag called `metricName` is provided to identify the related routing rule.
+
+Example metrics:
+
+```
+# HELP gateleen_circuitbreaker_status Status of the circuit, 0=CLOSED, 1=HALF_OPEN, 2=OPEN
+# TYPE gateleen_circuitbreaker_status gauge
+gateleen_circuitbreaker_status{metricName="logininfo-v1-devices",} 0.0
+gateleen_circuitbreaker_status{metricName="workinfo-v1-trash",} 0.0
+gateleen_circuitbreaker_status{metricName="delegates-rule",} 1.0
+# HELP gateleen_circuitbreaker_failratio Fail ratio of the circuit in percentage
+# TYPE gateleen_circuitbreaker_failratio gauge
+gateleen_circuitbreaker_failratio{metricName="logininfo-v1-devices",} 50.0
+gateleen_circuitbreaker_failratio{metricName="workinfo-v1-trash",} 50.0
+gateleen_circuitbreaker_failratio{metricName="delegates-rule",} 0.0
+```
+
+To enable the metrics, create a `QueueCircuitBreakerMetricsCollector` instance with a `metricCollectionIntervalSeconds` configuration value.
+
+Example:
+```java
+new QueueCircuitBreakerMetricsCollector(vertx, lock, queueCircuitBreakerStorage, meterRegistry, exceptionFactory, 10);
+```
+
 ## Queue Splitter
 In case there are queues with a large number of queue items to process there is the option to configure these queues to split into sub-queues.
 The split is implemented dispatching the incoming request in one of the sub-queues (so the split is always active). Don't use the queue splitting feature when queue items from a queue have to be in cronological order (requests in sub-queues are processed in parallel).
