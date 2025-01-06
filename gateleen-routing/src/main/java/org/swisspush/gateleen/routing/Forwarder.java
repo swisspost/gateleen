@@ -358,7 +358,7 @@ public class Forwarder extends AbstractForwarder {
                  */
                 if (bodyData == null) {
 
-                    // Gateleen internal requests (e.g. from scedulers or delegates) often have neither "Content-Length" nor "Transfer-Encoding: chunked"
+                    // Gateleen internal requests (e.g. from schedulers or delegates) often have neither "Content-Length" nor "Transfer-Encoding: chunked"
                     // header - so we must wait for a body buffer to know: Is there a body or not? Only looking on the headers and/or the http-method is not
                     // sustainable to know "has body or not"
                     // But: if there is a body, then we need to either setChunked or a Content-Length header (otherwise Vertx complains with an Exception)
@@ -444,16 +444,16 @@ public class Forwarder extends AbstractForwarder {
                         // Setting the endHandler would then lead to an Exception
                         // see also https://github.com/eclipse-vertx/vert.x/issues/2763
                         // so we now check if the request already is ended before installing an endHandler
-                        cReq.send(cResHandler);
+                        cReq.send();
                     } else {
-                        req.endHandler(v -> cReq.send(cResHandler));
+                        req.endHandler(v -> cReq.send());
                         pump.start();
                     }
                 } else {
                     loggingHandler.appendRequestPayload(bodyData);
                     // we already have the body complete in-memory - so we can use Content-Length header and avoid chunked transfer
                     cReq.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(bodyData.length()));
-                    cReq.send(bodyData, cResHandler);
+                    cReq.send(bodyData);
                 }
 
                 loggingHandler.request(cReq.headers());
