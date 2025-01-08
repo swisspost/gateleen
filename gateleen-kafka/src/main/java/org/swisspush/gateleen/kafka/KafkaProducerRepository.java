@@ -46,10 +46,10 @@ public class KafkaProducerRepository {
     Promise<Void> closeAll() {
         log.info("About to close all kafka producers");
         Promise<Void> promise = Promise.promise();
-        List<Future> futures = new ArrayList<>();
+        List<Future<Void>> futures = new ArrayList<>();
 
         for (Map.Entry<Pattern, KafkaProducer<String, String>> entry : kafkaProducers.entrySet()) {
-            Promise entryFuture = Promise.promise();
+            Promise<Void> entryFuture = Promise.promise();
             futures.add(entryFuture.future());
             entry.getValue().close(event -> {
                 if (event.succeeded()) {
@@ -62,7 +62,7 @@ public class KafkaProducerRepository {
         }
 
         // wait for all producers to be closed
-        CompositeFuture.all(futures).onComplete(event -> {
+        Future.all(futures).onComplete(event -> {
             kafkaProducers.clear();
             promise.complete();
         });

@@ -2,7 +2,6 @@ package org.swisspush.gateleen.kafka;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
-import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -30,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 import static java.lang.Thread.currentThread;
@@ -66,7 +64,7 @@ public class KafkaHandlerTest {
     private ConfigurationResourceManager configurationResourceManager;
     private KafkaHandler handler;
     private MockResourceStorage storage;
-    private GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
+    private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private Vertx vertxMock;
 
     private final String configResourceUri = "/kafka/topicsConfig";

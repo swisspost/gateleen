@@ -8,15 +8,14 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.util.JsonObjectUtils;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.List;
 
+import static org.junit.Assert.assertThrows;
 import static org.swisspush.gateleen.kafka.KafkaProducerRecordBuilder.buildRecords;
 
 /**
@@ -27,35 +26,40 @@ import static org.swisspush.gateleen.kafka.KafkaProducerRecordBuilder.buildRecor
 @RunWith(VertxUnitRunner.class)
 public class KafkaProducerRecordBuilderTest {
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
-
     @Test
-    public void buildRecordsInvalidJson() throws ValidationException {
-        thrown.expect( ValidationException.class );
-        thrown.expectMessage("Error while parsing payload");
-        buildRecords("myTopic", Buffer.buffer("notValidJson"));
+    public void buildRecordsInvalidJson(TestContext context) {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            buildRecords("myTopic", Buffer.buffer("notValidJson"));
+        });
+
+        context.assertEquals("Error while parsing payload", exception.getMessage());
     }
 
     @Test
-    public void buildRecordsMissingRecordsArray() throws ValidationException {
-        thrown.expect( ValidationException.class );
-        thrown.expectMessage("Missing 'records' array");
-        buildRecords("myTopic", Buffer.buffer("{}"));
+    public void buildRecordsMissingRecordsArray(TestContext context) {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            buildRecords("myTopic", Buffer.buffer("{}"));
+        });
+
+        context.assertEquals("Missing 'records' array", exception.getMessage());
     }
 
     @Test
-    public void buildRecordsNotArray() throws ValidationException {
-        thrown.expect( ValidationException.class );
-        thrown.expectMessage("Property 'records' must be of type JsonArray holding JsonObject objects");
-        buildRecords("myTopic", Buffer.buffer("{\"records\": \"shouldBeAnArray\"}"));
+    public void buildRecordsNotArray(TestContext context) {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            buildRecords("myTopic", Buffer.buffer("{\"records\": \"shouldBeAnArray\"}"));
+        });
+
+        context.assertEquals("Property 'records' must be of type JsonArray holding JsonObject objects", exception.getMessage());
     }
 
     @Test
-    public void buildRecordsInvalidRecordsType() throws ValidationException {
-        thrown.expect( ValidationException.class );
-        thrown.expectMessage("Property 'records' must be of type JsonArray holding JsonObject objects");
-        buildRecords("myTopic", Buffer.buffer("{\"records\": [123]}"));
+    public void buildRecordsInvalidRecordsType(TestContext context) {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            buildRecords("myTopic", Buffer.buffer("{\"records\": [123]}"));
+        });
+
+        context.assertEquals("Property 'records' must be of type JsonArray holding JsonObject objects", exception.getMessage());
     }
 
     @Test
@@ -66,38 +70,48 @@ public class KafkaProducerRecordBuilderTest {
     }
 
     @Test
-    public void buildRecordsInvalidKeyType() throws ValidationException {
-        thrown.expect( ValidationException.class );
-        thrown.expectMessage("Property 'key' must be of type String");
-        buildRecords("myTopic", Buffer.buffer("{\"records\": [{\"key\": 123,\"value\": {}}]}"));
+    public void buildRecordsInvalidKeyType(TestContext context) {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            buildRecords("myTopic", Buffer.buffer("{\"records\": [{\"key\": 123,\"value\": {}}]}"));
+        });
+
+        context.assertEquals("Property 'key' must be of type String", exception.getMessage());
     }
 
     @Test
-    public void buildRecordsInvalidValueType() throws ValidationException {
-        thrown.expect( ValidationException.class );
-        thrown.expectMessage("Property 'value' must be of type JsonObject");
-        buildRecords("myTopic", Buffer.buffer("{\"records\":[{\"value\":123}]}"));
+    public void buildRecordsInvalidValueType(TestContext context) {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            buildRecords("myTopic", Buffer.buffer("{\"records\":[{\"value\":123}]}"));
+        });
+
+        context.assertEquals("Property 'value' must be of type JsonObject", exception.getMessage());
     }
 
     @Test
-    public void buildRecordsMissingValue() throws ValidationException {
-        thrown.expect( ValidationException.class );
-        thrown.expectMessage("Property 'value' is required");
-        buildRecords("myTopic", Buffer.buffer("{\"records\":[{}]}"));
+    public void buildRecordsMissingValue(TestContext context) {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            buildRecords("myTopic", Buffer.buffer("{\"records\":[{}]}"));
+        });
+
+        context.assertEquals("Property 'value' is required", exception.getMessage());
     }
 
     @Test
-    public void buildRecordsInvalidHeadersType() throws ValidationException {
-        thrown.expect( ValidationException.class );
-        thrown.expectMessage("Property 'headers' must be of type JsonObject");
-        buildRecords("myTopic", Buffer.buffer("{\"records\": [{\"value\":{},\"headers\": 123}]}"));
+    public void buildRecordsInvalidHeadersType(TestContext context) {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            buildRecords("myTopic", Buffer.buffer("{\"records\": [{\"value\":{},\"headers\": 123}]}"));
+        });
+
+        context.assertEquals("Property 'headers' must be of type JsonObject", exception.getMessage());
     }
 
     @Test
-    public void buildRecordsInvalidHeadersValueType() throws ValidationException {
-        thrown.expect( ValidationException.class );
-        thrown.expectMessage("Property 'headers' must be of type JsonObject holding String values only");
-        buildRecords("myTopic", Buffer.buffer("{\"records\": [{\"value\": {},\"headers\": {\"key\": 555}}]}"));
+    public void buildRecordsInvalidHeadersValueType(TestContext context) {
+        Exception exception = assertThrows(ValidationException.class, () -> {
+            buildRecords("myTopic", Buffer.buffer("{\"records\": [{\"value\": {},\"headers\": {\"key\": 555}}]}"));
+        });
+
+        context.assertEquals("Property 'headers' must be of type JsonObject holding String values only", exception.getMessage());
     }
 
     @Test

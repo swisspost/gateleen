@@ -43,12 +43,11 @@ public class KafkaMessageSender {
         Promise<Void> promise = Promise.promise();
         log.debug("Start processing {} messages for kafka", messages.size());
 
-        @SuppressWarnings("rawtypes") //https://github.com/eclipse-vertx/vert.x/issues/2627
-        List<Future> futures = messages.stream()
+        List<Future<Void>> futures = messages.stream()
                 .map(message -> KafkaMessageSender.this.sendMessage(kafkaProducer, message))
                 .collect(toList());
 
-        CompositeFuture.all(futures).<Void>mapEmpty().onComplete(result -> {
+        Future.all(futures).<Void>mapEmpty().onComplete(result -> {
             if (result.succeeded()) {
                 promise.complete();
                 log.debug("Batch messages successfully sent to Kafka.");
