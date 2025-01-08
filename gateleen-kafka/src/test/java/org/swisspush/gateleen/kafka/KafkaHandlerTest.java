@@ -101,9 +101,16 @@ public class KafkaHandlerTest {
         messageValidator = Mockito.mock(KafkaMessageValidator.class);
         storage = new MockResourceStorage();
         configurationResourceManager = new ConfigurationResourceManager(vertx, storage, exceptionFactory);
-        handler = new KafkaHandler(
-            vertxMock, exceptionFactory, configurationResourceManager, null, repository,
-            kafkaMessageSender, configResourceUri, streamingPath, null);
+
+        handler = KafkaHandler.builder()
+                .withVertx(vertxMock)
+                .withExceptionFactory(exceptionFactory)
+                .withConfigurationResourceManager(configurationResourceManager)
+                .withRepository(repository)
+                .withKafkaMessageSender(kafkaMessageSender)
+                .withConfigResourceUri(configResourceUri)
+                .withStreamingPath(streamingPath)
+                .build();
 
         when(kafkaMessageSender.sendMessages(any(), any())).thenReturn(Future.succeededFuture());
     }
@@ -156,8 +163,16 @@ public class KafkaHandlerTest {
         props.put("kafka.port", "9094");
         storage.putMockData(configResourceUri, CONFIG_WILDCARD_RESOURCE);
 
-        handler = new KafkaHandler(configurationResourceManager, repository, kafkaMessageSender,
-                configResourceUri, streamingPath, props);
+        handler = KafkaHandler.builder()
+                .withVertx(vertxMock)
+                .withConfigurationResourceManager(configurationResourceManager)
+                .withRepository(repository)
+                .withKafkaMessageSender(kafkaMessageSender)
+                .withConfigResourceUri(configResourceUri)
+                .withStreamingPath(streamingPath)
+                .withProperties(props)
+                .build();
+
         context.assertFalse(handler.isInitialized());
 
         handler.initialize().onComplete(event -> {
@@ -182,8 +197,16 @@ public class KafkaHandlerTest {
         Map<String, Object> props = new HashMap<>();
         storage.putMockData(configResourceUri, CONFIG_WILDCARD_RESOURCE);
 
-        handler = new KafkaHandler(configurationResourceManager, repository, kafkaMessageSender,
-                configResourceUri, streamingPath, props);
+        handler = KafkaHandler.builder()
+                .withVertx(vertxMock)
+                .withConfigurationResourceManager(configurationResourceManager)
+                .withRepository(repository)
+                .withKafkaMessageSender(kafkaMessageSender)
+                .withConfigResourceUri(configResourceUri)
+                .withStreamingPath(streamingPath)
+                .withProperties(props)
+                .build();
+
         context.assertFalse(handler.isInitialized());
 
         handler.initialize().onComplete(event -> {
@@ -195,7 +218,7 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void resourceRemovedTriggersCloseAllProducers(TestContext context){
+    public void resourceRemovedTriggersCloseAllProducers(TestContext context) {
         Async async = context.async();
         handler.initialize().onComplete(event -> {
             JsonObject object = new JsonObject();
@@ -209,7 +232,7 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void resourceChangedTriggersCloseAllAndReCreateOfProducers(TestContext context){
+    public void resourceChangedTriggersCloseAllAndReCreateOfProducers(TestContext context) {
         Async async = context.async();
         context.assertFalse(handler.isInitialized());
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
@@ -235,12 +258,12 @@ public class KafkaHandlerTest {
         }};
         verify(repository, timeout(500).times(1)).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("."), configs_2)));
         verifyNoInteractions(kafkaMessageSender);
-        await().atMost(1, SECONDS).until( () -> handler.isInitialized(), equalTo(Boolean.TRUE));
+        await().atMost(1, SECONDS).until(() -> handler.isInitialized(), equalTo(Boolean.TRUE));
         async.complete();
     }
 
     @Test
-    public void handleNotStreamingPath(TestContext context){
+    public void handleNotStreamingPath(TestContext context) {
         Async async = context.async();
         handler.initialize().onComplete(event -> {
             StreamingRequest request = new StreamingRequest(HttpMethod.POST, "/some/other/uri/path");
@@ -252,7 +275,7 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void handleNotPOSTRequest(TestContext context){
+    public void handleNotPOSTRequest(TestContext context) {
         Async async = context.async();
         handler.initialize().onComplete(event -> {
 
@@ -269,7 +292,7 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void handleEmptyTopic(TestContext context){
+    public void handleEmptyTopic(TestContext context) {
         Async async = context.async();
         handler.initialize().onComplete(event -> {
 
@@ -286,7 +309,7 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void handleNoMatchingProducer(TestContext context){
+    public void handleNoMatchingProducer(TestContext context) {
         Async async = context.async();
         handler.initialize().onComplete(event -> {
 
@@ -303,7 +326,7 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void handleInvalidPayload(TestContext context){
+    public void handleInvalidPayload(TestContext context) {
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
         handler.initialize().onComplete(event -> {
@@ -322,7 +345,7 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void handleValidPayloadWithSingleMessage(TestContext context){
+    public void handleValidPayloadWithSingleMessage(TestContext context) {
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
         handler.initialize().onComplete(event -> {
@@ -363,9 +386,9 @@ public class KafkaHandlerTest {
         });
     }
 
-    @SuppressWarnings(value="unchecked")
+    @SuppressWarnings(value = "unchecked")
     @Test
-    public void handleValidPayloadWithTwoMessages(TestContext context){
+    public void handleValidPayloadWithTwoMessages(TestContext context) {
         Async async = context.async();
         storage.putMockData(configResourceUri, CONFIG_RESOURCE);
         handler.initialize().onComplete(event -> {
@@ -422,7 +445,7 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void handleValidPayloadWithFailingMessageSending(TestContext context){
+    public void handleValidPayloadWithFailingMessageSending(TestContext context) {
         Async async = context.async();
 
         when(kafkaMessageSender.sendMessages(any(), any())).thenReturn(Future.failedFuture("booom: message could not be sent!"));
@@ -467,12 +490,19 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void handlePayloadNotPassingValidation(TestContext context){
+    public void handlePayloadNotPassingValidation(TestContext context) {
         Async async = context.async();
 
-        handler = new KafkaHandler(
-            vertxMock, exceptionFactory, configurationResourceManager, messageValidator, repository,
-            kafkaMessageSender, configResourceUri, streamingPath, null);
+        handler = KafkaHandler.builder()
+                .withVertx(vertxMock)
+                .withExceptionFactory(exceptionFactory)
+                .withConfigurationResourceManager(configurationResourceManager)
+                .withKafkaMessageValidator(messageValidator)
+                .withRepository(repository)
+                .withKafkaMessageSender(kafkaMessageSender)
+                .withConfigResourceUri(configResourceUri)
+                .withStreamingPath(streamingPath)
+                .build();
 
         when(messageValidator.validateMessages(any(HttpServerRequest.class), any()))
                 .thenReturn(Future.succeededFuture(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, "Boooom")));
@@ -517,12 +547,19 @@ public class KafkaHandlerTest {
     }
 
     @Test
-    public void handleErrorWhileValidation(TestContext context){
+    public void handleErrorWhileValidation(TestContext context) {
         Async async = context.async();
 
-        handler = new KafkaHandler(
-            vertxMock, exceptionFactory, configurationResourceManager, messageValidator, repository,
-            kafkaMessageSender, configResourceUri, streamingPath, null);
+        handler = KafkaHandler.builder()
+                .withVertx(vertxMock)
+                .withExceptionFactory(exceptionFactory)
+                .withConfigurationResourceManager(configurationResourceManager)
+                .withKafkaMessageValidator(messageValidator)
+                .withRepository(repository)
+                .withKafkaMessageSender(kafkaMessageSender)
+                .withConfigResourceUri(configResourceUri)
+                .withStreamingPath(streamingPath)
+                .build();
 
         when(messageValidator.validateMessages(any(HttpServerRequest.class), any()))
                 .thenReturn(Future.failedFuture("Boooom"));

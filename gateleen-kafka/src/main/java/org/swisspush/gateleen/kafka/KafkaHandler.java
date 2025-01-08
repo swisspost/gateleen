@@ -21,13 +21,10 @@ import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.core.validation.ValidationStatus;
 import org.swisspush.gateleen.validation.ValidationException;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
-
-import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenThriftyExceptionFactory;
 
 /**
  * Handler class for all Kafka related requests.
@@ -55,42 +52,6 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     private final KafkaMessageValidator kafkaMessageValidator;
 
     private boolean initialized = false;
-
-    /** @deprecated Use {@link #builder()} */
-    @Deprecated
-    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
-                        KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath) {
-        this(configurationResourceManager, null, repository, kafkaMessageSender,
-                configResourceUri, streamingPath);
-    }
-
-    /** @deprecated Use {@link #builder()} */
-    @Deprecated
-    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator,
-                        KafkaProducerRepository repository, KafkaMessageSender kafkaMessageSender, String configResourceUri,
-                        String streamingPath) {
-        this(configurationResourceManager, kafkaMessageValidator, repository, kafkaMessageSender,
-                configResourceUri, streamingPath, new HashMap<>());
-    }
-
-    /** @deprecated Use {@link #builder()} */
-    @Deprecated
-    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaProducerRepository repository,
-    KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
-
-        this(configurationResourceManager, null, repository, kafkaMessageSender,
-                configResourceUri, streamingPath, properties);
-    }
-
-    /** @deprecated Use {@link #builder()} */
-    @Deprecated
-    public KafkaHandler(ConfigurationResourceManager configurationResourceManager, KafkaMessageValidator kafkaMessageValidator, KafkaProducerRepository repository,
-                        KafkaMessageSender kafkaMessageSender, String configResourceUri, String streamingPath, Map<String, Object> properties) {
-        this(Vertx.vertx(), newGateleenThriftyExceptionFactory(), configurationResourceManager,
-            kafkaMessageValidator, repository, kafkaMessageSender, configResourceUri, streamingPath,
-            properties);
-        log.warn("TODO: Do NOT use this DEPRECATED constructor! It creates instances that it should not create!");
-    }
 
     public KafkaHandler(
         Vertx vertx,
