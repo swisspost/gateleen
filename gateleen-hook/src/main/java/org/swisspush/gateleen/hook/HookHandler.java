@@ -1568,7 +1568,7 @@ public class HookHandler implements LoggableResource {
         // For backward compatibility we still parse the old "staticHeaders" - but now create a manipulator chain accordingly
         JsonObject staticHeaders = jsonHook.getJsonObject(STATIC_HEADERS);
         if (staticHeaders != null) {
-            log.warn("you use the deprecated \"staticHeaders\" syntax in your hook ({}). Please migrate to the more flexible \"headers\" syntax", jsonHook);
+            log.info("you use the deprecated \"staticHeaders\" syntax in your hook ({}). Please migrate to the more flexible \"headers\" syntax", jsonHook);
             hook.setHeaderFunction(HeaderFunctions.parseStaticHeadersFromJson(staticHeaders));
         }
     }
