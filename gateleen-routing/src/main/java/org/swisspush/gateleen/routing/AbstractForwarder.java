@@ -23,8 +23,6 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
     protected final MonitoringHandler monitoringHandler;
     protected final String metricNameTag;
 
-    public static final String FORWARDER_COUNT_METRIC_NAME = "gateleen.forwarded";
-    public static final String FORWARDER_COUNT_METRIC_DESCRIPTION = "Amount of forwarded requests";
     public static final String FORWARDS_METRIC_NAME = "gateleen.forwarded.seconds";
     public static final String FORWARDS_METRIC_DESCRIPTION = "Durations of forwarded requests";
     public static final String FORWARDER_METRIC_TAG_TYPE = "type";
