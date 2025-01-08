@@ -52,7 +52,7 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     private final KafkaMessageSender kafkaMessageSender;
     private final Map<String, Object> properties;
     private final KafkaProducerRecordBuilder kafkaProducerRecordBuilder;
-    private KafkaMessageValidator kafkaMessageValidator;
+    private final KafkaMessageValidator kafkaMessageValidator;
 
     private boolean initialized = false;
 
@@ -139,8 +139,6 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     private Future<Void> initializeKafkaConfiguration(Buffer configuration) {
         Promise<Void> promise = Promise.promise();
         final List<KafkaConfiguration> kafkaConfigurations = KafkaConfigurationParser.parse(configuration, properties);
-
-
 
         repository.closeAll().future().onComplete((event -> {
             for (KafkaConfiguration kafkaConfiguration : kafkaConfigurations) {

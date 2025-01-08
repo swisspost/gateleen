@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.kafka;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.json.JsonArray;
@@ -35,11 +37,14 @@ public class KafkaMessageSenderTest {
 
     private KafkaProducer<String, String> producer;
     private KafkaMessageSender kafkaMessageSender;
+    private SimpleMeterRegistry meterRegistry;
 
     @Before
     public void setUp() {
         producer = Mockito.mock(KafkaProducer.class);
         kafkaMessageSender = new KafkaMessageSender();
+        meterRegistry = new SimpleMeterRegistry();
+        kafkaMessageSender.setMeterRegistry(meterRegistry);
     }
 
     @Test
@@ -57,6 +62,9 @@ public class KafkaMessageSenderTest {
         });
 
         Mockito.verify(producer, times(1)).send(eq(records.get(0)));
+
+        Counter counter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+        context.assertEquals(1.0, counter.count(), "Counter for topic `myTopic` should have been incremented by 1");
     }
 
     @Test
@@ -74,6 +82,9 @@ public class KafkaMessageSenderTest {
         });
 
         Mockito.verify(producer, times(1)).send(eq(records.get(0)));
+
+        Counter counter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+        context.assertEquals(1.0, counter.count(), "Counter for topic `myTopic` should have been incremented by 1");
     }
 
     @Test
@@ -98,6 +109,9 @@ public class KafkaMessageSenderTest {
         context.assertEquals(records.get(0), recordCaptor.getAllValues().get(0));
         context.assertEquals(records.get(1), recordCaptor.getAllValues().get(1));
         context.assertEquals(records.get(2), recordCaptor.getAllValues().get(2));
+
+        Counter counter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+        context.assertEquals(3.0, counter.count(), "Counter for topic `myTopic` should have been incremented by 3");
     }
 
     @Test
@@ -124,6 +138,12 @@ public class KafkaMessageSenderTest {
         context.assertEquals(records.get(0), recordCaptor.getAllValues().get(0));
         context.assertEquals(records.get(1), recordCaptor.getAllValues().get(1));
         context.assertEquals(records.get(2), recordCaptor.getAllValues().get(2));
+
+        Counter successCounter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+        context.assertEquals(2.0, successCounter.count(), "Success counter for topic `myTopic` should have been incremented by 2");
+
+        Counter failCounter = meterRegistry.get(KafkaMessageSender.FAIL_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+        context.assertEquals(1.0, failCounter.count(), "Fail counter for topic `myTopic` should have been incremented by 1");
     }
 
     private JsonObject buildSingleRecordPayload(String key){

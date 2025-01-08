@@ -449,3 +449,29 @@ This sequence diagrams shows the process when messages are sent to Kafka:
                           │                      │ │                           │                                │                                   │                                      │                                   
                           │                      └┬┘                           │                                │                                   │                                      │                                   
 ```
+
+### Micrometer metrics
+The kafka feature is monitored with micrometer. The following metrics are available:
+* gateleen_kafka_send_success_messages_total
+* gateleen_kafka_send_fail_messages_total
+* gateleen_kafka_validation_fail_messages_total
+
+Additional tags are provided to specify the topic.
+
+Example metrics:
+
+```
+# HELP gateleen_kafka_send_success_messages_total Amount of successfully sent kafka messages
+# TYPE gateleen_kafka_send_success_messages_total counter
+gateleen_kafka_send_success_messages_total{topic="my-topic-1",} 0.0
+gateleen_kafka_send_fail_messages_total{topic="my-topic-1",} 455.0
+gateleen_kafka_send_success_messages_total{topic="my-topic-2",} 256.0
+gateleen_kafka_send_success_messages_total{topic="my-topic-3",} 6.0
+gateleen_kafka_send_fail_messages_total{topic="my-topic-4",} 222.0
+# HELP gateleen_kafka_validation_fail_messages_total Amount of failed kafka message validations
+# TYPE gateleen_kafka_validation_fail_messages_total counter
+gateleen_kafka_validation_fail_messages_total{topic="my-topic-6",} 212.0
+```
+
+To enable `gateleen_kafka_send_success_messages_total` and `gateleen_kafka_send_fail_messages_total` metrics, set a `MeterRegistry` instance by calling `setMeterRegistry(MeterRegistry meterRegistry)` method in `KafkaMessageSender` class.
+To enable `gateleen_kafka_validation_fail_messages_total` metrics, set a `MeterRegistry` instance by calling `setMeterRegistry(MeterRegistry meterRegistry)` method in `KafkaMessageValidator` class.
