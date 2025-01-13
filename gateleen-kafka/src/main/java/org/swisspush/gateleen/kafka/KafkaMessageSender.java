@@ -71,7 +71,7 @@ public class KafkaMessageSender {
         });
     }
 
-    private void incrementSuccessCount(String topic) {
+    private synchronized void incrementSuccessCount(String topic) {
         Counter counter = successSendCounterMap.get(topic);
         if(counter != null) {
             counter.increment();
@@ -88,7 +88,7 @@ public class KafkaMessageSender {
         }
     }
 
-    private void incrementFailCount1(String topic) {
+    private synchronized void incrementFailCount1(String topic) {
         Counter counter = failSendCounterMap.get(topic);
         if(counter != null) {
             counter.increment();
