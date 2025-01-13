@@ -1,7 +1,7 @@
 package org.swisspush.gateleen.routing;
 
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
@@ -29,7 +29,8 @@ import javax.annotation.Nullable;
 public class NullForwarder extends AbstractForwarder {
 
     private EventBus eventBus;
-    private Counter forwardCounter;
+    private MeterRegistry meterRegistry;
+    private Timer forwardTimer;
 
     public NullForwarder(Rule rule, LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler, EventBus eventBus) {
         super(rule, loggingResourceManager, logAppenderRepository, monitoringHandler);
@@ -45,9 +46,11 @@ public class NullForwarder extends AbstractForwarder {
      */
     @Override
     public void setMeterRegistry(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
         if(meterRegistry != null) {
-            forwardCounter = Counter.builder(FORWARDER_COUNT_METRIC_NAME)
-                    .description(FORWARDER_COUNT_METRIC_DESCRIPTION)
+            forwardTimer = Timer.builder(FORWARDS_METRIC_NAME)
+                    .description(FORWARDS_METRIC_DESCRIPTION)
+                    .publishPercentiles(0.75, 0.95)
                     .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
                     .tag(FORWARDER_METRIC_TAG_TYPE, "null")
                     .register(meterRegistry);
@@ -63,8 +66,10 @@ public class NullForwarder extends AbstractForwarder {
             return;
         }
 
-        if(forwardCounter != null) {
-            forwardCounter.increment();
+        Timer.Sample timerSample = null;
+        if(meterRegistry != null) {
+            timerSample = Timer.start(meterRegistry);
+            timerSample.stop(forwardTimer);
         }
 
         if(monitoringHandler != null) {

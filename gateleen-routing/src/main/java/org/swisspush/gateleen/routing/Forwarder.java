@@ -1,6 +1,5 @@
 package org.swisspush.gateleen.routing;
 
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.netty.channel.ConnectTimeoutException;
@@ -67,7 +66,6 @@ public class Forwarder extends AbstractForwarder {
     private static final int STATUS_CODE_2XX = 2;
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
-    private Counter forwardCounter;
     private Timer forwardTimer;
     private MeterRegistry meterRegistry;
 
@@ -99,11 +97,6 @@ public class Forwarder extends AbstractForwarder {
     public void setMeterRegistry(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
         if (meterRegistry != null) {
-            forwardCounter = Counter.builder(FORWARDER_COUNT_METRIC_NAME)
-                    .description(FORWARDER_COUNT_METRIC_DESCRIPTION)
-                    .tag(FORWARDER_METRIC_TAG_TYPE, getRequestTarget(target))
-                    .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
-                    .register(meterRegistry);
             forwardTimer = Timer.builder(FORWARDS_METRIC_NAME)
                     .description(FORWARDS_METRIC_DESCRIPTION)
                     .publishPercentiles(0.75, 0.95)
@@ -179,10 +172,6 @@ public class Forwarder extends AbstractForwarder {
             port = rule.getPort();
         }
         target = rule.getHost() + ":" + port;
-
-        if (forwardCounter != null) {
-            forwardCounter.increment();
-        }
 
         if (monitoringHandler != null) {
             monitoringHandler.updateRequestsMeter(target, req.uri());
@@ -305,6 +294,7 @@ public class Forwarder extends AbstractForwarder {
 
                 if (event.failed()) {
                     log.warn("Problem to request {}: {}", targetUri, event.cause());
+                    handleForwardDurationMetrics(finalTimerSample);
                     final HttpServerResponse response = req.response();
                     response.setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
                     response.setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
