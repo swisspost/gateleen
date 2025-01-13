@@ -1,9 +1,6 @@
 package org.swisspush.gateleen.playground;
 
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServer;
@@ -284,8 +281,17 @@ public class Server extends AbstractVerticle {
                 KafkaProducerRepository kafkaProducerRepository = new KafkaProducerRepository(vertx);
                 KafkaMessageSender kafkaMessageSender = new KafkaMessageSender();
                 KafkaMessageValidator messageValidator = new KafkaMessageValidator(validationResourceManager, validator);
-                kafkaHandler = new KafkaHandler(configurationResourceManager, messageValidator, kafkaProducerRepository, kafkaMessageSender,
-                        SERVER_ROOT + "/admin/v1/kafka/topicsConfig",SERVER_ROOT + "/streaming/");
+
+                kafkaHandler = KafkaHandler.builder()
+                        .withVertx(vertx)
+                        .withConfigurationResourceManager(configurationResourceManager)
+                        .withKafkaMessageValidator(messageValidator)
+                        .withRepository(kafkaProducerRepository)
+                        .withKafkaMessageSender(kafkaMessageSender)
+                        .withConfigResourceUri(SERVER_ROOT + "/admin/v1/kafka/topicsConfig")
+                        .withStreamingPath(SERVER_ROOT + "/streaming/")
+                        .build();
+
                 kafkaHandler.initialize();
 
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
