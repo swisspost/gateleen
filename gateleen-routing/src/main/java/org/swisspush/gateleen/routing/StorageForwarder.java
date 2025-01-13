@@ -47,7 +47,6 @@ public class StorageForwarder extends AbstractForwarder {
     private CORSHandler corsHandler;
     private GateleenExceptionFactory gateleenExceptionFactory;
 
-    private Counter forwardCounter;
     private Timer forwardTimer;
     private MeterRegistry meterRegistry;
 
@@ -75,12 +74,6 @@ public class StorageForwarder extends AbstractForwarder {
     public void setMeterRegistry(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
         if (meterRegistry != null) {
-            forwardCounter = Counter.builder(FORWARDER_COUNT_METRIC_NAME)
-                    .description(FORWARDER_COUNT_METRIC_DESCRIPTION)
-                    .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
-                    .tag(FORWARDER_METRIC_TAG_TYPE, TYPE_STORAGE)
-                    .register(meterRegistry);
-
             forwardTimer = Timer.builder(FORWARDS_METRIC_NAME)
                     .description(FORWARDS_METRIC_DESCRIPTION)
                     .publishPercentiles(0.75, 0.95)
@@ -106,7 +99,6 @@ public class StorageForwarder extends AbstractForwarder {
         Timer.Sample timerSample = null;
         if(meterRegistry != null) {
             timerSample = Timer.start(meterRegistry);
-            forwardCounter.increment();
         }
 
         if (monitoringHandler != null) {

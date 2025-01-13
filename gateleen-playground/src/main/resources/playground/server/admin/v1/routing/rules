@@ -9,18 +9,22 @@
   },
   "/playground/cb/1/(.*)": {
     "description": "CircuitBreaker Test",
+    "metricName": "cb_1",
     "url": "http://localhost:1234/playground/server/tests/exp/$1"
   },
   "/playground/cb/2/(.*)": {
     "description": "CircuitBreaker Test",
+    "metricName": "cb_2",
     "url": "http://localhost:1234/playground/server/tests/exp/$1"
   },
   "/playground/cb/3/(.*)": {
     "description": "CircuitBreaker Test",
+    "metricName": "cb_3",
     "url": "http://localhost:1234/playground/server/tests/exp/$1"
   },
   "/playground/cb/4/(.*)": {
     "description": "CircuitBreaker Test",
+    "metricName": "cb_4",
     "url": "http://localhost:1234/playground/server/tests/exp/$1"
   },
   "/playground/": {

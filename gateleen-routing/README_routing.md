@@ -138,7 +138,6 @@ Each request header entry is validated in the format `<KEY>: <VALUE>`, so you ar
 
 ## Micrometer metrics
 The routing feature is monitored with micrometer. The following metrics are available:
-* gateleen_forwarded_total
 * gateleen_forwarded_seconds
 * gateleen_forwarded_seconds_max
 * gateleen_forwarded_seconds_count
@@ -149,18 +148,13 @@ Additional tags are provided to split the forward count into sub counts.
 | tag        | description                                                                                                       |
 |------------|-------------------------------------------------------------------------------------------------------------------|
 | metricName | The `metricName` property from the corresponding routing rule. With this, you are able to count requests per rule |
-| type       | Describes where the request was forwarded to. Possible values are `local`, `external` and `null`                  |      
+| type       | Describes where the request was forwarded to. Possible values are `storage`, `local`, `external` and `null`       |      
 | quantile   | Values of `0.75` and `0.95` for percentile durations of requests                                                  |
 
 
 Example metrics:
 
 ```
-# HELP gateleen_forwarded_total Amount of forwarded requests
-# TYPE gateleen_forwarded_total counter
-gateleen_forwarded_total{metricName="storage-resources",type="storage",} 67565.0
-gateleen_forwarded_total{metricName="infotool_v1_informations",type="external",} 655.0
-gateleen_forwarded_total{metricName="infotool-v1",type="storage",} 4320.0
 # HELP gateleen_forwarded_seconds_max Durations of forwarded requests
 # TYPE gateleen_forwarded_seconds_max gauge
 gateleen_forwarded_seconds_max{metricName="storage-resources",type="storage",} 8.5515

@@ -1,18 +1,14 @@
 package org.swisspush.gateleen.routing;
 
 import com.google.common.collect.ImmutableMap;
-import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.*;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
@@ -33,6 +29,8 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.*;
 
+import static org.mockito.Mockito.doAnswer;
+
 /**
  * Tests for the Router class
  *
@@ -42,6 +40,9 @@ import java.util.*;
 public class RouterTest {
 
     private Vertx vertx;
+    private EventBus eventBus;
+    private Message<Object> message;
+
     private Map<String, Object> properties;
     private LoggingResourceManager loggingResourceManager;
     private MonitoringHandler monitoringHandler;
@@ -130,11 +131,26 @@ public class RouterTest {
             + "  \"randomkey2\": 456\n"
             + "}";
 
+    private byte[] eventBusMessageAsByteArray = {0, 0, 0, 52, 123, 34, 115, 116, 97, 116, 117, 115, 67, 111, 100, 101, 34,
+            58, 50, 48, 48, 44, 34, 115, 116, 97, 116, 117, 115, 77, 101, 115, 115, 97, 103, 101, 34, 58, 34, 79, 75, 34,
+            44, 34, 104, 101, 97, 100, 101, 114, 115, 34, 58, 91, 93, 125};
+
     @Before
     public void setUp() {
         // setup
         vertx = Mockito.mock(Vertx.class);
-        Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
+        eventBus = Mockito.mock(EventBus.class);
+        message = Mockito.mock(Message.class);
+
+        Mockito.when(message.body()).thenReturn(Buffer.buffer(eventBusMessageAsByteArray));
+
+        doAnswer(invocation -> {
+            Handler<AsyncResult<Message<Object>>> handler = (Handler<AsyncResult<Message<Object>>>) invocation.getArguments()[3];
+            handler.handle(Future.succeededFuture(message));
+            return null;
+        }).when(eventBus).request(Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.any());
+
+        Mockito.when(vertx.eventBus()).thenReturn(eventBus);
         Mockito.when(vertx.createHttpClient()).thenReturn(Mockito.mock(HttpClient.class));
         Mockito.when(vertx.sharedData()).thenReturn(Vertx.vertx().sharedData());
 
@@ -172,8 +188,8 @@ public class RouterTest {
     }
 
     private void assertNoCountersIncremented(TestContext context) {
-        for (Counter counter : meterRegistry.get(AbstractForwarder.FORWARDER_COUNT_METRIC_NAME).counters()) {
-            context.assertEquals(0.0, counter.count(), "No counter should have been incremented");
+        for (Timer timer : meterRegistry.get(AbstractForwarder.FORWARDS_METRIC_NAME).timers()) {
+            context.assertEquals(0L, timer.count(), "No timer should have been incremented");
         }
     }
 
@@ -191,9 +207,15 @@ public class RouterTest {
         // change the hops limit to 5
         router.resourceChanged(serverUrl + "/admin/v1/routing/config", Buffer.buffer("{\"request.hops.limit\":5}"));
 
-        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        DummyHttpServerResponse response = new DummyHttpServerResponse() {
+            @Override
+            public Future<Void> write(Buffer data) {
+                return Future.succeededFuture();
+            }
+        };
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
         class GETRandomResourceRequest extends DummyHttpServerRequest {
 
             MultiMap headers = MultiMap.caseInsensitiveMultiMap();
@@ -249,8 +271,8 @@ public class RouterTest {
         GETRandomResourceRequest request = new GETRandomResourceRequest();
         router.route(request);
 
-        Counter counter = meterRegistry.get(AbstractForwarder.FORWARDER_COUNT_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "loop_4").counter();
-        context.assertEquals(1.0, counter.count(), "Counter for `loop_4` rule should have been incremented by 1");
+        Timer timer = meterRegistry.get(AbstractForwarder.FORWARDS_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "loop_4").timer();
+        context.assertEquals(1L, timer.count(), "Timer for `loop_4` rule should have been incremented by 1");
 
         context.assertEquals("1", request.headers().get("x-hops"), "x-hops header should have value 1");
         context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
@@ -350,7 +372,12 @@ public class RouterTest {
         // change the hops limit to 5
         router.resourceChanged(serverUrl + "/admin/v1/routing/config", Buffer.buffer("{\"request.hops.limit\":5}"));
 
-        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        final DummyHttpServerResponse response = new DummyHttpServerResponse() {
+            @Override
+            public Future<Void> write(Buffer data) {
+                return Future.succeededFuture();
+            }
+        };
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
         class GETRandomResourceRequest extends DummyHttpServerRequest {
@@ -419,8 +446,8 @@ public class RouterTest {
         context.assertEquals(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 500");
         context.assertEquals("Request hops limit exceeded", request.response().getStatusMessage(), "StatusMessage should be 'Request hops limit exceeded'");
 
-        Counter counter = meterRegistry.get(AbstractForwarder.FORWARDER_COUNT_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "loop_4").counter();
-        context.assertEquals(5.0, counter.count(), "Counter for `loop_4` rule should have been incremented by 5");
+        Timer timer = meterRegistry.get(AbstractForwarder.FORWARDS_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "loop_4").timer();
+        context.assertEquals(5L, timer.count(), "Timer for `loop_4` rule should have been incremented by 5");
     }
 
     @Test
@@ -431,7 +458,12 @@ public class RouterTest {
         context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
 
-        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        final DummyHttpServerResponse response = new DummyHttpServerResponse() {
+            @Override
+            public Future<Void> write(Buffer data) {
+                return Future.succeededFuture();
+            }
+        };
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
         class GETRandomResourceRequest extends DummyHttpServerRequest {
@@ -496,8 +528,8 @@ public class RouterTest {
         context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
         context.assertEquals(StatusCode.OK.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be OK");
 
-        Counter counter = meterRegistry.get(AbstractForwarder.FORWARDER_COUNT_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "loop_4").counter();
-        context.assertEquals(20.0, counter.count(), "Counter for `loop_4` rule should have been incremented by 20");
+        Timer timer = meterRegistry.get(AbstractForwarder.FORWARDS_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "loop_4").timer();
+        context.assertEquals(20L, timer.count(), "Timer for `loop_4` rule should have been incremented by 20");
     }
 
 
@@ -772,9 +804,6 @@ public class RouterTest {
         router.route(requestRandomResource);
         context.assertFalse(router.isRoutingBroken(), "Routing should not be broken anymore");
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
-
-        Counter counter = meterRegistry.get(AbstractForwarder.FORWARDER_COUNT_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_TYPE, "local").counter();
-        context.assertEquals(1.0, counter.count(), "Counter should have been incremented by 1");
     }
 
     @Test
@@ -896,7 +925,12 @@ public class RouterTest {
         context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
 
-        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        final DummyHttpServerResponse response = new DummyHttpServerResponse() {
+            @Override
+            public Future<Void> write(Buffer data) {
+                return Future.succeededFuture();
+            }
+        };
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
 
@@ -908,8 +942,8 @@ public class RouterTest {
         context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
         context.assertEquals(StatusCode.OK.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be OK");
 
-        Counter counter = meterRegistry.get(AbstractForwarder.FORWARDER_COUNT_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "forward_storage").counter();
-        context.assertEquals(1.0, counter.count(), "Counter for `forward_storage` rule should have been incremented by 1");
+        Timer timer = meterRegistry.get(AbstractForwarder.FORWARDS_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "forward_storage").timer();
+        context.assertEquals(1L, timer.count(), "Timer for `forward_storage` rule should have been incremented by 1");
     }
 
     @Test
@@ -970,7 +1004,12 @@ public class RouterTest {
         context.assertFalse(router.isRoutingBroken(), "Routing should not be broken");
         context.assertNull(router.getRoutingBrokenMessage(), "RoutingBrokenMessage should be null");
 
-        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        final DummyHttpServerResponse response = new DummyHttpServerResponse() {
+            @Override
+            public Future<Void> write(Buffer data) {
+                return Future.succeededFuture();
+            }
+        };
         response.setStatusCode(StatusCode.OK.getStatusCode());
         response.setStatusMessage(StatusCode.OK.getStatusMessage());
 
@@ -982,8 +1021,8 @@ public class RouterTest {
         context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
         context.assertEquals(StatusCode.OK.getStatusMessage(), request.response().getStatusMessage(), "StatusMessage should be OK");
 
-        Counter counter = meterRegistry.get(AbstractForwarder.FORWARDER_COUNT_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "forward_null").counter();
-        context.assertEquals(1.0, counter.count(), "Counter for `forward_null` rule should have been incremented by 1");
+        Timer timer = meterRegistry.get(AbstractForwarder.FORWARDS_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "forward_null").timer();
+        context.assertEquals(1L, timer.count(), "Timer for `forward_null` rule should have been incremented by 1");
     }
 
     @Test
@@ -1009,9 +1048,6 @@ public class RouterTest {
         // we expect a status code 500 because of a NullPointerException in the test setup
         // however, this means that the headersFilter evaluation did not return a 400 Bad Request
         context.assertEquals(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 500");
-
-        Counter counter = meterRegistry.get(AbstractForwarder.FORWARDER_COUNT_METRIC_NAME).tag(AbstractForwarder.FORWARDER_METRIC_TAG_METRICNAME, "forward_backend").counter();
-        context.assertEquals(1.0, counter.count(), "Counter for `forward_backend` rule should have been incremented by 1");
     }
 
     @Test
