@@ -887,6 +887,22 @@ public class ListenerTest extends AbstractTest {
     }
 
     @Test
+    public void testSearchListenerWithDifferentParams(TestContext context) {
+        Async async = context.async();
+        registerDefaultListener();
+        searchWithQueryParam("storageExpand", "true", 200);
+        searchWithQueryParam("expand", "1", 200);
+        searchWithQueryParam("q", "", 400);
+
+        Response response = searchWithQueryParam("q",defaultListenerName,200);
+
+        Assert.assertTrue(response.getBody().asString().contains(defaultListenerName));
+        TestUtils.unregisterListener(defaultRegisterUrlListener);
+
+        async.complete();
+    }
+
+    @Test
     public void testSearchListenerWithNonMatchingQueryParam(TestContext context) {
         Async async = context.async();
 
