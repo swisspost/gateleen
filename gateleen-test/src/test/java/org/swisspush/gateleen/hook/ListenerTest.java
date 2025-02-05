@@ -887,11 +887,11 @@ public class ListenerTest extends AbstractTest {
     }
 
     @Test
-    public void testSearchListenerWithValidAndInvalidSearchParam(TestContext context) {
+    public void testSearchListenerWithDifferentParams(TestContext context) {
         Async async = context.async();
         registerDefaultListener();
-
-        searchWithQueryParam("wq", defaultListenerName, 400);
+        searchWithQueryParam("storageExpand", "true", 200);
+        searchWithQueryParam("expand", "1", 200);
         searchWithQueryParam("q", "", 400);
 
         Response response = searchWithQueryParam("q",defaultListenerName,200);
@@ -937,20 +937,6 @@ public class ListenerTest extends AbstractTest {
 
         Assert.assertTrue("Expected 'listeners' to be an empty array",
                 jsonResponse.containsKey("listeners") && jsonResponse.getJsonArray("listeners").isEmpty());
-        async.complete();
-    }
-
-    @Test
-    public void testHookHandleSearch_ListenerPathInvalidParam(TestContext context) {
-        Async async = context.async();
-        delete();
-        initRoutingRules();
-
-        String queryParam = "testQuery";
-        String requestUrl = searchUrlBase+ "?www=" + queryParam;
-
-        // Validate the response
-        checkGETStatusCodeWithAwait(requestUrl, 400);
         async.complete();
     }
 
@@ -1042,7 +1028,7 @@ public class ListenerTest extends AbstractTest {
         // added in searchUrlBase a '/' to validate if also works
         Response response = given()
                 .queryParam("q", "listener")
-                .when().get(searchUrlBase+"/")
+                .when().get(searchUrlBase + "/")
                 .then().assertThat().statusCode(200)
                 .extract().response();
 
@@ -1170,7 +1156,7 @@ public class ListenerTest extends AbstractTest {
     private Response searchWithQueryParam(String searchParam, String queryParam, int expectedStatusCode ) {
         return given()
                 .queryParam(searchParam, queryParam)
-                .when().get(searchUrlBase)
+                .when().get(searchUrlBase + "/")
                 .then().assertThat().statusCode(expectedStatusCode)
                 .extract().response();
     }

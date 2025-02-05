@@ -912,35 +912,6 @@ public class HookHandlerTest {
         assertEmptyResult(jsonResponse);
     }
 
-    @Test
-    public void testHandleGETRequestWithInvalidParam(TestContext testContext) {
-        // Define URI with an invalid parameter different from 'q'
-        GETRequest request = new GETRequest(HOOK_LISTENER_URI, mockResponse);
-        request.addParameter("invalidParam", "someValue"); // Invalid parameter, not 'q'
-
-        // Mock the RoutingContext
-        when(routingContext.request()).thenReturn(request);
-
-        // Capture the response content
-        ArgumentCaptor<String> responseCaptor = ArgumentCaptor.forClass(String.class);
-        when(mockResponse.setStatusCode(anyInt())).thenReturn(mockResponse);
-        when(mockResponse.end(responseCaptor.capture())).thenReturn(Future.succeededFuture());
-
-        // Execute the Handler
-        boolean result = hookHandler.handle(routingContext);
-
-        // Verify status 400 due to invalid parameter
-        verify(mockResponse).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-        testContext.assertTrue(result);
-
-        // Verify captured response content
-        String jsonResponse = responseCaptor.getValue();
-        testContext.assertNotNull(jsonResponse);
-        // Confirm that the response contains "Bad Request"
-        testContext.assertTrue(jsonResponse.contains("Only the 'q' parameter is allowed and can't be empty or null"));
-    }
-
-
     ///////////////////////////////////////////////////////////////////////////////
     // Helpers
     ///////////////////////////////////////////////////////////////////////////////

@@ -587,7 +587,7 @@ public class HookHandler implements LoggableResource {
             }
         }
 
-        if (requestMethod == GET && !request.params().isEmpty()) {
+        if (requestMethod == GET && null != request.getParam("q")) {
             if (requestUri.contains(normalizedListenerBase) ) {
                 handleListenerSearch(request);
                 return true;
