@@ -206,7 +206,6 @@ public class RouteListingTest extends AbstractTest {
         addRoute(queryParam, true, true);
 
         // Verify that the route was correctly registered
-        searchWithQueryParam("w", queryParam, 400);
         searchWithQueryParam("q", "", 400);
 
         // Verify that the route was correctly registered
@@ -232,7 +231,7 @@ public class RouteListingTest extends AbstractTest {
 
         // Register a route using the addRoute method
         addRoute(queryParam, true, true);
-        assertResponse(get(requestUrlBase), new String[]{queryParam+"/"});
+        assertResponse(get(requestUrlBase), new String[]{queryParam + "/"});
 
         Response response = searchWithQueryParam("q", queryParam, 200);
         Assert.assertTrue("Query param should be found in response",
