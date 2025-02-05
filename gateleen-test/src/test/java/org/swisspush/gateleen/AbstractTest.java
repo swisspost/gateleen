@@ -56,6 +56,8 @@ import org.swisspush.gateleen.merge.MergeHandler;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.monitoring.ResetMetricsController;
+import org.swisspush.gateleen.packing.PackingHandler;
+import org.swisspush.gateleen.packing.validation.PackingValidatorImpl;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
@@ -125,6 +127,7 @@ public abstract class AbstractTest {
     protected static SchedulerResourceManager schedulerResourceManager;
     protected static HookHandler hookHandler;
     protected static CacheHandler cacheHandler;
+    protected static PackingHandler packingHandler;
     protected static CustomHttpResponseHandler customHttpResponseHandler;
 
     /**
@@ -200,6 +203,8 @@ public abstract class AbstractTest {
                         new RedisCacheStorage(vertx, lock, redisProvider, exceptionFactory, 60000),
                         SERVER_ROOT + "/cache");
 
+                packingHandler = new PackingHandler(vertx, "packed-", Address.redisquesAddress(), new PackingValidatorImpl(), exceptionFactory);
+
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
 
                 // ------
@@ -246,6 +251,7 @@ public abstract class AbstractTest {
                 RunConfig runConfig =
                         RunConfig.with()
                                 .cacheHandler(cacheHandler)
+                                .packingHandler(packingHandler)
                                 .corsHandler(new CORSHandler())
                                 .deltaHandler(new DeltaHandler(vertx, redisProvider, selfClient, ruleProvider, loggingResourceManager, logAppenderRepository))
                                 .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))

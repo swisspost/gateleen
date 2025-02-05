@@ -83,6 +83,7 @@ public class RunConfig {
     private final Vertx vertx;
     private final RedisProvider redisProvider;
     private final Router router;
+    private final PackingHandler packingHandler;
     private final CacheHandler cacheHandler;
     private final CORSHandler corsHandler;
     private final ContentTypeConstraintHandler contentTypeConstraintHandler;
@@ -121,7 +122,7 @@ public class RunConfig {
                      QoSHandler qosHandler, PropertyHandler propertyHandler, ZipExtractHandler zipExtractHandler,
                      DelegateHandler delegateHandler, MergeHandler mergeHandler, KafkaHandler kafkaHandler,
                      CustomHttpResponseHandler customHttpResponseHandler, ContentTypeConstraintHandler contentTypeConstraintHandler,
-                     CacheHandler cacheHandler) {
+                     CacheHandler cacheHandler, PackingHandler packingHandler) {
         this.vertx = vertx;
         this.redisProvider = redisProvider;
         this.verticleClass = verticleClass;
@@ -152,6 +153,7 @@ public class RunConfig {
         this.customHttpResponseHandler = customHttpResponseHandler;
         this.contentTypeConstraintHandler = contentTypeConstraintHandler;
         this.cacheHandler = cacheHandler;
+        this.packingHandler = packingHandler;
         init();
     }
 
@@ -185,7 +187,8 @@ public class RunConfig {
                 builder.kafkaHandler,
                 builder.customHttpResponseHandler,
                 builder.contentTypeConstraintHandler,
-                builder.cacheHandler
+                builder.cacheHandler,
+                builder.packingHandler
         );
     }
 
@@ -243,6 +246,7 @@ public class RunConfig {
         private DelegateHandler delegateHandler;
         private MergeHandler mergeHandler;
         private CacheHandler cacheHandler;
+        private PackingHandler packingHandler;
 
         public RunConfigBuilder() {
         }
@@ -369,6 +373,11 @@ public class RunConfig {
 
         public RunConfigBuilder cacheHandler(CacheHandler cacheHandler) {
             this.cacheHandler = cacheHandler;
+            return this;
+        }
+
+        public RunConfigBuilder packingHandler(PackingHandler packingHandler) {
+            this.packingHandler = packingHandler;
             return this;
         }
 
@@ -601,91 +610,82 @@ public class RunConfig {
                     request.response().end();
                     return;
                 }
-                if (PackingHandler.isPacked(request)) {
-                    request.bodyHandler(new PackingHandler(
+                if (QueuingHandler.isQueued(request)) {
+                    setISO8601Timestamps(request);
+                    request.bodyHandler(new QueuingHandler(
+                            vertx,
+                            redisProvider,
                             request,
-                            new QueuingHandler(
-                                    vertx,
-                                    redisProvider,
-                                    request,
-                                    monitoringHandler,
-                                    queueSplitter
-                            )
-                    ));
+                            monitoringHandler,
+                            queueSplitter));
                 } else {
-                    if (QueuingHandler.isQueued(request)) {
+                    if (packingHandler != null && packingHandler.isPacked(request)) {
+                        packingHandler.handle(request);
+                        return;
+                    }
+                    if (cacheHandler != null && cacheHandler.handle(request)) {
+                        return;
+                    }
+                    if (copyResourceHandler != null && copyResourceHandler.handle(request)) {
+                        return;
+                    }
+                    if (hookHandler != null && hookHandler.handle(ctx)) {
+                        return;
+                    }
+                    if (eventBusHandler != null && eventBusHandler.handle(request)) {
+                        return;
+                    }
+                    if (kafkaHandler != null && kafkaHandler.handle(request)) {
+                        return;
+                    }
+                    if (validationHandler != null && validationHandler.isToValidate(request)) {
+                        validationHandler.handle(request);
+                        return;
+                    }
+                    if (loggingResourceManager != null && loggingResourceManager.handleLoggingResource(request)) {
+                        return;
+                    }
+                    if (configurationResourceManager != null && configurationResourceManager.handleConfigurationResource(request)) {
+                        return;
+                    }
+                    if (validationResourceManager != null && validationResourceManager.handleValidationResource(request)) {
+                        return;
+                    }
+                    if (schedulerResourceManager != null && schedulerResourceManager.handleSchedulerResource(request)) {
+                        return;
+                    }
+                    if (queueCircuitBreakerConfigurationResourceManager != null &&
+                            queueCircuitBreakerConfigurationResourceManager.handleConfigurationResource(request)) {
+                        return;
+                    }
+                    if (propertyHandler != null && propertyHandler.handle(request)) {
+                        return;
+                    }
+                    if (zipExtractHandler != null && zipExtractHandler.handle(request)) {
+                        return;
+                    }
+                    if (delegateHandler != null && delegateHandler.handle(request)) {
+                        return;
+                    }
+                    if (customHttpResponseHandler != null && customHttpResponseHandler.handle(request)) {
+                        return;
+                    }
+                    if (userProfileHandler != null && userProfileHandler.isUserProfileRequest(request)) {
+                        userProfileHandler.handle(request);
+                    } else if (roleProfileHandler != null && roleProfileHandler.isRoleProfileRequest(request)) {
+                        roleProfileHandler.handle(request);
+                    } else if (expansionHandler != null && expansionHandler.isZipRequest(request)) {
+                        expansionHandler.handleZipRecursion(request);
+                    } else if (expansionHandler != null && expansionHandler.isExpansionRequest(request)) {
+                        expansionHandler.handleExpansionRecursion(request);
+                    } else if (deltaHandler != null && deltaHandler.isDeltaRequest(request)) {
                         setISO8601Timestamps(request);
-                        request.bodyHandler(new QueuingHandler(
-                                vertx,
-                                redisProvider,
-                                request,
-                                monitoringHandler,
-                                queueSplitter));
+                        deltaHandler.handle(request, router);
+                    } else if (mergeHandler != null && mergeHandler.handle(request)) {
+                        return;
                     } else {
-                        if (cacheHandler != null && cacheHandler.handle(request)) {
-                            return;
-                        }
-                        if (copyResourceHandler != null && copyResourceHandler.handle(request)) {
-                            return;
-                        }
-                        if (hookHandler != null && hookHandler.handle(ctx)) {
-                            return;
-                        }
-                        if (eventBusHandler != null && eventBusHandler.handle(request)) {
-                            return;
-                        }
-                        if (kafkaHandler != null && kafkaHandler.handle(request)) {
-                            return;
-                        }
-                        if (validationHandler != null && validationHandler.isToValidate(request)) {
-                            validationHandler.handle(request);
-                            return;
-                        }
-                        if (loggingResourceManager != null && loggingResourceManager.handleLoggingResource(request)) {
-                            return;
-                        }
-                        if (configurationResourceManager != null && configurationResourceManager.handleConfigurationResource(request)) {
-                            return;
-                        }
-                        if (validationResourceManager != null && validationResourceManager.handleValidationResource(request)) {
-                            return;
-                        }
-                        if (schedulerResourceManager != null && schedulerResourceManager.handleSchedulerResource(request)) {
-                            return;
-                        }
-                        if (queueCircuitBreakerConfigurationResourceManager != null &&
-                                queueCircuitBreakerConfigurationResourceManager.handleConfigurationResource(request)) {
-                            return;
-                        }
-                        if (propertyHandler != null && propertyHandler.handle(request)) {
-                            return;
-                        }
-                        if (zipExtractHandler != null && zipExtractHandler.handle(request)) {
-                            return;
-                        }
-                        if (delegateHandler != null && delegateHandler.handle(request)) {
-                            return;
-                        }
-                        if (customHttpResponseHandler != null && customHttpResponseHandler.handle(request)) {
-                            return;
-                        }
-                        if (userProfileHandler != null && userProfileHandler.isUserProfileRequest(request)) {
-                            userProfileHandler.handle(request);
-                        } else if (roleProfileHandler != null && roleProfileHandler.isRoleProfileRequest(request)) {
-                            roleProfileHandler.handle(request);
-                        } else if (expansionHandler != null && expansionHandler.isZipRequest(request)) {
-                            expansionHandler.handleZipRecursion(request);
-                        } else if (expansionHandler != null && expansionHandler.isExpansionRequest(request)) {
-                            expansionHandler.handleExpansionRecursion(request);
-                        } else if (deltaHandler != null && deltaHandler.isDeltaRequest(request)) {
-                            setISO8601Timestamps(request);
-                            deltaHandler.handle(request, router);
-                        } else if (mergeHandler != null && mergeHandler.handle(request)) {
-                            return;
-                        } else {
-                            setISO8601Timestamps(request);
-                            router.route(request);
-                        }
+                        setISO8601Timestamps(request);
+                        router.route(request);
                     }
                 }
             }
