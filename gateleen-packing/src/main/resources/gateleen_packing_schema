@@ -31,6 +31,10 @@
 				"payload": {
 					"description": "The payload to send in requests body"
 				},
+                "copy_original_headers": {
+                    "description": "Enable or disable copying original request headers to packed requests",
+                    "type": "boolean"
+                },
 				"headers": {
 					"description": "Headers to send with the request",
 					"type": "array",

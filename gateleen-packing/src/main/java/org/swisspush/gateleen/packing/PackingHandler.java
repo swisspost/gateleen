@@ -39,6 +39,15 @@ public class PackingHandler {
     private final PackingValidator validator;
     private final GateleenExceptionFactory exceptionFactory;
 
+    /**
+     * Constructs a new PackingHandler.
+     *
+     * @param vertx the Vertx instance
+     * @param queuePrefix the prefix for the queue names
+     * @param redisquesAddress the address of the vertx-redisques
+     * @param validator the PackingValidator instance
+     * @param exceptionFactory the GateleenExceptionFactory instance
+     */
     public PackingHandler(Vertx vertx, String queuePrefix, String redisquesAddress, PackingValidator validator, GateleenExceptionFactory exceptionFactory) {
         this.vertx = vertx;
         this.queuePrefix = queuePrefix;
@@ -74,7 +83,7 @@ public class PackingHandler {
                 return;
             }
 
-            Result<List<HttpRequest>, String> parseRequestsResult = PackingRequestParser.parseRequests(payload);
+            Result<List<HttpRequest>, String> parseRequestsResult = PackingRequestParser.parseRequests(payload, request.headers());
             if(parseRequestsResult.isErr()) {
                 requestLog.warn("Error while parsing requests from packing payload: " + parseRequestsResult.err());
                 respondWith(request, StatusCode.BAD_REQUEST);

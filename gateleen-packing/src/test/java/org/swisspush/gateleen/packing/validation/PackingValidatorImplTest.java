@@ -106,6 +106,23 @@ public class PackingValidatorImplTest {
                 "}");
         validationResult = packingValidator.validatePackingPayload(dataMultipleRequests);
         context.assertTrue(validationResult.isSuccess());
+
+        Buffer dataCopyHeadersProperty = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"copy_original_headers\": true,\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1,\n" +
+                "        \"key2\": [1,2,3]\n" +
+                "      },\n" +
+                "      \"headers\": [[\"x-foo\", \"bar\"], [\"x-bar\", \"foo\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+        validationResult = packingValidator.validatePackingPayload(dataCopyHeadersProperty);
+        context.assertTrue(validationResult.isSuccess());
     }
 
     @Test
@@ -221,5 +238,24 @@ public class PackingValidatorImplTest {
         context.assertFalse(validationResult.isSuccess());
         context.assertEquals("Validation failed", validationResult.getMessage());
         context.assertTrue(validationResult.getValidationDetails().encode().contains("$.requests[0].headers[0]: integer found, array expected"));
+
+        Buffer dataWrongCopyHeadersProperty = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"copy_original_headers\": 555,\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1,\n" +
+                "        \"key2\": [1,2,3]\n" +
+                "      },\n" +
+                "      \"headers\": [[\"x-foo\", \"bar\"], [\"x-bar\", \"foo\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+        validationResult = packingValidator.validatePackingPayload(dataWrongCopyHeadersProperty);
+        context.assertFalse(validationResult.isSuccess());
+        context.assertEquals("Validation failed", validationResult.getMessage());
+        context.assertTrue(validationResult.getValidationDetails().encode().contains("$.requests[0].copy_original_headers: integer found, boolean expected"));
     }
 }
