@@ -123,6 +123,7 @@ public class HookHandler implements LoggableResource {
     private static final Logger log = LoggerFactory.getLogger(HookHandler.class);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final JsonSchemaFactory JSON_SCHEMA_FACTORY = JsonSchemaFactory.getInstance();
 
     private final Vertx vertx;
     private final ResourceStorage userProfileStorage;
@@ -287,7 +288,7 @@ public class HookHandler implements LoggableResource {
         this.routeMultiplier = routeMultiplier;
         this.queueSplitter = queueSplitter;
         String hookSchema = ResourcesUtils.loadResource("gateleen_hooking_schema_hook", true);
-        jsonSchemaHook = JsonSchemaFactory.getInstance().getSchema(hookSchema);
+        jsonSchemaHook = JSON_SCHEMA_FACTORY.getSchema(hookSchema);
         this.listenerBase = hookRootUri + HOOK_LISTENER_STORAGE_PATH;
         this.routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
         this.normalizedListenerBase = this.listenerBase.replaceAll("/+$", "");

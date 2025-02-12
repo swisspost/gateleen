@@ -35,6 +35,9 @@ public class Validator {
     private ResourceStorage storage;
     private ValidationSchemaProvider schemaProvider;
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final JsonSchemaFactory JSON_SCHEMA_FACTORY = JsonSchemaFactory.getInstance();
+
     public Validator(ResourceStorage storage, String schemaRoot, ValidationSchemaProvider schemaProvider) {
         this.storage = storage;
         this.schemaRoot = schemaRoot;
@@ -160,14 +163,14 @@ public class Validator {
         if (SCHEMA_DECLARATION.equals(schemaObject.getString("$schema"))) {
             JsonSchema schema;
             try {
-                schema = JsonSchemaFactory.getInstance().getSchema(schemaAsString);
+                schema = JSON_SCHEMA_FACTORY.getSchema(schemaAsString);
             } catch (RuntimeException e) {
                 String message = "Cannot load schema";
                 log.warn(message, e);
                 return new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, message);
             }
             try {
-                JsonNode jsonNode = new ObjectMapper().readTree(dataToBeValidated.getBytes());
+                JsonNode jsonNode = OBJECT_MAPPER.readTree(dataToBeValidated.getBytes());
                 final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
                 if (valMsgs.isEmpty()) {
                     return new ValidationResult(ValidationStatus.VALIDATED_POSITIV);
@@ -192,7 +195,7 @@ public class Validator {
         Promise<ValidationResult> promise = Promise.promise();
 
         try {
-            JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
+            JsonNode jsonNode = OBJECT_MAPPER.readTree(jsonBuffer.getBytes());
             if (jsonNode == null) {
                 promise.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV,
                         "no valid JSON object: " + jsonBuffer));
@@ -232,7 +235,7 @@ public class Validator {
     private static void performValidation(JsonSchema schema, Logger log, String base, Buffer jsonBuffer, String type,
                                           String path, Handler<ValidationResult> callback) {
         try {
-            JsonNode jsonNode = new ObjectMapper().readTree(jsonBuffer.getBytes());
+            JsonNode jsonNode = OBJECT_MAPPER.readTree(jsonBuffer.getBytes());
             if (jsonNode == null) {
                 throw new IOException("no valid JSON object: " + jsonBuffer);
             }
@@ -272,7 +275,7 @@ public class Validator {
         if (SCHEMA_DECLARATION.equals(data.getString("$schema"))) {
             JsonSchema schema;
             try {
-                schema = JsonSchemaFactory.getInstance().getSchema(dataString);
+                schema = JSON_SCHEMA_FACTORY.getSchema(dataString);
             } catch (RuntimeException e) {
                 String message = "Cannot load schema " + base;
                 log.warn(message, e);
