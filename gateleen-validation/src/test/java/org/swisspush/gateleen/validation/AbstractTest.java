@@ -10,8 +10,10 @@ import org.swisspush.gateleen.validation.mocks.HttpServerRequestMock;
 
 public abstract class AbstractTest {
 
+    private static final JsonSchemaFactory JSON_SCHEMA_FACTORY = JsonSchemaFactory.getInstance();
+
     protected JsonSchema createSchema(String dataString) {
-        return JsonSchemaFactory.getInstance().getSchema(dataString);
+        return JSON_SCHEMA_FACTORY.getSchema(dataString);
     }
 
     static class CustomHttpServerRequest extends HttpServerRequestMock {

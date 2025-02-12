@@ -33,6 +33,9 @@ class ConfigurationResourceValidator {
     private static final String SCHEMA_DECLARATION = "http://json-schema.org/draft-04/schema#";
     private static final Logger log = getLogger(ConfigurationResourceValidator.class);
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final JsonSchemaFactory JSON_SCHEMA_FACTORY = JsonSchemaFactory.getInstance();
+
     private final Vertx vertx;
 
     public ConfigurationResourceValidator(Vertx vertx) {
@@ -68,7 +71,7 @@ class ConfigurationResourceValidator {
             if(SCHEMA_DECLARATION.equals(schemaObject.getString("$schema"))) {
                 JsonSchema schema;
                 try {
-                    schema = JsonSchemaFactory.getInstance().getSchema(resourceSchema);
+                    schema = JSON_SCHEMA_FACTORY.getSchema(resourceSchema);
                 } catch (Exception e) {
                     String message = "Cannot load schema";
                     log.warn(message, e);
@@ -76,7 +79,7 @@ class ConfigurationResourceValidator {
                     return;
                 }
                 try {
-                    JsonNode jsonNode = new ObjectMapper().readTree(configurationResource.toString());
+                    JsonNode jsonNode = OBJECT_MAPPER.readTree(configurationResource.toString());
                     final Set<ValidationMessage> valMsgs = schema.validate(jsonNode);
                     if(valMsgs.isEmpty()) {
                         log.info("validated positive");

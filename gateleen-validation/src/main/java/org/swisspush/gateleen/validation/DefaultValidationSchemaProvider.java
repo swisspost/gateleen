@@ -24,6 +24,8 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
     private final ClientRequestCreator clientRequestCreator;
     private final Logger log = LoggerFactory.getLogger(DefaultValidationSchemaProvider.class);
 
+    private static final JsonSchemaFactory JSON_SCHEMA_FACTORY = JsonSchemaFactory.getInstance();
+
     private final Map<String, SchemaEntry> cachedSchemas;
     private final HeadersMultiMap defaultRequestHeaders;
 
@@ -128,7 +130,7 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
     private Optional<JsonSchema> parseSchema(SchemaLocation schemaLocation, Buffer data) {
         JsonSchema schema = null;
         try {
-            schema = JsonSchemaFactory.getInstance().getSchema(data.toString());
+            schema = JSON_SCHEMA_FACTORY.getSchema(data.toString());
             if (schemaLocation.keepInMemory() != null) {
                 cachedSchemas.put(schemaLocation.schemaLocation(), new SchemaEntry(schema, Instant.now().plusSeconds(schemaLocation.keepInMemory())));
             }

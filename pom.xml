@@ -64,7 +64,7 @@
         <hamcrest.version>2.2</hamcrest.version>
         <log4j.version>2.17.2</log4j.version>
         <log4j-slf4j2.version>2.19.0</log4j-slf4j2.version>
-        <jackson.version>2.16.1</jackson.version>
+        <jackson.version>2.18.2</jackson.version>
         <jedis.version>3.7.0</jedis.version>
         <jetty-websocket.version>9.4.53.v20231009</jetty-websocket.version>
         <jmte.version>7.0.2</jmte.version>
