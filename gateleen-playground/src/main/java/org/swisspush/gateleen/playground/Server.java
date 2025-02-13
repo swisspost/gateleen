@@ -54,6 +54,8 @@ import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.CustomRedisMonitor;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.monitoring.ResetMetricsController;
+import org.swisspush.gateleen.packing.PackingHandler;
+import org.swisspush.gateleen.packing.validation.PackingValidatorImpl;
 import org.swisspush.gateleen.qos.QoSHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.QueueProcessor;
@@ -158,6 +160,7 @@ public class Server extends AbstractVerticle {
     private CustomHttpResponseHandler customHttpResponseHandler;
     private ContentTypeConstraintHandler contentTypeConstraintHandler;
     private CacheHandler cacheHandler;
+    private PackingHandler packingHandler;
 
     private QueueSplitter queueSplitter;
 
@@ -223,6 +226,8 @@ public class Server extends AbstractVerticle {
                 cacheStorage = new RedisCacheStorage(vertx, lock, redisProvider, exceptionFactory, 20 * 1000);
                 cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));
                 cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
+
+                packingHandler = new PackingHandler(vertx, "packed-", Address.redisquesAddress(), new PackingValidatorImpl(), exceptionFactory);
 
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 qosHandler.enableResourceLogging(true);
@@ -353,6 +358,7 @@ public class Server extends AbstractVerticle {
                         .validationResourceManager(validationResourceManager)
                         .validationHandler(validationHandler)
                         .cacheHandler(cacheHandler)
+                        .packingHandler(packingHandler)
                         .corsHandler(corsHandler)
                         .deltaHandler(deltaHandler)
                         .expansionHandler(expansionHandler)
