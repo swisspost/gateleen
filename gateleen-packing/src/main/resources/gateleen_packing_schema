@@ -1,0 +1,57 @@
+{
+	"$schema": "http://json-schema.org/draft-04/schema#",
+	"properties": {
+        "requests": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Request"
+            }
+        }
+	},
+	"required": [
+		"requests"
+	],
+	"additionalProperties": false,
+	"definitions": {
+		"Request": {
+			"properties": {
+				"uri": {
+					"description": "The target of the request",
+					"type": "string"
+				},
+				"method": {
+					"description": "The operation to perform",
+					"enum": [
+						"GET",
+						"PUT",
+						"POST",
+						"DELETE"
+					]
+				},
+				"payload": {
+					"description": "The payload to send in requests body"
+				},
+                "copy_original_headers": {
+                    "description": "Enable or disable copying original request headers to packed requests",
+                    "type": "boolean"
+                },
+				"headers": {
+					"description": "Headers to send with the request",
+					"type": "array",
+					"items": {
+						"description": "Header value pairs",
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				}
+			},
+			"required": [
+				"uri",
+				"method"
+			],
+			"additionalProperties": false
+		}
+	}
+}

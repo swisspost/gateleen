@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.swisspush.gateleen</groupId>
         <artifactId>gateleen</artifactId>
-        <version>2.1.17-SNAPSHOT</version>
+        <version>2.1.18-SNAPSHOT</version>
     </parent>
 
     <artifactId>gateleen-packing</artifactId>
@@ -17,6 +17,24 @@
             <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-core</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.swisspush.gateleen</groupId>
+            <artifactId>gateleen-validation</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.swisspush.gateleen</groupId>
+            <artifactId>gateleen-queue</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- TEST dependencies -->
+        <dependency>
+            <groupId>org.swisspush.gateleen</groupId>
+            <artifactId>gateleen-testhelper</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
