@@ -159,7 +159,7 @@ public class PackingHandlerTest {
     }
 
     @Test
-    public void testHandleValid(TestContext context) {
+    public void testHandleValid(TestContext context) throws InterruptedException {
         Async async = context.async(1);
         when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true"));
         when(request.method()).thenReturn(HttpMethod.PUT);
@@ -198,6 +198,8 @@ public class PackingHandlerTest {
         verify(response, times(1)).setStatusCode(eq(StatusCode.OK.getStatusCode()));
         verify(response, times(1)).setStatusMessage(eq(StatusCode.OK.getStatusMessage()));
         verify(validator, times(1)).validatePackingPayload(eq(data));
+
+        Thread.sleep(500);
 
         assertSuccessMetricCounts(context, 1.0);
         assertFailMetricCounts(context, 0.0);
@@ -255,7 +257,7 @@ public class PackingHandlerTest {
     }
 
     @Test
-    public void testHandleValidMultiple(TestContext context) {
+    public void testHandleValidMultiple(TestContext context) throws InterruptedException {
         Async async = context.async(2);
         when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true"));
         when(request.method()).thenReturn(HttpMethod.PUT);
@@ -300,6 +302,8 @@ public class PackingHandlerTest {
         verify(response, times(1)).setStatusMessage(eq(StatusCode.OK.getStatusMessage()));
         verify(validator, times(1)).validatePackingPayload(eq(dataMultipleRequests));
 
+        Thread.sleep(500);
+
         assertSuccessMetricCounts(context, 2.0);
         assertFailMetricCounts(context, 0.0);
 
@@ -307,7 +311,7 @@ public class PackingHandlerTest {
     }
 
     @Test
-    public void testHandleValidDefinedQueueName(TestContext context) {
+    public void testHandleValidDefinedQueueName(TestContext context) throws InterruptedException {
         Async async = context.async(1);
         when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true"));
         when(request.method()).thenReturn(HttpMethod.PUT);
@@ -346,6 +350,8 @@ public class PackingHandlerTest {
         verify(response, times(1)).setStatusCode(eq(StatusCode.OK.getStatusCode()));
         verify(response, times(1)).setStatusMessage(eq(StatusCode.OK.getStatusMessage()));
         verify(validator, times(1)).validatePackingPayload(eq(data));
+
+        Thread.sleep(500);
 
         assertSuccessMetricCounts(context, 1.0);
         assertFailMetricCounts(context, 0.0);
