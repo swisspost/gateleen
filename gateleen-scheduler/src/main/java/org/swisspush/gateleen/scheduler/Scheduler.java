@@ -12,7 +12,7 @@ import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
+import org.swisspush.gateleen.core.util.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 
 import javax.annotation.Nullable;

@@ -18,7 +18,7 @@ import org.swisspush.gateleen.core.util.Result;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.packing.validation.PackingValidator;
-import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
+import org.swisspush.gateleen.core.util.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
 
