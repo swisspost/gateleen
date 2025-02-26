@@ -61,6 +61,10 @@
             <groupId>com.bazaarvoice.jolt</groupId>
             <artifactId>json-utils</artifactId>
         </dependency>
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+        </dependency>
 
         <!-- TEST dependencies -->
         <dependency>

@@ -11,6 +11,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
@@ -24,6 +26,7 @@ import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonMultiMap;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.ExpiryCheckHandler;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LogAppenderRepository;
@@ -48,9 +51,14 @@ public class StorageForwarder extends AbstractForwarder {
     private GateleenExceptionFactory gateleenExceptionFactory;
 
     private Timer forwardTimer;
+    private Counter storageWriteNoExpiry;
+    private Counter storageWriteWithExpiry;
     private MeterRegistry meterRegistry;
 
     private static final String TYPE_STORAGE = "storage";
+    public static final String STORAGE_WRITES_METRIC_NAME = "gateleen.forwarded.storage.writes";
+    public static final String STORAGE_WRITES_METRIC_DESCRIPTION = "Amount of storage write operations";
+    private static final String METRIC_TAG_EXPIRES = "expires";
 
     public StorageForwarder(EventBus eventBus, Rule rule, LoggingResourceManager loggingResourceManager,
                             LogAppenderRepository logAppenderRepository, @Nullable MonitoringHandler monitoringHandler,
@@ -80,6 +88,16 @@ public class StorageForwarder extends AbstractForwarder {
                     .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
                     .tag(FORWARDER_METRIC_TAG_TYPE, TYPE_STORAGE)
                     .register(meterRegistry);
+            storageWriteNoExpiry = Counter.builder(STORAGE_WRITES_METRIC_NAME)
+                    .description(STORAGE_WRITES_METRIC_DESCRIPTION)
+                    .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
+                    .tag(METRIC_TAG_EXPIRES, "false")
+                    .register(meterRegistry);
+            storageWriteWithExpiry = Counter.builder(STORAGE_WRITES_METRIC_NAME)
+                    .description(STORAGE_WRITES_METRIC_DESCRIPTION)
+                    .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
+                    .tag(METRIC_TAG_EXPIRES, "true")
+                    .register(meterRegistry);
         }
     }
 
@@ -97,9 +115,11 @@ public class StorageForwarder extends AbstractForwarder {
         Long startTime = null;
 
         Timer.Sample timerSample = null;
-        if(meterRegistry != null) {
+        if (meterRegistry != null) {
             timerSample = Timer.start(meterRegistry);
         }
+
+        handleStorageWriteMetrics(ctx.request());
 
         if (monitoringHandler != null) {
             monitoringHandler.updateRequestsMeter("localhost", ctx.request().uri());
@@ -142,7 +162,7 @@ public class StorageForwarder extends AbstractForwarder {
                                 monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), finalStartTime, ctx.request().uri());
                             }
 
-                            if(finalTimerSample != null) {
+                            if (finalTimerSample != null) {
                                 finalTimerSample.stop(forwardTimer);
                             }
 
@@ -205,6 +225,22 @@ public class StorageForwarder extends AbstractForwarder {
                             }
 
                         }));
+    }
+
+    private void handleStorageWriteMetrics(HttpServerRequest request) {
+        if (request.method() != HttpMethod.PUT) {
+            return;
+        }
+        Integer expiry = ExpiryCheckHandler.getExpireAfter(request.headers());
+        incrementStorageWrite(expiry != null);
+    }
+
+    private void incrementStorageWrite(boolean withExpiry) {
+        if (withExpiry && storageWriteWithExpiry != null) {
+            storageWriteWithExpiry.increment();
+        } else if (!withExpiry && storageWriteNoExpiry != null) {
+            storageWriteNoExpiry.increment();
+        }
     }
 
     /**
