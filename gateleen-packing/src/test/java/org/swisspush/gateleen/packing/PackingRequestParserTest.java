@@ -22,18 +22,18 @@ public class PackingRequestParserTest {
     @Test
     public void parseRequestsInvalid(TestContext context) {
         Buffer data = Buffer.buffer("Invalid data");
-        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap());
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap(), "x-rp-grp");
         context.assertTrue(result.isErr());
 
         data = Buffer.buffer("{}");
-        result = PackingRequestParser.parseRequests(data, new HeadersMultiMap());
+        result = PackingRequestParser.parseRequests(data, new HeadersMultiMap(), "x-rp-grp");
         context.assertTrue(result.isErr());
     }
 
     @Test
     public void parseRequestsEmptyArray(TestContext context) {
         Buffer data = Buffer.buffer("{\"requests\": []}");
-        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap());
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap(), "x-rp-grp");
         context.assertTrue(result.isOk());
         context.assertNotNull(result.ok());
         context.assertEquals(0, result.ok().size());
@@ -52,7 +52,7 @@ public class PackingRequestParserTest {
                 "        ]\n" +
                 "    }\n" +
                 "}");
-        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap());
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap(), "x-rp-grp");
         context.assertTrue(result.isErr());
 
         data = Buffer.buffer("{\n" +
@@ -69,7 +69,7 @@ public class PackingRequestParserTest {
                 "  ]\n" +
                 "}");
 
-        result = PackingRequestParser.parseRequests(data, new HeadersMultiMap());
+        result = PackingRequestParser.parseRequests(data, new HeadersMultiMap(), "x-rp-grp");
         context.assertTrue(result.isErr());
     }
 
@@ -88,7 +88,7 @@ public class PackingRequestParserTest {
                 "    }\n" +
                 "  ]\n" +
                 "}");
-        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap());
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap(), "x-rp-grp");
         context.assertTrue(result.isOk());
 
         List<HttpRequest> requests = result.ok();
@@ -101,6 +101,41 @@ public class PackingRequestParserTest {
         context.assertEquals("/playground/some/url", request.getUri());
         context.assertEquals("{\"key\":1,\"key2\":[1,2,3]}", new String(request.getPayload()));
         context.assertEquals(3, request.getHeaders().size());
+        context.assertEquals("bar", request.getHeaders().get("x-foo"));
+        context.assertEquals("foo", request.getHeaders().get("x-bar"));
+        context.assertEquals("24", request.getHeaders().get("content-length"));
+    }
+
+    @Test
+    public void parseRequestsValidOriginalGroupHeaderAdded(TestContext context) {
+        Buffer data = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1,\n" +
+                "        \"key2\": [1,2,3]\n" +
+                "      },\n" +
+                "      \"headers\": [[\"x-foo\", \"bar\"], [\"x-bar\", \"foo\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data,
+                new HeadersMultiMap().add("x-rp-grp", "master"), "x-rp-grp");
+        context.assertTrue(result.isOk());
+
+        List<HttpRequest> requests = result.ok();
+
+        context.assertNotNull(requests);
+        context.assertEquals(1, requests.size());
+
+        HttpRequest request = requests.get(0);
+        context.assertEquals("PUT", request.getMethod().name());
+        context.assertEquals("/playground/some/url", request.getUri());
+        context.assertEquals("{\"key\":1,\"key2\":[1,2,3]}", new String(request.getPayload()));
+        context.assertEquals(4, request.getHeaders().size());
+        context.assertEquals("master", request.getHeaders().get("x-rp-grp"));
         context.assertEquals("bar", request.getHeaders().get("x-foo"));
         context.assertEquals("foo", request.getHeaders().get("x-bar"));
         context.assertEquals("24", request.getHeaders().get("content-length"));
@@ -120,7 +155,8 @@ public class PackingRequestParserTest {
                 "    }\n" +
                 "  ]\n" +
                 "}");
-        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap());
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data,
+                new HeadersMultiMap().add("x-rp-grp", "master"), "x-rp-grp");
         context.assertTrue(result.isOk());
 
         List<HttpRequest> requests = result.ok();
@@ -132,8 +168,9 @@ public class PackingRequestParserTest {
         context.assertEquals("PUT", request.getMethod().name());
         context.assertEquals("/playground/some/url", request.getUri());
         context.assertEquals("{\"key\":1,\"key2\":[1,2,3]}", new String(request.getPayload()));
-        context.assertEquals(1, request.getHeaders().size());
+        context.assertEquals(2, request.getHeaders().size());
         context.assertEquals("24", request.getHeaders().get("content-length"));
+        context.assertEquals("master", request.getHeaders().get("x-rp-grp"));
     }
 
     @Test
@@ -146,7 +183,8 @@ public class PackingRequestParserTest {
                 "    }\n" +
                 "  ]\n" +
                 "}");
-        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap());
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data,
+                new HeadersMultiMap().add("x-rp-grp", "master"), "x-rp-grp");
         context.assertTrue(result.isOk());
 
         List<HttpRequest> requests = result.ok();
@@ -157,7 +195,8 @@ public class PackingRequestParserTest {
         HttpRequest request = requests.get(0);
         context.assertEquals("PUT", request.getMethod().name());
         context.assertEquals("/playground/some/url", request.getUri());
-        context.assertTrue(request.getHeaders().isEmpty());
+        context.assertEquals(1, request.getHeaders().size());
+        context.assertEquals("master", request.getHeaders().get("x-rp-grp"));
     }
 
     @Test
@@ -171,7 +210,8 @@ public class PackingRequestParserTest {
                 "    }\n" +
                 "  ]\n" +
                 "}");
-        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap());
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data,
+                new HeadersMultiMap().add("x-rp-grp", "master"), "x-rp-grp");
         context.assertTrue(result.isOk());
 
         List<HttpRequest> requests = result.ok();
@@ -182,9 +222,10 @@ public class PackingRequestParserTest {
         HttpRequest request = requests.get(0);
         context.assertEquals("POST", request.getMethod().name());
         context.assertEquals("/playground/some/url", request.getUri());
-        context.assertEquals(2, request.getHeaders().size());
+        context.assertEquals(3, request.getHeaders().size());
         context.assertEquals("bar", request.getHeaders().get("x-foo"));
         context.assertEquals("foo", request.getHeaders().get("x-bar"));
+        context.assertEquals("master", request.getHeaders().get("x-rp-grp"));
     }
 
     @Test
@@ -202,7 +243,11 @@ public class PackingRequestParserTest {
                 "    }\n" +
                 "  ]\n" +
                 "}");
-        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap().add("x-user", "batman"));
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data,
+                new HeadersMultiMap()
+                        .add("x-user", "batman")
+                        .add("x-rp-grp", "master"),
+                "x-rp-grp");
         context.assertTrue(result.isOk());
 
         List<HttpRequest> requests = result.ok();
@@ -214,7 +259,8 @@ public class PackingRequestParserTest {
         context.assertEquals("PUT", request.getMethod().name());
         context.assertEquals("/playground/some/url", request.getUri());
         context.assertEquals("{\"key\":1,\"key2\":[1,2,3]}", new String(request.getPayload()));
-        context.assertEquals(3, request.getHeaders().size());
+        context.assertEquals(4, request.getHeaders().size());
+        context.assertEquals("master", request.getHeaders().get("x-rp-grp"));
         context.assertEquals("bar", request.getHeaders().get("x-foo"));
         context.assertEquals("foo", request.getHeaders().get("x-bar"));
         context.assertEquals("24", request.getHeaders().get("content-length"));
@@ -236,7 +282,11 @@ public class PackingRequestParserTest {
                 "  ]\n" +
                 "}");
 
-        result = PackingRequestParser.parseRequests(data, new HeadersMultiMap().add("x-user", "batman"));
+        result = PackingRequestParser.parseRequests(data,
+                new HeadersMultiMap()
+                        .add("x-user", "batman")
+                        .add("x-rp-grp", "master"),
+                "x-rp-grp");
         context.assertTrue(result.isOk());
 
         requests = result.ok();
@@ -248,7 +298,8 @@ public class PackingRequestParserTest {
         context.assertEquals("PUT", request.getMethod().name());
         context.assertEquals("/playground/some/url", request.getUri());
         context.assertEquals("{\"key\":1,\"key2\":[1,2,3]}", new String(request.getPayload()));
-        context.assertEquals(4, request.getHeaders().size());
+        context.assertEquals(5, request.getHeaders().size());
+        context.assertEquals("master", request.getHeaders().get("x-rp-grp"));
         context.assertEquals("bar", request.getHeaders().get("x-foo"));
         context.assertEquals("foo", request.getHeaders().get("x-bar"));
         context.assertEquals("24", request.getHeaders().get("content-length"));
@@ -273,7 +324,8 @@ public class PackingRequestParserTest {
                 "}");
         Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap()
                 .add("x-user", "batman")
-                .add("x-age", "25")
+                .add("x-age", "25"),
+                "x-rp-grp"
         );
         context.assertTrue(result.isOk());
 
@@ -291,6 +343,85 @@ public class PackingRequestParserTest {
         context.assertEquals("24", request.getHeaders().get("content-length"));
         context.assertEquals("superman", request.getHeaders().get("x-user"));
         context.assertEquals("25", request.getHeaders().get("x-age"));
+    }
+
+    @Test
+    public void parseRequestsOriginalGroupHeaderNotOverwritten(TestContext context) {
+        Buffer data = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"copy_original_headers\": true,\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1,\n" +
+                "        \"key2\": [1,2,3]\n" +
+                "      },\n" +
+                "      \"headers\": [[\"x-user\", \"superman\"], [\"x-rp-grp\", \"foo\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap()
+                        .add("x-rp-grp", "master")
+                        .add("x-user", "batman")
+                        .add("x-age", "25"),
+                "x-rp-grp"
+        );
+        context.assertTrue(result.isOk());
+
+        List<HttpRequest> requests = result.ok();
+
+        context.assertNotNull(requests);
+        context.assertEquals(1, requests.size());
+
+        HttpRequest request = requests.get(0);
+        context.assertEquals("PUT", request.getMethod().name());
+        context.assertEquals("/playground/some/url", request.getUri());
+        context.assertEquals("{\"key\":1,\"key2\":[1,2,3]}", new String(request.getPayload()));
+        context.assertEquals(4, request.getHeaders().size());
+        context.assertEquals("master", request.getHeaders().get("x-rp-grp"));
+        context.assertEquals("24", request.getHeaders().get("content-length"));
+        context.assertEquals("superman", request.getHeaders().get("x-user"));
+        context.assertEquals("25", request.getHeaders().get("x-age"));
+    }
+
+    @Test
+    public void parseRequestsOriginalGroupHeaderNotOverwrittenWhenHeadersNotCopied(TestContext context) {
+        Buffer data = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"copy_original_headers\": false,\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1,\n" +
+                "        \"key2\": [1,2,3]\n" +
+                "      },\n" +
+                "      \"headers\": [[\"x-user\", \"superman\"], [\"x-rp-grp\", \"foo\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+        Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap()
+                        .add("x-rp-grp", "master")
+                        .add("x-user", "batman")
+                        .add("x-age", "25"),
+                "x-rp-grp"
+        );
+        context.assertTrue(result.isOk());
+
+        List<HttpRequest> requests = result.ok();
+
+        context.assertNotNull(requests);
+        context.assertEquals(1, requests.size());
+
+        HttpRequest request = requests.get(0);
+        context.assertEquals("PUT", request.getMethod().name());
+        context.assertEquals("/playground/some/url", request.getUri());
+        context.assertEquals("{\"key\":1,\"key2\":[1,2,3]}", new String(request.getPayload()));
+        context.assertEquals(3, request.getHeaders().size());
+        context.assertEquals("master", request.getHeaders().get("x-rp-grp"));
+        context.assertEquals("24", request.getHeaders().get("content-length"));
+        context.assertEquals("superman", request.getHeaders().get("x-user"));
     }
 
     @Test
@@ -315,8 +446,10 @@ public class PackingRequestParserTest {
                 .add("x-level", "99")
                 .add("x-age", "55")
                 .add("x-active", "true")
+                .add("x-packed", "true")
                 .add("content-length", "2225")
-                .add("x-rp-unique_id", "t43z3g343f5tz345g")
+                .add("x-rp-unique_id", "t43z3g343f5tz345g"),
+                "x-rp-grp"
         );
         context.assertTrue(result.isOk());
 
@@ -356,7 +489,8 @@ public class PackingRequestParserTest {
                 "}");
         Result<List<HttpRequest>, String> result = PackingRequestParser.parseRequests(data, new HeadersMultiMap()
                 .add("x-user", "batman")
-                .add("x-age", "25")
+                .add("x-age", "25"),
+                "x-rp-grp"
         );
         context.assertTrue(result.isOk());
 
@@ -371,6 +505,30 @@ public class PackingRequestParserTest {
         context.assertEquals("{\"key\":1,\"key2\":[1,2,3]}", new String(request.getPayload()));
         context.assertEquals(3, request.getHeaders().size());
         context.assertEquals("24", request.getHeaders().get("content-length"));
+        context.assertEquals("batman", request.getHeaders().get("x-user"));
+        context.assertEquals("25", request.getHeaders().get("x-age"));
+
+        // group header present in original request
+        result = PackingRequestParser.parseRequests(data, new HeadersMultiMap()
+                        .add("x-rp-grp", "master")
+                        .add("x-user", "batman")
+                        .add("x-age", "25"),
+                "x-rp-grp"
+        );
+        context.assertTrue(result.isOk());
+
+        requests = result.ok();
+
+        context.assertNotNull(requests);
+        context.assertEquals(1, requests.size());
+
+        request = requests.get(0);
+        context.assertEquals("PUT", request.getMethod().name());
+        context.assertEquals("/playground/some/url", request.getUri());
+        context.assertEquals("{\"key\":1,\"key2\":[1,2,3]}", new String(request.getPayload()));
+        context.assertEquals(4, request.getHeaders().size());
+        context.assertEquals("24", request.getHeaders().get("content-length"));
+        context.assertEquals("master", request.getHeaders().get("x-rp-grp"));
         context.assertEquals("batman", request.getHeaders().get("x-user"));
         context.assertEquals("25", request.getHeaders().get("x-age"));
     }

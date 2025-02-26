@@ -22,15 +22,16 @@ public class PackingRequestParser {
     private static final String CONTENT_LENGTH = "content-length";
     private static final String UNIQUE_ID = "x-rp-unique_id";
     private static final String UNIQUE_ID_DASH = "x-rp-unique-id";
+    private static final String PACK_HEADER = "x-packed";
     private static final String COPY_ORIGINAL_HEADERS = "copy_original_headers";
 
-    public static Result<List<HttpRequest>, String> parseRequests(Buffer data, MultiMap originalHeaders) {
+    public static Result<List<HttpRequest>, String> parseRequests(Buffer data, MultiMap originalHeaders, String groupRequestHeader) {
         List<HttpRequest> requests = new ArrayList<>();
 
         try {
             JsonObject dataObject = new JsonObject(data.toString());
             for (int i = 0; i < (dataObject.getJsonArray(REQUESTS)).size(); i++) {
-                requests.add(requestFromJsonObject((JsonObject) dataObject.getJsonArray(REQUESTS).getValue(i), originalHeaders));
+                requests.add(requestFromJsonObject((JsonObject) dataObject.getJsonArray(REQUESTS).getValue(i), originalHeaders, groupRequestHeader));
             }
         } catch (Exception ex) {
             return Result.err("Error while parsing requests payload. Cause: " + ex.getMessage());
@@ -39,11 +40,11 @@ public class PackingRequestParser {
         return Result.ok(requests);
     }
 
-    private static HttpRequest requestFromJsonObject(JsonObject requestObj, MultiMap originalHeaders) {
-        return new HttpRequest(prepare(requestObj, originalHeaders));
+    private static HttpRequest requestFromJsonObject(JsonObject requestObj, MultiMap originalHeaders, String groupRequestHeader) {
+        return new HttpRequest(prepare(requestObj, originalHeaders, groupRequestHeader));
     }
 
-    private static JsonObject prepare(JsonObject httpRequestJsonObject, MultiMap originalHeaders) {
+    private static JsonObject prepare(JsonObject httpRequestJsonObject, MultiMap originalHeaders, String groupRequestHeader) {
         String payloadStr;
         try {
             if (httpRequestJsonObject.getJsonObject(PAYLOAD) != null) {
@@ -63,6 +64,10 @@ public class PackingRequestParser {
         for (Map.Entry<String, String> entry : headersMap) {
             headersCleared.set(entry.getKey(), entry.getValue());
         }
+
+        // assure to use original group headers only
+        headersCleared.remove(groupRequestHeader);
+        headersCleared.set(groupRequestHeader, originalHeaders.get(groupRequestHeader));
 
         JsonArray headersJsonArray = new JsonArray();
         for (Map.Entry<String, String> entry : headersCleared) {
@@ -87,11 +92,12 @@ public class PackingRequestParser {
             headersCleared.remove(CONTENT_LENGTH);
             headersCleared.remove(UNIQUE_ID);
             headersCleared.remove(UNIQUE_ID_DASH);
+            headersCleared.remove(PACK_HEADER);
         }
         return headersCleared;
     }
 
-    private static MultiMap multiMapFromJsonArray(JsonArray jsonArray) {
+    public static MultiMap multiMapFromJsonArray(JsonArray jsonArray) {
         MultiMap multiMap = new HeadersMultiMap();
         if (jsonArray == null) {
             return multiMap;
