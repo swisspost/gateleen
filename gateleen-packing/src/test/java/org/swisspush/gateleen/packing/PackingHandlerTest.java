@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -17,6 +18,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
+import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.core.validation.ValidationStatus;
@@ -52,7 +54,7 @@ public class PackingHandlerTest {
         eventBus = Mockito.spy(vertx.eventBus());
         exceptionFactory = mock(GateleenExceptionFactory.class);
         validator = mock(PackingValidator.class);
-        packingHandler = new PackingHandler(vertx, queuePrefix, redisquesAddress, validator, exceptionFactory);
+        packingHandler = new PackingHandler(vertx, queuePrefix, redisquesAddress, RoleExtractor.groupHeader, validator, exceptionFactory);
 
         meterRegistry = new SimpleMeterRegistry();
         packingHandler.setMeterRegistry(meterRegistry);
@@ -67,6 +69,18 @@ public class PackingHandlerTest {
             bodyHandler.handle(Buffer.buffer("Mocked body content"));
             return request;
         }).when(request).bodyHandler(any());
+    }
+
+    private void assertGroupHeader(TestContext context, Message<Object> message, String expectedGroupHeader) {
+        JsonObject messageObj = new JsonObject(((JsonObject) message.body()).getString(MESSAGE));
+        MultiMap map = PackingRequestParser.multiMapFromJsonArray(messageObj.getJsonArray("headers"));
+        context.assertEquals(expectedGroupHeader, map.get("x-rp-grp"));
+    }
+
+    private void assertNoQueueHeader(TestContext context, Message<Object> message) {
+        JsonObject messageObj = new JsonObject(((JsonObject) message.body()).getString(MESSAGE));
+        MultiMap map = PackingRequestParser.multiMapFromJsonArray(messageObj.getJsonArray("headers"));
+        context.assertFalse(map.contains("x-queue"));
     }
 
     @Test
@@ -161,7 +175,7 @@ public class PackingHandlerTest {
     @Test
     public void testHandleValid(TestContext context) throws InterruptedException {
         Async async = context.async(1);
-        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true"));
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "master"));
         when(request.method()).thenReturn(HttpMethod.PUT);
         when(validator.validatePackingPayload(any())).thenReturn(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
 
@@ -189,6 +203,8 @@ public class PackingHandlerTest {
         eventBus.consumer(redisquesAddress, message -> {
             async.countDown();
             context.assertTrue(((JsonObject) message.body()).getJsonObject(PAYLOAD).getString(QUEUENAME).startsWith(queuePrefix));
+
+            assertGroupHeader(context, message, "master");
             message.reply(new JsonObject().put(STATUS, OK));
         });
 
@@ -259,7 +275,7 @@ public class PackingHandlerTest {
     @Test
     public void testHandleValidMultiple(TestContext context) throws InterruptedException {
         Async async = context.async(2);
-        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true"));
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "batman"));
         when(request.method()).thenReturn(HttpMethod.PUT);
         when(validator.validatePackingPayload(any())).thenReturn(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
 
@@ -292,6 +308,7 @@ public class PackingHandlerTest {
 
         eventBus.consumer(redisquesAddress, message -> {
             async.countDown();
+            assertGroupHeader(context, message, "batman");
             message.reply(new JsonObject().put(STATUS, OK));
         });
 
@@ -313,7 +330,7 @@ public class PackingHandlerTest {
     @Test
     public void testHandleValidDefinedQueueName(TestContext context) throws InterruptedException {
         Async async = context.async(1);
-        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true"));
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "superman"));
         when(request.method()).thenReturn(HttpMethod.PUT);
         when(validator.validatePackingPayload(any())).thenReturn(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
 
@@ -341,6 +358,8 @@ public class PackingHandlerTest {
         eventBus.consumer(redisquesAddress, message -> {
             async.countDown();
             context.assertEquals("my-super-queue", ((JsonObject) message.body()).getJsonObject(PAYLOAD).getString(QUEUENAME));
+            assertNoQueueHeader(context, message);
+            assertGroupHeader(context, message, "superman");
             message.reply(new JsonObject().put(STATUS, OK));
         });
 

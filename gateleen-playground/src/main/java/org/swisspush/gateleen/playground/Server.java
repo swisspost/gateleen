@@ -36,6 +36,7 @@ import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
@@ -227,7 +228,8 @@ public class Server extends AbstractVerticle {
                 cacheDataFetcher = new DefaultCacheDataFetcher(new ClientRequestCreator(selfClient));
                 cacheHandler = new CacheHandler(cacheDataFetcher, cacheStorage, SERVER_ROOT + "/cache");
 
-                packingHandler = new PackingHandler(vertx, "packed-", Address.redisquesAddress(), new PackingValidatorImpl(), exceptionFactory);
+                packingHandler = new PackingHandler(vertx, "packed-", Address.redisquesAddress(),
+                        RoleExtractor.groupHeader, new PackingValidatorImpl(), exceptionFactory);
 
                 qosHandler = new QoSHandler(vertx, storage, SERVER_ROOT + "/admin/v1/qos", props, PREFIX);
                 qosHandler.enableResourceLogging(true);
