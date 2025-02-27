@@ -41,6 +41,7 @@ import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.delegate.DelegateHandler;
 import org.swisspush.gateleen.delta.DeltaHandler;
 import org.swisspush.gateleen.expansion.ExpansionHandler;
@@ -203,7 +204,8 @@ public abstract class AbstractTest {
                         new RedisCacheStorage(vertx, lock, redisProvider, exceptionFactory, 60000),
                         SERVER_ROOT + "/cache");
 
-                packingHandler = new PackingHandler(vertx, "packed-", Address.redisquesAddress(), new PackingValidatorImpl(), exceptionFactory);
+                packingHandler = new PackingHandler(vertx, "packed-", Address.redisquesAddress(),
+                        RoleExtractor.groupHeader, new PackingValidatorImpl(), exceptionFactory);
 
                 customHttpResponseHandler = new CustomHttpResponseHandler(RETURN_HTTP_STATUS_ROOT);
 

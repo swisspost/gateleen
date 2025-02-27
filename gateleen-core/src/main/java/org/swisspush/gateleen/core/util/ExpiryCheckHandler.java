@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.expiry;
+package org.swisspush.gateleen.core.util;
 
 import io.vertx.core.MultiMap;
 

@@ -1,4 +1,4 @@
-package org.swisspush.gateleen.queue.expiry;
+package org.swisspush.gateleen.core.util;
 
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.MultiMap;
@@ -8,7 +8,6 @@ import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.swisspush.gateleen.core.util.FastFailMultiMap;
 
 
 @RunWith(VertxUnitRunner.class)
