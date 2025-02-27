@@ -20,7 +20,7 @@ import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
-import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
+import org.swisspush.gateleen.core.util.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;

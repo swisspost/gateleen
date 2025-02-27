@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.packing;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
@@ -39,6 +41,7 @@ public class PackingHandlerTest {
     private HttpServerRequest request;
     private HttpServerResponse response;
     private GateleenExceptionFactory exceptionFactory;
+    private SimpleMeterRegistry meterRegistry;
     private final String redisquesAddress = "redisquesAddress";
     private final String queuePrefix = "packed-";
 
@@ -52,6 +55,10 @@ public class PackingHandlerTest {
         exceptionFactory = mock(GateleenExceptionFactory.class);
         validator = mock(PackingValidator.class);
         packingHandler = new PackingHandler(vertx, queuePrefix, redisquesAddress, RoleExtractor.groupHeader, validator, exceptionFactory);
+
+        meterRegistry = new SimpleMeterRegistry();
+        packingHandler.setMeterRegistry(meterRegistry);
+
         request = mock(HttpServerRequest.class);
         response = mock(HttpServerResponse.class);
         when(request.response()).thenReturn(response);
@@ -99,6 +106,9 @@ public class PackingHandlerTest {
 
         verify(response, times(1)).setStatusCode(eq(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode()));
         verify(response, times(1)).setStatusMessage(eq(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage()));
+
+        assertSuccessMetricCounts(context, 0.0);
+        assertFailMetricCounts(context, 0.0);
     }
 
     @Test
@@ -123,6 +133,9 @@ public class PackingHandlerTest {
 
         verify(response, times(4)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
         verify(response, times(4)).setStatusMessage(eq(StatusCode.BAD_REQUEST.getStatusMessage()));
+
+        assertSuccessMetricCounts(context, 0.0);
+        assertFailMetricCounts(context, 0.0);
     }
 
     @Test
@@ -137,6 +150,9 @@ public class PackingHandlerTest {
         verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
         verify(response, times(1)).setStatusMessage(eq(StatusCode.BAD_REQUEST.getStatusMessage()));
         verify(validator, times(1)).validatePackingPayload(eq(Buffer.buffer("Mocked body content")));
+
+        assertSuccessMetricCounts(context, 0.0);
+        assertFailMetricCounts(context, 0.0);
     }
 
     @Test
@@ -151,10 +167,13 @@ public class PackingHandlerTest {
         verify(response, times(1)).setStatusCode(eq(StatusCode.BAD_REQUEST.getStatusCode()));
         verify(response, times(1)).setStatusMessage(eq(StatusCode.BAD_REQUEST.getStatusMessage()));
         verify(validator, times(1)).validatePackingPayload(eq(Buffer.buffer("Mocked body content")));
+
+        assertSuccessMetricCounts(context, 0.0);
+        assertFailMetricCounts(context, 0.0);
     }
 
     @Test
-    public void testHandleValid(TestContext context) {
+    public void testHandleValid(TestContext context) throws InterruptedException {
         Async async = context.async(1);
         when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "master"));
         when(request.method()).thenReturn(HttpMethod.PUT);
@@ -196,11 +215,65 @@ public class PackingHandlerTest {
         verify(response, times(1)).setStatusMessage(eq(StatusCode.OK.getStatusMessage()));
         verify(validator, times(1)).validatePackingPayload(eq(data));
 
+        Thread.sleep(500);
+
+        assertSuccessMetricCounts(context, 1.0);
+        assertFailMetricCounts(context, 0.0);
+
         async.awaitSuccess();
     }
 
     @Test
-    public void testHandleValidMultiple(TestContext context) {
+    public void testHandleRedisquesEnqueueFail(TestContext context) throws InterruptedException {
+        Async async = context.async(1);
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true"));
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(validator.validatePackingPayload(any())).thenReturn(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+
+        Buffer data = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1,\n" +
+                "        \"key2\": [1,2,3]\n" +
+                "      },\n" +
+                "      \"headers\": [[\"x-foo\", \"bar\"], [\"x-bar\", \"foo\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+
+        doAnswer(invocation -> {
+            Handler<Buffer> bodyHandler = invocation.getArgument(0);
+            // Simulate the body content
+            bodyHandler.handle(data);
+            return request;
+        }).when(request).bodyHandler(any());
+
+        eventBus.consumer(redisquesAddress, message -> {
+            async.countDown();
+            context.assertTrue(((JsonObject) message.body()).getJsonObject(PAYLOAD).getString(QUEUENAME).startsWith(queuePrefix));
+            message.reply(new JsonObject().put(STATUS, ERROR));
+        });
+
+        boolean handled = packingHandler.handle(request);
+        context.assertTrue(handled);
+
+        verify(response, times(1)).setStatusCode(eq(StatusCode.OK.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq(StatusCode.OK.getStatusMessage()));
+        verify(validator, times(1)).validatePackingPayload(eq(data));
+
+        Thread.sleep(500);
+
+        assertSuccessMetricCounts(context, 0.0);
+        assertFailMetricCounts(context, 1.0);
+
+        async.awaitSuccess();
+    }
+
+    @Test
+    public void testHandleValidMultiple(TestContext context) throws InterruptedException {
         Async async = context.async(2);
         when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "batman"));
         when(request.method()).thenReturn(HttpMethod.PUT);
@@ -246,11 +319,16 @@ public class PackingHandlerTest {
         verify(response, times(1)).setStatusMessage(eq(StatusCode.OK.getStatusMessage()));
         verify(validator, times(1)).validatePackingPayload(eq(dataMultipleRequests));
 
+        Thread.sleep(500);
+
+        assertSuccessMetricCounts(context, 2.0);
+        assertFailMetricCounts(context, 0.0);
+
         async.awaitSuccess();
     }
 
     @Test
-    public void testHandleValidDefinedQueueName(TestContext context) {
+    public void testHandleValidDefinedQueueName(TestContext context) throws InterruptedException {
         Async async = context.async(1);
         when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "superman"));
         when(request.method()).thenReturn(HttpMethod.PUT);
@@ -292,6 +370,21 @@ public class PackingHandlerTest {
         verify(response, times(1)).setStatusMessage(eq(StatusCode.OK.getStatusMessage()));
         verify(validator, times(1)).validatePackingPayload(eq(data));
 
+        Thread.sleep(500);
+
+        assertSuccessMetricCounts(context, 1.0);
+        assertFailMetricCounts(context, 0.0);
+
         async.awaitSuccess();
+    }
+
+    private void assertSuccessMetricCounts(TestContext context, double expectedCount) {
+        Counter counter = meterRegistry.get(PackingHandler.PACKING_REQUESTS_SUCCESS_COUNTER).counter();
+        context.assertEquals(expectedCount, counter.count(), "Counter for success packed requests should have been incremented by " + expectedCount);
+    }
+
+    private void assertFailMetricCounts(TestContext context, double expectedCount) {
+        Counter counter = meterRegistry.get(PackingHandler.PACKING_REQUESTS_FAIL_COUNTER).counter();
+        context.assertEquals(expectedCount, counter.count(), "Counter for failed packed requests should have been incremented by " + expectedCount);
     }
 }

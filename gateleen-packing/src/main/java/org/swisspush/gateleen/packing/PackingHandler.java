@@ -1,5 +1,7 @@
 package org.swisspush.gateleen.packing;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -16,7 +18,7 @@ import org.swisspush.gateleen.core.util.Result;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.validation.ValidationResult;
 import org.swisspush.gateleen.packing.validation.PackingValidator;
-import org.swisspush.gateleen.queue.expiry.ExpiryCheckHandler;
+import org.swisspush.gateleen.core.util.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.QueueClient;
 import org.swisspush.gateleen.queue.queuing.QueuingHandler;
 
@@ -39,6 +41,14 @@ public class PackingHandler {
     private final String queuePrefix;
     private final PackingValidator validator;
     private final GateleenExceptionFactory exceptionFactory;
+    private MeterRegistry meterRegistry;
+    private Counter packingRequestsSuccessCounter;
+    private Counter packingRequestsFailCounter;
+
+    public static final String PACKING_REQUESTS_SUCCESS_COUNTER = "gateleen.packing.requests.success";
+    public static final String PACKING_REQUESTS_SUCCESS_COUNTER_DESCRIPTION = "Amount of successfully packed requests processed";
+    public static final String PACKING_REQUESTS_FAIL_COUNTER = "gateleen.packing.requests.fail";
+    public static final String PACKING_REQUESTS_FAIL_COUNTER_DESCRIPTION = "Amount of failed packed requests processed";
 
     /**
      * Constructs a new PackingHandler.
@@ -61,6 +71,25 @@ public class PackingHandler {
 
     public boolean isPacked(HttpServerRequest request) {
         return request.headers().get(PACK_HEADER) != null;
+    }
+
+    public void setMeterRegistry(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+        initializeMetrics();
+    }
+
+    private void initializeMetrics() {
+        if(meterRegistry != null) {
+            packingRequestsSuccessCounter = Counter.builder(PACKING_REQUESTS_SUCCESS_COUNTER)
+                    .description(PACKING_REQUESTS_SUCCESS_COUNTER_DESCRIPTION)
+                    .register(meterRegistry);
+            packingRequestsFailCounter = Counter.builder(PACKING_REQUESTS_FAIL_COUNTER)
+                    .description(PACKING_REQUESTS_FAIL_COUNTER_DESCRIPTION)
+                    .register(meterRegistry);
+        } else {
+            packingRequestsSuccessCounter = null;
+            packingRequestsFailCounter = null;
+        }
     }
 
     public boolean handle(final HttpServerRequest request) {
@@ -111,10 +140,14 @@ public class PackingHandler {
                             requestLog.warn("Could not enqueue request '{}' '{}'", queueName, req.getUri(),
                                     exceptionFactory.newException("eventBus.request('" + redisquesAddress + "', enqueOp) failed", event.cause()));
                         }
+                        incrementFailCounter();
                         return;
                     }
                     if (!OK.equals(event.result().body().getString(STATUS))) {
                         requestLog.error("Could not enqueue request {}", req.toJsonObject().encodePrettily());
+                        incrementFailCounter();
+                    } else {
+                        incrementSuccessCounter();
                     }
                 });
             }
@@ -137,5 +170,17 @@ public class PackingHandler {
         request.response().setStatusCode(statusCode.getStatusCode());
         request.response().setStatusMessage(statusCode.getStatusMessage());
         request.response().end();
+    }
+
+    private void incrementSuccessCounter() {
+        if(packingRequestsSuccessCounter != null) {
+            packingRequestsSuccessCounter.increment();
+        }
+    }
+
+    private void incrementFailCounter() {
+        if(packingRequestsFailCounter != null) {
+            packingRequestsFailCounter.increment();
+        }
     }
 }

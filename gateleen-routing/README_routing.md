@@ -142,14 +142,16 @@ The routing feature is monitored with micrometer. The following metrics are avai
 * gateleen_forwarded_seconds_max
 * gateleen_forwarded_seconds_count
 * gateleen_forwarded_seconds_sum
+* gateleen_forwarded_storage_writes_total
 
 Additional tags are provided to split the forward count into sub counts.
 
-| tag        | description                                                                                                       |
-|------------|-------------------------------------------------------------------------------------------------------------------|
-| metricName | The `metricName` property from the corresponding routing rule. With this, you are able to count requests per rule |
-| type       | Describes where the request was forwarded to. Possible values are `storage`, `local`, `external` and `null`       |      
-| quantile   | Values of `0.75` and `0.95` for percentile durations of requests                                                  |
+| tag        | description                                                                                                                                        |
+|------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| metricName | The `metricName` property from the corresponding routing rule. With this, you are able to count requests per rule                                  |
+| type       | Describes where the request was forwarded to. Possible values are `storage`, `local`, `external` and `null`                                        |      
+| quantile   | Values of `0.75` and `0.95` for percentile durations of requests                                                                                   |
+| expires    | Values of `true` or `false` for gateleen_forwarded_storage_writes_total metrics to count the amount of storage writes using the expiration feature |
 
 
 Example metrics:
@@ -169,6 +171,10 @@ gateleen_forwarded_seconds{metricName="infotool_v1_informations",type="external"
 gateleen_forwarded_seconds{metricName="infotool_v1_informations",type="external",quantile="0.95",} 4.8998
 gateleen_forwarded_seconds_count{metricName="infotool_v1_informations",type="external",} 7567.0
 gateleen_forwarded_seconds_sum{metricName="infotool_v1_informations",type="external",} 256324.0
+# HELP gateleen_forwarded_storage_writes_total Amount of storage write operations
+# TYPE gateleen_forwarded_storage_writes_total counter
+gateleen_forwarded_storage_writes_total{expires="true",metricName="storage-main",} 235745.0
+gateleen_forwarded_storage_writes_total{expires="false",metricName="storage-main",} 1055.0
 ```
 
 To enable the metrics, set a `MeterRegistry` instance by calling `withMeterRegistry(MeterRegistry meterRegistry)` method in `RouterBuilder` class.
