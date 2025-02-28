@@ -12,7 +12,6 @@ import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
@@ -119,8 +118,6 @@ public class StorageForwarder extends AbstractForwarder {
             timerSample = Timer.start(meterRegistry);
         }
 
-        handleStorageWriteMetrics(ctx.request());
-
         if (monitoringHandler != null) {
             monitoringHandler.updateRequestsMeter("localhost", ctx.request().uri());
             monitoringHandler.updateRequestPerRuleMonitoring(ctx.request(), rule.getMetricName());
@@ -142,6 +139,7 @@ public class StorageForwarder extends AbstractForwarder {
         }
 
         setUniqueIdHeader(requestHeaders);
+        handleStorageWriteMetrics(ctx.request().method(), requestHeaders);
 
         final Buffer header = Buffer.buffer(new HttpRequest(ctx.request().method(), targetUri, requestHeaders, null).toJsonObject().encode());
         final Buffer requestBuffer = Buffer.buffer();
@@ -227,12 +225,11 @@ public class StorageForwarder extends AbstractForwarder {
                         }));
     }
 
-    private void handleStorageWriteMetrics(HttpServerRequest request) {
-        if (request.method() != HttpMethod.PUT) {
-            return;
+    private void handleStorageWriteMetrics(HttpMethod method, MultiMap headers) {
+        if (method == HttpMethod.PUT) {
+            Integer expiry = ExpiryCheckHandler.getExpireAfter(headers);
+            incrementStorageWrite(expiry != null);
         }
-        Integer expiry = ExpiryCheckHandler.getExpireAfter(request.headers());
-        incrementStorageWrite(expiry != null);
     }
 
     private void incrementStorageWrite(boolean withExpiry) {
