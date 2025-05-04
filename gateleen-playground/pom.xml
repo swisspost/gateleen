@@ -30,6 +30,11 @@
         </dependency>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
+            <artifactId>gateleen-cache</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-runconfig</artifactId>
             <version>${project.version}</version>
         </dependency>
