@@ -161,7 +161,6 @@ public class DeltaHandlerTest {
         deltaHandler.handle(request, router);
 
         verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555")), any());
-        verify(redisAPI, never()).setex(any(), any(), any(), any());
     }
 
     @Test
@@ -171,8 +170,7 @@ public class DeltaHandlerTest {
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
         deltaHandler.handle(request, router);
 
-        verify(redisAPI, times(1)).setex(eq("delta:resources:a:b:c"), eq("123"), eq("555"), any());
-        verify(redisAPI, never()).set(any(), any());
+        verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555", "EX", "123")), any());
     }
 
     @Test

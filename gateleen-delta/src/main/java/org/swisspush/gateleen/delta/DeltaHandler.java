@@ -37,7 +37,7 @@ import static org.swisspush.gateleen.routing.RuleFeatures.Feature.DELTA_ON_BACKE
  */
 public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
-    private Logger log = LoggerFactory.getLogger(DeltaHandler.class);
+    private final Logger log = LoggerFactory.getLogger(DeltaHandler.class);
 
     private static final String DELTA_PARAM = "delta";
     private static final String LIMIT_PARAM = "limit";
@@ -54,12 +54,12 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     private static final String RESOURCE_KEY_PREFIX = "delta:resources";
     private static final String ETAG_KEY_PREFIX = "delta:etags";
 
-    private HttpClient httpClient;
-    private RedisProvider redisProvider;
+    private final HttpClient httpClient;
+    private final RedisProvider redisProvider;
 
-    private boolean rejectLimitOffsetRequests;
+    private final boolean rejectLimitOffsetRequests;
 
-    private RuleProvider ruleProvider;
+    private final RuleProvider ruleProvider;
 
     private final Vertx vertx;
     private final LoggingResourceManager loggingResourceManager;
@@ -109,7 +109,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                 !isBackendDelta(request.uri())) {
             return true;
         }
-        // remove the delta backend header, its only a marker
+        // remove the delta backend header, it's only a marker
         if (request.headers().contains(DELTA_BACKEND_HEADER)) {
             request.headers().remove(DELTA_BACKEND_HEADER);
         }
@@ -156,7 +156,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                     // save to storage
                     saveDelta(resourceKey, updateId, expireAfter, event -> {
                         if (event.failed()) {
-                            log.error("setex command for redisKey {} failed with cause: {}", resourceKey, logCause(event));
+                            log.error("set command for redisKey {} failed with cause: {}", resourceKey, logCause(event));
                             handleError(request, "error saving delta information");
                             request.resume();
                         } else {
@@ -225,7 +225,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         Long expireAfter = getExpireAfterValue(request, log);
         saveDelta(etagResourceKey, requestEtag, expireAfter, event -> {
             if (event.failed()) {
-                log.error("setex command for redisKey {} failed with cause: {}", etagResourceKey, logCause(event));
+                log.error("set command for redisKey {} failed with cause: {}", etagResourceKey, logCause(event));
             }
             updateCallback.handle(Boolean.TRUE);
         });
@@ -233,11 +233,11 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
     private void saveDelta(String deltaKey, String deltaValue, Long expireAfter, Handler<AsyncResult<Object>> handler) {
         redisProvider.redis().onSuccess(redisAPI -> {
-            if (expireAfter == null) {
-                redisAPI.set(Arrays.asList(deltaKey, deltaValue), (Handler) handler);
-            } else {
-                redisAPI.setex(deltaKey, String.valueOf(expireAfter), deltaValue, (Handler) handler);
+            List<String> options = new ArrayList<>(List.of(deltaKey, deltaValue));
+            if(expireAfter != null) {
+                options.addAll(List.of("EX", expireAfter.toString()));
             }
+            redisAPI.set(options, (Handler) handler);
         }).onFailure(throwable -> handler.handle(new FailedAsyncResult<>(throwable)));
     }
 
@@ -461,7 +461,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         try {
             long value = Long.parseLong(expireAfterHeaderValue);
 
-            // redis returns an error if setex is called with negativ values
+            // redis returns an error if set is called with negative values
             if (value < 0) {
                 log.warn("Setting NO expiry on delta key because because defined value for header {} is a negative number: {}",
                         EXPIRE_AFTER_HEADER, expireAfterHeaderValue);
