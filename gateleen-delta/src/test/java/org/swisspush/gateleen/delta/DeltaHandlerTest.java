@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.delta;
 
+import com.google.common.collect.ImmutableMap;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
@@ -15,6 +16,9 @@ import org.mockito.ArgumentCaptor;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.redis.RedisProvider;
+import org.swisspush.gateleen.core.storage.MockResourceStorage;
+import org.swisspush.gateleen.core.storage.ResourceStorage;
+import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
@@ -23,7 +27,9 @@ import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleProvider;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -52,6 +58,7 @@ public class DeltaHandlerTest {
 
         redisProvider = mock(RedisProvider.class);
         when(redisProvider.redis()).thenReturn(Future.succeededFuture(redisAPI));
+        when(redisProvider.redis(any())).thenReturn(Future.succeededFuture(redisAPI));
 
         doAnswer(invocation -> {
             Handler<AsyncResult<Long>> handler = (Handler<AsyncResult<Long>>) invocation.getArguments()[1];
@@ -70,6 +77,60 @@ public class DeltaHandlerTest {
         when(request.method()).thenReturn(HttpMethod.PUT);
         when(request.path()).thenReturn("/a/b/c");
         when(request.headers()).thenReturn(requestHeaders);
+    }
+
+    @Test
+    public void testStorageNameUsed(TestContext context) throws InterruptedException {
+        Vertx vertx = Vertx.vertx();
+        String rulesPath = "/gateleen/server/admin/v1/routing/rules";
+
+        String rulesStorageInitial = "{\n" +
+                " \"/gateleen/server/storage_main/(.*)\": {\n" +
+                "  \"description\": \"storage main\",\n" +
+                "  \"path\": \"/gateleen/server/storage_main/$1\",\n" +
+                "  \"storage\": \"main\"\n" +
+                " },\n" +
+                " \"/gateleen/server/storage_add_0/(.*)\": {\n" +
+                "  \"description\": \"add 0 storage\",\n" +
+                "  \"path\": \"/gateleen/server/storage_add_0/$1\",\n" +
+                "  \"storage\": \"add_0\"\n" +
+                " },\n" +
+                " \"/gateleen/server/storage_add_1/(.*)\": {\n" +
+                "  \"description\": \"add 1 storage\",\n" +
+                "  \"path\": \"/gateleen/server/storage_add_1/$1\",\n" +
+                "  \"storage\": \"add_1\"\n" +
+                " }\n" +
+                "}";
+
+        ResourceStorage storage = new MockResourceStorage(ImmutableMap.of(rulesPath, rulesStorageInitial));
+        Map<String, Object>  properties = new HashMap<>();
+
+        RuleProvider ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
+        Future<List<Rule>> rulesFuture = ruleProvider.getRules();
+        context.assertTrue(rulesFuture.succeeded(), "getRules() future should have been successful");
+        context.assertNotNull(rulesFuture.result(), "The list of rules should not be null");
+        context.assertEquals(3, rulesFuture.result().size(), "There should be exactly 3 rules");
+
+        when(request.response()).thenReturn(response);
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(request.uri()).thenReturn("/gateleen/server/storage_main/res_1");
+        when(request.params()).thenReturn(new HeadersMultiMap());
+        when(request.headers()).thenReturn(requestHeaders);
+
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
+        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+
+        try {
+            Thread.sleep(2000L);
+        } catch (InterruptedException e) {
+        }
+
+        deltaHandler.handle(request, router);
+        verify(redisProvider, times(2)).redis(eq("main"));
+
+        when(request.uri()).thenReturn("/gateleen/server/storage_add_1/res_2");
+        deltaHandler.handle(request, router);
+        verify(redisProvider, times(2)).redis(eq("add_1"));
     }
 
     @Test
@@ -177,7 +238,7 @@ public class DeltaHandlerTest {
     public void testFailingRedisProviderAccess(TestContext context) {
         requestHeaders.add("x-expire-after", "123");
 
-        when(redisProvider.redis()).thenReturn(Future.failedFuture("Boooom"));
+        when(redisProvider.redis(any())).thenReturn(Future.failedFuture("Boooom"));
 
         ArgumentCaptor<Integer> statusCodeCaptor = ArgumentCaptor.forClass(Integer.class);
         when(request.response().setStatusCode(statusCodeCaptor.capture())).thenReturn(response);

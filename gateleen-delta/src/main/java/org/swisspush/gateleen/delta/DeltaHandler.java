@@ -12,6 +12,7 @@ import io.vertx.core.http.*;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.redis.client.Response;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -27,7 +28,10 @@ import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleFeaturesProvider;
 import org.swisspush.gateleen.routing.RuleProvider;
 
+import javax.annotation.Nullable;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import static org.swisspush.gateleen.logging.LoggingHandler.SKIP_LOGGING_HEADER;
 import static org.swisspush.gateleen.routing.RuleFeatures.Feature.DELTA_ON_BACKEND;
@@ -60,6 +64,8 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     private final boolean rejectLimitOffsetRequests;
 
     private final RuleProvider ruleProvider;
+    private List<Pair<Pattern,Rule>> storageRules = new ArrayList<>();
+
 
     private final Vertx vertx;
     private final LoggingResourceManager loggingResourceManager;
@@ -89,6 +95,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     public void rulesChanged(List<Rule> rules) {
         log.info("Update deltaOnBackend information from changed routing rules");
         ruleFeaturesProvider = new RuleFeaturesProvider(rules);
+        updateStorageRules(rules);
     }
 
     public boolean isDeltaRequest(HttpServerRequest request) {
@@ -120,10 +127,22 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         return ruleFeaturesProvider.isFeatureRequest(DELTA_ON_BACKEND, uri);
     }
 
+    @Nullable
+    private String getStorageName(HttpServerRequest request) {
+        for (Pair<Pattern, Rule> rulePair : storageRules) {
+            if (rulePair.getLeft().matcher(request.uri()).matches()) {
+                return rulePair.getRight().getStorage();
+            }
+        }
+        log.warn("No storage rule found for uri {}. This should not happen!", request.uri());
+        return null;
+    }
+
     public void handle(final HttpServerRequest request, Router router) {
         Logger log = RequestLoggerFactory.getLogger(DeltaHandler.class, request);
+        String storageName = getStorageName(request);
         if (isDeltaPUTRequest(request)) {
-            handleResourcePUT(request, router, log);
+            handleResourcePUT(request, storageName, router, log);
         }
         if (isDeltaGETRequest(request)) {
             String updateId = extractStringDeltaParameter(request, log);
@@ -131,18 +150,18 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                 if (rejectLimitOffsetRequests(request)) {
                     respondLimitOffsetParameterForbidden(request, log);
                 } else {
-                    handleCollectionGET(request, updateId, log);
+                    handleCollectionGET(request, storageName, updateId, log);
                 }
             }
         }
     }
 
-    private void handleResourcePUT(final HttpServerRequest request, final Router router, final Logger log) {
+    private void handleResourcePUT(final HttpServerRequest request, @Nullable String storageName, final Router router, final Logger log) {
         request.pause(); // pause the request to avoid problems with starting another async request (storage)
-        handleDeltaEtag(request, log, updateDelta -> {
+        handleDeltaEtag(request, storageName, log, updateDelta -> {
             if (updateDelta) {
                 // increment and get update-id
-                redisProvider.redis().onSuccess(redisAPI -> redisAPI.incr(SEQUENCE_KEY, reply -> {
+                redisProvider.redis(storageName).onSuccess(redisAPI -> redisAPI.incr(SEQUENCE_KEY, reply -> {
                     if (reply.failed()) {
                         log.error("incr command for redisKey {} failed with cause: {}", SEQUENCE_KEY, logCause(reply));
                         handleError(request, "error incrementing/accessing sequence for update-id");
@@ -154,7 +173,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                     String updateId = String.valueOf(reply.result());
 
                     // save to storage
-                    saveDelta(resourceKey, updateId, expireAfter, event -> {
+                    saveDelta(resourceKey, storageName, updateId, expireAfter, event -> {
                         if (event.failed()) {
                             log.error("set command for redisKey {} failed with cause: {}", resourceKey, logCause(event));
                             handleError(request, "error saving delta information");
@@ -176,7 +195,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         });
     }
 
-    private void handleDeltaEtag(final HttpServerRequest request, final Logger log, final Handler<Boolean> callback) {
+    private void handleDeltaEtag(final HttpServerRequest request, @Nullable String storageName, final Logger log, final Handler<Boolean> callback) {
         /*
          * When no Etag is provided we just do the delta update
          */
@@ -190,7 +209,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
          */
         final String requestEtag = request.headers().get(IF_NONE_MATCH_HEADER);
         final String etagResourceKey = getResourceKey(request.path(), true);
-        redisProvider.redis().onSuccess(redisAPI -> redisAPI.get(etagResourceKey, event -> {
+        redisProvider.redis(storageName).onSuccess(redisAPI -> redisAPI.get(etagResourceKey, event -> {
             if (event.failed()) {
                 log.error("get command for redisKey {} failed with cause: {}", etagResourceKey, logCause(event));
                 callback.handle(Boolean.TRUE);
@@ -202,7 +221,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                 /*
                  * No Etag entry found. Store it and then do the delta update
                  */
-                saveOrUpdateDeltaEtag(etagResourceKey, request, log, aBoolean -> callback.handle(Boolean.TRUE));
+                saveOrUpdateDeltaEtag(etagResourceKey, request, storageName, log, aBoolean -> callback.handle(Boolean.TRUE));
             } else {
                 /*
                  * If etags match, no delta update has to be made.
@@ -211,7 +230,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                 if (etagFromStorage.equals(requestEtag)) {
                     callback.handle(Boolean.FALSE);
                 } else {
-                    saveOrUpdateDeltaEtag(etagResourceKey, request, log, aBoolean -> callback.handle(Boolean.TRUE));
+                    saveOrUpdateDeltaEtag(etagResourceKey, request, storageName, log, aBoolean -> callback.handle(Boolean.TRUE));
                 }
             }
         })).onFailure(throwable -> {
@@ -220,10 +239,10 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         });
     }
 
-    private void saveOrUpdateDeltaEtag(final String etagResourceKey, final HttpServerRequest request, final Logger log, final Handler<Boolean> updateCallback) {
+    private void saveOrUpdateDeltaEtag(final String etagResourceKey, final HttpServerRequest request, @Nullable String storageName, final Logger log, final Handler<Boolean> updateCallback) {
         final String requestEtag = request.headers().get(IF_NONE_MATCH_HEADER);
         Long expireAfter = getExpireAfterValue(request, log);
-        saveDelta(etagResourceKey, requestEtag, expireAfter, event -> {
+        saveDelta(etagResourceKey, storageName, requestEtag, expireAfter, event -> {
             if (event.failed()) {
                 log.error("set command for redisKey {} failed with cause: {}", etagResourceKey, logCause(event));
             }
@@ -231,8 +250,8 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         });
     }
 
-    private void saveDelta(String deltaKey, String deltaValue, Long expireAfter, Handler<AsyncResult<Object>> handler) {
-        redisProvider.redis().onSuccess(redisAPI -> {
+    private void saveDelta(String deltaKey, @Nullable String storageName, String deltaValue, Long expireAfter, Handler<AsyncResult<Object>> handler) {
+        redisProvider.redis(storageName).onSuccess(redisAPI -> {
             List<String> options = new ArrayList<>(List.of(deltaKey, deltaValue));
             if(expireAfter != null) {
                 options.addAll(List.of("EX", expireAfter.toString()));
@@ -297,7 +316,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         return new DeltaResourcesContainer(maxUpdateId, deltaResourceNames);
     }
 
-    private void handleCollectionGET(final HttpServerRequest request, final String updateId, final Logger log) {
+    private void handleCollectionGET(final HttpServerRequest request, @Nullable String storageName, final String updateId, final Logger log) {
         request.pause();
 
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, request, vertx.eventBus());
@@ -355,7 +374,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                                     }
 
                                     // read update-ids
-                                    redisProvider.redis().onSuccess(redisAPI -> redisAPI.mget(deltaResourceKeys, event -> {
+                                    redisProvider.redis(storageName).onSuccess(redisAPI -> redisAPI.mget(deltaResourceKeys, event -> {
                                         if (event.failed()) {
                                             log.error("mget command failed with cause: {}", logCause(event));
                                             handleError(request, "error reading delta information");
@@ -472,6 +491,19 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         } catch (Exception e) {
             log.warn("Setting NO expiry on delta key because header {} is not a number: {}", EXPIRE_AFTER_HEADER, expireAfterHeaderValue);
             return null; // default: no expiry
+        }
+    }
+
+    private void updateStorageRules(List<Rule> rules) {
+        storageRules.clear();
+        for (Rule rule : rules) {
+            if (rule.getStorage() != null) {
+                try {
+                    storageRules.add(Pair.of(Pattern.compile(rule.getUrlPattern()), rule));
+                } catch (PatternSyntaxException patternException) {
+                    log.warn("Rule '{}' has not a valid regex pattern. Discarding this storage rule", rule.getUrlPattern());
+                }
+            }
         }
     }
 
