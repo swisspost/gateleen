@@ -31,6 +31,7 @@ import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
+import org.swisspush.gateleen.core.redis.RedisByNameProvider;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
@@ -209,6 +210,7 @@ public class Server extends AbstractVerticle {
                 redisClient = new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions().setConnectionString(protocol + redisHost + ":" + redisPort), TracingPolicy.IGNORE);
                 redisApi = RedisAPI.api(redisClient);
                 RedisProvider redisProvider = () -> Future.succeededFuture(redisApi);
+                RedisByNameProvider redisByNameProvider = storageName -> Future.succeededFuture(redisApi);
 
                 new CustomRedisMonitor(vertx, redisProvider, "main", "rest-storage", 10).start();
                 storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main", exceptionFactory);
@@ -216,7 +218,7 @@ public class Server extends AbstractVerticle {
 
                 RuleProvider ruleProvider = new RuleProvider(vertx, RULES_ROOT, storage, props);
 
-                deltaHandler = new DeltaHandler(vertx, redisProvider, selfClient, ruleProvider, loggingResourceManager,
+                deltaHandler = new DeltaHandler(vertx, redisByNameProvider, selfClient, ruleProvider, loggingResourceManager,
                         logAppenderRepository, true);
                 expansionHandler = new ExpansionHandler(ruleProvider, selfClient, props, ROOT);
                 copyResourceHandler = new CopyResourceHandler(selfClient, exceptionFactory, SERVER_ROOT + "/v1/copy");

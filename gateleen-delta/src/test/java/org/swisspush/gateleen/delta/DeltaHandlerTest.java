@@ -15,7 +15,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
-import org.swisspush.gateleen.core.redis.RedisProvider;
+import org.swisspush.gateleen.core.redis.RedisByNameProvider;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
@@ -39,7 +39,7 @@ import static org.mockito.Mockito.*;
 public class DeltaHandlerTest {
 
     private RedisAPI redisAPI;
-    private RedisProvider redisProvider;
+    private RedisByNameProvider redisProvider;
     private RuleProvider ruleProvider;
     private Vertx vertx;
     private LoggingResourceManager loggingResourceManager;
@@ -56,8 +56,7 @@ public class DeltaHandlerTest {
         loggingResourceManager = mock(LoggingResourceManager.class);
         logAppenderRepository = mock(LogAppenderRepository.class);
 
-        redisProvider = mock(RedisProvider.class);
-        when(redisProvider.redis()).thenReturn(Future.succeededFuture(redisAPI));
+        redisProvider = mock(RedisByNameProvider.class);
         when(redisProvider.redis(any())).thenReturn(Future.succeededFuture(redisAPI));
 
         doAnswer(invocation -> {

@@ -16,7 +16,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
-import org.swisspush.gateleen.core.redis.RedisProvider;
+import org.swisspush.gateleen.core.redis.RedisByNameProvider;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.SlashHandling;
@@ -59,7 +59,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     private static final String ETAG_KEY_PREFIX = "delta:etags";
 
     private final HttpClient httpClient;
-    private final RedisProvider redisProvider;
+    private final RedisByNameProvider redisProvider;
 
     private final boolean rejectLimitOffsetRequests;
 
@@ -72,12 +72,12 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     private final LogAppenderRepository logAppenderRepository;
     private RuleFeaturesProvider ruleFeaturesProvider = new RuleFeaturesProvider(new ArrayList<>());
 
-    public DeltaHandler(Vertx vertx, RedisProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
+    public DeltaHandler(Vertx vertx, RedisByNameProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
                         LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository) {
         this(vertx,redisProvider, httpClient, ruleProvider, loggingResourceManager, logAppenderRepository, false);
     }
 
-    public DeltaHandler(Vertx vertx, RedisProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
+    public DeltaHandler(Vertx vertx, RedisByNameProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
                         LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
                         boolean rejectLimitOffsetRequests) {
         this.vertx = vertx;
