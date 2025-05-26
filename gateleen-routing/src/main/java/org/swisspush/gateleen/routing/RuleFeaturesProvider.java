@@ -30,7 +30,7 @@ public final class RuleFeaturesProvider {
     }
 
     /**
-     * Checks the whether the provided uri matches the provided {@link RuleFeatures.Feature}.
+     * Checks whether the provided uri matches the provided {@link RuleFeatures.Feature}.
      *
      * @param feature the feature to check against
      * @param uri the uri to check
