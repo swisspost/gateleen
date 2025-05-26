@@ -1687,6 +1687,10 @@ public class HookHandler implements LoggableResource {
         Integer originalPoolSize = jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME);
         int appliedPoolSize;
         if (originalPoolSize != null) {
+            if (routeMultiplier == 0) {
+                log.error("Route multiplier is zero. Setting default value to one, Route: {}", routedUrl);
+                routeMultiplier = 1;
+            }
             appliedPoolSize = RuleFactory.evaluatePoolSize(originalPoolSize, routeMultiplier);
             log.debug("Original pool size is {}, applied size is {}", originalPoolSize, appliedPoolSize);
             hook.setConnectionPoolSize(appliedPoolSize);
