@@ -36,6 +36,7 @@ import org.swisspush.gateleen.core.http.LocalHttpClient;
 import org.swisspush.gateleen.core.lock.Lock;
 import org.swisspush.gateleen.core.lock.impl.RedisBasedLock;
 import org.swisspush.gateleen.core.property.PropertyHandler;
+import org.swisspush.gateleen.core.redis.RedisByNameProvider;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.resource.CopyResourceHandler;
 import org.swisspush.gateleen.core.storage.EventBusResourceStorage;
@@ -159,6 +160,7 @@ public abstract class AbstractTest {
                 RedisClient redisClient = new RedisClient(vertx, new NetClientOptions(), new PoolOptions(), new RedisStandaloneConnectOptions().setConnectionString(protocol + redisHost + ":" + redisPort), TracingPolicy.IGNORE);
                 RedisAPI redisAPI = RedisAPI.api(redisClient);
                 RedisProvider redisProvider = () -> Future.succeededFuture(redisAPI);
+                RedisByNameProvider redisByNameProvider = storageName -> Future.succeededFuture(redisAPI);
 
                 ResourceStorage storage = new EventBusResourceStorage(vertx.eventBus(), Address.storageAddress() + "-main", exceptionFactory);
                 MonitoringHandler monitoringHandler = new MonitoringHandler(vertx, storage, PREFIX);
@@ -255,7 +257,7 @@ public abstract class AbstractTest {
                                 .cacheHandler(cacheHandler)
                                 .packingHandler(packingHandler)
                                 .corsHandler(new CORSHandler())
-                                .deltaHandler(new DeltaHandler(vertx, redisProvider, selfClient, ruleProvider, loggingResourceManager, logAppenderRepository))
+                                .deltaHandler(new DeltaHandler(vertx, redisByNameProvider, selfClient, ruleProvider, loggingResourceManager, logAppenderRepository))
                                 .expansionHandler(new ExpansionHandler(vertx, storage, selfClient, props, ROOT, RULES_ROOT))
                                 .hookHandler(hookHandler)
                                 .qosHandler(qosHandler)

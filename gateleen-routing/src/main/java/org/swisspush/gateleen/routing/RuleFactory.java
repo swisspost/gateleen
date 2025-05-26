@@ -5,6 +5,7 @@ import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.ProxyOptions;
+import org.apache.logging.log4j.core.util.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HeaderFunction;
@@ -85,6 +86,10 @@ public class RuleFactory {
             ruleObj.setPoolSize(rule.getInteger(Rule.CONNECTION_POOL_SIZE_PROPERTY_NAME, Rule.CONNECTION_POOL_SIZE_DEFAULT_VALUE));
 
             int originalPoolSize = ruleObj.getPoolSize();
+            if (routeMultiplier == 0) {
+                log.error("Route multiplier is zero. Setting default value to one, URL pattern: {}", urlPattern);
+                routeMultiplier = 1;
+            }
             int appliedPoolSize = evaluatePoolSize(originalPoolSize, routeMultiplier);
 
             ruleObj.setPoolSize(appliedPoolSize);
@@ -134,6 +139,9 @@ public class RuleFactory {
     }
 
     private static int ceilDiv(int x, int y){
+        if (y == 0) {
+            throw new IllegalArgumentException("Multiplier is zero, This should not happen");
+        }
         return -Math.floorDiv(-x,y);
     }
 

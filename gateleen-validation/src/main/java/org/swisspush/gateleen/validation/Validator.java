@@ -221,7 +221,6 @@ public class Validator {
                 log.warn(msgBuilder.toString());
 
                 promise.complete(new ValidationResult(ValidationStatus.VALIDATED_NEGATIV, msgBuilder.toString(), validationDetails));
-                log.warn("Used schema: {}", schemaLocation.schemaLocation());
             }
         } catch (IOException e) {
             String message = "Cannot read JSON of schema " + " (" + schemaLocation.schemaLocation() + ")";

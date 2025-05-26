@@ -7,7 +7,7 @@ local expireMillis = tonumber(ARGV[4])
 local resourceKey = cachePrefix..resourceName
 
 redis.call('sadd', cachedSet, resourceName)
-redis.call('psetex', resourceKey, expireMillis, resourceValue)
+redis.call('set', resourceKey, resourceValue, 'px', expireMillis)
 
 return "OK"
 

@@ -1,0 +1,17 @@
+version: '2'
+services:
+  gateleen:
+    image: "guentherm/gateleen:2.1.20"
+    container_name: gateleen
+    hostname: gateleen
+#    network_mode: host
+    ports:
+      - "7012:7012"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "25m"
+        max-file: "2"
+
+
