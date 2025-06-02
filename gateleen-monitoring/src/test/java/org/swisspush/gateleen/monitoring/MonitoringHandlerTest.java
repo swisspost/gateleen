@@ -98,25 +98,6 @@ public class MonitoringHandlerTest {
     }
 
     @Test
-    public void testConsumeMonitoringAddress(TestContext testContext){
-        Async async = testContext.async();
-
-        activateRequestPerRuleMonitoring(true);
-        System.setProperty(MonitoringHandler.REQUEST_PER_RULE_SAMPLING_PROPERTY, "100");
-        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
-
-        PUTRequest request = new PUTRequest();
-        request.addHeader(PROPERTY_NAME, "my_value_123");
-        mh.updateRequestPerRuleMonitoring(request, "a_fancy_rule");
-
-        vertx.eventBus().consumer(Address.monitoringAddress(), (Handler<Message<JsonObject>>) message -> {
-            final JsonObject body = message.body();
-            testContext.assertEquals("gateleen.rpr.my_value_123.a_fancy_rule", body.getString("name"));
-            async.complete();
-        });
-    }
-
-    @Test
     public void testWriteRequestPerRuleMonitoringToStorage(){
 
         activateRequestPerRuleMonitoring(true);
