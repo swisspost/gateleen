@@ -261,7 +261,7 @@ public class MonitoringHandler {
 
     public void updateIncomingRequests(HttpServerRequest request) {
         if (!HttpServerRequestUtil.isRemoteAddressLoopbackAddress(request) && shouldBeTracked(request.uri())) {
-            vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + REQUESTS_INCOMING_NAME).put(METRIC_ACTION, MARK));
+            vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + REQUESTS_INCOMING_NAME).put(METRIC_ACTION, MARK));
         }
     }
 
@@ -282,7 +282,7 @@ public class MonitoringHandler {
         log.info("About to send {} request per rule monitoring values to metrics", getRequestPerRuleMonitoringMap().size());
         for (Iterator<Map.Entry<String, Long>> it = getRequestPerRuleMonitoringMap().entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<String, Long> entry = it.next();
-            vertx.eventBus().publish(getMonitoringAddress(),
+            vertx.eventBus().send(getMonitoringAddress(),
                     new JsonObject()
                             .put(METRIC_NAME, prefix + REQUEST_PER_RULE_PREFIX + entry.getKey())
                             .put(METRIC_ACTION, SET)
@@ -315,9 +315,9 @@ public class MonitoringHandler {
     public void updateRequestsMeter(String target, String uri) {
         if (shouldBeTracked(uri)) {
             if (isRequestToExternalTarget(target)) {
-                vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + REQUESTS_BACKENDS_NAME).put(METRIC_ACTION, MARK));
+                vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + REQUESTS_BACKENDS_NAME).put(METRIC_ACTION, MARK));
             } else {
-                vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + REQUESTS_CLIENT_NAME).put(METRIC_ACTION, MARK));
+                vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + REQUESTS_CLIENT_NAME).put(METRIC_ACTION, MARK));
             }
         }
     }
@@ -334,7 +334,7 @@ public class MonitoringHandler {
         if (shouldBeTracked(targetUri)) {
             if (metricName != null) {
                 time = System.nanoTime();
-                vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + "routing." + metricName).put(METRIC_ACTION, MARK));
+                vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + "routing." + metricName).put(METRIC_ACTION, MARK));
             }
             updatePendingRequestCount(true);
         }
@@ -352,7 +352,7 @@ public class MonitoringHandler {
         if (shouldBeTracked(targetUri)) {
             if (metricName != null) {
                 double duration = (System.nanoTime() - startTime) / 1000000d;
-                vertx.eventBus().publish(getMonitoringAddress(),
+                vertx.eventBus().send(getMonitoringAddress(),
                         new JsonObject().put(METRIC_NAME, prefix + "routing." + metricName + ".duration").put(METRIC_ACTION, "set").put("n", duration));
             }
             updatePendingRequestCount(false);
@@ -362,7 +362,7 @@ public class MonitoringHandler {
     private void updatePendingRequestCount(boolean incrementCount) {
         final String action = incrementCount ? "inc" : "dec";
         log.trace("Updating count for pending requests: {} remaining", action);
-        vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + PENDING_REQUESTS_METRIC).put(METRIC_ACTION, action));
+        vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + PENDING_REQUESTS_METRIC).put(METRIC_ACTION, action));
     }
 
     /**
@@ -372,7 +372,7 @@ public class MonitoringHandler {
         vertx.eventBus().request(getRedisquesAddress(), buildGetQueuesCountOperation(), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
                 final long count = reply.result().body().getLong(VALUE);
-                vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ACTIVE_QUEUE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n", count));
+                vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ACTIVE_QUEUE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n", count));
             } else {
                 log.error("Error gathering count of active queues");
             }
@@ -389,7 +389,7 @@ public class MonitoringHandler {
         vertx.eventBus().request(getRedisquesAddress(), buildGetQueueItemsCountOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
             if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
                 final long count = reply.result().body().getLong(VALUE);
-                vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "set").put("n", count));
+                vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "set").put("n", count));
             } else {
                 log.error("Error gathering queue size for queue '{}'", queue);
             }
@@ -459,19 +459,19 @@ public class MonitoringHandler {
     }
 
     public void updateEnqueue() {
-        vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ENQUEUE_METRIC).put(METRIC_ACTION, MARK));
+        vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ENQUEUE_METRIC).put(METRIC_ACTION, MARK));
     }
 
     public void updateDequeue() {
-        vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + DEQUEUE_METRIC).put(METRIC_ACTION, MARK));
+        vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + DEQUEUE_METRIC).put(METRIC_ACTION, MARK));
     }
 
     public void updateListenerCount(long count){
-        vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LISTENER_COUNT_METRIC).put(METRIC_ACTION, SET).put("n",count));
+        vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LISTENER_COUNT_METRIC).put(METRIC_ACTION, SET).put("n",count));
     }
 
     public void updateRoutesCount(long count){
-        vertx.eventBus().publish(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ROUTE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n",count));
+        vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ROUTE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n",count));
 
     }
 
