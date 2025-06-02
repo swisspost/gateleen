@@ -17,7 +17,7 @@ public class EventBusMetricsPublisher implements MetricsPublisher {
 
     @Override
     public void publishMetric(String name, long value) {
-        vertx.eventBus().publish(monitoringAddress,
+        vertx.eventBus().send(monitoringAddress,
                 new JsonObject().put("name", prefix + name).put("action", "set").put("n", value));
     }
 }
