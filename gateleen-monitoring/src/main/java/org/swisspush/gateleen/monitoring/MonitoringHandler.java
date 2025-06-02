@@ -82,6 +82,7 @@ public class MonitoringHandler {
     private long requestPerRuleSampling;
     private long requestPerRuleExpiry;
     private final UUID uuid;
+    private final List<Handler<Message<JsonObject>>> receivers = new ArrayList<>();
 
     public interface MonitoringCallback {
 
@@ -91,7 +92,6 @@ public class MonitoringHandler {
     }
 
     private interface QueueLengthCollectingCallback {
-
         void onDone(List<Map.Entry<String, Long>> mapEntries);
     }
 
@@ -136,6 +136,9 @@ public class MonitoringHandler {
         final Map<String, Long> lastDumps = new HashMap<>();
 
         vertx.eventBus().consumer(getMonitoringAddress(), (Handler<Message<JsonObject>>) message -> {
+            for (Handler<Message<JsonObject>> receiver : receivers) {
+                receiver.handle(message);
+            }
             final JsonObject body = message.body();
             final String action = body.getString(METRIC_ACTION);
             final String name = body.getString(METRIC_NAME);
@@ -156,6 +159,14 @@ public class MonitoringHandler {
                     break;
             }
         });
+    }
+
+    /**
+     * Register an external receiver interested in monitoring data.
+     * @param receiver a handler
+     */
+    public void registerReceiver(Handler<Message<JsonObject>> receiver) {
+        receivers.add(receiver);
     }
 
     /**
