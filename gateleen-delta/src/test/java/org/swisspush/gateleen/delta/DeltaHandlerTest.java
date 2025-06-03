@@ -49,6 +49,8 @@ public class DeltaHandlerTest {
     private HttpServerResponse response;
     private MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
 
+    private final String rulesPath = "/gateleen/server/admin/v1/routing/rules";
+
     @Before
     public void before() {
         redisAPI = mock(RedisAPI.class);
@@ -81,7 +83,6 @@ public class DeltaHandlerTest {
     @Test
     public void testStorageNameUsed(TestContext context) throws InterruptedException {
         Vertx vertx = Vertx.vertx();
-        String rulesPath = "/gateleen/server/admin/v1/routing/rules";
 
         String rulesStorageInitial = "{\n" +
                 " \"/gateleen/server/storage_main/(.*)\": {\n" +
@@ -119,10 +120,7 @@ public class DeltaHandlerTest {
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
         vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
 
-        try {
-            Thread.sleep(2000L);
-        } catch (InterruptedException e) {
-        }
+        Thread.sleep(2000L);
 
         deltaHandler.handle(request, router);
         verify(redisProvider, times(2)).redis(eq("main"));
@@ -224,12 +222,132 @@ public class DeltaHandlerTest {
     }
 
     @Test
-    public void testDeltaWithExpiry() {
+    public void testDeltaWithExpiryDefinedInRequestHeader() {
         requestHeaders.add("x-expire-after", "123");
 
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
         deltaHandler.handle(request, router);
 
+        verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555", "EX", "123")), any());
+    }
+
+    @Test
+    public void testDeltaWithExpiryDefinedInRoutingRule() throws InterruptedException {
+        Vertx vertx = Vertx.vertx();
+
+        ResourceStorage storage = new MockResourceStorage(ImmutableMap.of(rulesPath, "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"path\": \"/gateleen/rule/1\",\n" +
+                "    \"storage\": \"main\",\n" +
+                "    \"headers\": [\n" +
+                "      {\n" +
+                "        \"header\": \"X-Expire-After\",\n" +
+                "        \"value\": \"60\"\n" +
+                "      }\n" +
+                "    ]\n" +
+                "  }\n" +
+                "}"));
+        Map<String, Object>  properties = new HashMap<>();
+
+        RuleProvider ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
+
+        when(request.response()).thenReturn(response);
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(request.uri()).thenReturn("/gateleen/rule/1");
+        when(request.params()).thenReturn(new HeadersMultiMap());
+        when(request.headers()).thenReturn(requestHeaders);
+
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
+        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+
+        Thread.sleep(2000L);
+
+        deltaHandler.handle(request, router);
+        verify(redisProvider, times(2)).redis(eq("main"));
+
+        // Verify that the expiry time is used (last parameter in the set command)
+        verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555", "EX", "60")), any());
+    }
+
+    @Test
+    public void testDeltaWithExpiryOverwrittenByRoutingRule() throws InterruptedException {
+        Vertx vertx = Vertx.vertx();
+        requestHeaders.add("x-expire-after", "123");
+
+        ResourceStorage storage = new MockResourceStorage(ImmutableMap.of(rulesPath, "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"path\": \"/gateleen/rule/1\",\n" +
+                "    \"storage\": \"main\",\n" +
+                "    \"headers\": [\n" +
+                "      {\n" +
+                "        \"header\": \"X-Expire-After\",\n" +
+                "        \"value\": \"60\"\n" +
+                "      }\n" +
+                "    ]\n" +
+                "  }\n" +
+                "}"));
+        Map<String, Object>  properties = new HashMap<>();
+
+        RuleProvider ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
+
+        when(request.response()).thenReturn(response);
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(request.uri()).thenReturn("/gateleen/rule/1");
+        when(request.params()).thenReturn(new HeadersMultiMap());
+        when(request.headers()).thenReturn(requestHeaders);
+
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
+        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+
+        Thread.sleep(2000L);
+
+        deltaHandler.handle(request, router);
+        verify(redisProvider, times(2)).redis(eq("main"));
+
+        // Verify that the expiry time is used (last parameter in the set command)
+        verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555", "EX", "60")), any());
+    }
+
+    @Test
+    public void testDeltaWithExpiryKeepHeaderValuesWithCompleteMode() throws InterruptedException {
+        Vertx vertx = Vertx.vertx();
+        requestHeaders.add("x-expire-after", "123");
+
+        ResourceStorage storage = new MockResourceStorage(ImmutableMap.of(rulesPath, "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"path\": \"/gateleen/rule/1\",\n" +
+                "    \"storage\": \"main\",\n" +
+                "    \"headers\": [\n" +
+                "      {\n" +
+                "        \"header\": \"X-Expire-After\",\n" +
+                "        \"mode\": \"complete\",\n" +
+                "        \"value\": \"60\"\n" +
+                "      }\n" +
+                "    ]\n" +
+                "  }\n" +
+                "}"));
+        Map<String, Object>  properties = new HashMap<>();
+
+        RuleProvider ruleProvider = new RuleProvider(vertx, rulesPath, storage, properties);
+
+        when(request.response()).thenReturn(response);
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(request.uri()).thenReturn("/gateleen/rule/1");
+        when(request.params()).thenReturn(new HeadersMultiMap());
+        when(request.headers()).thenReturn(requestHeaders);
+
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
+        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+
+        Thread.sleep(2000L);
+
+        deltaHandler.handle(request, router);
+        verify(redisProvider, times(2)).redis(eq("main"));
+
+        // Verify that the expiry time is used (last parameter in the set command)
         verify(redisAPI, times(1)).set(eq(Arrays.asList("delta:resources:a:b:c", "555", "EX", "123")), any());
     }
 

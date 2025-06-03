@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.routing;
 
+import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.ProxyType;
 import io.vertx.ext.unit.TestContext;
@@ -36,6 +37,32 @@ public class RuleFactoryTest {
         properties = new HashMap<>();
         properties.put("gateleen.test.prop.valid", "http://someserver/");
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
+    }
+
+    @Test
+    public void testHeaderFunction(TestContext context) throws ValidationException {
+        String validRule = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"path\": \"/gateleen/rule/1\",\n" +
+                "    \"storage\": \"main\",\n" +
+                "    \"headers\": [\n" +
+                "      {\n" +
+                "        \"header\": \"X-Expire-After\",\n" +
+                "        \"value\": \"60\"\n" +
+                "      }\n" +
+                "    ]\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rules =  new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(validRule), Router.DEFAULT_ROUTER_MULTIPLIER);
+
+        context.assertTrue(rules.size() == 1);
+
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        rules.get(0).getHeaderFunction().apply(headers);
+
+        context.assertEquals(headers.get("X-Expire-After"), "60");
     }
 
     @Test
