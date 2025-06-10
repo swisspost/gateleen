@@ -15,6 +15,8 @@ import io.vertx.redis.client.Response;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.http.HeaderFunction;
+import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.redis.RedisByNameProvider;
 import org.swisspush.gateleen.core.util.*;
@@ -63,8 +65,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
     private final boolean rejectLimitOffsetRequests;
 
-    private final RuleProvider ruleProvider;
-    private List<Pair<Pattern,Rule>> storageRules = new ArrayList<>();
+    private List<Pair<Pattern, Rule>> storageRules = new ArrayList<>();
 
 
     private final Vertx vertx;
@@ -74,7 +75,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
     public DeltaHandler(Vertx vertx, RedisByNameProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
                         LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository) {
-        this(vertx,redisProvider, httpClient, ruleProvider, loggingResourceManager, logAppenderRepository, false);
+        this(vertx, redisProvider, httpClient, ruleProvider, loggingResourceManager, logAppenderRepository, false);
     }
 
     public DeltaHandler(Vertx vertx, RedisByNameProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
@@ -85,10 +86,10 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         this.httpClient = httpClient;
         this.rejectLimitOffsetRequests = rejectLimitOffsetRequests;
 
-        this.ruleProvider = ruleProvider;
         this.loggingResourceManager = loggingResourceManager;
         this.logAppenderRepository = logAppenderRepository;
-        this.ruleProvider.registerObserver(this);
+
+        ruleProvider.registerObserver(this);
     }
 
     @Override
@@ -135,6 +136,16 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
             }
         }
         log.warn("No storage rule found for uri {}. This should not happen!", request.uri());
+        return null;
+    }
+
+    @Nullable
+    private HeaderFunction getHeaderFunctionFromRule(HttpServerRequest request) {
+        for (Pair<Pattern, Rule> rulePair : storageRules) {
+            if (rulePair.getLeft().matcher(request.uri()).matches()) {
+                return rulePair.getRight().getHeaderFunction();
+            }
+        }
         return null;
     }
 
@@ -253,7 +264,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     private void saveDelta(String deltaKey, @Nullable String storageName, String deltaValue, Long expireAfter, Handler<AsyncResult<Object>> handler) {
         redisProvider.redis(storageName).onSuccess(redisAPI -> {
             List<String> options = new ArrayList<>(List.of(deltaKey, deltaValue));
-            if(expireAfter != null) {
+            if (expireAfter != null) {
                 options.addAll(List.of("EX", expireAfter.toString()));
             }
             redisAPI.set(options, (Handler) handler);
@@ -300,13 +311,11 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
         for (int i = 0; i < storageUpdateIds.size(); i++) {
             try {
-                Long storedUpdateId = Long.parseLong(storageUpdateIds.get(i) != null ? storageUpdateIds.get(i).toString() : null);
+                long storedUpdateId = Long.parseLong(Objects.toString(storageUpdateIds.get(i), null));
                 if (storedUpdateId > updateId) {
                     deltaResourceNames.add(subResourceNames.get(i));
                 }
-                if (storedUpdateId > maxUpdateId) {
-                    maxUpdateId = storedUpdateId;
-                }
+                maxUpdateId = Math.max(maxUpdateId, storedUpdateId);
             } catch (NumberFormatException ex) {
                 // No error. Just a resource with no update-in in storage
                 deltaResourceNames.add(subResourceNames.get(i));
@@ -471,9 +480,18 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
     private Long getExpireAfterValue(HttpServerRequest request, Logger log) {
         MultiMap requestHeaders = request.headers();
+        HeaderFunction headerFunction = getHeaderFunctionFromRule(request);
+
+        if (headerFunction != null && headerFunction != HeaderFunctions.DO_NOTHING) {
+            final HeaderFunctions.EvalScope evalScope = headerFunction.apply(requestHeaders);
+            if (evalScope.getErrorMessage() != null) {
+                log.warn("problem applying header manipulator chain {}", evalScope.getErrorMessage());
+            }
+        }
+
         String expireAfterHeaderValue = requestHeaders.get(EXPIRE_AFTER_HEADER);
         if (expireAfterHeaderValue == null) {
-            log.debug("Setting NO expiry on delta key because header {} not defined", EXPIRE_AFTER_HEADER);
+            log.debug("Setting NO expiry on delta key because no header and no routing rule header function defined");
             return null; // no expiry
         }
 
@@ -482,14 +500,14 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
             // redis returns an error if set is called with negative values
             if (value < 0) {
-                log.warn("Setting NO expiry on delta key because because defined value for header {} is a negative number: {}",
-                        EXPIRE_AFTER_HEADER, expireAfterHeaderValue);
+                log.warn("Setting NO expiry on delta key because header or routing rule header function is a negative number: {}",
+                        expireAfterHeaderValue);
                 return null; // no expiry
             }
-            log.debug("Setting expiry on delta key to {} seconds as defined in header {}", value, EXPIRE_AFTER_HEADER);
+            log.debug("Setting expiry on delta key to {} seconds as defined in header or routing rule header function", value);
             return value;
         } catch (Exception e) {
-            log.warn("Setting NO expiry on delta key because header {} is not a number: {}", EXPIRE_AFTER_HEADER, expireAfterHeaderValue);
+            log.warn("Setting NO expiry on delta key because header or routing rule header function is not a number: {}", expireAfterHeaderValue);
             return null; // default: no expiry
         }
     }
