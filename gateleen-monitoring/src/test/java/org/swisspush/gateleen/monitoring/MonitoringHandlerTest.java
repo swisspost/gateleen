@@ -23,6 +23,10 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import static org.awaitility.Awaitility.await;
 import static org.awaitility.Durations.TWO_SECONDS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 
 
 /**
@@ -98,22 +102,23 @@ public class MonitoringHandlerTest {
     }
 
     @Test
-    public void testConsumeMonitoringAddress(TestContext testContext){
+    public void tesExternalReceiver(TestContext testContext){
         Async async = testContext.async();
 
         activateRequestPerRuleMonitoring(true);
         System.setProperty(MonitoringHandler.REQUEST_PER_RULE_SAMPLING_PROPERTY, "100");
-        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX, "/rule/path");
 
         PUTRequest request = new PUTRequest();
         request.addHeader(PROPERTY_NAME, "my_value_123");
-        mh.updateRequestPerRuleMonitoring(request, "a_fancy_rule");
 
-        vertx.eventBus().consumer(Address.monitoringAddress(), (Handler<Message<JsonObject>>) message -> {
-            final JsonObject body = message.body();
+        mh.registerReceiver(event -> {
+            final JsonObject body = event.body();
             testContext.assertEquals("gateleen.rpr.my_value_123.a_fancy_rule", body.getString("name"));
             async.complete();
         });
+
+        mh.updateRequestPerRuleMonitoring(request, "a_fancy_rule");
     }
 
     @Test
