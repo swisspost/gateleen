@@ -111,10 +111,12 @@ public class NullForwarder extends AbstractForwarder {
         ctx.request().handler(buffer -> {
             loggingHandler.appendRequestPayload(buffer, requestHeaders);
             requestBuffer.appendBuffer(buffer);
-            MultiMap responseHeaders = ctx.response().headers();
-            loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage, requestHeaders, responseHeaders != null ? responseHeaders : new HeadersMultiMap());
         });
 
-        ctx.response().end();
+        ctx.request().endHandler(event -> {
+            MultiMap responseHeaders = ctx.response().headers();
+            loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage, requestHeaders, responseHeaders != null ? responseHeaders : new HeadersMultiMap());
+            ctx.response().end();
+        });
     }
 }
