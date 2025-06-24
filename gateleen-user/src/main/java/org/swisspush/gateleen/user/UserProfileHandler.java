@@ -66,22 +66,6 @@ public class UserProfileHandler implements LoggableResource {
         eb.consumer(RoleProfileHandler.UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateRoleProfiles());
     }
 
-    /**
-     * Constructor for the UserProfileHandler.
-     *
-     * @deprecated Use {@link UserProfileHandler#UserProfileHandler(Vertx, ResourceStorage, UserProfileConfiguration)} instead,
-     * because the {@link LoggingResourceManager} is not used anymore
-     *
-     * @param vertx vertx
-     * @param storage the storage
-     * @param loggingResourceManager manager for the logging resources
-     * @param userProfileConfiguration userProfileConfiguration
-     */
-    @Deprecated
-    public UserProfileHandler(Vertx vertx, ResourceStorage storage, LoggingResourceManager loggingResourceManager, UserProfileConfiguration userProfileConfiguration) {
-        this(vertx, storage, userProfileConfiguration);
-    }
-
     @Override
     public void enableResourceLogging(boolean resourceLoggingEnabled) {
         this.logUserProfileChanges = resourceLoggingEnabled;
@@ -186,8 +170,13 @@ public class UserProfileHandler implements LoggableResource {
         JsonObject profileCopy = profile.copy();
         Set<String> profileFieldNames = profileCopy.fieldNames();
         profileFieldNames.stream().filter(fieldName -> !userProfileConfiguration.isAllowedProfileProperty(fieldName)).forEach(fieldName -> {
-            log.debug("Removing property '{}' from user profile", fieldName);
-            profile.remove(fieldName);
+            if(userProfileConfiguration.isRemoveNotAllowedProfileProperties()) {
+                log.debug("Removing property '{}' from user profile", fieldName);
+                profile.put(fieldName, null);
+            } else {
+                log.debug("Property '{}' is not allowed, but because of the `merge` option not removed from user profile", fieldName);
+                profile.remove(fieldName);
+            }
         });
         profileCallback.handle(profile);
     }

@@ -15,12 +15,14 @@ public class UserProfileConfiguration {
 
     private Map<String,ProfileProperty> profileProperties = new HashMap<>();
     private List<String> allowedProfileProperties = new ArrayList<>();
+    private boolean removeNotAllowedProfileProperties = false;
     private Pattern userProfileUriPattern;
     private final String roleProfilesRoot;
     private final String rolePattern;
 
     private UserProfileConfiguration(UserProfileConfigurationBuilder arguments) {
         this.allowedProfileProperties = arguments.allowedProfileProperties;
+        this.removeNotAllowedProfileProperties = arguments.removeNotAllowedProfileProperties;
         this.profileProperties = arguments.profileProperties;
         if(arguments.userProfileUriPattern != null) {
             this.userProfileUriPattern = Pattern.compile(arguments.userProfileUriPattern);
@@ -40,6 +42,8 @@ public class UserProfileConfiguration {
     public boolean isAllowedProfileProperty(String fieldName) {
         return allowedProfileProperties.contains(fieldName);
     }
+
+    public boolean isRemoveNotAllowedProfileProperties() { return removeNotAllowedProfileProperties; }
 
     public boolean doesUrlMatchTheProfileUriPattern(String url) {
         return userProfileUriPattern.matcher(url).matches();
@@ -207,6 +211,7 @@ public class UserProfileConfiguration {
 
     public static class UserProfileConfigurationBuilder {
         private List<String> allowedProfileProperties = new ArrayList<>();
+        private boolean removeNotAllowedProfileProperties = false;
         private Map<String,ProfileProperty> profileProperties = new HashMap<>();
         private String userProfileUriPattern;
         private String roleProfilesRoot;
@@ -216,6 +221,11 @@ public class UserProfileConfiguration {
             if(allowedProfileProperties != null) {
                 this.allowedProfileProperties = Arrays.asList(allowedProfileProperties);
             }
+            return this;
+        }
+
+        public UserProfileConfigurationBuilder removeNotAllowedProfileProperties(boolean removeNotAllowedProfileProperties) {
+            this.removeNotAllowedProfileProperties = removeNotAllowedProfileProperties;
             return this;
         }
 
