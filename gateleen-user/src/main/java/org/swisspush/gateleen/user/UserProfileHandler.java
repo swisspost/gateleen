@@ -171,10 +171,10 @@ public class UserProfileHandler implements LoggableResource {
         Set<String> profileFieldNames = profileCopy.fieldNames();
         profileFieldNames.stream().filter(fieldName -> !userProfileConfiguration.isAllowedProfileProperty(fieldName)).forEach(fieldName -> {
             if(userProfileConfiguration.isRemoveNotAllowedProfileProperties()) {
-                log.debug("Removing property '{}' from user profile", fieldName);
+                log.debug("Property '{}' is not allowed, removing it from user profile", fieldName);
                 profile.put(fieldName, null);
             } else {
-                log.debug("Property '{}' is not allowed, but because of the `merge` option not removed from user profile", fieldName);
+                log.debug("Property '{}' is not allowed, removing it from user profile (only when not already in storage)", fieldName);
                 profile.remove(fieldName);
             }
         });
