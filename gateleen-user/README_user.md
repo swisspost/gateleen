@@ -12,48 +12,36 @@ The user profile containing user specific information is stored on the server. A
   "personalNumber": "unknown"
 }
 ```
-To add more properties but still have control over what properties are allowed in the profile the **allowedProfileProperties** resource was introduced.
+To add more properties but still have control over what properties are allowed in the profile the **UserProfileConfiguration** was introduced.
 
-##### AllowedProfileProperties resource
-When no allowedProfileProperties resource is defined, the default allowed properties are allowed only. Other properties than the allowed will not be saved to the profile. 
-These properties are *username, personalNumber, department, lang, mail* when the standard constructor of the **UserProfileHandler** is used.
+#### UserProfileConfiguration
+The **UserProfileConfiguration** is a configuration object that can be used to define the properties that are allowed in the user profile. 
+It can be used to restrict the properties that can be set in the user profile and to define default values for certain properties.
 
-**Constructor of UserProfileHandler**
+Use `UserProfileConfiguration.create()` for a convenient way to create a new instance of the **UserProfileConfiguration**.
+
+Example:
+
 ```java
-public UserProfileHandler(Vertx vertx, ResourceStorage storage, String serProfileUriPattern, String roleProfilesRoot, String rolePattern) {
-    this(vertx, storage, userProfileUriPattern, roleProfilesRoot, null, Arrays.asList("username", "personalNumber", "mail", "department", "lang"), rolePattern);
-}
-```
+final UserProfileConfiguration.ProfileProperty usernameConfig = UserProfileConfiguration.ProfileProperty
+        .with("x-rp-usr", "username").
+        setUpdateStrategy(UserProfileConfiguration.UpdateStrategy.UPDATE_ONLY_IF_PROFILE_VALUE_IS_INVALID).
+        setOptional(false).build();
+final UserProfileConfiguration.ProfileProperty fullNameConfig = UserProfileConfiguration.ProfileProperty
+        .with("x-rp-displayName", "fullName").
+        setUpdateStrategy(UserProfileConfiguration.UpdateStrategy.UPDATE_ALWAYS).
+        setOptional(false).build();
 
-To add additional allowed properties you have to create the **allowedProfileProperties** resource like this:
-```json
-{
-  "properties": [
-    "username",
-    "personalNumber",
-    "mail",
-    "department",
-    "lang",
-    "tour",
-    "zip",
-    "context",
-    "contextIsDefault",
-    "passkeyChanged",
-    "volumeBeep",
-    "torchMode",
-    "spn"
-  ]
-}
+UserProfileConfiguration.create()
+        .userProfileUriPattern(SERVER_ROOT + "/users/v1/([^/]+)/profile")
+        .roleProfilesRoot(SERVER_ROOT + "/roles/v1/")
+        .rolePattern(ROLE_PATTERN)
+        .addAllowedProfileProperties(ArrayUtils.addAll("x-foo", "x-bar", "x-baz"))
+        .removeNotAllowedProfileProperties(true)
+        .addProfileProperty(usernameConfig)
+        .addProfileProperty(fullNameConfig)
+        .build();
 ```
-
-To use the allowedProfileProperties resource you have to define the path of the resource in the constructor of the UserProfileHandler. See example below:
-```java
-new UserProfileHandler(vertx, storage, SERVER_ROOT + "/users/v1/([^/]+)/profile", SERVER_ROOT + "/roles/v1/", SERVER_ROOT + "/users/v1/allowedProfileProperties",
-                        Arrays.asList("username", "personalNumber", "mail", "department", "lang"), ROLE_PATTERN);
-```
-
-You can also define the default allowed properties using this constructor. Default allowed properties can not be removed from the profile when forgotten to add to the allowedProfileProperties resource.
-So these properties are more "secured" when defining as default.
 
 ### Log user profile and role profile changes
 To log the payload of changes to the user profiles and role profiles, the [RequestLogger](../gateleen-core/src/main/java/org/swisspush/gateleen/core/logging/RequestLogger.java) can be used.
