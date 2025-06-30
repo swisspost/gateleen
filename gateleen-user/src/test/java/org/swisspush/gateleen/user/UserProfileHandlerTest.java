@@ -22,6 +22,84 @@ public class UserProfileHandlerTest {
 
 
     @Test
+    public void testCleanupProfileWithNotAllowedPropertyHandling() {
+
+        // Arrange
+        Vertx vertx = mock(Vertx.class);
+        when(vertx.eventBus()).thenReturn(mock(EventBus.class));
+        ResourceStorage resourceStorage = mock(ResourceStorage.class);
+
+        UserProfileConfiguration userProfileConfiguration =
+                UserProfileConfiguration.create()
+                        .userProfileUriPattern("/users/v1/([^/]+)/profile")
+                        .addAllowedProfileProperties("username", "personalNumber", "fullname", "mail", "department", "lang",
+                                "addAttr1", "addAttr2", "addAttr3")
+                        .rolePattern("^z-gateleen[-_](.*)$")
+                        .build();
+
+        UserProfileHandler userProfileHandler = new UserProfileHandler(vertx, resourceStorage, userProfileConfiguration);
+
+        JsonObject profile = new JsonObject();
+        profile.put("personalNumber", "04146251");
+        profile.put("username", "john");
+        profile.put("mail", "john.doe@swisspush.org");
+        profile.put("department", "sales");
+        profile.put("lang", "de");
+        profile.put("additionalAttribute", "addVal");
+
+        // Act
+        userProfileHandler.cleanupUserProfile(profile, updatedProfile -> {
+
+            // Assert
+            assertThat(updatedProfile.getMap().size(), is(5));
+            assertThat(updatedProfile.getString("personalNumber"), is("04146251"));
+            assertThat(updatedProfile.getString("username"), is("john"));
+            assertThat(updatedProfile.getString("mail"), is("john.doe@swisspush.org"));
+            assertThat(updatedProfile.getString("department"), is("sales"));
+            assertThat(updatedProfile.getString("lang"), is("de"));
+
+            // since removeNotAllowedProfileProperties is set to false, the additionalAttribute property should not be present
+            assertThat(updatedProfile.containsKey("additionalAttribute"), is(false));
+        });
+
+        // create user profile handler with removeNotAllowedProfileProperties set to true
+        userProfileConfiguration =
+                UserProfileConfiguration.create()
+                        .removeNotAllowedProfileProperties(true)
+                        .userProfileUriPattern("/users/v1/([^/]+)/profile")
+                        .addAllowedProfileProperties("username", "personalNumber", "fullname", "mail", "department", "lang",
+                                "addAttr1", "addAttr2", "addAttr3")
+                        .rolePattern("^z-gateleen[-_](.*)$")
+                        .build();
+
+        userProfileHandler = new UserProfileHandler(vertx, resourceStorage, userProfileConfiguration);
+
+        profile = new JsonObject();
+        profile.put("personalNumber", "04146251");
+        profile.put("username", "john");
+        profile.put("mail", "john.doe@swisspush.org");
+        profile.put("department", "sales");
+        profile.put("lang", "de");
+        profile.put("additionalAttribute", "addVal");
+
+        // Act
+        userProfileHandler.cleanupUserProfile(profile, updatedProfile -> {
+
+            // Assert
+            assertThat(updatedProfile.getMap().size(), is(6));
+            assertThat(updatedProfile.getString("personalNumber"), is("04146251"));
+            assertThat(updatedProfile.getString("username"), is("john"));
+            assertThat(updatedProfile.getString("mail"), is("john.doe@swisspush.org"));
+            assertThat(updatedProfile.getString("department"), is("sales"));
+            assertThat(updatedProfile.getString("lang"), is("de"));
+
+            // since removeNotAllowedProfileProperties is set to true, the additionalAttribute property should still be present with value `null`
+            assertThat(updatedProfile.containsKey("additionalAttribute"), is(true));
+            assertThat(updatedProfile.getString("additionalAttribute"), is(nullValue()));
+        });
+    }
+
+    @Test
     public void testCleanupProfileDefaultAttributes() {
 
         // Arrange
@@ -116,7 +194,7 @@ public class UserProfileHandlerTest {
 
         UserProfileConfiguration.ProfileProperty profileProperty =
                 UserProfileConfiguration.ProfileProperty.with("x-rp-employeeid", "personalNumber")
-                .validationRegex("\\d*{8}")
+                        .validationRegex("\\d*{8}")
                         .setValueToUseIfNoOtherValidValue("unknown").build();
 
         // personalNumber exists in profile no header
@@ -184,6 +262,4 @@ public class UserProfileHandlerTest {
         headers.add("x-rp-employeeid", employeeId);
         return headers;
     }
-
-
 }

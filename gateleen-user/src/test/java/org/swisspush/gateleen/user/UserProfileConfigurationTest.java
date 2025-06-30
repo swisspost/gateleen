@@ -15,6 +15,15 @@ import static org.hamcrest.MatcherAssert.assertThat;
 public class UserProfileConfigurationTest {
 
     @Test
+    public void testRemoveNotAllowedProperties() {
+        UserProfileConfiguration userProfileConfiguration = UserProfileConfiguration.create().build();
+        assertThat(userProfileConfiguration.isRemoveNotAllowedProfileProperties(), is(false));
+
+        userProfileConfiguration = UserProfileConfiguration.create().removeNotAllowedProfileProperties(true).build();
+        assertThat(userProfileConfiguration.isRemoveNotAllowedProfileProperties(), is(true));
+    }
+
+    @Test
     public void buildUserProfileConfiguration() {
 
         // ACT
@@ -138,7 +147,6 @@ public class UserProfileConfigurationTest {
         assertThat(userProfileConfiguration.extractUserIdFromProfileUri("/server/users/v1/99999999/profil"), is(nullValue()));
         assertThat(userProfileConfiguration.extractUserIdFromProfileUri("server/users/v1/99999999/profile"), is(nullValue()));
         assertThat(userProfileConfiguration.extractUserIdFromProfileUri("/server/users/v2/99999999/profile"), is(nullValue()));
-
     }
 
 }
