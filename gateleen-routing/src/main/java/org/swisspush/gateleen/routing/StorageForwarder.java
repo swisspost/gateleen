@@ -137,8 +137,6 @@ public class StorageForwarder extends AbstractForwarder {
             response.end(evalScope.getErrorMessage());
             return;
         }
-
-        setUniqueIdHeader(requestHeaders);
         handleStorageWriteMetrics(ctx.request().method(), requestHeaders);
 
         final Buffer header = Buffer.buffer(new HttpRequest(ctx.request().method(), targetUri, requestHeaders, null).toJsonObject().encode());
@@ -178,8 +176,6 @@ public class StorageForwarder extends AbstractForwarder {
                                 MultiMap responseHeaders = null;
                                 if (headers != null && !headers.isEmpty()) {
                                     responseHeaders = JsonMultiMap.fromJson(headers);
-
-                                    setUniqueIdHeader(responseHeaders);
 
                                     ctx.response().headers().setAll(responseHeaders);
                                 }
@@ -237,18 +233,6 @@ public class StorageForwarder extends AbstractForwarder {
             storageWriteWithExpiry.increment();
         } else if (!withExpiry && storageWriteNoExpiry != null) {
             storageWriteNoExpiry.increment();
-        }
-    }
-
-    /**
-     * Translates the x-rp-unique_id header to x-rp-unique-id.
-     *
-     * @param headers the request headers
-     */
-    private void setUniqueIdHeader(MultiMap headers) {
-        final String uid = headers.get("x-rp-unique_id");
-        if (uid != null) {
-            headers.set("x-rp-unique-id", uid);
         }
     }
 }
