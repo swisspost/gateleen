@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.queue.queuing;
 
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -11,6 +12,7 @@ import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.json.jackson.DatabindCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
@@ -78,6 +80,10 @@ public class QueueProcessor {
         } else {
             log.info("initialized QueueProcessor but queue processing has disabled");
         }
+        StreamReadConstraints src = StreamReadConstraints.builder()
+                .maxStringLength(StreamReadConstraints.DEFAULT_MAX_STRING_LEN * 2)
+                .build();
+        DatabindCodec.mapper().getFactory().setStreamReadConstraints(src);
     }
 
     public void startQueueProcessing() {
