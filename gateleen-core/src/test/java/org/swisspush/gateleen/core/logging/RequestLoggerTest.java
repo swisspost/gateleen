@@ -37,7 +37,7 @@ public class RequestLoggerTest {
         EventBus eventBus = Mockito.mock(EventBus .class);
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Content-Type", "application/json");
-        headers.add("x-rp-unique-id", "123456");
+        headers.add("x-rp-unique_id", "123456");
         MockedResponse response = new MockedResponse(MultiMap.caseInsensitiveMultiMap());
         MockedRequest request = new MockedRequest("/uri/to/a/resource", HttpMethod.PUT, headers, response);
         JsonObject body = new JsonObject().put("key_1", "value_2").put("key_2", 99);
@@ -47,7 +47,7 @@ public class RequestLoggerTest {
         JsonObject expected = new JsonObject();
         expected.put(REQUEST_URI, "/uri/to/a/resource");
         expected.put(REQUEST_METHOD, "PUT");
-        JsonObject requestHeaders = new JsonObject().put("Content-Type", "application/json").put("x-rp-unique-id", "123456");
+        JsonObject requestHeaders = new JsonObject().put("Content-Type", "application/json").put("x-rp-unique_id", "123456");
         expected.put(REQUEST_HEADERS, requestHeaders);
         expected.put(RESPONSE_HEADERS, new JsonObject());
         expected.put(REQUEST_STATUS, StatusCode.OK.getStatusCode());
@@ -62,7 +62,7 @@ public class RequestLoggerTest {
         EventBus eventBus = Mockito.mock(EventBus .class);
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         headers.add("Content-Type", "application/json");
-        headers.add("x-rp-unique-id", "123456");
+        headers.add("x-rp-unique_id", "123456");
         MockedRequest request = new MockedRequest("/uri/to/a/resource", HttpMethod.PUT, headers,
                 new MockedResponse(MultiMap.caseInsensitiveMultiMap()));
         JsonObject body = new JsonObject().put("key_1", "value_2").put("key_2", 99);
@@ -76,7 +76,7 @@ public class RequestLoggerTest {
         JsonObject expected = new JsonObject();
         expected.put(REQUEST_URI, "/uri/to/a/resource");
         expected.put(REQUEST_METHOD, "PUT");
-        JsonObject requestHeaders = new JsonObject().put("Content-Type", "application/json").put("x-rp-unique-id", "123456");
+        JsonObject requestHeaders = new JsonObject().put("Content-Type", "application/json").put("x-rp-unique_id", "123456");
         expected.put(REQUEST_HEADERS, requestHeaders);
         JsonObject responseHeadersJsonObject = new JsonObject().put("header_1", "value_1").put("header_2", "value_2");
         expected.put(RESPONSE_HEADERS, responseHeadersJsonObject);

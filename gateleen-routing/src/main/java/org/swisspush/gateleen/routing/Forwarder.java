@@ -320,7 +320,7 @@ public class Forwarder extends AbstractForwarder {
                 }
 
                 if (uniqueId != null) {
-                    cReq.headers().set("x-rp-unique-id", uniqueId);
+                    cReq.headers().set("x-rp-unique_id", uniqueId);
                 }
                 setProfileHeaders(log, profileHeaderMap, cReq);
 

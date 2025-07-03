@@ -29,9 +29,6 @@ public final class RequestLoggerFactory {
                 uid = rid;
             }
             rid = headers.get("x-rp-unique_id");
-            if (rid == null) {
-                rid = headers.get("x-rp-unique-id");
-            }
             if (rid != null) {
                 if (uid != null) {
                     uid = uid + " " + rid;
