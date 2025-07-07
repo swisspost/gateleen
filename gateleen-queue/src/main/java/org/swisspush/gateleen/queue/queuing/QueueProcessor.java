@@ -91,7 +91,7 @@ public class QueueProcessor {
             log.info("about to register consumer to start queue processing");
             this.consumer = vertx.eventBus().consumer(getQueueProcessorAddress(), (Handler<Message<JsonObject>>) message -> {
                 HttpRequest queuedRequestTry = null;
-                JsonObject jsonRequest = new JsonObject(message.body().getString("payload"));
+                JsonObject jsonRequest = parseStringToJsonObject(message.body().getString("payload"));
                 try {
                     queuedRequestTry = new HttpRequest(jsonRequest);
                 } catch (Exception exception) {
@@ -147,6 +147,10 @@ public class QueueProcessor {
 
     public String getQueueProcessorAddress() {
         return Address.queueProcessorAddress();
+    }
+
+    JsonObject parseStringToJsonObject(String payload) {
+        return new JsonObject(payload);
     }
 
     private boolean isCircuitCheckEnabled() {
