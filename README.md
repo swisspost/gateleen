@@ -114,8 +114,8 @@ mvn install -PnonUiIntegrationTests
 This is a list of the custom headers used by Gateleen.
 
 | Header               | Description                              | Link to documentation |
-|:-------------------- | :--------------------------------------- | :---------------------:|
-| x-rp-unique-id       | unique id | |
+|:---------------------| :--------------------------------------- | :---------------------:|
+| x-rp-unique_id       | unique id | |
 | x-request-id         | id of the request (unique?) | |
 | x-self-request       | indicates if the request is triggered by a communication server and the target is the communication server itself | |
 | x-rp-grp             | group header | [gateleen-user](gateleen-user/README_user.md) |

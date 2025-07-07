@@ -507,9 +507,6 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     private String getRequestUniqueId(HttpRequest request) {
         String unique = request.getHeaders().get("x-rp-unique_id");
         if (unique == null) {
-            unique = request.getHeaders().get("x-rp-unique-id");
-        }
-        if (unique == null) {
             log.info("request to {} has no unique-id header. Using request uri instead", request.getUri());
             unique = request.getUri();
         }

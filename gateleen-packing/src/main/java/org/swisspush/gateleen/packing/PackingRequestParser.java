@@ -21,7 +21,6 @@ public class PackingRequestParser {
     private static final String REQUESTS = "requests";
     private static final String CONTENT_LENGTH = "content-length";
     private static final String UNIQUE_ID = "x-rp-unique_id";
-    private static final String UNIQUE_ID_DASH = "x-rp-unique-id";
     private static final String PACK_HEADER = "x-packed";
     private static final String COPY_ORIGINAL_HEADERS = "copy_original_headers";
 
@@ -91,7 +90,6 @@ public class PackingRequestParser {
             headersCleared.addAll(originalHeaders);
             headersCleared.remove(CONTENT_LENGTH);
             headersCleared.remove(UNIQUE_ID);
-            headersCleared.remove(UNIQUE_ID_DASH);
             headersCleared.remove(PACK_HEADER);
         }
         return headersCleared;
