@@ -287,7 +287,7 @@ public class QueueClientTest {
     }
 
     @Test
-    public void testEnqueueErrroHandling(TestContext context){
+    public void testEnqueueErrorHandling(TestContext context){
         Async async = context.async();
 
         final HttpMethod httpMethod = HttpMethod.PUT;
