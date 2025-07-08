@@ -7,6 +7,9 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
 
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -16,8 +19,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
+import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.redisques.util.RedisquesAPI;
 
@@ -278,6 +284,45 @@ public class QueueClientTest {
 
         // since redisques answered with a 'failure', the monitoringHandler should not be called
         Mockito.verifyNoInteractions(monitoringHandler);
+    }
+
+    @Test
+    public void testEnqueueErrorHandling(TestContext context){
+        Async async = context.async();
+
+        final HttpMethod httpMethod = HttpMethod.PUT;
+        final String url = "/targetUri";
+        final String errorMsg = "Boom!!";
+        final DummyHttpServerResponse httpServerResponse = new DummyHttpServerResponse();
+        final HttpServerRequest httpServerRequest = new DummyHttpServerRequest() {
+            @Override
+            public MultiMap headers() {
+                return new HeadersMultiMap();
+            }
+            @Override
+            public HttpMethod method() {
+                return httpMethod;
+            }
+            @Override
+            public String uri() {
+                return url;
+            }
+            @Override
+            public HttpServerResponse response() {
+                return httpServerResponse;
+            }
+
+        };
+        final HttpRequest request = new HttpRequest(httpMethod, url, MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        vertx.eventBus().localConsumer(queueClient.getRedisquesAddress(), (Handler<Message<JsonObject>>) message -> message.fail(0, errorMsg));
+
+        queueClient.enqueue(httpServerRequest, request, "test-queue", event -> {
+            context.assertEquals(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), httpServerResponse.getStatusCode());
+            context.assertEquals(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage(), httpServerResponse.getStatusMessage());
+            context.assertEquals(errorMsg, httpServerResponse.getResultBuffer());
+            async.complete();
+        });
+
     }
 
     private void validateMessage(TestContext context, Message<JsonObject> message, RedisquesAPI.QueueOperation expectedOperation, String queue){

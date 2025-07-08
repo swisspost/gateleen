@@ -211,7 +211,7 @@ public class QueueClient implements RequestQueue {
      * @param queue         queue
      * @param doneHandler   a handler which is called as soon as the request is written into the queue.
      */
-    private void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Void> doneHandler) {
+    void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Void> doneHandler) {
         if (!QueueProcessor.httpMethodIsQueueable(queuedRequest.getMethod())) {
             log.warn("Ignore enqueue of unsupported HTTP method in '{} {}'.", queuedRequest.getMethod(), queuedRequest.getUri());
             if (doneHandler != null) doneHandler.handle(null);
@@ -219,23 +219,33 @@ public class QueueClient implements RequestQueue {
         }
         vertx.eventBus().request(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
-                    if (OK.equals(event.result().body().getString(STATUS))) {
-                        if(monitoringHandler != null) {
-                            monitoringHandler.updateLastUsedQueueSizeInformation(queue);
-                            monitoringHandler.updateEnqueue();
-                        }
-
+                    if (event.failed()) {
                         if (request != null) {
-                            ResponseStatusCodeLogUtil.info(request, StatusCode.ACCEPTED, QueueClient.class);
-                            request.response().setStatusCode(StatusCode.ACCEPTED.getStatusCode());
-                            request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
-                            request.response().end();
+                            ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, QueueClient.class);
+                            request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                            request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+                            request.response().end(event.cause().getMessage());
                         }
-                    } else if (request != null) {
-                        ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, QueueClient.class);
-                        request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-                        request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
-                        request.response().end(event.result().body().getString(MESSAGE));
+                    } else {
+
+                        if (OK.equals(event.result().body().getString(STATUS))) {
+                            if (monitoringHandler != null) {
+                                monitoringHandler.updateLastUsedQueueSizeInformation(queue);
+                                monitoringHandler.updateEnqueue();
+                            }
+
+                            if (request != null) {
+                                ResponseStatusCodeLogUtil.info(request, StatusCode.ACCEPTED, QueueClient.class);
+                                request.response().setStatusCode(StatusCode.ACCEPTED.getStatusCode());
+                                request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
+                                request.response().end();
+                            }
+                        } else if (request != null) {
+                            ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, QueueClient.class);
+                            request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                            request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+                            request.response().end(event.result().body().getString(MESSAGE));
+                        }
                     }
 
                     // call the done handler to tell,
