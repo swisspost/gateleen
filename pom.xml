@@ -41,11 +41,6 @@
     </scm>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <sonatypeOssDistMgmtSnapshotsUrl>
-            https://oss.sonatype.org/content/repositories/snapshots/
-        </sonatypeOssDistMgmtSnapshotsUrl>
-        <arguments />
-        <repositoryId />
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <targetHost>localhost</targetHost>
@@ -89,36 +84,6 @@
         <wiremock.version>1.58</wiremock.version>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>sonatype-nexus-snapshots</id>
-            <name>Sonatype Nexus Snapshots</name>
-            <url>
-                https://oss.sonatype.org/content/repositories/snapshots
-            </url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>sonatype-nexus-snapshots</id>
-            <name>Sonatype Nexus Snapshots</name>
-            <url>${sonatypeOssDistMgmtSnapshotsUrl}</url>
-        </snapshotRepository>
-        <repository>
-            <id>sonatype-nexus-staging</id>
-            <name>Nexus Release Repository</name>
-            <url>
-                https://oss.sonatype.org/service/local/staging/deployByRepositoryId/${repositoryId}
-            </url>
-        </repository>
-    </distributionManagement>
-
     <profiles>
         <profile>
             <id>default</id>
@@ -154,45 +119,6 @@
             </modules>
         </profile>
         <profile>
-            <id>release</id>
-            <modules>
-                <module>gateleen-testhelper</module>
-                <module>gateleen-core</module>
-                <module>gateleen-cache</module>
-                <module>gateleen-kafka</module>
-                <module>gateleen-delegate</module>
-                <module>gateleen-delta</module>
-                <module>gateleen-expansion</module>
-                <module>gateleen-hook</module>
-                <module>gateleen-hook-js</module>
-                <module>gateleen-logging</module>
-                <module>gateleen-merge</module>
-                <module>gateleen-monitoring</module>
-                <module>gateleen-packing</module>
-                <!--<module>gateleen-performancetest</module>-->
-                <module>gateleen-player</module>
-                <module>gateleen-playground</module>
-                <module>gateleen-qos</module>
-                <module>gateleen-queue</module>
-                <module>gateleen-routing</module>
-                <module>gateleen-runconfig</module>
-                <module>gateleen-scheduler</module>
-                <module>gateleen-security</module>
-                <module>gateleen-test</module>
-                <module>gateleen-user</module>
-                <module>gateleen-validation</module>
-            </modules>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.0.1</version>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
             <id>uiIntegrationTests</id>
             <modules>
                 <module>gateleen-test</module>
@@ -222,7 +148,34 @@
             </build>
         </profile>
         <profile>
-            <id>sonatype-oss-release</id>
+            <id>release</id>
+            <modules>
+                <module>gateleen-testhelper</module>
+                <module>gateleen-core</module>
+                <module>gateleen-cache</module>
+                <module>gateleen-kafka</module>
+                <module>gateleen-delegate</module>
+                <module>gateleen-delta</module>
+                <module>gateleen-expansion</module>
+                <module>gateleen-hook</module>
+                <module>gateleen-hook-js</module>
+                <module>gateleen-logging</module>
+                <module>gateleen-merge</module>
+                <module>gateleen-monitoring</module>
+                <module>gateleen-packing</module>
+                <!--<module>gateleen-performancetest</module>-->
+                <module>gateleen-player</module>
+                <module>gateleen-playground</module>
+                <module>gateleen-qos</module>
+                <module>gateleen-queue</module>
+                <module>gateleen-routing</module>
+                <module>gateleen-runconfig</module>
+                <module>gateleen-scheduler</module>
+                <module>gateleen-security</module>
+                <module>gateleen-test</module>
+                <module>gateleen-user</module>
+                <module>gateleen-validation</module>
+            </modules>
             <build>
                 <plugins>
                     <plugin>
@@ -271,6 +224,16 @@
                                 </configuration>
                             </execution>
                         </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.8.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>
@@ -552,22 +515,6 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.3.1</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-deploy-plugin</artifactId>
-                    <version>2.8.2</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-release-plugin</artifactId>
-                    <version>2.5.3</version>
-                    <configuration>
-                        <mavenExecutorId>forked-path</mavenExecutorId>
-                        <useReleaseProfile>false</useReleaseProfile>
-                        <arguments>${arguments} -Psonatype-oss-release
-                        </arguments>
-                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
