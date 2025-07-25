@@ -21,7 +21,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '11'
-          server-id: sonatype-nexus-staging # Value of the distributionManagement/repository/id field of the pom.xml
+          server-id: central
           server-username: CI_DEPLOY_USERNAME # env variable for username in deploy
           server-password: CI_DEPLOY_PASSWORD # env variable for token in deploy
           gpg-private-key: ${{ secrets.CI_GPG_PRIVATE_KEY }} # Value of the GPG private key to import
@@ -34,7 +34,12 @@ jobs:
 
       - name: Install chromedriver
         uses: nanasess/setup-chromedriver@v2
-          
+
+      - name: Set Git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Install, unit test
         run: mvn install -Dmaven.javadoc.skip=true -PpublicRepos -B -V
 
@@ -52,7 +57,7 @@ jobs:
 
           java -jar gateleen-playground/target/playground.jar &> playground_logs.log &
           sleep 5s
-  
+          
           mvn deploy -PuploadStaticFiles
           mvn install -PuiIntegrationTests
 
@@ -61,7 +66,6 @@ jobs:
         run: |
           curl -s https://get.sdkman.io | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
-          sdk install groovy 3.0.8
           
           chmod +x ./maybe-release.sh
           ./maybe-release.sh

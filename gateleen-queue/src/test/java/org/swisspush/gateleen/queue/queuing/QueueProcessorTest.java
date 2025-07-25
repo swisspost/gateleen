@@ -211,6 +211,27 @@ public class QueueProcessorTest {
         });
     }
 
+    @Test
+    public void testParseLargeStringIntoJsonObject (TestContext context) {
+        QueueProcessor queueProcessor = new QueueProcessor(vertx, httpClient, monitoringHandler, null);
+        String largePayload = genarateLargePayload(21_000_000);
+        try {
+            queueProcessor.parseStringToJsonObject(largePayload);
+        } catch (Exception e) {
+            context.fail(e);
+        }
+    }
+
+    private String genarateLargePayload(int targetSize) {
+        StringBuilder sb = new StringBuilder(targetSize);
+        sb.append("{\"bigString\":\"");
+        for (int i = 0; i < targetSize - 15; i++) {
+            sb.append("a");
+        }
+        sb.append("\"}");
+        return sb.toString();
+    }
+
     private void setHttpClientRespondStatusCode(StatusCode statusCode) {
         doAnswer(invocation -> {
             HttpMethod httpMethod = (HttpMethod) invocation.getArguments()[0];
