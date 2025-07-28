@@ -3,6 +3,7 @@ package org.swisspush.gateleen.core.http;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.*;
+import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
@@ -555,6 +556,29 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         this.exceptionFactory = exceptionFactory;
         this.serverResponse = response;
         this.connection = new LocalHttpConnection();
+        setExceptionHandler(defaultExcetionHandler(null));
+    }
+
+    private Handler<Throwable> defaultExcetionHandler(@Nullable Handler<Throwable> externalHandler) {
+        return throwable -> {
+            if (log.isDebugEnabled()) {
+                log.error(
+                        "A HTTP {} request to '{}' failed with reason {}",
+                        method,
+                        uri,
+                        throwable.getMessage(),
+                        throwable);
+            } else {
+                log.error(
+                        "A HTTP {} request to '{}' failed with reason {}",
+                        method,
+                        uri,
+                        throwable.getMessage());
+            }
+            if (externalHandler != null) {
+                externalHandler.handle(throwable);
+            }
+        };
     }
 
     @Override
@@ -875,7 +899,7 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
     @Override
     public HttpClientRequest exceptionHandler(Handler<Throwable> handler) {
-        setExceptionHandler(handler);
+        setExceptionHandler(defaultExcetionHandler(handler));
         return this;
     }
 
