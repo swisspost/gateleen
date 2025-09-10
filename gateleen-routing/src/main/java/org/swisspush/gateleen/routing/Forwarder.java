@@ -33,6 +33,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /**
@@ -66,6 +68,7 @@ public class Forwarder extends AbstractForwarder {
     private static final int STATUS_CODE_2XX = 2;
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
+    private static AtomicInteger nextErrorId = new AtomicInteger();
     private Timer forwardTimer;
     private MeterRegistry meterRegistry;
 
@@ -302,6 +305,7 @@ public class Forwarder extends AbstractForwarder {
                     return;
                 }
                 HttpClientRequest cReq = event.result();
+                cReq.exceptionHandler(ex -> onUpstreamError(ex, req, cReq::getURI));
                 final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, finalStartTime, finalTimerSample, afterHandler);
                 cReq.response(cResHandler);
 
@@ -451,6 +455,25 @@ public class Forwarder extends AbstractForwarder {
         });
     }
 
+    private void onUpstreamError(Throwable exOrig, HttpServerRequest dwnstrmReq, Supplier<String> getUpstreamRequestUri) {
+        String errorId = "error_aeuthaeower_" + nextErrorId.getAndIncrement();
+        String upstrmReqUri;
+        try {
+            upstrmReqUri = getUpstreamRequestUri.get();
+        } catch (RuntimeException exUseless) {
+            LOG.debug("{}", exUseless.getMessage(), LOG.isTraceEnabled() ? exUseless : null);
+            upstrmReqUri = "null";
+        }
+        LOG.error("{}: {} ({})", upstrmReqUri, exOrig.getMessage(), errorId, LOG.isDebugEnabled() ? exOrig : null);
+        try {
+            HttpServerResponse dwnstrmRsp = dwnstrmReq.response();
+            dwnstrmRsp.setStatusCode(502);
+            dwnstrmRsp.end("For details, search gateleen logs for\n" + errorId + "\n");
+        } catch (RuntimeException exAlreadySent) {
+            LOG.debug("{}: {}", dwnstrmReq.uri(), exAlreadySent.getMessage(), LOG.isTraceEnabled() ? exAlreadySent : null);
+        }
+    }
+
     private Future<Optional<AuthHeader>> maybeAuthenticate(Rule rule) {
         if (authStrategy == null) {
             return Future.succeededFuture(Optional.empty());
@@ -498,7 +521,6 @@ public class Forwarder extends AbstractForwarder {
 
     private Handler<AsyncResult<HttpClientResponse>> getAsyncHttpClientResponseHandler(final HttpServerRequest req, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap, final LoggingHandler loggingHandler, @Nullable final Long startTime, @Nullable Timer.Sample timerSample, @Nullable final Handler<Void> afterHandler) {
         return asyncResult -> {
-            HttpClientResponse cRes = asyncResult.result();
             if (asyncResult.failed()) {
                 error(asyncResult.cause().getMessage(), req, targetUri);
                 HttpServerResponse rsp = req.response();
@@ -519,6 +541,8 @@ public class Forwarder extends AbstractForwarder {
 
             handleForwardDurationMetrics(timerSample);
 
+            HttpClientResponse cRes = asyncResult.result();
+            cRes.exceptionHandler(ex -> onUpstreamError(ex, req, () -> cRes.request().getURI()));
             loggingHandler.setResponse(cRes);
             req.response().setStatusCode(cRes.statusCode());
             req.response().setStatusMessage(cRes.statusMessage());
