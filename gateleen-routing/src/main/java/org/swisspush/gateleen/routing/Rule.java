@@ -22,6 +22,7 @@ public class Rule {
     private String metricName;
     private int port;
     private String portWildcard;
+    private String hostWildcard;
     private String path;
     private int poolSize;
     private int maxWaitQueueSize;
@@ -94,6 +95,18 @@ public class Rule {
 
     public boolean hasPortWildcard() {
         return portWildcard != null;
+    }
+
+    public String getHostWildcard() {
+        return hostWildcard;
+    }
+
+    public void setHostWildcard(String hostWildcard) {
+        this.hostWildcard = hostWildcard;
+    }
+
+    public boolean hasHostWildcard() {
+        return hostWildcard != null;
     }
 
     public String getPath() {

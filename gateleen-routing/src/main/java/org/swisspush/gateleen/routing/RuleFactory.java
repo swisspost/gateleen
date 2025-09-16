@@ -218,9 +218,18 @@ public class RuleFactory {
                 if (!urlMatcher.matches()) {
                     throw new ValidationException("Invalid url for pattern " + urlPattern + ": " + targetUrl);
                 }
-                ruleObj.setHost(urlMatcher.group("host"));
+
                 ruleObj.setScheme(urlMatcher.group("scheme"));
                 ruleObj.setPort(ruleObj.getScheme().equals("https") ? 443 : 80);
+
+                String hostString = urlMatcher.group("host");
+                if (hostString != null) {
+                    if(hostString.contains("$")){
+                        ruleObj.setHostWildcard(hostString);
+                    } else {
+                        ruleObj.setHost(hostString);
+                    }
+                }
 
                 String portString = urlMatcher.group("port");
                 if (portString != null) {
