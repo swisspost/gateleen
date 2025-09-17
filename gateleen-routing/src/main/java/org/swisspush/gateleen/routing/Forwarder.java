@@ -155,6 +155,24 @@ public class Forwarder extends AbstractForwarder {
             ctx.next();
             return;
         }
+        String host = null;
+        if (rule.hasHostWildcard()) {
+            try {
+                host = urlPattern.matcher(req.uri()).replaceFirst(rule.getHostWildcard());
+                log.debug("Dynamic host for wildcard {} is {}", rule.getHostWildcard(), host);
+                rule.setHost(host);
+            } catch (NumberFormatException ex) {
+                log.error("Could not extract string value from wildcard {}. Got {}", rule.getHostWildcard(), host);
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                return;
+            } catch (IndexOutOfBoundsException ex) {
+                log.error("No group could be found for wildcard {}", rule.getHostWildcard());
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                return;
+            }
+        } else {
+            host = rule.getHost();
+        }
 
         if (rule.hasPortWildcard()) {
             String dynamicPortStr = null;
@@ -174,7 +192,7 @@ public class Forwarder extends AbstractForwarder {
         } else {
             port = rule.getPort();
         }
-        target = rule.getHost() + ":" + port;
+        target = host + ":" + port;
 
         if (monitoringHandler != null) {
             monitoringHandler.updateRequestsMeter(target, req.uri());
