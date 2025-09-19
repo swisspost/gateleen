@@ -101,6 +101,22 @@ public class DefaultValidationSchemaProvider implements ValidationSchemaProvider
                 }).onComplete(asyncResult -> {
             HttpClientRequest fetchSchemaRequest = asyncResult.result();
             fetchSchemaRequest.setChunked(true);
+            fetchSchemaRequest.exceptionHandler(throwable -> {
+            if (log.isDebugEnabled()) {
+                log.error(
+                        "A HTTP {} request to '{}' failed with reason {}",
+                        fetchSchemaRequest.getMethod(),
+                        fetchSchemaRequest.getURI(),
+                        throwable.getMessage(),
+                        throwable);
+            } else {
+                log.error(
+                        "A HTTP {} request to '{}' failed with reason {}",
+                        fetchSchemaRequest.getMethod(),
+                        fetchSchemaRequest.getURI(),
+                        throwable.getMessage());
+            }
+            });
             fetchSchemaRequest.send(responseAsyncResult -> {
                 HttpClientResponse cRes = responseAsyncResult.result();
                 cRes.bodyHandler(data -> {
