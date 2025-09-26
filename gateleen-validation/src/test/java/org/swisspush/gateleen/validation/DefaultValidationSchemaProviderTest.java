@@ -7,6 +7,7 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.ext.web.RoutingContext;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -17,8 +18,10 @@ import org.swisspush.gateleen.core.http.LocalHttpClient;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
@@ -33,8 +36,8 @@ public class DefaultValidationSchemaProviderTest {
     @Before
     public void setUp(){
         vertx = Vertx.vertx();
-        final LocalHttpClient selfClient = new LocalHttpClient(vertx, newGateleenWastefulExceptionFactory());
-        selfClient.setRoutingContexttHandler(event -> {});
+        Supplier<Handler<RoutingContext>> getRoutingContext = () -> mock(Handler.class);
+        final LocalHttpClient selfClient = new LocalHttpClient(vertx, getRoutingContext, newGateleenWastefulExceptionFactory());
         clientRequestCreator = Mockito.spy(new ClientRequestCreator(selfClient));
         schemaProvider = new DefaultValidationSchemaProvider(vertx, clientRequestCreator, Duration.ofSeconds(5));
     }
