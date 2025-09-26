@@ -11,6 +11,7 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.ext.web.RoutingContext;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,8 +56,8 @@ public class DelegateTest {
     public void setUp() {
         Vertx vertx = Mockito.mock(Vertx.class);
         Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
-        final LocalHttpClient selfClient = new LocalHttpClient(vertx, exceptionFactory);
-        selfClient.setRoutingContexttHandler(event -> {});
+        Handler<RoutingContext> routingContextHandler = mock(Handler.class);
+        final LocalHttpClient selfClient = new LocalHttpClient(vertx, () -> routingContextHandler, exceptionFactory);
         clientRequestCreator = Mockito.spy(new ClientRequestCreator(selfClient));
         delegateFactory = new DelegateFactory(clientRequestCreator, new HashMap<>(), delegatesSchema, null);
     }
