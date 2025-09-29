@@ -178,24 +178,30 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         });
 
         // Receive update notifications
-        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> storage.get(rulesUri, buffer -> {
-            if (buffer != null) {
-                try {
-                    log.info("Applying rules");
-                    updateRouting(buffer, this.routeMultiplier);
-                } catch (ValidationException e) {
-                    log.error("Could not reconfigure routing", e);
-                }
-            } else {
-                log.warn("Could not get URL '{}' (getting rules).", (rulesUri == null ? "<null>" : rulesUri));
-            }
-        }));
+        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, this::onEventBusRuleUpdateEvent);
 
-        vertx.eventBus().consumer(ROUTE_MULTIPLIER_ADDRESS, (Handler<Message<String>>) event -> {
-            log.debug("Updating router's pool size multiplier: {}", (event.body() == null ? "<null>" : event.body()));
-            this.routeMultiplier = Integer.parseInt(event.body());
-            vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        vertx.eventBus().consumer(ROUTE_MULTIPLIER_ADDRESS, this::onEventBusRouteMultiplierEvent);
+    }
+
+    private void onEventBusRuleUpdateEvent(Message<Object> ev) {
+        storage.get(rulesUri, buffer -> {
+            if( buffer == null ){
+                log.warn("Could not get URL '{}' (getting rules).", (rulesUri == null ? "<null>" : rulesUri));
+                return;
+            }
+            try {
+                log.info("Applying rules");
+                updateRouting(buffer, this.routeMultiplier);
+            } catch (ValidationException e) {
+                log.error("Could not reconfigure routing", e);
+            }
         });
+    }
+
+    private void onEventBusRouteMultiplierEvent(Message<String> event) {
+        log.debug("Updating router's pool size multiplier: {}", (event.body() == null ? "<null>" : event.body()));
+        this.routeMultiplier = Integer.parseInt(event.body());
+        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
     }
 
     public enum DefaultRouteType {
@@ -414,70 +420,15 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         io.vertx.ext.web.Router newRouter = io.vertx.ext.web.Router.router(vertx);
 
         if (defaultRouteTypes.contains(SIMULATOR)) {
-            newRouter.put(serverUri + "/simulator/.*").handler(ctx -> ctx.request().bodyHandler(buffer -> {
-                try {
-                    final JsonObject obj = new JsonObject(buffer.toString());
-                    log.debug("Simulator got {} {}", obj.getLong("delay"), obj.getLong("size"));
-                    vertx.setTimer(obj.getLong("delay"), event -> {
-                        try {
-                            char[] body = new char[obj.getInteger("size")];
-                            ctx.response().end(new String(body));
-                            log.debug("Simulator sent response");
-                        } catch (Exception e) {
-                            log.error("Simulator error {}", e.getMessage());
-                            ctx.response().end();
-                        }
-                    });
-                } catch (Exception e) {
-                    log.error("Simulator error {}", e.getMessage());
-                    ctx.response().end();
-                }
-            }));
+            newRouter.put(serverUri + "/simulator/.*").handler(this::onSimulatorRequest);
         }
 
         if (defaultRouteTypes.contains(INFO)) {
-            newRouter.get(serverUri + "/info").handler(ctx -> {
-                if (HttpMethod.GET == ctx.request().method()) {
-                    ctx.response().headers().set("Content-Type", "application/json");
-                    ctx.response().end(info.toString());
-                } else {
-                    ResponseStatusCodeLogUtil.info(ctx.request(), StatusCode.METHOD_NOT_ALLOWED, Router.class);
-                    ctx.response().setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
-                    ctx.response().setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
-                    ctx.response().end();
-                }
-            });
+            newRouter.get(serverUri + "/info").handler(this::onInfoRequest);
         }
 
         if (defaultRouteTypes.contains(DEBUG)) {
-            newRouter.getWithRegex("/[^/]+/debug").handler(ctx -> {
-                ctx.response().headers().set("Content-Type", "text/plain");
-                StringBuilder body = new StringBuilder();
-                body.append("* Headers *\n\n");
-                SortedSet<String> keys = new TreeSet<>(ctx.request().headers().names());
-                for (String key : keys) {
-                    String value = ctx.request().headers().get(key);
-                    if ("cookie".equals(key)) {
-                        body.append("cookie:\n");
-                        for (HttpCookie cookie : HttpCookie.parse(value)) {
-                            body.append("    ");
-                            body.append(cookie.toString());
-                        }
-                    }
-                    body.append(key).append(": ").append(value).append("\n");
-                }
-
-                body.append("\n");
-                body.append("* System Properties *\n\n");
-
-                Set<Object> sorted = new TreeSet<>(System.getProperties().keySet());
-
-                for (Object key : sorted) {
-                    body.append(key).append(": ").append(System.getProperty((String) key)).append("\n");
-                }
-
-                ctx.response().end(body.toString());
-            });
+            newRouter.getWithRegex("/[^/]+/debug").handler(this::onDebugRequest);
         }
 
         Set<HttpClient> newClients = new HashSet<>();
@@ -498,6 +449,71 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                 doneHandler.handle(null);
             }
         }
+    }
+
+    private void onSimulatorRequest(RoutingContext ctx) {
+        ctx.request().bodyHandler(buffer -> {
+            try {
+                final JsonObject obj = new JsonObject(buffer.toString());
+                log.debug("Simulator got {} {}", obj.getLong("delay"), obj.getLong("size"));
+                vertx.setTimer(obj.getLong("delay"), event -> {
+                    try {
+                        char[] body = new char[obj.getInteger("size")];
+                        ctx.response().end(new String(body));
+                        log.debug("Simulator sent response");
+                    } catch (RuntimeException ex) {
+                        log.error("Simulator error {}", ex.getMessage());
+                        ctx.response().end();
+                    }
+                });
+            } catch (Exception e) {
+                log.error("Simulator error {}", e.getMessage());
+                ctx.response().end();
+            }
+        });
+    }
+
+    private void onInfoRequest(RoutingContext ctx) {
+        io.vertx.core.http.HttpServerResponse rsp = ctx.response();
+        if (HttpMethod.GET != ctx.request().method()) {
+            ResponseStatusCodeLogUtil.info(ctx.request(), StatusCode.METHOD_NOT_ALLOWED, Router.class);
+            rsp.setStatusCode(StatusCode.METHOD_NOT_ALLOWED.getStatusCode());
+            rsp.setStatusMessage(StatusCode.METHOD_NOT_ALLOWED.getStatusMessage());
+            rsp.end();
+            return;
+        }
+        rsp.headers().set("Content-Type", "application/json");
+        rsp.end(info.toString());
+    }
+
+    private void onDebugRequest(RoutingContext ctx) {
+        io.vertx.core.http.HttpServerResponse rsp = ctx.response();
+        rsp.headers().set("Content-Type", "text/plain");
+        StringBuilder body = new StringBuilder(3072);
+        body.append("* Headers *\n\n");
+        SortedSet<String> keys = new TreeSet<>(ctx.request().headers().names());
+        for (String key : keys) {
+            String value = ctx.request().headers().get(key);
+            if ("cookie".equals(key)) {
+                body.append("cookie:\n");
+                for (HttpCookie cookie : HttpCookie.parse(value)) {
+                    body.append("    ");
+                    body.append(cookie.toString());
+                }
+            }
+            body.append(key).append(": ").append(value).append("\n");
+        }
+
+        body.append("\n");
+        body.append("* System Properties *\n\n");
+
+        Set<Object> sorted = new TreeSet<>(System.getProperties().keySet());
+
+        for (Object key : sorted) {
+            body.append(key).append(": ").append(System.getProperty((String) key)).append("\n");
+        }
+
+        rsp.end(body.toString());
     }
 
     @Override
