@@ -54,6 +54,12 @@ public class LocalHttpConnection implements HttpConnection {
 
     @Override
     public HttpConnection closeHandler(Handler<Void> handler) {
+        /* Q: API contract says: "The handler WILL GET NOTIFIED when the
+         *    connection is closed" -> Why we never call that handler?
+         * A: I've no idea :( Unfortunately, original code doesn't give us any
+         *    hints at all about why this is the way it is. See
+         *    [original code](https://github.com/swisspost/gateleen/blob/v2.1.28/gateleen-core/src/main/java/org/swisspush/gateleen/core/http/LocalHttpConnection.java#L55-L58)
+         *    (TODO whoever knows more, please provide a proper answer here)  */
         return this;
     }
 

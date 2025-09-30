@@ -59,41 +59,44 @@ public class DeferCloseHttpClient implements HttpClient {
                     onEndOfRequestResponseCycle();
                     return;
                 }
-                HttpClientResponse upstreamRsp = asyncResponseResult.result();
-                // Delegate to the same method on the delegate. But install our own handler which
-                // allows us to intercept the response.
-                logger.debug("onUpstreamRsp(code={})", upstreamRsp.statusCode());
-                // 1st we have to pass-through the response so our caller is able to install its handlers.
-
-                // We also need to ensure that our reference counter stays accurate. Badly vertx
-                // may call BOTH of our handlers. And in this scenario we MUST NOT decrement
-                // twice. So we additionally track this too.
-                final AtomicBoolean needToDecrementCounter = new AtomicBoolean(true);
-                // Then (after client installed its handlers), we now can intercept those by
-                // replacing them with our own handlers.
-                // To do this, we 1st backup the original handler (so we can delegate to it later).
-                Handler<Void> originalEndHandler = getEndHandler(upstreamRsp);
-                upstreamRsp.endHandler(event -> {
-                    logger.debug("upstreamRsp.endHandler()");
-                    if (needToDecrementCounter.getAndSet(false)) {
-                        onEndOfRequestResponseCycle();
-                    }
-                    // Call the original handler independent of the above condition to not change
-                    // behaviour of the impl we are decorating.
-                    callHandlerIfExists(originalEndHandler, event);
-                });
-                // We also need to intercept exception handler to decrement our counter in case
-                // of erroneous-end scenario. Basically same idea as above.
-                Handler<Throwable> originalExceptionHandler = getExceptionHandler(upstreamRsp);
-                upstreamRsp.exceptionHandler(event -> {
-                    logger.debug("upstreamRsp.exceptionHandler({})", event.toString());
-                    if (needToDecrementCounter.getAndSet(false)) {
-                        onEndOfRequestResponseCycle();
-                    }
-                    callHandlerIfExists(originalExceptionHandler, event);
-                });
+                onUpstreamResponse(asyncResponseResult.result());
             });
         }).onComplete(handler);
+    }
+
+    private void onUpstreamResponse(HttpClientResponse rsp) {
+        // Delegate to the same method on the delegate. But install our own handler which
+        // allows us to intercept the response.
+        logger.debug("onUpstreamRsp(code={})", rsp.statusCode());
+        // 1st we have to pass-through the response so our caller is able to install its handlers.
+
+        // We also need to ensure that our reference counter stays accurate. Badly vertx
+        // may call BOTH of our handlers. And in this scenario we MUST NOT decrement
+        // twice. So we additionally track this too.
+        final AtomicBoolean needToDecrementCounter = new AtomicBoolean(true);
+        // Then (after client installed its handlers), we now can intercept those by
+        // replacing them with our own handlers.
+        // To do this, we 1st backup the original handler (so we can delegate to it later).
+        Handler<Void> originalEndHandler = getEndHandler(rsp);
+        rsp.endHandler(event -> {
+            logger.debug("upstreamRsp.endHandler()");
+            if (needToDecrementCounter.getAndSet(false)) {
+                onEndOfRequestResponseCycle();
+            }
+            // Call the original handler independent of the above condition to not change
+            // behaviour of the impl we are decorating.
+            callHandlerIfExists(originalEndHandler, event);
+        });
+        // We also need to intercept exception handler to decrement our counter in case
+        // of erroneous-end scenario. Basically same idea as above.
+        Handler<Throwable> originalExceptionHandler = getExceptionHandler(rsp);
+        rsp.exceptionHandler(event -> {
+            logger.debug("upstreamRsp.exceptionHandler({})", event.toString());
+            if (needToDecrementCounter.getAndSet(false)) {
+                onEndOfRequestResponseCycle();
+            }
+            callHandlerIfExists(originalExceptionHandler, event);
+        });
     }
 
     private void onEndOfRequestResponseCycle() {
