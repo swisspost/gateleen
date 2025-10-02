@@ -88,9 +88,29 @@ public class Forwarder extends AbstractForwarder {
     private Timer forwardTimer;
     private MeterRegistry meterRegistry;
 
+    /** @deprecated use {@link #newForwarder()}. */
     public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage,
                      LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
                      @Nullable MonitoringHandler monitoringHandler, String userProfilePath, @Nullable AuthStrategy authStrategy) {
+        this(vertx, client, rule, storage, loggingResourceManager, logAppenderRepository,
+                monitoringHandler, userProfilePath, authStrategy, null);
+    }
+
+    /**
+     * Likely you want to use {@link #newForwarder()} instead.
+     */
+    public Forwarder(
+            Vertx vertx,
+            HttpClient client,
+            Rule rule,
+            final ResourceStorage storage,
+            LoggingResourceManager loggingResourceManager,
+            LogAppenderRepository logAppenderRepository,
+            MonitoringHandler monitoringHandler,
+            String userProfilePath,
+            AuthStrategy authStrategy,
+            MeterRegistry meterRegistry
+    ) {
         super(rule, loggingResourceManager, logAppenderRepository, monitoringHandler);
         this.vertx = vertx;
         this.client = client;
@@ -103,6 +123,14 @@ public class Forwarder extends AbstractForwarder {
         this.target = rule.getHost() + ":" + rule.getPort();
         this.userProfilePath = userProfilePath;
         this.authStrategy = authStrategy;
+        setMeterRegistry(meterRegistry);
+    }
+
+    /**
+     * Configure and instantiate a {@link Forwarder} more conveniently.
+     */
+    public static ForwarderBuilder newForwarder() {
+        return new ForwarderBuilder();
     }
 
     /**
@@ -111,6 +139,8 @@ public class Forwarder extends AbstractForwarder {
      * with the appropriate metric name, description, and tags.
      *
      * @param meterRegistry the MeterRegistry to set
+     *
+     * @deprecated Use Forwarder.{@link Forwarder#newForwarder()}.withMeterRegistry(...).
      */
     @Override
     public void setMeterRegistry(MeterRegistry meterRegistry) {
