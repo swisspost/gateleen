@@ -46,6 +46,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -530,21 +531,21 @@ public class Forwarder extends AbstractForwarder {
 
     private void onUpstreamResponseNoThrow(AsyncResult<HttpClientResponse> ev, RequestCtx ctx, String dbgHint) {
         try {
-            onUpstreamResponse(ev, ctx);
+            onUpstreamResponse(ev, ctx, dbgHint);
         } catch (RuntimeException ex) {
             /* catch-all unhandled exceptions. Usually, this code SHOULD NOT be reached!
              * (If it is reached, GO FIX THE METHOD WE CALL ABOVE!) This is our
              * last-resort/best-effort handler, to hopefully have some better error
              * logs than just "Connection was closed" without any context. */
-            ctx.log.warn("{}: {}: {}, {} -fwd-> {}", dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(),
-                    ctx.targetUri, ctx.log.isDebugEnabled() ? ex : null);
+            ctx.log.warn("findme_bnte4jsfdgj: {}: {}: {}, {} -fwd-> {}",
+                    dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(), ctx.targetUri,
+                    ctx.log.isDebugEnabled() ? ex : null);
             tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, dbgHint);
         }
     }
 
-    private void onUpstreamResponse(AsyncResult<HttpClientResponse> ev, RequestCtx ctx) {
+    private void onUpstreamResponse(AsyncResult<HttpClientResponse> ev, RequestCtx ctx, String dbgHint) {
         if (ev.failed()) {
-            String dbgHint = "findme_q398hj3g3";
             ctx.log.error("{}: {}://{}{} {}",
                     dbgHint, rule.getScheme(), target, ctx.targetUri, ev.cause().getMessage(),
                     ctx.log.isDebugEnabled() ? ev.cause() : null);
@@ -609,22 +610,25 @@ public class Forwarder extends AbstractForwarder {
         }
         pump.start();
 
-        Runnable unpump = () -> {
+        Consumer<String> unpump = (String dbgHint2) -> {
             // disconnect the clientResponse from the Pump and resume this (probably paused-by-pump) stream to keep it alive
             pump.stop();
             try {
                 ctx.upRes.handler(this::doNothing);
             } catch (IllegalStateException ieks) {
                 /* Q: What is this catch for?
-                 * A: https://github.com/eclipse-vertx/vert.x/blob/4.5.2/src/main/java/io/vertx/core/http/impl/HttpClientResponseImpl.java#L150  */
-                ctx.log.debug("findme_q3a908thgj3 {}", ieks.getMessage(), ctx.log.isTraceEnabled() ? ieks : null);
+                 * A: https://github.com/eclipse-vertx/vert.x/blob/4.5.2/src/main/java/io/vertx/core/http/impl/HttpClientResponseImpl.java#L150
+                 *    Actually we do not care about the data anymore. But we have to
+                 *    ensure that the response is consumed. So we have to try to add that
+                 *    handler. If it fails, we already are in our desired state. */
+                ctx.log.trace("{}: {}", dbgHint2, ieks.getMessage(), ieks);
             }
             ctx.upRes.resume(); // resume the (probably paused) stream
         };
 
         ctx.upRes.exceptionHandler(exception -> {
             LOG.warn("Failed to read upstream response for '{} {}'", ctx.dnReq.method(), ctx.targetUri, exception);
-            unpump.run();
+            unpump.accept("findme_nbroih3to9hj");
             error("Problem with backend: " + exception.getMessage(), ctx.dnReq, ctx.targetUri);
             respondError(ctx.dnReq, INTERNAL_SERVER_ERROR);
         });
@@ -633,7 +637,7 @@ public class Forwarder extends AbstractForwarder {
         if (connection != null) {
             /* TODO WARN: there are some impls, which JUST IGNORE our handler
              *      registration, aka they break the promised API contract! */
-            connection.closeHandler((Void v) -> unpump.run());
+            connection.closeHandler((Void v) -> unpump.accept("findme_boiuhjoq3uh98r"));
         } else {
             ctx.log.warn("TODO No way to call 'unpump.run()' in the right moment. As there seems"
                     + " to be no event we could register a handler for. Gateleen wishes you"
