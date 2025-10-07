@@ -23,8 +23,10 @@ import org.swisspush.gateleen.validation.ValidationException;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenThriftyExceptionFactory;
 
@@ -43,6 +45,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
     private final SchedulerFactory schedulerFactory;
     private final String schedulersSchema;
     private boolean logConfigurationResourceChanges = false;
+    private boolean lastDaylightSavingTimeState;
 
     public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
                                     @Nullable MonitoringHandler monitoringHandler, String schedulersUri) {
@@ -50,32 +53,31 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
     }
 
     public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
-                                    @Nullable MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props) {
+                                    @Nullable MonitoringHandler monitoringHandler, String schedulersUri, Map<String, Object> props) {
         this(vertx, redisProvider, storage, monitoringHandler, schedulersUri, props, Address.redisquesAddress());
     }
 
     public SchedulerResourceManager(Vertx vertx, RedisProvider redisProvider, final ResourceStorage storage,
-                                    @Nullable MonitoringHandler monitoringHandler, String schedulersUri, Map<String,Object> props,
+                                    @Nullable MonitoringHandler monitoringHandler, String schedulersUri, Map<String, Object> props,
                                     String redisquesAddress) {
         this(vertx, redisProvider, newGateleenThriftyExceptionFactory(), storage, monitoringHandler, schedulersUri, props, redisquesAddress, Collections.emptyMap());
     }
 
     public SchedulerResourceManager(
-        Vertx vertx,
-        RedisProvider redisProvider,
-        GateleenExceptionFactory exceptionFactory,
-        ResourceStorage storage,
-        @Nullable MonitoringHandler monitoringHandler,
-        String schedulersUri,
-        Map<String, Object> props,
-        String redisquesAddress,
-        Map<String, String> defaultRequestHeaders
+            Vertx vertx,
+            RedisProvider redisProvider,
+            GateleenExceptionFactory exceptionFactory,
+            ResourceStorage storage,
+            @Nullable MonitoringHandler monitoringHandler,
+            String schedulersUri,
+            Map<String, Object> props,
+            String redisquesAddress,
+            Map<String, String> defaultRequestHeaders
     ) {
         this.vertx = vertx;
         this.storage = storage;
         this.schedulersUri = schedulersUri;
         this.properties = props;
-
         this.schedulersSchema = ResourcesUtils.loadResource("gateleen_scheduler_schema_schedulers", true);
         this.schedulerFactory = new SchedulerFactory(properties, defaultRequestHeaders, vertx, redisProvider,
                 exceptionFactory, monitoringHandler, schedulersSchema, redisquesAddress);
@@ -84,6 +86,10 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
 
         // Receive update notifications
         vertx.eventBus().consumer(UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> updateSchedulers());
+
+        // Check for daylight saving time changes every minute
+        // If a change is detected, all schedulers are restarted
+        scheduleDaylightSavingTimeStateChangeObserver();
     }
 
     private void updateSchedulers() {
@@ -100,7 +106,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         stopSchedulers();
         try {
             schedulers = schedulerFactory.parseSchedulers(buffer);
-        } catch(ValidationException validationException) {
+        } catch (ValidationException validationException) {
             log.error("Could not parse schedulers: " + validationException);
         } finally {
             vertx.setTimer(2000, aLong -> startSchedulers());
@@ -117,7 +123,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
                     ResponseStatusCodeLogUtil.info(request, StatusCode.BAD_REQUEST, SchedulerResourceManager.class);
                     request.response().setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
                     request.response().setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage() + " " + validationException.getMessage());
-                    if(validationException.getValidationDetails() != null){
+                    if (validationException.getValidationDetails() != null) {
                         request.response().headers().add("content-type", "application/json");
                         request.response().end(validationException.getValidationDetails().encode());
                     } else {
@@ -127,7 +133,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
                 }
                 storage.put(schedulersUri, buffer, status -> {
                     if (status == 200) {
-                        if(logConfigurationResourceChanges) {
+                        if (logConfigurationResourceChanges) {
                             RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                         }
                         vertx.eventBus().publish(UPDATE_ADDRESS, true);
@@ -148,13 +154,13 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
     }
 
     private void startSchedulers() {
-        if(schedulers != null) {
+        if (schedulers != null) {
             schedulers.forEach(Scheduler::start);
         }
     }
 
     private void stopSchedulers() {
-        if(schedulers != null) {
+        if (schedulers != null) {
             schedulers.forEach(Scheduler::stop);
         }
     }
@@ -162,6 +168,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
     /**
      * Returns a list of all registered
      * schedulers.
+     *
      * @return List
      */
     protected List<Scheduler> getSchedulers() {
@@ -176,5 +183,47 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
     @Override
     public void enableResourceLogging(boolean resourceLoggingEnabled) {
         this.logConfigurationResourceChanges = resourceLoggingEnabled;
+    }
+
+    /**
+     * Evaluate if the given date is in daylight saving time or not.
+     *
+     * @return true if in daylight saving time, false otherwise
+     */
+    public static boolean isDaylightSavingTimeState(Date checkDate) {
+        return TimeZone.getDefault().inDaylightTime(checkDate);
+    }
+
+    /**
+     * Evaluate if the current date is in daylight saving time or not.
+     *
+     * @return true if in daylight saving time, false otherwise
+     */
+    public static boolean isCurrentDaylightSavingTimeState() {
+        return isDaylightSavingTimeState(new Date());
+    }
+
+    /**
+     * Schedule a periodic check for daylight saving time changes.
+     */
+    private void scheduleDaylightSavingTimeStateChangeObserver() {
+        if (properties != null && properties.get("dst.observe") != null ? (Boolean) properties.get("dst.observe") : false) {
+            // initialise the current daylight saving time for later state change comparison
+            lastDaylightSavingTimeState = isCurrentDaylightSavingTimeState();
+            vertx.setPeriodic(60_000, 60_000, timerId -> observeDaylightSavingTimeChange());
+        }
+    }
+
+    /**
+     * Checks if a daylight saving time change has occurred
+     * and refreshes all schedulers if this is the case.
+     */
+    private void observeDaylightSavingTimeChange() {
+        boolean currentDaylightSavingTimeState = isCurrentDaylightSavingTimeState();
+        if (currentDaylightSavingTimeState != lastDaylightSavingTimeState) {
+            log.info("Daylight saving time change detected, refreshing all schedulers");
+            lastDaylightSavingTimeState = currentDaylightSavingTimeState;
+            refresh();
+        }
     }
 }

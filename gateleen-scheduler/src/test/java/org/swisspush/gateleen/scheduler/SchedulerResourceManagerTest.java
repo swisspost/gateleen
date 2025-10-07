@@ -24,8 +24,16 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -102,6 +110,29 @@ public class SchedulerResourceManagerTest {
         schedulerResourceManager.handleSchedulerResource(request);
 
         verify(response, timeout(100).times(1)).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+    }
+
+    @Test
+    public void testDaylightSavingsTimeChangeObserver() {
+        Map<String, Object> props = new HashMap<>();
+        props.put("dst.observe", true);
+        schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
+                schedulersUri, props);
+
+        boolean dstStateSummerBefore = schedulerResourceManager.isDaylightSavingTimeState(getDate("2025-10-25T02:00:01Z"));
+        boolean dstStateWinter1 = schedulerResourceManager.isDaylightSavingTimeState(getDate("2025-10-26T02:00:01Z"));
+        boolean dstStateWinter2 = schedulerResourceManager.isDaylightSavingTimeState(getDate("2026-03-28T02:00:01Z"));
+        boolean dstStateSummerAfter = schedulerResourceManager.isDaylightSavingTimeState(getDate("2026-03-29T02:00:01Z"));
+
+        // we expect a change in the dst state from summer to winter and vv
+        assertNotEquals(dstStateSummerBefore, dstStateWinter1);
+        assertNotEquals(dstStateSummerAfter, dstStateWinter1);
+        assertEquals(dstStateWinter1, dstStateWinter2);
+    }
+
+    private static Date getDate(String time) {
+        Instant instant = Instant.now(Clock.fixed(Instant.parse(time), ZoneId.of( "Europe/Zurich")));
+        return new Date(instant.toEpochMilli());
     }
 
     static class SchedulerResourceRequest extends DummyHttpServerRequest {
