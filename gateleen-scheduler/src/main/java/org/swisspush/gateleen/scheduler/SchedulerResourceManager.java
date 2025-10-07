@@ -22,11 +22,10 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.validation.ValidationException;
 
 import javax.annotation.Nullable;
+import java.time.ZonedDateTime;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
 import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenThriftyExceptionFactory;
 
@@ -185,13 +184,14 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         this.logConfigurationResourceChanges = resourceLoggingEnabled;
     }
 
+
     /**
      * Evaluate if the given date is in daylight saving time or not.
      *
      * @return true if in daylight saving time, false otherwise
      */
-    public static boolean isDaylightSavingTimeState(Date checkDate) {
-        return TimeZone.getDefault().inDaylightTime(checkDate);
+    public static boolean isDaylightSavingTimeState(ZonedDateTime checkDate) {
+        return checkDate.getZone().getRules().isDaylightSavings(checkDate.toInstant());
     }
 
     /**
@@ -200,7 +200,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
      * @return true if in daylight saving time, false otherwise
      */
     public static boolean isCurrentDaylightSavingTimeState() {
-        return isDaylightSavingTimeState(new Date());
+        return isDaylightSavingTimeState(ZonedDateTime.now());
     }
 
     /**
@@ -210,6 +210,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         if (properties != null && properties.get("dst.observe") != null ? (Boolean) properties.get("dst.observe") : false) {
             // initialise the current daylight saving time for later state change comparison
             lastDaylightSavingTimeState = isCurrentDaylightSavingTimeState();
+            // check each minute for a daylight saving time change
             vertx.setPeriodic(60_000, 60_000, timerId -> observeDaylightSavingTimeChange());
         }
     }
@@ -217,6 +218,9 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
     /**
      * Checks if a daylight saving time change has occurred
      * and refreshes all schedulers if this is the case.
+     * This will stop and restart all schedulers and remove their
+     * corresponding redis timestamps and thus re-evaluate their next
+     * execution time.
      */
     private void observeDaylightSavingTimeChange() {
         boolean currentDaylightSavingTimeState = isCurrentDaylightSavingTimeState();
