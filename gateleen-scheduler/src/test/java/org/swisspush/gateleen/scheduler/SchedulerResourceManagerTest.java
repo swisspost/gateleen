@@ -5,6 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -71,7 +72,7 @@ public class SchedulerResourceManagerTest {
     }
 
     @Test
-    public void testReadSchedulersResource(TestContext context){
+    public void testReadSchedulersResource(TestContext context) {
         schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
                 schedulersUri);
 
@@ -88,7 +89,7 @@ public class SchedulerResourceManagerTest {
     }
 
     @Test
-    public void testHandleValidSchedulerResource(TestContext context){
+    public void testHandleValidSchedulerResource(TestContext context) {
         schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
                 schedulersUri);
 
@@ -101,7 +102,7 @@ public class SchedulerResourceManagerTest {
     }
 
     @Test
-    public void testHandleInvalidSchedulerResource(TestContext context){
+    public void testHandleInvalidSchedulerResource(TestContext context) {
         schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
                 schedulersUri);
 
@@ -114,11 +115,63 @@ public class SchedulerResourceManagerTest {
     }
 
     @Test
+    public void testPropertySetupBooleanTrue() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, true);
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler, schedulersUri, props);
+        verify(vertxMock, times(1)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
+    public void testPropertySetupBooleanFalse() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, false);
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler,
+                schedulersUri, props);
+        verify(vertxMock, times(0)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
+    public void testPropertySetupStringTrue() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, "true");
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler,
+                schedulersUri, props);
+        verify(vertxMock, times(1)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
+    public void testPropertySetupStringFalse() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, "false");
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler, schedulersUri, props);
+        verify(vertxMock, times(0)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
+    public void testPropertySetupNone() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler, schedulersUri, props);
+        verify(vertxMock, times(0)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
     public void testDaylightSavingsTimeChangeObserver() {
         Map<String, Object> props = new HashMap<>();
-        props.put("dst.observe", true);
-        schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
-                schedulersUri, props);
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, true);
+        SchedulerResourceManager schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage,
+                monitoringHandler, schedulersUri, props);
 
         // Note: all times are given in Zulu time (UTC) and converted to the
         // timezone Europe/Zurich which gives it the corresponding DST offset
@@ -158,6 +211,13 @@ public class SchedulerResourceManagerTest {
         assertEquals(currentDstState, actualDstState);
     }
 
+    private static Vertx getVertxMock() {
+        Vertx vertxMock = Mockito.mock(Vertx.class);
+        EventBus eventBusMock = Mockito.mock(EventBus.class);
+        when(vertxMock.eventBus()).thenReturn(eventBusMock);
+        return vertxMock;
+    }
+
     private static ZonedDateTime getZonedDateTime(String time) {
         return ZonedDateTime.ofInstant(Instant.parse(time), ZoneId.of("Europe/Zurich"));
     }
@@ -175,13 +235,18 @@ public class SchedulerResourceManagerTest {
             this.response = response;
         }
 
-        @Override public HttpMethod method() {
+        @Override
+        public HttpMethod method() {
             return method;
         }
-        @Override public String uri() {
+
+        @Override
+        public String uri() {
             return uri;
         }
-        @Override public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+
+        @Override
+        public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
             bodyHandler.handle(Buffer.buffer(body));
             return this;
         }
@@ -191,7 +256,10 @@ public class SchedulerResourceManagerTest {
             return MultiMap.caseInsensitiveMultiMap();
         }
 
-        @Override public HttpServerResponse response() { return response; }
+        @Override
+        public HttpServerResponse response() {
+            return response;
+        }
 
 
     }
@@ -200,10 +268,13 @@ public class SchedulerResourceManagerTest {
 
         private final MultiMap headers;
 
-        SchedulerResourceResponse(){
+        SchedulerResourceResponse() {
             this.headers = MultiMap.caseInsensitiveMultiMap();
         }
 
-        @Override public MultiMap headers() { return headers; }
+        @Override
+        public MultiMap headers() {
+            return headers;
+        }
     }
 }

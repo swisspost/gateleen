@@ -15,6 +15,7 @@ import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.refresh.Refreshable;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.PropertyUtils;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
@@ -34,6 +35,7 @@ import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.new
  */
 public class SchedulerResourceManager implements Refreshable, LoggableResource {
 
+    public static final String DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY = "dst.observe";
     private static final String UPDATE_ADDRESS = "gateleen.schedulers-updated";
     private final String schedulersUri;
     private final ResourceStorage storage;
@@ -184,7 +186,6 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         this.logConfigurationResourceChanges = resourceLoggingEnabled;
     }
 
-
     /**
      * Evaluate if the given date is in daylight saving time or not.
      *
@@ -207,11 +208,14 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
      * Schedule a periodic check for daylight saving time changes.
      */
     private void scheduleDaylightSavingTimeStateChangeObserver() {
-        if (properties != null && properties.get("dst.observe") != null ? (Boolean) properties.get("dst.observe") : false) {
+        if (PropertyUtils.isPropertyTrue(properties, DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY)) {
             // initialise the current daylight saving time for later state change comparison
             lastDaylightSavingTimeState = isCurrentDaylightSavingTimeState();
             // check each minute for a daylight saving time change
             vertx.setPeriodic(60_000, 60_000, timerId -> observeDaylightSavingTimeChange());
+            log.info("Daylight saving time Observer started");
+        } else {
+            log.info("Daylight saving time Observer omitted");
         }
     }
 
