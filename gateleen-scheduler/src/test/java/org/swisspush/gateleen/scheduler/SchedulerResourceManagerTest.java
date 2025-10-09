@@ -5,6 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -24,8 +25,17 @@ import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -62,7 +72,7 @@ public class SchedulerResourceManagerTest {
     }
 
     @Test
-    public void testReadSchedulersResource(TestContext context){
+    public void testReadSchedulersResource(TestContext context) {
         schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
                 schedulersUri);
 
@@ -79,7 +89,7 @@ public class SchedulerResourceManagerTest {
     }
 
     @Test
-    public void testHandleValidSchedulerResource(TestContext context){
+    public void testHandleValidSchedulerResource(TestContext context) {
         schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
                 schedulersUri);
 
@@ -92,7 +102,7 @@ public class SchedulerResourceManagerTest {
     }
 
     @Test
-    public void testHandleInvalidSchedulerResource(TestContext context){
+    public void testHandleInvalidSchedulerResource(TestContext context) {
         schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
                 schedulersUri);
 
@@ -102,6 +112,114 @@ public class SchedulerResourceManagerTest {
         schedulerResourceManager.handleSchedulerResource(request);
 
         verify(response, timeout(100).times(1)).setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+    }
+
+    @Test
+    public void testPropertySetupBooleanTrue() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, true);
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler, schedulersUri, props);
+        verify(vertxMock, times(1)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
+    public void testPropertySetupBooleanFalse() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, false);
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler,
+                schedulersUri, props);
+        verify(vertxMock, times(0)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
+    public void testPropertySetupStringTrue() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, "true");
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler,
+                schedulersUri, props);
+        verify(vertxMock, times(1)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
+    public void testPropertySetupStringFalse() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, "false");
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler, schedulersUri, props);
+        verify(vertxMock, times(0)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
+    public void testPropertySetupNone() {
+        Map<String, Object> props = new HashMap<>();
+        Vertx vertxMock = getVertxMock();
+
+        new SchedulerResourceManager(vertxMock, redisProvider, storage, monitoringHandler, schedulersUri, props);
+        verify(vertxMock, times(0)).setPeriodic(any(Long.class), any(Long.class), any(Handler.class));
+    }
+
+    @Test
+    public void testDaylightSavingsTimeChangeObserver() {
+        Map<String, Object> props = new HashMap<>();
+
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, true);
+        SchedulerResourceManager schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage,
+                monitoringHandler, schedulersUri, props);
+
+        // Note: all times are given in Zulu time (UTC) and converted to the
+        // timezone Europe/Zurich which gives it the corresponding DST offset
+
+        // check some fixed dates around DST changes from summer to winter time change
+        // For Europe/Zurich, the last Sunday in October 2025 at 3:00 am the clocks are turned backward 1 hour to 2:00 am
+        assertTrue(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2025-10-25T23:00:00Z")));
+        assertTrue(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2025-10-26T00:00:00Z")));
+        assertTrue(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2025-10-26T00:59:59Z")));
+        assertFalse(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2025-10-26T01:00:00Z")));
+        assertFalse(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2025-10-26T02:00:00Z")));
+        assertFalse(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2025-10-26T03:00:00Z")));
+
+        // check some fixed dates around DST changes from winter to summer time change
+        // For Europe/Zurich the last Sunday in March 2026 at 2:00 am the clocks are turned forward 1 hour to 3:00 am
+        assertFalse(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2026-03-28T23:00:00Z")));
+        assertFalse(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2026-03-29T00:00:00Z")));
+        assertFalse(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2026-03-29T00:59:59Z")));
+        assertTrue(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2026-03-29T01:00:00Z")));
+        assertTrue(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2026-03-29T02:00:00Z")));
+        assertTrue(SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2026-03-29T03:00:00Z")));
+
+        // detect DST Change
+        boolean dstStateSummerBefore = SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2025-10-26T00:59:00Z"));
+        boolean dstStateWinterAfter = SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2025-10-26T01:00:00Z"));
+        boolean dstStateWinterBefore = SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2026-03-29T00:59:00Z"));
+        boolean dstStateSummerAfter = SchedulerResourceManager.isDaylightSavingTimeState(getZonedDateTime("2026-03-29T01:00:00Z"));
+
+        // we expect a change in the dst state from summer to winter and vv
+        assertNotEquals(dstStateSummerBefore, dstStateWinterAfter);
+        assertNotEquals(dstStateSummerAfter, dstStateWinterAfter);
+        assertEquals(dstStateWinterAfter, dstStateWinterBefore);
+
+        // check if the current system time/timezone matches the detected current dst state
+        boolean actualDstState = SchedulerResourceManager.isDaylightSavingTimeState(ZonedDateTime.now());
+        boolean currentDstState = SchedulerResourceManager.isCurrentDaylightSavingTimeState();
+        assertEquals(currentDstState, actualDstState);
+    }
+
+    private static Vertx getVertxMock() {
+        Vertx vertxMock = Mockito.mock(Vertx.class);
+        EventBus eventBusMock = Mockito.mock(EventBus.class);
+        when(vertxMock.eventBus()).thenReturn(eventBusMock);
+        return vertxMock;
+    }
+
+    private static ZonedDateTime getZonedDateTime(String time) {
+        return ZonedDateTime.ofInstant(Instant.parse(time), ZoneId.of("Europe/Zurich"));
     }
 
     static class SchedulerResourceRequest extends DummyHttpServerRequest {
@@ -117,13 +235,18 @@ public class SchedulerResourceManagerTest {
             this.response = response;
         }
 
-        @Override public HttpMethod method() {
+        @Override
+        public HttpMethod method() {
             return method;
         }
-        @Override public String uri() {
+
+        @Override
+        public String uri() {
             return uri;
         }
-        @Override public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+
+        @Override
+        public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
             bodyHandler.handle(Buffer.buffer(body));
             return this;
         }
@@ -133,7 +256,10 @@ public class SchedulerResourceManagerTest {
             return MultiMap.caseInsensitiveMultiMap();
         }
 
-        @Override public HttpServerResponse response() { return response; }
+        @Override
+        public HttpServerResponse response() {
+            return response;
+        }
 
 
     }
@@ -142,10 +268,13 @@ public class SchedulerResourceManagerTest {
 
         private final MultiMap headers;
 
-        SchedulerResourceResponse(){
+        SchedulerResourceResponse() {
             this.headers = MultiMap.caseInsensitiveMultiMap();
         }
 
-        @Override public MultiMap headers() { return headers; }
+        @Override
+        public MultiMap headers() {
+            return headers;
+        }
     }
 }

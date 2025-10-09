@@ -205,6 +205,7 @@ public class Server extends AbstractVerticle {
 
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_HARD_PROPERTY, "100");
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_SOFT_PROPERTY, "50");
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, true);
 
         RunConfig.deployModules(vertx, Server.class, props, success -> {
             if (success) {
@@ -306,7 +307,7 @@ public class Server extends AbstractVerticle {
                 kafkaHandler.initialize();
 
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
-                        SERVER_ROOT + "/admin/v1/schedulers");
+                        SERVER_ROOT + "/admin/v1/schedulers", props);
                 schedulerResourceManager.enableResourceLogging(true);
 
                 zipExtractHandler = new ZipExtractHandler(selfClient);
