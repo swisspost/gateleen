@@ -106,6 +106,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
      * around with such an amount of arguments.
      */
     Router(Vertx vertx,
+           final JsonObject initialRules,
            final ResourceStorage storage,
            final Map<String, Object> properties,
            LoggingResourceManager loggingResourceManager,
@@ -151,7 +152,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
 
-        final JsonObject initialRules = new JsonObject()
+        final JsonObject initialRulesLocal = initialRules != null ? initialRules : new JsonObject()
                 .put("/(.*)", new JsonObject()
                         .put("name", "resource_storage")
                         .put("url", "http://localhost:" + storagePort + "/$1"));
@@ -164,12 +165,12 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                         updateRouting(buffer, this.routeMultiplier);
                     } catch (ValidationException e) {
                         log.error("Could not reconfigure routing", e);
-                        updateRouting(initialRules, this.routeMultiplier);
+                        updateRouting(initialRulesLocal, this.routeMultiplier);
                         setRoutingBrokenMessage(e);
                     }
                 } else {
                     log.warn("No rules in storage, using initial routing");
-                    updateRouting(initialRules, this.routeMultiplier);
+                    updateRouting(initialRulesLocal, this.routeMultiplier);
                 }
             } catch (ValidationException e) {
                 log.error("Could not reconfigure routing", e);
