@@ -8,6 +8,7 @@ import io.vertx.core.*;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.*;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonObject;
@@ -29,6 +30,7 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
 import java.util.*;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 
 /**
@@ -153,7 +155,8 @@ public class RouterTest {
         Mockito.when(vertx.eventBus()).thenReturn(eventBus);
         Mockito.when(vertx.createHttpClient()).thenReturn(Mockito.mock(HttpClient.class));
         Mockito.when(vertx.sharedData()).thenReturn(Vertx.vertx().sharedData());
-
+        Mockito.when(eventBus.consumer(any())).thenReturn(Mockito.mock(MessageConsumer.class));
+        Mockito.when(eventBus.consumer(any(), any())).thenReturn(Mockito.mock(MessageConsumer.class));
         properties = new HashMap<>();
         properties.put("gateleen.test.prop.valid", "http://someserver/");
         loggingResourceManager = Mockito.mock(LoggingResourceManager.class);
