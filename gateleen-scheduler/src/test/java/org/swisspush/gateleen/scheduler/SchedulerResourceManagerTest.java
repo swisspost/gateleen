@@ -16,6 +16,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.redis.RedisProvider;
@@ -82,8 +83,7 @@ public class SchedulerResourceManagerTest {
         // reset the mock to start new count after eventbus message
         reset(storage);
 
-        vertx.eventBus().publish("gateleen.schedulers-updated", true);
-
+        TrackableEventPublish.publish(vertx, SchedulerResourceManager.UPDATE_ADDRESS, true, 1000);
         // after eventbus message, the schedulers must be read from storage again
         verify(storage, timeout(100).times(1)).get(eq(schedulersUri), any());
     }

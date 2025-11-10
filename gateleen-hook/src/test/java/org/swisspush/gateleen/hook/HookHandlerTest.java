@@ -19,6 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.*;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.StatusCode;
@@ -87,7 +88,7 @@ public class HookHandlerTest {
 
     private void setListenerStorageEntryAndTriggerUpdate(JsonObject listenerConfig) {
         storage.putMockData("pathToListenerResource", listenerConfig.encode());
-        vertx.eventBus().request("gateleen.hook-listener-insert", "pathToListenerResource");
+        TrackableEventPublish.publish(vertx, HookHandler.SAVE_LISTENER_ADDRESS, "pathToListenerResource", 1000);
     }
 
     private JsonObject buildListenerConfig(JsonObject queueingStrategy, String deviceId) {
@@ -131,7 +132,7 @@ public class HookHandlerTest {
     }
     private void setRouteStorageEntryAndTriggerUpdate(JsonObject routeConfig) {
         storage.putMockData("pathToRouteResource", routeConfig.encode());
-        vertx.eventBus().request("gateleen.hook-route-insert", "pathToRouteResource");
+        TrackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouteResource", 1000);
     }
 
     private JsonObject buildListenerConfigWithHeadersFilter(JsonObject queueingStrategy, String deviceId, String headersFilter) {
@@ -618,7 +619,7 @@ public class HookHandlerTest {
                 "      \"connectionPoolSize\":10\n" +
                 "   }\n" +
                 "}"));
-        vertx.eventBus().request("gateleen.hook-route-insert", "pathToRouterResource");
+        TrackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource", 1000);
         // wait a moment to let the router be registered
         Thread.sleep(1000);
 
@@ -647,7 +648,7 @@ public class HookHandlerTest {
                 "      \"connectionPoolSize\":10\n" +
                 "   }\n" +
                 "}"));
-        vertx.eventBus().request("gateleen.hook-route-insert", "pathToRouterResource");
+        TrackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource", 1000);
         // wait a moment to let the router be registered
         Thread.sleep(1000);
 
@@ -660,7 +661,7 @@ public class HookHandlerTest {
         }
 
         //clean up
-        vertx.eventBus().request("gateleen.hook-route-remove", "pathToRouterResource");
+        TrackableEventPublish.publish(vertx, HookHandler.REMOVE_ROUTE_ADDRESS, "pathToRouterResource", 1000);
     }
 
 

@@ -8,6 +8,7 @@ import org.apache.logging.log4j.core.appender.ConsoleAppender;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 
 import static org.awaitility.Awaitility.await;
 import static org.awaitility.Durations.TWO_SECONDS;
@@ -65,7 +66,7 @@ public class DefaultLogAppenderRepositoryTest {
         repository.addAppender("my-appender", appender);
         context.assertTrue(repository.hasAppender("my-appender"));
 
-        vertx.eventBus().publish(UPDATE_ADDRESS, true);
+        TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, 1000);
 
         await().atMost(TWO_SECONDS).until(() -> repository.hasAppender("my-appender"), equalTo(false));
     }

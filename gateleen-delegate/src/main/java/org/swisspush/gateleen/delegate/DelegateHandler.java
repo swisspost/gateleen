@@ -11,6 +11,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.ClientRequestCreator;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
@@ -61,6 +62,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
     private static final String EXECUTION_RESOURCE = "execution";
     private static final String SAVE_DELEGATE_ADDRESS = "gateleen.delegate-insert";
     private static final String REMOVE_DELEGATE_ADDRESS = "gateleen.delegate-remove";
+    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
     private static final Logger LOG = LoggerFactory.getLogger(DelegateHandler.class);
     private static final int NAME_GROUP_INDEX = 1;
     private static final int MESSAGE_NAME = 0;
@@ -212,8 +214,8 @@ public class DelegateHandler implements Refreshable, LoggableResource {
         }
 
         // Receive delegate insert notifications
-        vertx.eventBus().consumer(SAVE_DELEGATE_ADDRESS, (Handler<Message<String>>) delegateEvent -> {
-            final String[] messages = delegateEvent.body().split(";");
+        TrackableEventPublish.consumer(vertx, SAVE_DELEGATE_ADDRESS, delegateEvent -> {
+            final String[] messages = delegateEvent.split(";");
 
             if ( messages != null ) {
                 delegateStorage.get(messages[MESSAGE_URL], buffer -> {
@@ -230,7 +232,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
         });
 
         // Receive delegate remove notifications
-        vertx.eventBus().consumer(REMOVE_DELEGATE_ADDRESS, (Handler<Message<String>>) delegateName -> unregisterDelegate(delegateName.body()));
+        TrackableEventPublish.consumer(vertx, REMOVE_DELEGATE_ADDRESS, this::unregisterDelegate);
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -305,7 +307,14 @@ public class DelegateHandler implements Refreshable, LoggableResource {
                     if(logDelegateChanges){
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
-                    vertx.eventBus().publish(SAVE_DELEGATE_ADDRESS, delegateName + ";" +request.uri());
+                    TrackableEventPublish.publish(vertx, SAVE_DELEGATE_ADDRESS, delegateName + ";" +request.uri(), PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                            .onComplete(event -> {
+                                if (event.failed()) {
+                                    LOG.error("Could not publish delegate registration update.", event.cause());
+                                    return;
+                                }
+                                LOG.info("delegate registration update published, {} consumer answered", event.result());
+                            });
                 } else {
                     request.response().setStatusCode(status);
                 }
@@ -326,9 +335,18 @@ public class DelegateHandler implements Refreshable, LoggableResource {
 
         String delegateName = getDelegateName(request.uri());
         delegateStorage.delete(delegatesUri + delegateName, status -> {
-            vertx.eventBus().publish(REMOVE_DELEGATE_ADDRESS, delegateName);
+            TrackableEventPublish.publish(vertx, REMOVE_DELEGATE_ADDRESS, delegateName, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                    .onComplete(event -> {
+                        if (event.failed()) {
+                            LOG.error("Could not publish delegate un-registration update.", event.cause());
+                            return;
+                        }
+                        LOG.info("delegate un-registration update published, {} consumer answered", event.result());
+                    });
             request.response().end();
         });
+
+
     }
 
     /**
