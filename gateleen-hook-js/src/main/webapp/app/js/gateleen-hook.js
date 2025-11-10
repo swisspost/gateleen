@@ -143,7 +143,7 @@
         }
 
         function getHeaderValue(headers, name) {
-            const entry = headers.find(([key]) => key.toLowerCase() === name.toLowerCase());
+            const entry = headers ? headers.find(([key]) => key.toLowerCase() === name.toLowerCase()) : undefined;
             return entry ? entry[1] : undefined;
         }
 
