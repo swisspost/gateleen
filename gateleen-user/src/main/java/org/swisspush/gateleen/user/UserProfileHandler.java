@@ -12,6 +12,7 @@ import io.vertx.core.json.DecodeException;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
@@ -63,7 +64,7 @@ public class UserProfileHandler implements LoggableResource {
         EventBus eb = vertx.eventBus();
 
         // Receive update notifications
-        eb.consumer(RoleProfileHandler.UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateRoleProfiles());
+        TrackableEventPublish.consumer(vertx, RoleProfileHandler.UPDATE_ADDRESS, event -> updateRoleProfiles());
     }
 
     @Override

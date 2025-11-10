@@ -10,6 +10,7 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
@@ -126,8 +127,7 @@ public class RuleProviderTest {
 
         // change routing rules and send event bus message
         ((MockResourceStorage)storage).putMockData(rulesPath, RULES_STORAGE_UPDATED);
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
-
+        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
         Future<List<Rule>> rulesFuture2 = ruleProvider.getRules();
 
         context.assertTrue(rulesFuture2.succeeded(), "getRules() future should have been successful");
@@ -151,7 +151,7 @@ public class RuleProviderTest {
 
         // change routing rules and send event bus message
         ((MockResourceStorage)storage).putMockData(rulesPath, RULES_STORAGE_UPDATED);
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
     }
 
     static class DummyRuleChangesObserver implements RuleChangesObserver {

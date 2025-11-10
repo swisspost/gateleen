@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpClientFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -50,6 +51,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
      * How long to let the http clients live before closing them after a re-configuration
      */
     private static final int GRACE_PERIOD = 30000;
+    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
     public static final int DEFAULT_ROUTER_MULTIPLIER = 1;
     public static final String ROUTER_STATE_MAP = "router_state_map";
     public static final String ROUTER_BROKEN_KEY = "router_broken";
@@ -178,12 +180,11 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         });
 
         // Receive update notifications
-        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, this::onEventBusRuleUpdateEvent);
-
+        TrackableEventPublish.consumer(vertx, Address.RULE_UPDATE_ADDRESS, this::onEventBusRuleUpdateEvent);
         vertx.eventBus().consumer(ROUTE_MULTIPLIER_ADDRESS, this::onEventBusRouteMultiplierEvent);
     }
 
-    private void onEventBusRuleUpdateEvent(Message<Object> ev) {
+    private void onEventBusRuleUpdateEvent(Object ev) {
         storage.get(rulesUri, buffer -> {
             if( buffer == null ){
                 log.warn("Could not get URL '{}' (getting rules).", (rulesUri == null ? "<null>" : rulesUri));
@@ -201,7 +202,14 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private void onEventBusRouteMultiplierEvent(Message<String> event) {
         log.debug("Updating router's pool size multiplier: {}", (event.body() == null ? "<null>" : event.body()));
         this.routeMultiplier = Integer.parseInt(event.body());
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                .onComplete(event1 -> {
+                    if (event1.failed()) {
+                        log.error("Could not publish router rule update.", event1.cause());
+                        return;
+                    }
+                    log.info("router rule update published, {} consumer answered", event1.result());
+                });
     }
 
     public enum DefaultRouteType {
@@ -236,7 +244,14 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                         if (logRoutingRuleChanges) {
                             RequestLogger.logRequest(vertx.eventBus(), request, StatusCode.OK.getStatusCode(), buffer);
                         }
-                        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+                        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                                .onComplete(event -> {
+                                    if (event.failed()) {
+                                        log.error("Could not publish router rule update.", event.cause());
+                                        return;
+                                    }
+                                    log.info("router rule update published, {} consumer answered", event.result());
+                                });
                         resetRouterBrokenState();
                     } else {
                         request.response().setStatusCode(status);
@@ -518,7 +533,14 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
     @Override
     public void refresh() {
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                .onComplete(event -> {
+                    if (event.failed()) {
+                        log.error("Could not publish router rule update.", event.cause());
+                        return;
+                    }
+                    log.info("router rule update published, {} consumer answered", event.result());
+                });
         resetRouterBrokenState();
     }
 

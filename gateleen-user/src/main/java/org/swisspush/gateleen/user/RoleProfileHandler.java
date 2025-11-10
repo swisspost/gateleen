@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.user;
 
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.logging.LoggableResource;
@@ -22,6 +23,7 @@ import java.util.regex.Pattern;
 public class RoleProfileHandler implements LoggableResource {
 
     public static final String UPDATE_ADDRESS = "gateleen.roleprofiles-updated";
+    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
 
     private ResourceStorage storage;
     private Logger log = LoggerFactory.getLogger(RoleProfileHandler.class);
@@ -90,7 +92,14 @@ public class RoleProfileHandler implements LoggableResource {
         case "DELETE":
             storage.delete(request.path(), status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
-                    eb.publish(UPDATE_ADDRESS, "*");
+                    TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                            .onComplete(event -> {
+                                if (event.failed()) {
+                                    log.error("Could not publish role profile DELETE.", event.cause());
+                                    return;
+                                }
+                                log.info("role profile DELETE published, {} consumer answered", event.result());
+                            });
                 } else {
                     log.warn("Could not delete '" + (request.uri() == null ? "<null>" : request.uri()) + "'. Error code is '" + (status == null ? "<null>" : status) + "'.");
                     request.response().setStatusCode(status);
@@ -110,6 +119,13 @@ public class RoleProfileHandler implements LoggableResource {
 
     private void scheduleUpdate() {
         vertx.cancelTimer(updateTimerId);
-        updateTimerId = vertx.setTimer(3000, id -> eb.publish(UPDATE_ADDRESS, "*"));
+        updateTimerId = vertx.setTimer(3000, id -> TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                .onComplete(event -> {
+                    if (event.failed()) {
+                        log.error("Could not publish role profile DELETE.", event.cause());
+                        return;
+                    }
+                    log.info("role profile DELETE published, {} consumer answered", event.result());
+                }));
     }
 }

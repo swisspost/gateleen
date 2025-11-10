@@ -1,15 +1,14 @@
 package org.swisspush.gateleen.logging;
 
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -33,6 +32,7 @@ import java.util.Map;
 public class LoggingResourceManager implements LoggableResource {
 
     static final String UPDATE_ADDRESS = "gateleen.logging-updated";
+    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
 
     private final String loggingUri;
     private final ResourceStorage storage;
@@ -59,7 +59,7 @@ public class LoggingResourceManager implements LoggableResource {
         updateLoggingResources();
 
         // Receive update notifications
-        vertx.eventBus().consumer(UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> updateLoggingResources());
+        TrackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateLoggingResources());
     }
 
     @Override
@@ -123,7 +123,14 @@ public class LoggingResourceManager implements LoggableResource {
                         if(logConfigurationResourceChanges){
                             RequestLogger.logRequest(vertx.eventBus(), request, status, loggingResourceBuffer);
                         }
-                        vertx.eventBus().publish(UPDATE_ADDRESS, true);
+                        TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                                .onComplete(event -> {
+                                    if (event.failed()) {
+                                        log.error("Could not publish logging resource update.", event.cause());
+                                        return;
+                                    }
+                                    log.info("logging resource update published, {} consumer answered", event.result());
+                                });
                     } else {
                         request.response().setStatusCode(status);
                     }

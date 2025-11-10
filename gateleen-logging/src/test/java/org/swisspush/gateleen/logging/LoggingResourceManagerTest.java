@@ -8,6 +8,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.buffer.impl.BufferImpl;
 import io.vertx.core.eventbus.EventBus;
 
+import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -31,6 +32,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
+
 /**
  * Tests for the {@link LoggingResourceManager} class
  *
@@ -47,6 +50,7 @@ public class LoggingResourceManagerTest {
     private static final String EVENT_BUS = "eventBus";
     private static final Logger logger = LoggerFactory.getLogger( LoggingResourceManagerTest.class );
     private Vertx vertx;
+    private EventBus eventBus;
     private ResourceStorage storage;
     private final String LOGGING_URI = "/playground/server/admin/v1/logging";
 
@@ -57,7 +61,10 @@ public class LoggingResourceManagerTest {
     @Before
     public void setUp(){
         vertx = Mockito.mock(Vertx.class);
-        Mockito.when(vertx.eventBus()).thenReturn(Mockito.mock(EventBus.class));
+        eventBus = Mockito.mock(EventBus.class);
+        Mockito.when(vertx.eventBus()).thenReturn(eventBus);
+        Mockito.when(eventBus.consumer(any())).thenReturn(Mockito.mock(MessageConsumer.class));
+        Mockito.when(eventBus.consumer(any(), any())).thenReturn(Mockito.mock(MessageConsumer.class));
         storage = new MockResourceStorage(ImmutableMap.of(LOGGING_URI, INITIAL_LOGGING_RESOURCE));
     }
 

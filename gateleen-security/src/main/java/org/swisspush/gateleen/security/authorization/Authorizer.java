@@ -12,6 +12,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.UriBuilder;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
@@ -32,7 +33,7 @@ import java.util.regex.Pattern;
 public class Authorizer implements LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.authorization-updated";
-
+    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
     private final Pattern userUriPattern;
 
     private final String aclKey = "acls";
@@ -88,7 +89,8 @@ public class Authorizer implements LoggableResource {
         eb = vertx.eventBus();
 
         // Receive update notifications
-        eb.consumer(UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateAllConfigs());
+        TrackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateAllConfigs());
+
     }
 
     @Override
@@ -217,7 +219,14 @@ public class Authorizer implements LoggableResource {
             } else if (HttpMethod.DELETE == request.method()) {
                 storage.delete(request.uri(), status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
-                        eb.publish(UPDATE_ADDRESS, "*");
+                        TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                                .onComplete(event -> {
+                                    if (event.failed()) {
+                                        log.error("Could not publish authorisation resource update.", event.cause());
+                                        return;
+                                    }
+                                    log.info("authorisation resource update published, {} consumer answered", event.result());
+                                });
                     } else {
                         log.warn("Could not delete '{}'. Error code is '{}'.", (request.uri() == null ? "<null>" : request.uri()),
                                 (status == null ? "<null>" : status));
@@ -241,7 +250,14 @@ public class Authorizer implements LoggableResource {
 
     private void scheduleUpdate() {
         vertx.cancelTimer(updateTimerId);
-        updateTimerId = vertx.setTimer(3000, id -> eb.publish(UPDATE_ADDRESS, "*"));
+        updateTimerId = vertx.setTimer(3000, id -> TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
+                .onComplete(event -> {
+                    if (event.failed()) {
+                        log.error("Could not publish authorisation resource update.", event.cause());
+                        return;
+                    }
+                    log.info("authorisation resource update published, {} consumer answered", event.result());
+                }));
     }
 
 }
