@@ -13,6 +13,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.http.DummyHttpServerResponse;
 import org.swisspush.gateleen.core.redis.RedisByNameProvider;
@@ -118,7 +119,7 @@ public class DeltaHandlerTest {
         when(request.headers()).thenReturn(requestHeaders);
 
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
 
         Thread.sleep(2000L);
 
@@ -259,7 +260,7 @@ public class DeltaHandlerTest {
         when(request.headers()).thenReturn(requestHeaders);
 
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
 
         Thread.sleep(2000L);
 
@@ -299,7 +300,7 @@ public class DeltaHandlerTest {
         when(request.headers()).thenReturn(requestHeaders);
 
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
 
         Thread.sleep(2000L);
 
@@ -340,8 +341,7 @@ public class DeltaHandlerTest {
         when(request.headers()).thenReturn(requestHeaders);
 
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
-
+        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
         Thread.sleep(2000L);
 
         deltaHandler.handle(request, router);
