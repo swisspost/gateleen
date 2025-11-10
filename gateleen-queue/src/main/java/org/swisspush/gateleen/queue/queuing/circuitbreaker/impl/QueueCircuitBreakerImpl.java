@@ -50,6 +50,9 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
     public static final String UNLOCK_QUEUES_TASK_LOCK = "unlockQueuesTask";
     public static final String UNLOCK_SAMPLE_QUEUES_TASK_LOCK = "unlockSampleQueuesTask";
 
+    private static final int DEFAULT_MAX_HEADER_SIZE = 64 * 1024;
+    private static final int DEFAULT_MAX_INITIAL_LINE_LENGTH = 16 * 1024;
+
     private final String redisquesAddress;
 
     private long openToHalfOpenTimerId = -1;
@@ -95,7 +98,10 @@ public class QueueCircuitBreakerImpl implements QueueCircuitBreaker, RuleChanges
         registerPeriodicTasks();
 
         // in Vert.x 2x 100-continues was activated per default, in vert.x 3x it is off per default.
-        HttpServerOptions options = new HttpServerOptions().setHandle100ContinueAutomatically(true);
+        HttpServerOptions options = new HttpServerOptions()
+                .setHandle100ContinueAutomatically(true)
+                .setMaxHeaderSize(DEFAULT_MAX_HEADER_SIZE)
+                .setMaxInitialLineLength(DEFAULT_MAX_INITIAL_LINE_LENGTH);
 
         vertx.createHttpServer(options).requestHandler(queueCircuitBreakerHttpRequestHandler).listen(requestHandlerPort, event -> {
             if (event.succeeded()) {
