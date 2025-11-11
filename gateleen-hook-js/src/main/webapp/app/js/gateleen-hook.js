@@ -77,8 +77,10 @@
                     if (queue) {
                         queue.push(request);
                     } else {
+                        var resourcePath =getHeaderValue(request.headers, "resource_path") === undefined ?
+                            request.uri : getHeaderValue(request.headers, "resource_path");
                         handler(request.payload, {
-                            uri: request.uri,
+                            uri: resourcePath,
                             headers: request.headers,
                             method: request.method,
                             channelId: id
@@ -138,6 +140,11 @@
                     $http.delete(hookUrl); // if it fails, this is not critical since the hook will expire
                 }
             };
+        }
+
+        function getHeaderValue(headers, name) {
+            const entry = headers ? headers.find(([key]) => key.toLowerCase() === name.toLowerCase()) : undefined;
+            return entry ? entry[1] : undefined;
         }
 
         function initEventBus() {
