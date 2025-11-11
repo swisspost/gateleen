@@ -17,6 +17,7 @@ import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.Timeout;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.ext.web.RoutingContext;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,6 +34,8 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
+
+import java.util.function.Supplier;
 
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
@@ -236,9 +239,8 @@ public class QueueProcessorTest {
         doAnswer(invocation -> {
             HttpMethod httpMethod = (HttpMethod) invocation.getArguments()[0];
             String url = (String) invocation.getArguments()[1];
-            LocalHttpClientRequest request = new LocalHttpClientRequest(httpMethod, url, vertx, event -> {
-
-            }, exceptionFactory, new LocalHttpServerResponse(vertx, exceptionFactory)) {
+            Supplier<Handler<RoutingContext>> getRoutingContextHandler = () -> mock(Handler.class);
+            LocalHttpClientRequest request = new LocalHttpClientRequest(httpMethod, url, vertx, getRoutingContextHandler, exceptionFactory, new LocalHttpServerResponse(vertx, exceptionFactory)) {
                 @Override
                 public HttpClientRequest response(Handler<AsyncResult<HttpClientResponse>> handler) {
                     FastFaiHttpClientResponse response = new FastFaiHttpClientResponse() {

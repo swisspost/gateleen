@@ -24,6 +24,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.swisspush.gateleen.cache.CacheHandler;
 import org.swisspush.gateleen.cache.fetch.DefaultCacheDataFetcher;
 import org.swisspush.gateleen.cache.storage.RedisCacheStorage;
@@ -85,7 +86,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.mockito.Mockito.mock;
 import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
 /**
@@ -132,6 +135,8 @@ public abstract class AbstractTest {
     protected static PackingHandler packingHandler;
     protected static CustomHttpResponseHandler customHttpResponseHandler;
 
+    private static AtomicReference<Handler<RoutingContext>> routingContextHandlerRf = new AtomicReference<>();
+
     /**
      * Starts redis before the test classes are instantiated.
      */
@@ -144,7 +149,7 @@ public abstract class AbstractTest {
         jedis.flushAll();
 
         final JsonObject info = new JsonObject();
-        final LocalHttpClient selfClient = new LocalHttpClient(vertx, exceptionFactory);
+        final LocalHttpClient selfClient = new LocalHttpClient(vertx, routingContextHandlerRf::get, exceptionFactory);
         props.putAll(RunConfig.buildRedisProps("localhost", REDIS_PORT));
 
         String redisHost = (String) props.get("redis.host");
@@ -276,7 +281,7 @@ public abstract class AbstractTest {
                                 .customHttpResponseHandler(customHttpResponseHandler)
                                 .build(vertx, redisProvider, AbstractTest.class, router, monitoringHandler);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
-                selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
+                routingContextHandlerRf.set(routingContextHandlerrNew);
                 mainServer = vertx.createHttpServer();
                 io.vertx.ext.web.Router vertxRouter = io.vertx.ext.web.Router.router(vertx);
                 eventBusHandler.install(vertxRouter);

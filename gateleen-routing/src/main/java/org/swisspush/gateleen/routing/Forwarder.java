@@ -4,12 +4,21 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.vertx.core.*;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.*;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.HttpConnection;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
-import io.vertx.core.streams.WriteStream;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +42,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
+
+import static io.vertx.core.Future.failedFuture;
+import static io.vertx.core.Future.succeededFuture;
+import static org.swisspush.gateleen.core.util.HttpHeaderUtil.removeNonForwardHeaders;
+import static org.swisspush.gateleen.core.util.StatusCode.BAD_GATEWAY;
+import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
+import static org.swisspush.gateleen.core.util.StatusCode.SERVICE_UNAVAILABLE;
+
 
 /**
  * Forwards requests to the backend.
@@ -66,12 +87,33 @@ public class Forwarder extends AbstractForwarder {
     private static final int STATUS_CODE_2XX = 2;
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
+    private static AtomicInteger nextErrorId = new AtomicInteger();
     private Timer forwardTimer;
     private MeterRegistry meterRegistry;
 
+    /** @deprecated use {@link #newForwarder()}. */
     public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage,
                      LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
                      @Nullable MonitoringHandler monitoringHandler, String userProfilePath, @Nullable AuthStrategy authStrategy) {
+        this(vertx, client, rule, storage, loggingResourceManager, logAppenderRepository,
+                monitoringHandler, userProfilePath, authStrategy, null);
+    }
+
+    /**
+     * Likely you want to use {@link #newForwarder()} instead.
+     */
+    public Forwarder(
+            Vertx vertx,
+            HttpClient client,
+            Rule rule,
+            final ResourceStorage storage,
+            LoggingResourceManager loggingResourceManager,
+            LogAppenderRepository logAppenderRepository,
+            MonitoringHandler monitoringHandler,
+            String userProfilePath,
+            AuthStrategy authStrategy,
+            MeterRegistry meterRegistry
+    ) {
         super(rule, loggingResourceManager, logAppenderRepository, monitoringHandler);
         this.vertx = vertx;
         this.client = client;
@@ -84,6 +126,14 @@ public class Forwarder extends AbstractForwarder {
         this.target = rule.getHost() + ":" + rule.getPort();
         this.userProfilePath = userProfilePath;
         this.authStrategy = authStrategy;
+        setMeterRegistry(meterRegistry);
+    }
+
+    /**
+     * Configure and instantiate a {@link Forwarder} more conveniently.
+     */
+    public static ForwarderBuilder newForwarder() {
+        return new ForwarderBuilder();
     }
 
     /**
@@ -92,6 +142,8 @@ public class Forwarder extends AbstractForwarder {
      * with the appropriate metric name, description, and tags.
      *
      * @param meterRegistry the MeterRegistry to set
+     *
+     * @deprecated Use Forwarder.{@link Forwarder#newForwarder()}.withMeterRegistry(...).
      */
     @Override
     public void setMeterRegistry(MeterRegistry meterRegistry) {
@@ -152,6 +204,24 @@ public class Forwarder extends AbstractForwarder {
             ctx.next();
             return;
         }
+        String host = null;
+        if (rule.hasHostWildcard()) {
+            try {
+                host = urlPattern.matcher(req.uri()).replaceFirst(rule.getHostWildcard());
+                log.debug("Dynamic host for wildcard {} is {}", rule.getHostWildcard(), host);
+                rule.setHost(host);
+            } catch (NumberFormatException ex) {
+                log.error("Could not extract string value from wildcard {}. Got {}", rule.getHostWildcard(), host);
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                return;
+            } catch (IndexOutOfBoundsException ex) {
+                log.error("No group could be found for wildcard {}", rule.getHostWildcard());
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                return;
+            }
+        } else {
+            host = rule.getHost();
+        }
 
         if (rule.hasPortWildcard()) {
             String dynamicPortStr = null;
@@ -171,7 +241,7 @@ public class Forwarder extends AbstractForwarder {
         } else {
             port = rule.getPort();
         }
-        target = rule.getHost() + ":" + port;
+        target = host + ":" + port;
 
         if (monitoringHandler != null) {
             monitoringHandler.updateRequestsMeter(target, req.uri());
@@ -184,9 +254,9 @@ public class Forwarder extends AbstractForwarder {
 
         maybeAuthenticate(rule).onComplete(event -> {
             if (event.failed()) {
-                req.resume();
                 log.error("Failed to authenticate request. Cause: {}", event.cause().getMessage());
                 respondError(req, StatusCode.UNAUTHORIZED);
+                req.resume();
                 return;
             }
             Optional<AuthHeader> authHeader = event.result();
@@ -268,187 +338,322 @@ public class Forwarder extends AbstractForwarder {
 
     private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri,
                                final Logger log, final Map<String, String> profileHeaderMap,
-                               Optional<AuthHeader> authHeader, @Nullable final Handler<Void> afterHandler) {
+                               Optional<AuthHeader> authHeader, @Nullable final Handler<Void> afterHandler
+    ) {
+        /* collect stuff we need */
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, req, vertx.eventBus());
-
-        final String uniqueId = req.headers().get("x-rp-unique_id");
-        final String timeout = req.headers().get("x-timeout");
-        Long startTime = null;
-
-        Timer.Sample timerSample = null;
-        if (meterRegistry != null) {
-            timerSample = Timer.start(meterRegistry);
-        }
-
-        if (monitoringHandler != null) {
-            startTime = monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());
-        }
-
-        Long finalStartTime = startTime;
-        Timer.Sample finalTimerSample = timerSample;
-
-        client.request(req.method(), port, rule.getHost(), targetUri, new Handler<>() {
-            @Override
-            public void handle(AsyncResult<HttpClientRequest> event) {
-                req.resume();
-
-                if (event.failed()) {
-                    log.warn("Problem to request {}: {}", targetUri, event.cause());
-                    handleForwardDurationMetrics(finalTimerSample);
-                    final HttpServerResponse response = req.response();
-                    response.setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
-                    response.setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
-                    response.end();
-                    return;
-                }
-                HttpClientRequest cReq = event.result();
-                final Handler<AsyncResult<HttpClientResponse>> cResHandler = getAsyncHttpClientResponseHandler(req, targetUri, log, profileHeaderMap, loggingHandler, finalStartTime, finalTimerSample, afterHandler);
-                cReq.response(cResHandler);
-
-                if (timeout != null) {
-                    cReq.idleTimeout(Long.parseLong(timeout));
-                } else {
-                    cReq.idleTimeout(rule.getTimeout());
-                }
-
-                // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
-                MultiMap headersToForward = req.headers();
-                headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
-                HttpHeaderUtil.mergeHeaders(cReq.headers(), headersToForward, targetUri);
-                if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
-                    cReq.headers().set(SELF_REQUEST_HEADER, "true");
-                }
-
-                if (uniqueId != null) {
-                    cReq.headers().set("x-rp-unique_id", uniqueId);
-                }
-                setProfileHeaders(log, profileHeaderMap, cReq);
-
-                authHeader.ifPresent(authHeaderValue -> cReq.headers().set(authHeaderValue.key(), authHeaderValue.value()));
-
-                final String errorMessage = applyHeaderFunctions(log, cReq.headers());
-                if (errorMessage != null) {
-                    log.warn("Problem invoking Header functions: {}", errorMessage);
-                    final HttpServerResponse response = req.response();
-                    response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
-                    response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
-                    response.end(errorMessage);
-                    return;
-                }
-
-                installExceptionHandler(req, targetUri, finalStartTime, finalTimerSample, cReq);
-
-                /*
-                 * If no bodyData is available
-                 * this means, that the request body isn't
-                 * consumed yet. So we can use the regular
-                 * request for the data.
-                 * If the body is already consumed, we use
-                 * the buffer bodyData.
-                 */
-                if (bodyData == null) {
-
-                    // Gateleen internal requests (e.g. from schedulers or delegates) often have neither "Content-Length" nor "Transfer-Encoding: chunked"
-                    // header - so we must wait for a body buffer to know: Is there a body or not? Only looking on the headers and/or the http-method is not
-                    // sustainable to know "has body or not"
-                    // But: if there is a body, then we need to either setChunked or a Content-Length header (otherwise Vertx complains with an Exception)
-                    //
-                    // Setting 'chunked' always has the downside that we use it also for GET, HEAD, OPTIONS etc... Those request methods normally have no body at all
-                    // But still it's allowed - so they 'could' have one. So using http-method to decide "chunked or not" is also not a sustainable solution.
-                    //
-                    // --> we need to wrap the client-Request to catch up the first (body)-buffer and "setChucked(true)" in advance and just-in-time.
-                    WriteStream<Buffer> cReqWrapped = new WriteStream<>() {
-                        private boolean firstBuffer = true;
-
-                        @Override
-                        public WriteStream<Buffer> exceptionHandler(Handler<Throwable> handler) {
-                            cReq.exceptionHandler(handler);
-                            return this;
-                        }
-
-                        @Override
-                        public Future<Void> write(Buffer data) {
-                            // only now we know for sure that there IS a body.
-                            if (firstBuffer) {
-                                // avoid multiple calls due to a 'syncronized' block in HttpClient's implementation
-                                firstBuffer = false;
-                                cReq.setChunked(true);
-                            }
-                            return cReq.write(data);
-                        }
-
-                        @Override
-                        public void write(Buffer data, Handler<AsyncResult<Void>> handler) {
-                            write(data).onComplete(handler);
-                        }
-
-                        @Override
-                        public Future<Void> end() {
-                            Promise<Void> promise = Promise.promise();
-                            cReq.send(asyncResult -> {
-                                        cResHandler.handle(asyncResult);
-                                        promise.complete();
-                                    }
-                            );
-                            return promise.future();
-                        }
-
-                        @Override
-                        public void end(Handler<AsyncResult<Void>> handler) {
-                            this.end().onComplete(handler);
-                        }
-
-                        @Override
-                        public WriteStream<Buffer> setWriteQueueMaxSize(int maxSize) {
-                            cReq.setWriteQueueMaxSize(maxSize);
-                            return this;
-                        }
-
-                        @Override
-                        public boolean writeQueueFull() {
-                            return cReq.writeQueueFull();
-                        }
-
-                        @Override
-                        public WriteStream<Buffer> drainHandler(@Nullable Handler<Void> handler) {
-                            cReq.drainHandler(handler);
-                            return this;
-                        }
-                    };
-
-                    req.exceptionHandler(t -> {
-                        log.info("Exception during forwarding - closing (forwarding) client connection", t);
-                        HttpConnection connection = cReq.connection();
-                        if (connection != null) {
-                            connection.close();
-                        } else {
-                            log.warn("There's no connection we could close in {}, gateleen wishes your request a happy timeout ({})",
-                                    cReq.getClass(), req.uri());
-                        }
-                    });
-
-                    final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(cReqWrapped, loggingHandler, true);
-                    final Pump pump = Pump.pump(req, loggingWriteStream);
-                    if (req.isEnded()) {
-                        // since Vert.x 3.6.0 it can happen that requests without body (e.g. a GET) are ended even while in paused-State
-                        // Setting the endHandler would then lead to an Exception
-                        // see also https://github.com/eclipse-vertx/vert.x/issues/2763
-                        // so we now check if the request already is ended before installing an endHandler
-                        cReq.send();
-                    } else {
-                        req.endHandler(v -> cReq.send());
-                        pump.start();
-                    }
-                } else {
-                    loggingHandler.appendRequestPayload(bodyData);
-                    // we already have the body complete in-memory - so we can use Content-Length header and avoid chunked transfer
-                    cReq.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(bodyData.length()));
-                    cReq.send(bodyData);
-                }
-
-                loggingHandler.request(cReq.headers());
+        String timeout = req.headers().get("x-timeout");
+        String uniqueId = req.headers().get("x-rp-unique_id");
+        Timer.Sample timerSample = (meterRegistry == null) ? null : Timer.start(meterRegistry);
+        Long startTime = (monitoringHandler == null) ? null
+                : monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());
+        /* bundle it into a handy context */
+        RequestCtx ctx = new RequestCtx(
+                req, log, targetUri, startTime, timerSample, profileHeaderMap, loggingHandler,
+                afterHandler, timeout, uniqueId, authHeader.orElse(null), bodyData);
+        /* initiate request to target server */
+        client.request(req.method(), port, rule.getHost(), ctx.targetUri, ev -> {
+            if (ev.failed()) {
+                ctx.log.warn("Problem to request {}: {}", ctx.targetUri, ev.cause());
+                tryRespondWithServiceUnavailable(ctx.dnReq.response(), log, "findme_48hj349lgnt8j");
+                handleForwardDurationMetrics(ctx.timerSample);
+                ctx.dnReq.resume();
+                return;
             }
+            onNewRequestCompleteNoThrow(ev, ctx);
         });
+    }
+
+    private void onNewRequestCompleteNoThrow(AsyncResult<HttpClientRequest> ev, RequestCtx ctx) {
+        try {
+            onNewRequestComplete(ev, ctx);
+        } catch (RuntimeException ex) {
+            /* catch-all unhandled exceptions. Usually, this code SHOULD NOT be reached!
+             * (If it is reached, GO FIX THE METHOD WE CALL ABOVE!) This is our
+             * last-resort/best-effort handler, to hopefully have some better error
+             * logs than just "Connection was closed" without any context. */
+            String dbgHint = "findme_qh398338h9ut";
+            ctx.log.warn("{}: {}: {}, {} -fwd-> {}", dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(),
+                    ctx.targetUri, ctx.log.isDebugEnabled() ? ex : null);
+            tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, dbgHint);
+        }
+    }
+
+    private void onNewRequestComplete(AsyncResult<HttpClientRequest> event, RequestCtx ctx) {
+        ctx.dnReq.resume();
+        if (event.failed()) {
+            ctx.log.warn("Problem to request {}: {}", ctx.targetUri, event.cause());
+            handleForwardDurationMetrics(ctx.timerSample);
+            final HttpServerResponse response = ctx.dnReq.response();
+            response.setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
+            response.setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
+            response.end();
+            return;
+        }
+        ctx.upReq = event.result();
+        ctx.upReq.exceptionHandler(ex -> onUpstreamError(ex, ctx.dnReq, ctx.upReq::getURI));
+        ctx.upReq.response(ev -> {
+            if (ev.failed()) {
+                ctx.log.warn("Bad upstream response: {}://{}{} {}",
+                        rule.getScheme(), target, ctx.targetUri, ev.cause().getMessage(),
+                        ctx.log.isDebugEnabled() ? ev.cause() : null);
+                tryRespondWithBadGateway(ctx.dnReq.response(), ctx.log, "findme_49ot58h0inrnu3985h");
+                return;
+            }
+            onUpstreamResponseNoThrow(ev.result(), ctx, "findme_3q908hjq98t");
+        });
+
+        if (ctx.timeout != null) {
+            ctx.upReq.idleTimeout(Long.parseLong(ctx.timeout));
+        } else {
+            ctx.upReq.idleTimeout(rule.getTimeout());
+        }
+
+        // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
+        MultiMap headersToForward = ctx.dnReq.headers();
+        headersToForward = removeNonForwardHeaders(headersToForward);
+        HttpHeaderUtil.mergeHeaders(ctx.upReq.headers(), headersToForward, ctx.targetUri);
+        if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
+            ctx.upReq.headers().set(SELF_REQUEST_HEADER, "true");
+        }
+
+        if (ctx.uniqueId != null) {
+            ctx.upReq.headers().set("x-rp-unique_id", ctx.uniqueId);
+        }
+        setProfileHeaders(ctx.log, ctx.profileHeaderMap, ctx.upReq);
+
+        if (ctx.authHeader != null) ctx.upReq.headers().set(ctx.authHeader.key(), ctx.authHeader.value());
+
+        final String errorMessage = applyHeaderFunctions(ctx.log, ctx.upReq.headers());
+        if (errorMessage != null) {
+            ctx.log.warn("Problem invoking Header functions: {}", errorMessage);
+            final HttpServerResponse response = ctx.dnReq.response();
+            response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
+            response.end(errorMessage);
+            return;
+        }
+
+        installExceptionHandler(ctx.dnReq, ctx.targetUri, ctx.startTime, ctx.timerSample, ctx.upReq);
+
+        /*
+         * If no bodyData is available
+         * this means, that the request body isn't
+         * consumed yet. So we can use the regular
+         * request for the data.
+         * If the body is already consumed, we use
+         * the buffer bodyData.
+         */
+        if (ctx.bodyData == null) {
+
+            // Gateleen internal requests (e.g. from schedulers or delegates) often have neither "Content-Length" nor "Transfer-Encoding: chunked"
+            // header - so we must wait for a body buffer to know: Is there a body or not? Only looking on the headers and/or the http-method is not
+            // sustainable to know "has body or not"
+            // But: if there is a body, then we need to either setChunked or a Content-Length header (otherwise Vertx complains with an Exception)
+            //
+            // Setting 'chunked' always has the downside that we use it also for GET, HEAD, OPTIONS etc... Those request methods normally have no body at all
+            // But still it's allowed - so they 'could' have one. So using http-method to decide "chunked or not" is also not a sustainable solution.
+            //
+            // --> we need to wrap the client-Request to catch up the first (body)-buffer and "setChucked(true)" in advance and just-in-time.
+            AutomaticChunkedTransfer cReqWrapped = new AutomaticChunkedTransfer(vertx, ctx.upReq, "findme_oi8hju30895jh3itj");
+
+            ctx.dnReq.exceptionHandler(t -> {
+                ctx.log.info("Exception during forwarding - closing (forwarding) client connection", t);
+                HttpConnection connection = ctx.upReq.connection();
+                if (connection != null) {
+                    connection.close();
+                } else {
+                    ctx.log.warn("There's no connection we could close in {}, gateleen wishes your request a happy timeout ({})",
+                            ctx.upReq.getClass(), ctx.dnReq.uri());
+                }
+            });
+
+            final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(cReqWrapped, ctx.loggingHandler, true);
+            final Pump pump = Pump.pump(ctx.dnReq, loggingWriteStream);
+            if (ctx.dnReq.isEnded()) {
+                // since Vert.x 3.6.0 it can happen that requests without body (e.g. a GET) are ended even while in paused-State
+                // Setting the endHandler would then lead to an Exception
+                // see also https://github.com/eclipse-vertx/vert.x/issues/2763
+                // so we now check if the request already is ended before installing an endHandler
+                ctx.upReq.send();
+            } else {
+                ctx.dnReq.endHandler(v -> ctx.upReq.send());
+                pump.start();
+            }
+        } else {
+            ctx.loggingHandler.appendRequestPayload(ctx.bodyData);
+            // we already have the body complete in-memory - so we can use Content-Length header and avoid chunked transfer
+            ctx.upReq.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(ctx.bodyData.length()));
+            ctx.upReq.send(ctx.bodyData);
+        }
+
+        ctx.loggingHandler.request(ctx.upReq.headers());
+    }
+
+    private void onUpstreamResponseNoThrow(HttpClientResponse rsp, RequestCtx ctx, String dbgHint) {
+        try {
+            onUpstreamResponse(rsp, ctx);
+        } catch (RuntimeException ex) {
+            /* catch-all unhandled exceptions. Usually, this code SHOULD NOT be reached!
+             * (If it is reached, GO FIX THE METHOD WE CALL ABOVE!) This is our
+             * last-resort/best-effort handler, to hopefully have some better error
+             * logs than just "Connection was closed" without any context. */
+            ctx.log.warn("findme_bnte4jsfdgj: {}: {}: {}, {} -fwd-> {}",
+                    dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(), ctx.targetUri,
+                    ctx.log.isDebugEnabled() ? ex : null);
+            tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, dbgHint);
+        }
+    }
+
+    private void onUpstreamResponse(HttpClientResponse rsp, RequestCtx ctx) {
+        ctx.dnRsp = ctx.dnReq.response();
+        if (monitoringHandler != null) {
+            monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), ctx.startTime, ctx.dnReq.uri());
+        }
+
+        handleForwardDurationMetrics(ctx.timerSample);
+
+        ctx.upRes = rsp;
+        ctx.upRes.exceptionHandler(ex -> onUpstreamError(ex, ctx.dnReq, () -> ctx.upRes.request().getURI()));
+        ctx.loggingHandler.setResponse(ctx.upRes);
+        ctx.dnRsp.setStatusCode(ctx.upRes.statusCode());
+        ctx.dnRsp.setStatusMessage(ctx.upRes.statusMessage());
+
+        int statusCode = ctx.upRes.statusCode();
+
+        // translate with header info
+        int translatedStatus = Translator.translateStatusCode(statusCode, ctx.dnReq.headers());
+
+        // nothing changed?
+        if (statusCode == translatedStatus) {
+            translatedStatus = Translator.translateStatusCode(statusCode, rule, ctx.log);
+        }
+
+        boolean translated = (statusCode != translatedStatus);
+
+        // set the statusCode (if nothing happened, it will remain the same)
+        statusCode = translatedStatus;
+
+        ctx.dnRsp.setStatusCode(statusCode);
+
+        if (translated) {
+            ctx.dnRsp.setStatusMessage(HttpResponseStatus.valueOf(statusCode).reasonPhrase());
+        }
+
+        // Add received headers to original request but remove headers that should not get forwarded.
+        MultiMap headersToForward = ctx.upRes.headers();
+        headersToForward = removeNonForwardHeaders(headersToForward);
+        HttpHeaderUtil.mergeHeaders(ctx.dnRsp.headers(), headersToForward, ctx.targetUri);
+        if (ctx.profileHeaderMap != null && !ctx.profileHeaderMap.isEmpty()) {
+            HttpHeaderUtil.mergeHeaders(ctx.dnRsp.headers(), MultiMap.caseInsensitiveMultiMap().addAll(ctx.profileHeaderMap), ctx.targetUri);
+        }
+        // if we receive a chunked transfer then we also use chunked
+        // otherwise, upstream must have sent a Content-Length - or no body at all (e.g. for "304 not modified" responses)
+        if (ctx.dnRsp.headers().contains(HttpHeaders.TRANSFER_ENCODING, "chunked", true)) {
+            ctx.dnRsp.setChunked(true);
+        }
+
+        final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(ctx.dnRsp, ctx.loggingHandler, false);
+        final Pump pump = Pump.pump(ctx.upRes, loggingWriteStream);
+        try {
+            ctx.upRes.endHandler(nothing -> onUpstreamResponseEnd(nothing, ctx));
+        } catch (IllegalStateException ex) {
+            ctx.log.warn("cRes.endHandler() failed", ex);
+            respondError(ctx.dnReq, INTERNAL_SERVER_ERROR);
+            return;
+        }
+        pump.start();
+
+        Consumer<String> unpump = (String dbgHint2) -> {
+            // disconnect the clientResponse from the Pump and resume this (probably paused-by-pump) stream to keep it alive
+            pump.stop();
+            try {
+                ctx.upRes.handler(this::doNothing);
+            } catch (IllegalStateException ieks) {
+                /* Q: What is this catch for?
+                 * A: https://github.com/eclipse-vertx/vert.x/blob/4.5.2/src/main/java/io/vertx/core/http/impl/HttpClientResponseImpl.java#L150
+                 *    Actually we do not care about the data anymore. But we have to
+                 *    ensure that the response is consumed. So we have to try to add that
+                 *    handler. If it fails, we already are in our desired state. */
+                ctx.log.trace("{}: {}", dbgHint2, ieks.getMessage(), ieks);
+            }
+            ctx.upRes.resume(); // resume the (probably paused) stream
+        };
+
+        ctx.upRes.exceptionHandler(exception -> {
+            LOG.warn("Failed to read upstream response for '{} {}'", ctx.dnReq.method(), ctx.targetUri, exception);
+            unpump.accept("findme_nbroih3to9hj");
+            error("Problem with backend: " + exception.getMessage(), ctx.dnReq, ctx.targetUri);
+            respondError(ctx.dnReq, INTERNAL_SERVER_ERROR);
+        });
+
+        HttpConnection connection = ctx.dnReq.connection();
+        if (connection != null) {
+            /* TODO WARN: there are some impls, which JUST IGNORE our handler
+             *      registration, aka they break the promised API contract! */
+            connection.closeHandler((Void v) -> unpump.accept("findme_boiuhjoq3uh98r"));
+        } else {
+            ctx.log.warn("TODO No way to call 'unpump.run()' in the right moment. As there seems"
+                    + " to be no event we could register a handler for. Gateleen wishes you"
+                    + " some happy timeouts ({})", ctx.dnReq.uri());
+        }
+    }
+
+    private void onUpstreamResponseEnd(Void nothing1, RequestCtx ctx) {
+        try {
+            ctx.dnRsp.end();
+            // if everything is fine, we call the after handler
+            if (is2xx(ctx.upRes.statusCode())) {
+                callAfterHanderIfExists(ctx);
+            }
+            ResponseStatusCodeLogUtil.debug(ctx.dnReq, StatusCode.fromCode(ctx.dnRsp.getStatusCode()), Forwarder.class);
+        } catch (IllegalStateException ex) {
+            ctx.log.debug("findme_q3985hjg3: ignore because maybe already closed: {}", ctx.dnReq.path(), ex);
+        }
+        vertx.runOnContext(nothing2 -> ctx.loggingHandler.log());
+    }
+
+    private void onUpstreamError(Throwable exOrig, HttpServerRequest dwnstrmReq, Supplier<String> getUpstreamRequestUri) {
+        String errorId = "error_aeuthaeower_" + nextErrorId.getAndIncrement();
+        String upstrmReqUri;
+        try {
+            upstrmReqUri = getUpstreamRequestUri.get();
+        } catch (RuntimeException exUseless) {
+            LOG.debug("{}", exUseless.getMessage(), LOG.isTraceEnabled() ? exUseless : null);
+            upstrmReqUri = "null";
+        }
+        LOG.error("{}: {} ({})", upstrmReqUri, exOrig.getMessage(), errorId, LOG.isDebugEnabled() ? exOrig : null);
+        try {
+            HttpServerResponse dwnstrmRsp = dwnstrmReq.response();
+            dwnstrmRsp.setStatusCode(502);
+            dwnstrmRsp.end("For details, search gateleen logs for\n" + errorId + "\n");
+        } catch (RuntimeException exAlreadySent) {
+            LOG.debug("{}: {}", dwnstrmReq.uri(), exAlreadySent.getMessage(), LOG.isTraceEnabled() ? exAlreadySent : null);
+        }
+    }
+
+    private void tryRespondWithInternalServerError(HttpServerResponse rsp, Logger log, String dbgHint) {
+        tryRespondWith(rsp, INTERNAL_SERVER_ERROR.getStatusCode(), INTERNAL_SERVER_ERROR.getStatusMessage(), log, dbgHint);
+    }
+
+    private void tryRespondWithBadGateway(HttpServerResponse rsp, Logger log, String dbgHint) {
+        tryRespondWith(rsp, BAD_GATEWAY.getStatusCode(), BAD_GATEWAY.getStatusMessage(), log, dbgHint);
+    }
+
+    private void tryRespondWithServiceUnavailable(HttpServerResponse rsp, Logger log, String dbgHint) {
+        tryRespondWith(rsp, SERVICE_UNAVAILABLE.getStatusCode(), SERVICE_UNAVAILABLE.getStatusMessage(), log, dbgHint);
+    }
+
+    private void tryRespondWith(HttpServerResponse response, int statusCode, String statusMsg, Logger log, String dbgHint) {
+        assert statusCode >= 200 && statusCode <= 599 : statusCode;
+        assert statusMsg != null : "statusMsg != null";
+        try {
+            response.setStatusCode(statusCode);
+            response.setStatusMessage(statusMsg);
+            response.end();
+        } catch (IllegalStateException iex) {
+            log.debug("{}", dbgHint, iex);
+        }
     }
 
     private Future<Optional<AuthHeader>> maybeAuthenticate(Rule rule) {
@@ -496,120 +701,72 @@ public class Forwarder extends AbstractForwarder {
         });
     }
 
-    private Handler<AsyncResult<HttpClientResponse>> getAsyncHttpClientResponseHandler(final HttpServerRequest req, final String targetUri, final Logger log, final Map<String, String> profileHeaderMap, final LoggingHandler loggingHandler, @Nullable final Long startTime, @Nullable Timer.Sample timerSample, @Nullable final Handler<Void> afterHandler) {
-        return asyncResult -> {
-            HttpClientResponse cRes = asyncResult.result();
-            if (asyncResult.failed()) {
-                error(asyncResult.cause().getMessage(), req, targetUri);
-                HttpServerResponse rsp = req.response();
-                int rspCode = HttpResponseStatus.INTERNAL_SERVER_ERROR.code();
-                String shortMsg = asyncResult.cause().getMessage();
-                if (rsp.headWritten()) {
-                    log.warn("Already responded. Cannot send anymore: HTTP {} {}", rspCode, shortMsg);
-                } else {
-                    rsp.setStatusCode(rspCode);
-                    rsp.setStatusMessage(shortMsg);
-                    rsp.end();
-                }
-                return;
-            }
-            if (monitoringHandler != null) {
-                monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
-            }
-
-            handleForwardDurationMetrics(timerSample);
-
-            loggingHandler.setResponse(cRes);
-            req.response().setStatusCode(cRes.statusCode());
-            req.response().setStatusMessage(cRes.statusMessage());
-
-            int statusCode = cRes.statusCode();
-
-            // translate with header info
-            int translatedStatus = Translator.translateStatusCode(statusCode, req.headers());
-
-            // nothing changed?
-            if (statusCode == translatedStatus) {
-                translatedStatus = Translator.translateStatusCode(statusCode, rule, log);
-            }
-
-            boolean translated = statusCode != translatedStatus;
-
-            // set the statusCode (if nothing hapend, it will remain the same)
-            statusCode = translatedStatus;
-
-            req.response().setStatusCode(statusCode);
-
-            if (translated) {
-                req.response().setStatusMessage(HttpResponseStatus.valueOf(statusCode).reasonPhrase());
-            }
-
-            // Add received headers to original request but remove headers that should not get forwarded.
-            MultiMap headersToForward = cRes.headers();
-            headersToForward = HttpHeaderUtil.removeNonForwardHeaders(headersToForward);
-            HttpHeaderUtil.mergeHeaders(req.response().headers(), headersToForward, targetUri);
-            if (profileHeaderMap != null && !profileHeaderMap.isEmpty()) {
-                HttpHeaderUtil.mergeHeaders(req.response().headers(), MultiMap.caseInsensitiveMultiMap().addAll(profileHeaderMap), targetUri);
-            }
-            // if we receive a chunked transfer then we also use chunked
-            // otherwise, upstream must have sent a Content-Length - or no body at all (e.g. for "304 not modified" responses)
-            if (req.response().headers().contains(HttpHeaders.TRANSFER_ENCODING, "chunked", true)) {
-                req.response().setChunked(true);
-            }
-
-            final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(req.response(), loggingHandler, false);
-            final Pump pump = Pump.pump(cRes, loggingWriteStream);
-            Handler<Void> cResEndHandler = v -> {
-                try {
-                    req.response().end();
-
-                    // if everything is fine, we call the after handler
-                    if (afterHandler != null && (cRes.statusCode() / 100) == STATUS_CODE_2XX) {
-                        afterHandler.handle(null);
-                    }
-                    ResponseStatusCodeLogUtil.debug(req, StatusCode.fromCode(req.response().getStatusCode()), Forwarder.class);
-                } catch (IllegalStateException e) {
-                    // ignore because maybe already closed
-                }
-                vertx.runOnContext(event -> loggingHandler.log());
-            };
-            try {
-                cRes.endHandler(cResEndHandler);
-            } catch (IllegalStateException ex) {
-                log.warn("cRes.endHandler() failed", ex);
-                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
-                return;
-            }
-            pump.start();
-
-            Runnable unpump = () -> {
-                // disconnect the clientResponse from the Pump and resume this (probably paused-by-pump) stream to keep it alive
-                pump.stop();
-//                cRes.handler(buf -> {
-//                    // drain to nothing
-//                });
-                cRes.resume(); // resume the (probably paused) stream
-            };
-
-            cRes.exceptionHandler(exception -> {
-                LOG.warn("Failed to read upstream response for '{} {}'", req.method(), targetUri, exception);
-                unpump.run();
-                error("Problem with backend: " + exception.getMessage(), req, targetUri);
-                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
-            });
-
-            HttpConnection connection = req.connection();
-            if (connection != null) {
-                connection.closeHandler((Void v) -> unpump.run());
-            } else {
-                log.warn("TODO No way to call 'unpump.run()' in the right moment. As there seems"
-                        + " to be no event we could register a handler for. Gateleen wishes you"
-                        + " some happy timeouts ({})", req.uri());
-            }
-        };
-    }
-
     private void error(String message, HttpServerRequest request, String uri) {
         RequestLoggerFactory.getLogger(Forwarder.class, request).error(rule.getScheme() + "://" + target + uri + " " + message);
     }
+
+    private void callAfterHanderIfExists(RequestCtx ctx) {
+        Handler<Void> afterHandler = ctx.afterHandlerRf.getAndSet(null);
+        if (afterHandler != null) {
+            afterHandler.handle(null);
+        }
+    }
+
+    private boolean is2xx(int n) {
+        return n >= 200 && n <= 299;
+    }
+
+    private void doNothing(Object o) {/* Guess why this is empty. */}
+
+    private static class RequestCtx {
+        /** downstream request (aka the incoming request made by some other client) */
+        private final HttpServerRequest dnReq;
+        /** downstream response (aka response intended for a client which did call us) */
+        private HttpServerResponse dnRsp = null;
+        /** upstream request (aka the request WE initiated to some server) */
+        public HttpClientRequest upReq;
+        /** upstream response (aka the response from our external server we've called) */
+        private HttpClientResponse upRes;
+        private final Logger log;
+        private final String targetUri;
+        private final Long startTime;
+        private final Timer.Sample timerSample;
+        private final Map<String, String> profileHeaderMap;
+        private final LoggingHandler loggingHandler;
+        private final AtomicReference<Handler<Void>> afterHandlerRf;
+        private final String timeout;
+        private final String uniqueId;
+        private final AuthHeader authHeader;
+        private final Buffer bodyData;
+
+        public RequestCtx(
+                HttpServerRequest dnReq,
+                Logger log,
+                String targetUri,
+                Long startTime,
+                Timer.Sample timerSample,
+                Map<String, String> profileHeaderMap,
+                LoggingHandler loggingHandler,
+                Handler<Void> afterHandler,
+                String timeout,
+                String uniqueId,
+                AuthHeader authHeader,
+                Buffer bodyData
+        ) {
+            this.dnReq = dnReq;
+            this.log = log;
+            this.targetUri = targetUri;
+            this.startTime = startTime;
+            this.timerSample = timerSample;
+            this.profileHeaderMap = profileHeaderMap;
+            this.loggingHandler = loggingHandler;
+            this.afterHandlerRf = new AtomicReference<>(afterHandler);
+            this.timeout = timeout;
+            this.uniqueId = uniqueId;
+            this.authHeader = authHeader;
+            this.bodyData = bodyData;
+        }
+    }
+
 }
+

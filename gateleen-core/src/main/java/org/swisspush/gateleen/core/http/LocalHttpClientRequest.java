@@ -2,10 +2,22 @@ package org.swisspush.gateleen.core.http;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.codegen.annotations.Nullable;
-import io.vertx.core.*;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.*;
+import io.vertx.core.http.Cookie;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.HttpConnection;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.HttpVersion;
+import io.vertx.core.http.StreamPriority;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -14,7 +26,13 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.SocketAddressImpl;
 import io.vertx.ext.auth.User;
-import io.vertx.ext.web.*;
+import io.vertx.ext.web.FileUpload;
+import io.vertx.ext.web.LanguageHeader;
+import io.vertx.ext.web.ParsedHeaderValues;
+import io.vertx.ext.web.RequestBody;
+import io.vertx.ext.web.Route;
+import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.Session;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 
@@ -25,8 +43,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
+import static io.vertx.core.Future.failedFuture;
+import static io.vertx.core.Future.succeededFuture;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -34,7 +56,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  *
  * @author https://github.com/lbovet [Laurent Bovet]
  */
-public class LocalHttpClientRequest extends BufferBridge implements FastFailHttpClientRequest {
+public class LocalHttpClientRequest extends BufferBridge implements HttpClientRequest {
     private static final Logger log = getLogger(LocalHttpClientRequest.class);
     private MultiMap headers = new HeadersMultiMap();
     private Charset paramsCharset = StandardCharsets.UTF_8;
@@ -45,9 +67,9 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     private String query;
     private HttpServerResponse serverResponse;
     private final HttpConnection connection;
-    private Handler<RoutingContext> routingContextHandler;
+    private Supplier<Handler<RoutingContext>> getRoutingContextHandler;
     private final GateleenExceptionFactory exceptionFactory;
-    private boolean bound = false;
+    private final AtomicBoolean bound = new AtomicBoolean();
 
     private static final SocketAddress address = new SocketAddressImpl(0, "localhost");
 
@@ -545,14 +567,15 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
         HttpMethod method,
         String uri,
         Vertx vertx,
-        Handler<RoutingContext> routingContextHandler,
+        Supplier<Handler<RoutingContext>> getRoutingContextHandler,
         GateleenExceptionFactory exceptionFactory,
         HttpServerResponse response
     ) {
         super(vertx);
+        assert getRoutingContextHandler != null : "getRoutingContextHandler != null";
         this.method = method;
         this.uri = uri;
-        this.routingContextHandler = routingContextHandler;
+        this.getRoutingContextHandler = getRoutingContextHandler;
         this.exceptionFactory = exceptionFactory;
         this.serverResponse = response;
         this.connection = new LocalHttpConnection();
@@ -597,38 +620,18 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
-    public HttpMethod method() {
-        return method;
-    }
-
-    @Override
-    public String getRawMethod() {
-        return method.name();
-    }
-
-    @Override
-    public HttpClientRequest setRawMethod(String method) {
-        return this;
-    }
-
-    @Override
     public String absoluteURI() {
         throw new UnsupportedOperationException();
     }
 
     @Override
     public String getURI() {
-        throw new UnsupportedOperationException();
+        return uri;
     }
 
     @Override
     public HttpClientRequest setURI(String uri) {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String uri() {
-        return uri;
     }
 
     @Override
@@ -659,6 +662,11 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     @Override
     public int getPort() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public HttpClientRequest setFollowRedirects(boolean followRedirects) {
+        throw new UnsupportedOperationException(getClass().getName() +".setFollowRedirects(boolean)");
     }
 
     @Override
@@ -762,11 +770,26 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
 
-    private void ensureBound() {
-        if (!bound) {
-            bound = true;
-            routingContextHandler.handle(routingContext);
+    private Future<Void> ensureBound() {
+        if (bound.getAndSet(true)) {
+            /* did that already somewhen earlier */
+            return succeededFuture();
         }
+        Handler<RoutingContext> routingContextHandler = getRoutingContextHandler.get();
+        if (routingContextHandler == null) {
+            /* I saw, there just SOMETIMES is NO handler?!? I didn't find out yet
+             * what fancy use-case that is. Maybe its just fine and we can just
+             * "not call" it? This is just a guess! It could as well be, that this
+             * case is a serious error somewhere else, not providing this handler? */
+            log.debug("There's no routingContextHandler. So how should we call it then?");
+            return succeededFuture();
+        }
+        try {
+            routingContextHandler.handle(routingContext);
+        } catch (RuntimeException ex) {
+            return failedFuture(ex);
+        }
+        return succeededFuture();
     }
 
     @Override
@@ -781,9 +804,10 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
 
     @Override
     public Future<Void> write(Buffer data) {
-        ensureBound();
-        doWrite(data);
-        return Future.succeededFuture();
+        return ensureBound().map((Void nothing) -> {
+            doWrite(data);
+            return nothing;
+        });
     }
 
     @Override
@@ -802,6 +826,11 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
+    public HttpClientRequest continueHandler(@Nullable Handler<Void> handler) {
+        throw new UnsupportedOperationException(getClass().getName() +".continueHandler(Handler)");
+    }
+
+    @Override
     public HttpClientRequest earlyHintsHandler(@Nullable Handler<MultiMap> handler) {
         throw new UnsupportedOperationException();
     }
@@ -817,8 +846,18 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
+    public void end(String chunk, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException(getClass().getName() +".end(String,Handler)");
+    }
+
+    @Override
     public Future<Void> end(String chunk, String enc) {
         return write(chunk, enc).onComplete(event -> end());
+    }
+
+    @Override
+    public void end(String chunk, String enc, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException(getClass().getName() +".end(String,String,Handler)");
     }
 
     @Override
@@ -827,9 +866,21 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
+    public void end(Buffer chunk, Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException(getClass().getName() +".end(Buffer,Handler)");
+    }
+
+    @Override
     public Future<Void> end() {
-        ensureBound();
-        return doEnd();
+        return ensureBound().compose((Void nothing) -> {
+            log.trace("end(): ensureBound() succeeded, calling doEnd() now");
+            return doEnd();
+        });
+    }
+
+    @Override
+    public void end(Handler<AsyncResult<Void>> handler) {
+        throw new UnsupportedOperationException(getClass().getName() +".end(Handler)");
     }
 
     @Override
@@ -867,13 +918,13 @@ public class LocalHttpClientRequest extends BufferBridge implements FastFailHttp
     }
 
     @Override
-    public HttpClientRequest connectionHandler(@Nullable Handler<HttpConnection> handler) {
+    public HttpClientRequest writeCustomFrame(int type, int flags, Buffer payload) {
         return this;
     }
 
     @Override
-    public HttpClientRequest writeCustomFrame(int type, int flags, Buffer payload) {
-        return this;
+    public StreamPriority getStreamPriority() {
+        throw new UnsupportedOperationException(getClass().getName() +".getStreamPriority()");
     }
 
     @Override
