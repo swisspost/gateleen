@@ -579,6 +579,29 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         this.exceptionFactory = exceptionFactory;
         this.serverResponse = response;
         this.connection = new LocalHttpConnection();
+        setExceptionHandler(defaultExcetionHandler(null));
+    }
+
+    private Handler<Throwable> defaultExcetionHandler(@Nullable Handler<Throwable> externalHandler) {
+        return throwable -> {
+            if (log.isDebugEnabled()) {
+                log.error(
+                        "A HTTP {} request to '{}' failed with reason {}",
+                        method,
+                        uri,
+                        throwable.getMessage(),
+                        throwable);
+            } else {
+                log.error(
+                        "A HTTP {} request to '{}' failed with reason {}",
+                        method,
+                        uri,
+                        throwable.getMessage());
+            }
+            if (externalHandler != null) {
+                externalHandler.handle(throwable);
+            }
+        };
     }
 
     @Override
@@ -927,7 +950,7 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
     @Override
     public HttpClientRequest exceptionHandler(Handler<Throwable> handler) {
-        setExceptionHandler(handler);
+        setExceptionHandler(defaultExcetionHandler(handler));
         return this;
     }
 
