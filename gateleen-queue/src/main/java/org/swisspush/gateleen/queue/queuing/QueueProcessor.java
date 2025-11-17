@@ -265,7 +265,7 @@ public class QueueProcessor {
             }
 
             request1.exceptionHandler(exception -> {
-                logger.warn("Failed request to {}: {}", queuedRequest.getUri(), asyncReqResult.cause());
+                logger.warn("Failed {} request to {}: {}", queuedRequest.getMethod(), queuedRequest.getUri(), asyncReqResult.cause());
                 message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
                 performCircuitBreakerActions(queueName, queuedRequest, FAILURE, state);
             });
