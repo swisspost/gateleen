@@ -33,6 +33,7 @@ public class RouterBuilder {
 
     // Config for the Router we're going to build.
     private Vertx vertx;
+    private JsonObject initialRules;
     private ResourceStorage storage;
     private Map<String, Object> properties;
     private LoggingResourceManager loggingResourceManager;
@@ -95,6 +96,7 @@ public class RouterBuilder {
         ensureNotBuilt();
         isBuilt = true;
         Router router = new Router(vertx,
+                initialRules,
                 storage,
                 properties,
                 loggingResourceManager,
@@ -144,6 +146,12 @@ public class RouterBuilder {
     public RouterBuilder withVertx(Vertx vertx) {
         ensureNotBuilt();
         this.vertx = vertx;
+        return this;
+    }
+
+    public RouterBuilder withInitialRules(JsonObject initialRules) {
+        ensureNotBuilt();
+        this.initialRules = initialRules;
         return this;
     }
 
