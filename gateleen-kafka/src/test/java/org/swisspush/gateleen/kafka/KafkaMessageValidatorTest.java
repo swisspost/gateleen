@@ -3,6 +3,7 @@ package org.swisspush.gateleen.kafka;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.Future;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
@@ -47,7 +48,7 @@ public class KafkaMessageValidatorTest {
         validationResourceManager = Mockito.mock(ValidationResourceManager.class);
         validator = Mockito.mock(Validator.class);
         meterRegistry = new SimpleMeterRegistry();
-        messageValidator = new KafkaMessageValidator(validationResourceManager, validator);
+        messageValidator = new KafkaMessageValidator(Vertx.vertx(), validationResourceManager, validator);
         messageValidator.setMeterRegistry(meterRegistry);
     }
 

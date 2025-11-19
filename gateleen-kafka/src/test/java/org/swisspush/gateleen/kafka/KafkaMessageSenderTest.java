@@ -42,7 +42,7 @@ public class KafkaMessageSenderTest {
     @Before
     public void setUp() {
         producer = Mockito.mock(KafkaProducer.class);
-        kafkaMessageSender = new KafkaMessageSender();
+        kafkaMessageSender = new KafkaMessageSender(Vertx.vertx());
         meterRegistry = new SimpleMeterRegistry();
         kafkaMessageSender.setMeterRegistry(meterRegistry);
     }
@@ -58,13 +58,12 @@ public class KafkaMessageSenderTest {
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
+            Mockito.verify(producer, times(1)).send(eq(records.get(0)));
+
+            Counter counter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+            context.assertEquals(1.0, counter.count(), "Counter for topic `myTopic` should have been incremented by 1");
             async.complete();
         });
-
-        Mockito.verify(producer, times(1)).send(eq(records.get(0)));
-
-        Counter counter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
-        context.assertEquals(1.0, counter.count(), "Counter for topic `myTopic` should have been incremented by 1");
     }
 
     @Test
@@ -78,13 +77,12 @@ public class KafkaMessageSenderTest {
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
+            Mockito.verify(producer, times(1)).send(eq(records.get(0)));
+
+            Counter counter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+            context.assertEquals(1.0, counter.count(), "Counter for topic `myTopic` should have been incremented by 1");
             async.complete();
         });
-
-        Mockito.verify(producer, times(1)).send(eq(records.get(0)));
-
-        Counter counter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
-        context.assertEquals(1.0, counter.count(), "Counter for topic `myTopic` should have been incremented by 1");
     }
 
     @Test
@@ -98,20 +96,19 @@ public class KafkaMessageSenderTest {
 
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertTrue(event.succeeded());
+            ArgumentCaptor<KafkaProducerRecord> recordCaptor = ArgumentCaptor.forClass(KafkaProducerRecord.class);
+            Mockito.verify(producer, times(3)).send(recordCaptor.capture());
+
+            // verify the correct order of the message transmission
+            context.assertEquals(3, recordCaptor.getAllValues().size());
+            context.assertEquals(records.get(0), recordCaptor.getAllValues().get(0));
+            context.assertEquals(records.get(1), recordCaptor.getAllValues().get(1));
+            context.assertEquals(records.get(2), recordCaptor.getAllValues().get(2));
+
+            Counter counter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+            context.assertEquals(3.0, counter.count(), "Counter for topic `myTopic` should have been incremented by 3");
             async.complete();
         });
-
-        ArgumentCaptor<KafkaProducerRecord> recordCaptor = ArgumentCaptor.forClass(KafkaProducerRecord.class);
-        Mockito.verify(producer, times(3)).send(recordCaptor.capture());
-
-        // verify the correct order of the message transmission
-        context.assertEquals(3, recordCaptor.getAllValues().size());
-        context.assertEquals(records.get(0), recordCaptor.getAllValues().get(0));
-        context.assertEquals(records.get(1), recordCaptor.getAllValues().get(1));
-        context.assertEquals(records.get(2), recordCaptor.getAllValues().get(2));
-
-        Counter counter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
-        context.assertEquals(3.0, counter.count(), "Counter for topic `myTopic` should have been incremented by 3");
     }
 
     @Test
@@ -127,23 +124,23 @@ public class KafkaMessageSenderTest {
         kafkaMessageSender.sendMessages(producer, records).onComplete(event -> {
             context.assertFalse(event.succeeded());
             context.assertEquals("Message with key 'key_2' failed.", event.cause().getMessage());
+
+            ArgumentCaptor<KafkaProducerRecord> recordCaptor = ArgumentCaptor.forClass(KafkaProducerRecord.class);
+            Mockito.verify(producer, times(3)).send(recordCaptor.capture());
+
+            // verify only the first two messages was sent
+            context.assertEquals(3, recordCaptor.getAllValues().size());
+            context.assertEquals(records.get(0), recordCaptor.getAllValues().get(0));
+            context.assertEquals(records.get(1), recordCaptor.getAllValues().get(1));
+            context.assertEquals(records.get(2), recordCaptor.getAllValues().get(2));
+
+            Counter successCounter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+            context.assertEquals(2.0, successCounter.count(), "Success counter for topic `myTopic` should have been incremented by 2");
+
+            Counter failCounter = meterRegistry.get(KafkaMessageSender.FAIL_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
+            context.assertEquals(1.0, failCounter.count(), "Fail counter for topic `myTopic` should have been incremented by 1");
             async.complete();
         });
-
-        ArgumentCaptor<KafkaProducerRecord> recordCaptor = ArgumentCaptor.forClass(KafkaProducerRecord.class);
-        Mockito.verify(producer, times(3)).send(recordCaptor.capture());
-
-        // verify only the first two messages was sent
-        context.assertEquals(3, recordCaptor.getAllValues().size());
-        context.assertEquals(records.get(0), recordCaptor.getAllValues().get(0));
-        context.assertEquals(records.get(1), recordCaptor.getAllValues().get(1));
-        context.assertEquals(records.get(2), recordCaptor.getAllValues().get(2));
-
-        Counter successCounter = meterRegistry.get(KafkaMessageSender.SUCCESS_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
-        context.assertEquals(2.0, successCounter.count(), "Success counter for topic `myTopic` should have been incremented by 2");
-
-        Counter failCounter = meterRegistry.get(KafkaMessageSender.FAIL_SEND_MESSAGES_METRIC).tag(KafkaMessageSender.TOPIC, topic).counter();
-        context.assertEquals(1.0, failCounter.count(), "Fail counter for topic `myTopic` should have been incremented by 1");
     }
 
     private JsonObject buildSingleRecordPayload(String key){
