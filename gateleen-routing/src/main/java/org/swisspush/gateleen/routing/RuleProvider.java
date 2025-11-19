@@ -25,6 +25,7 @@ import java.util.Map;
  */
 public class RuleProvider {
 
+    private final TrackableEventPublish trackableEventPublish;
     private Logger log = LoggerFactory.getLogger(RuleProvider.class);
 
     private String rulesPath;
@@ -45,11 +46,11 @@ public class RuleProvider {
         this.properties = properties;
         this.routeMultiplier = routeMultiplier;
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
-
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         notifyRuleChangesObservers();
 
         log.info("Register on vertx event bus to receive routing rules updates");
-        TrackableEventPublish.consumer(vertx, Address.RULE_UPDATE_ADDRESS,  event -> notifyRuleChangesObservers());
+        trackableEventPublish.consumer(vertx, Address.RULE_UPDATE_ADDRESS,  event -> notifyRuleChangesObservers());
     }
 
     /**

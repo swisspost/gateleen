@@ -35,12 +35,12 @@ import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.new
 public class SchedulerResourceManager implements Refreshable, LoggableResource {
 
     public static final String DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY = "dst.observe";
-    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
     static final String UPDATE_ADDRESS = "gateleen.schedulers-updated";
     private final String schedulersUri;
     private final ResourceStorage storage;
     private final Logger log = LoggerFactory.getLogger(SchedulerResourceManager.class);
     private final Vertx vertx;
+    private final TrackableEventPublish trackableEventPublish;
     private List<Scheduler> schedulers;
     private final Map<String, Object> properties;
     private final SchedulerFactory schedulerFactory;
@@ -82,11 +82,11 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         this.schedulersSchema = ResourcesUtils.loadResource("gateleen_scheduler_schema_schedulers", true);
         this.schedulerFactory = new SchedulerFactory(properties, defaultRequestHeaders, vertx, redisProvider,
                 exceptionFactory, monitoringHandler, schedulersSchema, redisquesAddress);
-
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         updateSchedulers();
 
         // Receive update notifications
-        TrackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateSchedulers());
+        trackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateSchedulers());
 
         // Check for daylight saving time changes every minute
         // If a change is detected, all schedulers are restarted
@@ -137,14 +137,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
                         if (logConfigurationResourceChanges) {
                             RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                         }
-                        TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                                .onComplete(event -> {
-                                    if (event.failed()) {
-                                        log.error("Could not publish scheduler resource update.", event.cause());
-                                        return;
-                                    }
-                                    log.info("scheduler resource update published, {} consumer answered", event.result());
-                                });
+                        trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);
                     }

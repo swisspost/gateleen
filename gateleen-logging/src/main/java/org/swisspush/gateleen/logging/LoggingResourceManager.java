@@ -32,12 +32,12 @@ import java.util.Map;
 public class LoggingResourceManager implements LoggableResource {
 
     static final String UPDATE_ADDRESS = "gateleen.logging-updated";
-    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
 
     private final String loggingUri;
     private final ResourceStorage storage;
     private final Logger log = LoggerFactory.getLogger(LoggingResourceManager.class);
     private final Vertx vertx;
+    private final TrackableEventPublish trackableEventPublish;
     private LoggingResource loggingResource;
     private final String loggingResourceSchema;
     private boolean logConfigurationResourceChanges = false;
@@ -53,13 +53,13 @@ public class LoggingResourceManager implements LoggableResource {
         this.storage = storage;
         this.vertx = vertx;
         this.loggingUri = loggingUri;
-
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         loggingResourceSchema = ResourcesUtils.loadResource("gateleen_logging_schema_logging", true);
 
         updateLoggingResources();
 
         // Receive update notifications
-        TrackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateLoggingResources());
+        trackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateLoggingResources());
     }
 
     @Override
@@ -123,14 +123,7 @@ public class LoggingResourceManager implements LoggableResource {
                         if(logConfigurationResourceChanges){
                             RequestLogger.logRequest(vertx.eventBus(), request, status, loggingResourceBuffer);
                         }
-                        TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                                .onComplete(event -> {
-                                    if (event.failed()) {
-                                        log.error("Could not publish logging resource update.", event.cause());
-                                        return;
-                                    }
-                                    log.info("logging resource update published, {} consumer answered", event.result());
-                                });
+                        trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);
                     }

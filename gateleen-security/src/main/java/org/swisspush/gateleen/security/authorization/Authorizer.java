@@ -5,7 +5,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
@@ -33,7 +32,6 @@ import java.util.regex.Pattern;
 public class Authorizer implements LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.authorization-updated";
-    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
     private final Pattern userUriPattern;
 
     private final String aclKey = "acls";
@@ -52,6 +50,7 @@ public class Authorizer implements LoggableResource {
     private boolean logACLChanges = false;
     private final ResourceStorage storage;
     private final RoleExtractor roleExtractor;
+    private final TrackableEventPublish trackableEventPublish;
 
     public static final Logger log = LoggerFactory.getLogger(Authorizer.class);
 
@@ -86,10 +85,11 @@ public class Authorizer implements LoggableResource {
         this.roleExtractor = new RoleExtractor(rolePattern);
         this.roleMapper = new RoleMapper(storage, securityRoot, properties);
         this.roleAuthorizer = new RoleAuthorizer(storage, securityRoot, rolePattern, rolePrefix, roleMapper, grantAccessWithoutRoles);
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         eb = vertx.eventBus();
 
         // Receive update notifications
-        TrackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateAllConfigs());
+        trackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateAllConfigs());
 
     }
 
@@ -219,14 +219,7 @@ public class Authorizer implements LoggableResource {
             } else if (HttpMethod.DELETE == request.method()) {
                 storage.delete(request.uri(), status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
-                        TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                                .onComplete(event -> {
-                                    if (event.failed()) {
-                                        log.error("Could not publish authorisation resource update.", event.cause());
-                                        return;
-                                    }
-                                    log.info("authorisation resource update published, {} consumer answered", event.result());
-                                });
+                        trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
                     } else {
                         log.warn("Could not delete '{}'. Error code is '{}'.", (request.uri() == null ? "<null>" : request.uri()),
                                 (status == null ? "<null>" : status));
@@ -250,14 +243,7 @@ public class Authorizer implements LoggableResource {
 
     private void scheduleUpdate() {
         vertx.cancelTimer(updateTimerId);
-        updateTimerId = vertx.setTimer(3000, id -> TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                .onComplete(event -> {
-                    if (event.failed()) {
-                        log.error("Could not publish authorisation resource update.", event.cause());
-                        return;
-                    }
-                    log.info("authorisation resource update published, {} consumer answered", event.result());
-                }));
+        updateTimerId = vertx.setTimer(3000, id -> trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true));
     }
 
 }

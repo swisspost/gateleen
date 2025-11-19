@@ -1,8 +1,6 @@
 package org.swisspush.gateleen.logging;
 
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.eventbus.Message;
 import org.apache.logging.log4j.core.Appender;
 import org.swisspush.gateleen.core.event.TrackableEventPublish;
 
@@ -18,10 +16,12 @@ import static org.swisspush.gateleen.logging.LoggingResourceManager.UPDATE_ADDRE
  */
 public class DefaultLogAppenderRepository implements LogAppenderRepository {
 
+    private final TrackableEventPublish trackableEventPublish;
     private Map<String, Appender> appenderMap = new HashMap<>();
 
     public DefaultLogAppenderRepository(Vertx vertx) {
-        TrackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> clearRepository());
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
+        trackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> clearRepository());
     }
 
     @Override

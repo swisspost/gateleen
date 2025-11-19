@@ -31,6 +31,7 @@ import java.util.Set;
  */
 public class UserProfileHandler implements LoggableResource {
 
+    private final TrackableEventPublish trackableEventPublish;
     private Vertx vertx;
     private ResourceStorage storage;
 
@@ -58,13 +59,13 @@ public class UserProfileHandler implements LoggableResource {
         this.userProfileConfiguration = userProfileConfiguration;
         this.userProfileManipulater = new UserProfileManipulater(log);
         this.roleExtractor = new RoleExtractor(userProfileConfiguration.getRolePattern());
-
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         updateRoleProfiles();
 
         EventBus eb = vertx.eventBus();
 
         // Receive update notifications
-        TrackableEventPublish.consumer(vertx, RoleProfileHandler.UPDATE_ADDRESS, event -> updateRoleProfiles());
+        trackableEventPublish.consumer(vertx, RoleProfileHandler.UPDATE_ADDRESS, event -> updateRoleProfiles());
     }
 
     @Override

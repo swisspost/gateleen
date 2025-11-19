@@ -25,11 +25,13 @@ public class DefaultLogAppenderRepositoryTest {
 
     private Vertx vertx;
     private DefaultLogAppenderRepository repository;
+    private TrackableEventPublish trackableEventPublish;
 
     @Before
     public void setUp() {
         vertx = Vertx.vertx();
         repository = new DefaultLogAppenderRepository(vertx);
+        trackableEventPublish = new TrackableEventPublish(vertx);
     }
 
     @Test
@@ -66,7 +68,7 @@ public class DefaultLogAppenderRepositoryTest {
         repository.addAppender("my-appender", appender);
         context.assertTrue(repository.hasAppender("my-appender"));
 
-        TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, 1000);
+        trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
 
         await().atMost(TWO_SECONDS).until(() -> repository.hasAppender("my-appender"), equalTo(false));
     }

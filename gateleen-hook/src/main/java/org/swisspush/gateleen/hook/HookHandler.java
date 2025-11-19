@@ -95,7 +95,6 @@ public class HookHandler implements LoggableResource {
     static final String SAVE_LISTENER_ADDRESS = "gateleen.hook-listener-insert";
     static final String SAVE_ROUTE_ADDRESS = "gateleen.hook-route-insert";
     static final String REMOVE_ROUTE_ADDRESS = "gateleen.hook-route-remove";
-    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
     private static final int STATUS_CODE_2XX = 2;
 
     private static final int DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME = 60 * 60; // 1h in seconds
@@ -140,6 +139,7 @@ public class HookHandler implements LoggableResource {
     private final ListenerRepository listenerRepository;
     final RouteRepository routeRepository;
     private final RequestQueue requestQueue;
+    private final TrackableEventPublish trackableEventPublish;
 
     private final ReducedPropagationManager reducedPropagationManager;
 
@@ -295,6 +295,7 @@ public class HookHandler implements LoggableResource {
         this.routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
         this.normalizedListenerBase = this.listenerBase.replaceAll("/+$", "");
         this.normalizedRouteBase = this.routeBase.replaceAll("/+$", "");
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
 
     }
 
@@ -493,7 +494,7 @@ public class HookHandler implements LoggableResource {
      */
     private void registerRouteRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
-        TrackableEventPublish.consumer(vertx, SAVE_ROUTE_ADDRESS, event -> hookStorage.get(event, buffer -> {
+        trackableEventPublish.consumer(vertx, SAVE_ROUTE_ADDRESS, event -> hookStorage.get(event, buffer -> {
             if (buffer != null) {
                 registerRoute(buffer);
             } else {
@@ -502,7 +503,7 @@ public class HookHandler implements LoggableResource {
         }));
 
         // Receive listener remove notifications
-        TrackableEventPublish.consumer(vertx, REMOVE_ROUTE_ADDRESS, this::unregisterRoute);
+        trackableEventPublish.consumer(vertx, REMOVE_ROUTE_ADDRESS, this::unregisterRoute);
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -532,7 +533,7 @@ public class HookHandler implements LoggableResource {
      */
     public void registerListenerRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
-        TrackableEventPublish.consumer(vertx, SAVE_LISTENER_ADDRESS, event -> hookStorage.get(event, buffer -> {
+        trackableEventPublish.consumer(vertx, SAVE_LISTENER_ADDRESS, event -> hookStorage.get(event, buffer -> {
             if (buffer != null) {
                 registerListener(buffer);
             } else {
@@ -541,7 +542,7 @@ public class HookHandler implements LoggableResource {
         }));
 
         // Receive listener remove notifications
-        TrackableEventPublish.consumer(vertx, REMOVE_LISTENER_ADDRESS, this::unregisterListener);
+        trackableEventPublish.consumer(vertx, REMOVE_LISTENER_ADDRESS, this::unregisterListener);
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -1057,14 +1058,7 @@ public class HookHandler implements LoggableResource {
              * 'fails', therefore always an OK status is sent.
              */
 
-            TrackableEventPublish.publish(vertx, REMOVE_ROUTE_ADDRESS, request.uri(), PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                    .onComplete(event -> {
-                        if (event.failed()) {
-                            log.error("Could not publish route un-registration update.", event.cause());
-                            return;
-                        }
-                        log.info("route un-registration update published, {} consumer answered", event.result());
-                    });
+            trackableEventPublish.publish(vertx, REMOVE_ROUTE_ADDRESS, request.uri());
             request.response().end();
         });
     }
@@ -1129,14 +1123,7 @@ public class HookHandler implements LoggableResource {
                     if (logHookConfigurationResourceChanges) {
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
-                    TrackableEventPublish.publish(vertx, SAVE_ROUTE_ADDRESS, routeStorageUri, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                            .onComplete(event -> {
-                                if (event.failed()) {
-                                    log.error("Could not publish hook resource update.", event.cause());
-                                    return;
-                                }
-                                log.info("hook resource update published, {} consumer answered", event.result());
-                            });
+                    trackableEventPublish.publish(vertx, SAVE_ROUTE_ADDRESS, routeStorageUri);
                 } else {
                     request.response().setStatusCode(status);
                 }
@@ -1184,14 +1171,7 @@ public class HookHandler implements LoggableResource {
              * 'fails', therefore always an OK status is sent.
              */
 
-            TrackableEventPublish.publish(vertx, REMOVE_LISTENER_ADDRESS, request.uri(), PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                    .onComplete(event -> {
-                        if (event.failed()) {
-                            log.error("Could not publish listener un-registration update.", event.cause());
-                            return;
-                        }
-                        log.info("listener un-registration update published, {} consumer answered", event.result());
-                    });
+            trackableEventPublish.publish(vertx, REMOVE_LISTENER_ADDRESS, request.uri());
             request.response().end();
         });
     }
@@ -1259,14 +1239,7 @@ public class HookHandler implements LoggableResource {
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
                     vertx.eventBus().publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
-                    TrackableEventPublish.publish(vertx, SAVE_LISTENER_ADDRESS, listenerStorageUri, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                            .onComplete(event -> {
-                                if (event.failed()) {
-                                    log.error("Could not publish listener registration update.", event.cause());
-                                    return;
-                                }
-                                log.info("listener registration update published, {} consumer answered", event.result());
-                            });
+                    trackableEventPublish.publish(vertx, SAVE_LISTENER_ADDRESS, listenerStorageUri);
                 } else {
                     request.response().setStatusCode(status);
                 }

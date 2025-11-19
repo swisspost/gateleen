@@ -67,11 +67,13 @@ public class HookHandlerTest {
 
     private RoutingContext routingContext;
     private HttpServerResponse mockResponse;
+    private TrackableEventPublish trackableEventPublish;
 
     @Before
     public void setUp() {
         vertx = Vertx.vertx();
         routingContext = mock(RoutingContext.class);
+        trackableEventPublish = new TrackableEventPublish(vertx);
         httpClient = mock(HttpClient.class);
         when(httpClient.request(any(HttpMethod.class), anyString())).thenReturn(mock(Future.class));
         storage = new MockResourceStorage();
@@ -88,7 +90,7 @@ public class HookHandlerTest {
 
     private void setListenerStorageEntryAndTriggerUpdate(JsonObject listenerConfig) {
         storage.putMockData("pathToListenerResource", listenerConfig.encode());
-        TrackableEventPublish.publish(vertx, HookHandler.SAVE_LISTENER_ADDRESS, "pathToListenerResource", 1000);
+        trackableEventPublish.publish(vertx, HookHandler.SAVE_LISTENER_ADDRESS, "pathToListenerResource");
     }
 
     private JsonObject buildListenerConfig(JsonObject queueingStrategy, String deviceId) {
@@ -132,7 +134,7 @@ public class HookHandlerTest {
     }
     private void setRouteStorageEntryAndTriggerUpdate(JsonObject routeConfig) {
         storage.putMockData("pathToRouteResource", routeConfig.encode());
-        TrackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouteResource", 1000);
+        trackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouteResource");
     }
 
     private JsonObject buildListenerConfigWithHeadersFilter(JsonObject queueingStrategy, String deviceId, String headersFilter) {
@@ -619,7 +621,7 @@ public class HookHandlerTest {
                 "      \"connectionPoolSize\":10\n" +
                 "   }\n" +
                 "}"));
-        TrackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource", 1000);
+        trackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource");
         // wait a moment to let the router be registered
         Thread.sleep(1000);
 
@@ -648,7 +650,7 @@ public class HookHandlerTest {
                 "      \"connectionPoolSize\":10\n" +
                 "   }\n" +
                 "}"));
-        TrackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource", 1000);
+        trackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource");
         // wait a moment to let the router be registered
         Thread.sleep(1000);
 
@@ -661,7 +663,7 @@ public class HookHandlerTest {
         }
 
         //clean up
-        TrackableEventPublish.publish(vertx, HookHandler.REMOVE_ROUTE_ADDRESS, "pathToRouterResource", 1000);
+        trackableEventPublish.publish(vertx, HookHandler.REMOVE_ROUTE_ADDRESS, "pathToRouterResource");
     }
 
 

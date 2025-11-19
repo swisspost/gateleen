@@ -36,6 +36,7 @@ public class RuleProviderTest {
     private String rulesPath;
     private ResourceStorage storage;
     private Map<String, Object> properties;
+    private TrackableEventPublish trackableEventPublish;
 
     private final String RULES_STORAGE_INITIAL = "{\n" +
             " \"/playground/css/(.*)\": {\n" +
@@ -85,6 +86,7 @@ public class RuleProviderTest {
         rulesPath = "/gateleen/server/admin/v1/routing/rules";
         storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_STORAGE_INITIAL));
         properties = new HashMap<>();
+        trackableEventPublish = new TrackableEventPublish(vertx);
     }
 
     @Test
@@ -127,7 +129,7 @@ public class RuleProviderTest {
 
         // change routing rules and send event bus message
         ((MockResourceStorage)storage).putMockData(rulesPath, RULES_STORAGE_UPDATED);
-        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
+        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
         Future<List<Rule>> rulesFuture2 = ruleProvider.getRules();
 
         context.assertTrue(rulesFuture2.succeeded(), "getRules() future should have been successful");
@@ -151,7 +153,7 @@ public class RuleProviderTest {
 
         // change routing rules and send event bus message
         ((MockResourceStorage)storage).putMockData(rulesPath, RULES_STORAGE_UPDATED);
-        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
+        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
     }
 
     static class DummyRuleChangesObserver implements RuleChangesObserver {

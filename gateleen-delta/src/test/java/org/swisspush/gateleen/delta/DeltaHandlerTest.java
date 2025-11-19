@@ -48,6 +48,7 @@ public class DeltaHandlerTest {
     private Router router = mock(Router.class);
     private HttpServerRequest request;
     private HttpServerResponse response;
+    private TrackableEventPublish trackableEventPublish;
     private MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
 
     private final String rulesPath = "/gateleen/server/admin/v1/routing/rules";
@@ -58,7 +59,7 @@ public class DeltaHandlerTest {
         vertx = mock(Vertx.class);
         loggingResourceManager = mock(LoggingResourceManager.class);
         logAppenderRepository = mock(LogAppenderRepository.class);
-
+        trackableEventPublish = new TrackableEventPublish(Vertx.vertx());
         redisProvider = mock(RedisByNameProvider.class);
         when(redisProvider.redis(any())).thenReturn(Future.succeededFuture(redisAPI));
 
@@ -119,7 +120,7 @@ public class DeltaHandlerTest {
         when(request.headers()).thenReturn(requestHeaders);
 
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
-        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
+        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
 
         Thread.sleep(2000L);
 
@@ -260,7 +261,7 @@ public class DeltaHandlerTest {
         when(request.headers()).thenReturn(requestHeaders);
 
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
-        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
+        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
 
         Thread.sleep(2000L);
 
@@ -300,7 +301,7 @@ public class DeltaHandlerTest {
         when(request.headers()).thenReturn(requestHeaders);
 
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
-        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
+        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
 
         Thread.sleep(2000L);
 
@@ -341,7 +342,7 @@ public class DeltaHandlerTest {
         when(request.headers()).thenReturn(requestHeaders);
 
         DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider, loggingResourceManager, logAppenderRepository);
-        TrackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true, 1000);
+        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
         Thread.sleep(2000L);
 
         deltaHandler.handle(request, router);

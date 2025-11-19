@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.delegate;
 
+import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerResponse;
 import org.junit.Assert;
@@ -21,7 +22,7 @@ public class DelegateHandlerTest {
 
     @BeforeClass
     public static void init() {
-        delegateHandler = new DelegateHandler(null, null, null, DELEGATE_URI,
+        delegateHandler = new DelegateHandler(Vertx.vertx(), null, null, DELEGATE_URI,
                 null, null);
     }
 

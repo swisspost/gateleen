@@ -23,8 +23,7 @@ import java.util.regex.Pattern;
 public class RoleProfileHandler implements LoggableResource {
 
     public static final String UPDATE_ADDRESS = "gateleen.roleprofiles-updated";
-    private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
-
+    private final TrackableEventPublish trackableEventPublish;
     private ResourceStorage storage;
     private Logger log = LoggerFactory.getLogger(RoleProfileHandler.class);
     private boolean logRoleProfileChanges = false;
@@ -35,6 +34,7 @@ public class RoleProfileHandler implements LoggableResource {
     public RoleProfileHandler(Vertx vertx, ResourceStorage storage, String roleProfileUriPattern) {
         this.storage = storage;
         this.vertx = vertx;
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         uriPattern = Pattern.compile(roleProfileUriPattern);
         eb = vertx.eventBus();
     }
@@ -92,14 +92,7 @@ public class RoleProfileHandler implements LoggableResource {
         case "DELETE":
             storage.delete(request.path(), status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
-                    TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                            .onComplete(event -> {
-                                if (event.failed()) {
-                                    log.error("Could not publish role profile DELETE.", event.cause());
-                                    return;
-                                }
-                                log.info("role profile DELETE published, {} consumer answered", event.result());
-                            });
+                    trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
                 } else {
                     log.warn("Could not delete '" + (request.uri() == null ? "<null>" : request.uri()) + "'. Error code is '" + (status == null ? "<null>" : status) + "'.");
                     request.response().setStatusCode(status);
@@ -119,13 +112,6 @@ public class RoleProfileHandler implements LoggableResource {
 
     private void scheduleUpdate() {
         vertx.cancelTimer(updateTimerId);
-        updateTimerId = vertx.setTimer(3000, id -> TrackableEventPublish.publish(vertx, UPDATE_ADDRESS, true, PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS)
-                .onComplete(event -> {
-                    if (event.failed()) {
-                        log.error("Could not publish role profile DELETE.", event.cause());
-                        return;
-                    }
-                    log.info("role profile DELETE published, {} consumer answered", event.result());
-                }));
+        updateTimerId = vertx.setTimer(3000, id -> trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true));
     }
 }
