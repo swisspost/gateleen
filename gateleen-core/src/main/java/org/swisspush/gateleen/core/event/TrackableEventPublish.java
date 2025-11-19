@@ -20,7 +20,7 @@ public class TrackableEventPublish {
     private static final Logger LOG = LoggerFactory.getLogger(TrackableEventPublish.class);
     private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
     private final Vertx vertx;
-    private volatile boolean trackerEnabled = false;
+    private static volatile boolean trackerEnabled = false;
     public static final String KEY_REPLY = "reply.";
     public static final String KEY_REPLY_ADDRESS = "replyAddress";
     public static final String KEY_DATA = "data";
