@@ -494,7 +494,7 @@ public class HookHandler implements LoggableResource {
      */
     private void registerRouteRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
-        trackableEventPublish.consumer(vertx, SAVE_ROUTE_ADDRESS, event -> hookStorage.get(event, buffer -> {
+        trackableEventPublish.consumer(SAVE_ROUTE_ADDRESS, event -> hookStorage.get(event, buffer -> {
             if (buffer != null) {
                 registerRoute(buffer);
             } else {
@@ -503,7 +503,7 @@ public class HookHandler implements LoggableResource {
         }));
 
         // Receive listener remove notifications
-        trackableEventPublish.consumer(vertx, REMOVE_ROUTE_ADDRESS, this::unregisterRoute);
+        trackableEventPublish.consumer(REMOVE_ROUTE_ADDRESS, this::unregisterRoute);
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -533,7 +533,7 @@ public class HookHandler implements LoggableResource {
      */
     public void registerListenerRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
-        trackableEventPublish.consumer(vertx, SAVE_LISTENER_ADDRESS, event -> hookStorage.get(event, buffer -> {
+        trackableEventPublish.consumer(SAVE_LISTENER_ADDRESS, event -> hookStorage.get(event, buffer -> {
             if (buffer != null) {
                 registerListener(buffer);
             } else {
@@ -542,7 +542,7 @@ public class HookHandler implements LoggableResource {
         }));
 
         // Receive listener remove notifications
-        trackableEventPublish.consumer(vertx, REMOVE_LISTENER_ADDRESS, this::unregisterListener);
+        trackableEventPublish.consumer(REMOVE_LISTENER_ADDRESS, this::unregisterListener);
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -1058,7 +1058,7 @@ public class HookHandler implements LoggableResource {
              * 'fails', therefore always an OK status is sent.
              */
 
-            trackableEventPublish.publish(vertx, REMOVE_ROUTE_ADDRESS, request.uri());
+            trackableEventPublish.publish(REMOVE_ROUTE_ADDRESS, request.uri());
             request.response().end();
         });
     }
@@ -1123,7 +1123,7 @@ public class HookHandler implements LoggableResource {
                     if (logHookConfigurationResourceChanges) {
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
-                    trackableEventPublish.publish(vertx, SAVE_ROUTE_ADDRESS, routeStorageUri);
+                    trackableEventPublish.publish(SAVE_ROUTE_ADDRESS, routeStorageUri);
                 } else {
                     request.response().setStatusCode(status);
                 }
@@ -1171,7 +1171,7 @@ public class HookHandler implements LoggableResource {
              * 'fails', therefore always an OK status is sent.
              */
 
-            trackableEventPublish.publish(vertx, REMOVE_LISTENER_ADDRESS, request.uri());
+            trackableEventPublish.publish(REMOVE_LISTENER_ADDRESS, request.uri());
             request.response().end();
         });
     }
@@ -1239,7 +1239,7 @@ public class HookHandler implements LoggableResource {
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
                     vertx.eventBus().publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
-                    trackableEventPublish.publish(vertx, SAVE_LISTENER_ADDRESS, listenerStorageUri);
+                    trackableEventPublish.publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
                 } else {
                     request.response().setStatusCode(status);
                 }

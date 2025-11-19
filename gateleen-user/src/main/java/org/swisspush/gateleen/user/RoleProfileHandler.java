@@ -92,7 +92,7 @@ public class RoleProfileHandler implements LoggableResource {
         case "DELETE":
             storage.delete(request.path(), status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
-                    trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
+                    trackableEventPublish.publish(UPDATE_ADDRESS, true);
                 } else {
                     log.warn("Could not delete '" + (request.uri() == null ? "<null>" : request.uri()) + "'. Error code is '" + (status == null ? "<null>" : status) + "'.");
                     request.response().setStatusCode(status);
@@ -112,6 +112,6 @@ public class RoleProfileHandler implements LoggableResource {
 
     private void scheduleUpdate() {
         vertx.cancelTimer(updateTimerId);
-        updateTimerId = vertx.setTimer(3000, id -> trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true));
+        updateTimerId = vertx.setTimer(3000, id -> trackableEventPublish.publish(UPDATE_ADDRESS, true));
     }
 }

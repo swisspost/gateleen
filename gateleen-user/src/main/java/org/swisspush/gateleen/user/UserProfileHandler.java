@@ -65,7 +65,7 @@ public class UserProfileHandler implements LoggableResource {
         EventBus eb = vertx.eventBus();
 
         // Receive update notifications
-        trackableEventPublish.consumer(vertx, RoleProfileHandler.UPDATE_ADDRESS, event -> updateRoleProfiles());
+        trackableEventPublish.consumer(RoleProfileHandler.UPDATE_ADDRESS, event -> updateRoleProfiles());
     }
 
     @Override

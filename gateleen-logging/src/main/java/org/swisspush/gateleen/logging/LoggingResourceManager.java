@@ -59,7 +59,7 @@ public class LoggingResourceManager implements LoggableResource {
         updateLoggingResources();
 
         // Receive update notifications
-        trackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateLoggingResources());
+        trackableEventPublish.consumer(UPDATE_ADDRESS, event -> updateLoggingResources());
     }
 
     @Override
@@ -123,7 +123,7 @@ public class LoggingResourceManager implements LoggableResource {
                         if(logConfigurationResourceChanges){
                             RequestLogger.logRequest(vertx.eventBus(), request, status, loggingResourceBuffer);
                         }
-                        trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
+                        trackableEventPublish.publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);
                     }

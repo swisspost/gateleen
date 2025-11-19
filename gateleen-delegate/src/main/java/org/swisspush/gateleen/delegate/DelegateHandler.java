@@ -213,7 +213,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
         }
 
         // Receive delegate insert notifications
-        trackableEventPublish.consumer(vertx, SAVE_DELEGATE_ADDRESS, delegateEvent -> {
+        trackableEventPublish.consumer(SAVE_DELEGATE_ADDRESS, delegateEvent -> {
             final String[] messages = delegateEvent.split(";");
 
             if ( messages != null ) {
@@ -231,7 +231,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
         });
 
         // Receive delegate remove notifications
-        trackableEventPublish.consumer(vertx, REMOVE_DELEGATE_ADDRESS, this::unregisterDelegate);
+        trackableEventPublish.consumer(REMOVE_DELEGATE_ADDRESS, this::unregisterDelegate);
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -306,7 +306,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
                     if(logDelegateChanges){
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
-                    trackableEventPublish.publish(vertx, SAVE_DELEGATE_ADDRESS, delegateName + ";" + request.uri());
+                    trackableEventPublish.publish(SAVE_DELEGATE_ADDRESS, delegateName + ";" + request.uri());
 
                 } else {
                     request.response().setStatusCode(status);
@@ -328,7 +328,7 @@ public class DelegateHandler implements Refreshable, LoggableResource {
 
         String delegateName = getDelegateName(request.uri());
         delegateStorage.delete(delegatesUri + delegateName, status -> {
-            trackableEventPublish.publish(vertx, REMOVE_DELEGATE_ADDRESS, delegateName);
+            trackableEventPublish.publish(REMOVE_DELEGATE_ADDRESS, delegateName);
             request.response().end();
         });
 

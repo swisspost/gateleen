@@ -21,7 +21,7 @@ public class DefaultLogAppenderRepository implements LogAppenderRepository {
 
     public DefaultLogAppenderRepository(Vertx vertx) {
         this.trackableEventPublish = new TrackableEventPublish(vertx);
-        trackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> clearRepository());
+        trackableEventPublish.consumer(UPDATE_ADDRESS, event -> clearRepository());
     }
 
     @Override

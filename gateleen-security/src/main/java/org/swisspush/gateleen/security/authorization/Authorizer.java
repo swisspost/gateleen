@@ -89,7 +89,7 @@ public class Authorizer implements LoggableResource {
         eb = vertx.eventBus();
 
         // Receive update notifications
-        trackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateAllConfigs());
+        trackableEventPublish.consumer(UPDATE_ADDRESS, event -> updateAllConfigs());
 
     }
 
@@ -219,7 +219,7 @@ public class Authorizer implements LoggableResource {
             } else if (HttpMethod.DELETE == request.method()) {
                 storage.delete(request.uri(), status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
-                        trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
+                        trackableEventPublish.publish(UPDATE_ADDRESS, true);
                     } else {
                         log.warn("Could not delete '{}'. Error code is '{}'.", (request.uri() == null ? "<null>" : request.uri()),
                                 (status == null ? "<null>" : status));
@@ -243,7 +243,7 @@ public class Authorizer implements LoggableResource {
 
     private void scheduleUpdate() {
         vertx.cancelTimer(updateTimerId);
-        updateTimerId = vertx.setTimer(3000, id -> trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true));
+        updateTimerId = vertx.setTimer(3000, id -> trackableEventPublish.publish(UPDATE_ADDRESS, true));
     }
 
 }

@@ -86,7 +86,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         updateSchedulers();
 
         // Receive update notifications
-        trackableEventPublish.consumer(vertx, UPDATE_ADDRESS, event -> updateSchedulers());
+        trackableEventPublish.consumer(UPDATE_ADDRESS, event -> updateSchedulers());
 
         // Check for daylight saving time changes every minute
         // If a change is detected, all schedulers are restarted
@@ -137,7 +137,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
                         if (logConfigurationResourceChanges) {
                             RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                         }
-                        trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
+                        trackableEventPublish.publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);
                     }

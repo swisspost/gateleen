@@ -50,7 +50,7 @@ public class RuleProvider {
         notifyRuleChangesObservers();
 
         log.info("Register on vertx event bus to receive routing rules updates");
-        trackableEventPublish.consumer(vertx, Address.RULE_UPDATE_ADDRESS,  event -> notifyRuleChangesObservers());
+        trackableEventPublish.consumer(Address.RULE_UPDATE_ADDRESS,  event -> notifyRuleChangesObservers());
     }
 
     /**

@@ -75,12 +75,12 @@ public class TrackableEventPublishTest {
         AtomicReference<String> receivedPayload = new AtomicReference<>();
 
         // consumer should just receive the data field (tracker disabled branch)
-        trackableEventPublish.consumer(vertx, address, value -> {
+        trackableEventPublish.consumer(address, value -> {
             receivedPayload.set(value);
             handlerLatch.countDown();
         });
 
-        Future<Integer> future = trackableEventPublish.publish(vertx, address, "hello");
+        Future<Integer> future = trackableEventPublish.publish(address, "hello");
 
         int result = future
                 .toCompletionStage()
@@ -99,7 +99,7 @@ public class TrackableEventPublishTest {
 
         String address = "test.address.no.consumer";
 
-        Future<Integer> future = trackableEventPublish.publish(vertx, address, "no-consumer");
+        Future<Integer> future = trackableEventPublish.publish(address, "no-consumer");
 
         // should complete after timeout with 0 replies
         int result = future
@@ -120,12 +120,12 @@ public class TrackableEventPublishTest {
         AtomicReference<String> receivedPayload = new AtomicReference<>();
 
         // tracker enabled: consumer will reply to replyAddress and pass KEY_DATA to handler
-        trackableEventPublish.consumer(vertx, address, value -> {
+        trackableEventPublish.consumer(address, value -> {
             receivedPayload.set(value);
             handlerLatch.countDown();
         });
 
-        Future<Integer> future = trackableEventPublish.publish(vertx, address, "payload");
+        Future<Integer> future = trackableEventPublish.publish(address, "payload");
 
         // future is completed by the timer (1s), so allow a bit more than that
         int result = future
@@ -148,13 +148,13 @@ public class TrackableEventPublishTest {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> received = new AtomicReference<>();
 
-        trackableEventPublish.consumer(vertx, address, value -> {
+        trackableEventPublish.consumer(address, value -> {
             received.set(value);
             latch.countDown();
         });
 
         JsonObject payload = new JsonObject().put(TrackableEventPublish.KEY_DATA, "jsonData");
-        trackableEventPublish.publish(vertx, address, payload);
+        trackableEventPublish.publish(address, payload);
 
         assertTrue("Consumer did not receive JSON payload",
                 latch.await(TEST_TIMEOUT_MS, TimeUnit.MILLISECONDS));

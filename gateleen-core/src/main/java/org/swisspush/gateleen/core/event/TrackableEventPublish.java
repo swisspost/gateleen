@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TrackableEventPublish {
     private static final Logger LOG = LoggerFactory.getLogger(TrackableEventPublish.class);
     private static final int PUBLISH_EVENTS_FEEDBACK_TIMEOUT_MS = 1000;
+    private final Vertx vertx;
     private volatile boolean trackerEnabled = false;
     public static final String KEY_REPLY = "reply.";
     public static final String KEY_REPLY_ADDRESS = "replyAddress";
@@ -26,6 +27,7 @@ public class TrackableEventPublish {
     public static final String KEY_TRACKER_ENABLED_KEY_ADDRESS = "gateleen.key.addresses.tracker.enable";
 
     public TrackableEventPublish(Vertx vertx) {
+        this.vertx = vertx;
         vertx.eventBus().consumer(KEY_TRACKER_ENABLED_KEY_ADDRESS, event -> {
             if (event.body() instanceof Boolean) {
                 Boolean enabled = (Boolean) event.body();
@@ -39,12 +41,11 @@ public class TrackableEventPublish {
      * Publish a event to eventbus with feed back how many consumers received.
      * Note: need use consumer from {@link TrackableEventPublish}
      *
-     * @param vertx
      * @param address
      * @param payload
      * @return
      */
-    public Future<Integer> publish(Vertx vertx, String address, Object payload) {
+    public Future<Integer> publish(String address, Object payload) {
         final Promise<Integer> promise = Promise.promise();
         EventBus eb = vertx.eventBus();
         if (trackerEnabled) {
@@ -103,11 +104,10 @@ public class TrackableEventPublish {
 
     /**
      * Consuming a event which published by TrackableEventPublish
-     * @param vertx
      * @param address
      * @param handler
      */
-    public void consumer(Vertx vertx, String address, Handler<String> handler) {
+    public void consumer(String address, Handler<String> handler) {
         if (trackerEnabled) {
             vertx.eventBus().consumer(address, msg -> {
                 if (msg.body() instanceof JsonObject) {

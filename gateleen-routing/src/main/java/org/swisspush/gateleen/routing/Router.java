@@ -179,7 +179,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         });
 
         // Receive update notifications
-        trackableEventPublish.consumer(vertx, Address.RULE_UPDATE_ADDRESS, this::onEventBusRuleUpdateEvent);
+        trackableEventPublish.consumer(Address.RULE_UPDATE_ADDRESS, this::onEventBusRuleUpdateEvent);
         vertx.eventBus().consumer(ROUTE_MULTIPLIER_ADDRESS, this::onEventBusRouteMultiplierEvent);
     }
 
@@ -201,7 +201,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private void onEventBusRouteMultiplierEvent(Message<String> event) {
         log.debug("Updating router's pool size multiplier: {}", (event.body() == null ? "<null>" : event.body()));
         this.routeMultiplier = Integer.parseInt(event.body());
-        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
+        trackableEventPublish.publish(Address.RULE_UPDATE_ADDRESS, true);
     }
 
     public enum DefaultRouteType {
@@ -236,7 +236,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                         if (logRoutingRuleChanges) {
                             RequestLogger.logRequest(vertx.eventBus(), request, StatusCode.OK.getStatusCode(), buffer);
                         }
-                        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
+                        trackableEventPublish.publish(Address.RULE_UPDATE_ADDRESS, true);
                         resetRouterBrokenState();
                     } else {
                         request.response().setStatusCode(status);
@@ -518,7 +518,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
     @Override
     public void refresh() {
-        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
+        trackableEventPublish.publish(Address.RULE_UPDATE_ADDRESS, true);
         resetRouterBrokenState();
     }
 

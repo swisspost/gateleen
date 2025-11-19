@@ -129,7 +129,7 @@ public class RuleProviderTest {
 
         // change routing rules and send event bus message
         ((MockResourceStorage)storage).putMockData(rulesPath, RULES_STORAGE_UPDATED);
-        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
+        trackableEventPublish.publish(Address.RULE_UPDATE_ADDRESS, true);
         Future<List<Rule>> rulesFuture2 = ruleProvider.getRules();
 
         context.assertTrue(rulesFuture2.succeeded(), "getRules() future should have been successful");
@@ -153,7 +153,7 @@ public class RuleProviderTest {
 
         // change routing rules and send event bus message
         ((MockResourceStorage)storage).putMockData(rulesPath, RULES_STORAGE_UPDATED);
-        trackableEventPublish.publish(vertx, Address.RULE_UPDATE_ADDRESS, true);
+        trackableEventPublish.publish(Address.RULE_UPDATE_ADDRESS, true);
     }
 
     static class DummyRuleChangesObserver implements RuleChangesObserver {

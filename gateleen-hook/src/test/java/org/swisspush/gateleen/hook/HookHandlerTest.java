@@ -90,7 +90,7 @@ public class HookHandlerTest {
 
     private void setListenerStorageEntryAndTriggerUpdate(JsonObject listenerConfig) {
         storage.putMockData("pathToListenerResource", listenerConfig.encode());
-        trackableEventPublish.publish(vertx, HookHandler.SAVE_LISTENER_ADDRESS, "pathToListenerResource");
+        trackableEventPublish.publish(HookHandler.SAVE_LISTENER_ADDRESS, "pathToListenerResource");
     }
 
     private JsonObject buildListenerConfig(JsonObject queueingStrategy, String deviceId) {
@@ -134,7 +134,7 @@ public class HookHandlerTest {
     }
     private void setRouteStorageEntryAndTriggerUpdate(JsonObject routeConfig) {
         storage.putMockData("pathToRouteResource", routeConfig.encode());
-        trackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouteResource");
+        trackableEventPublish.publish(HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouteResource");
     }
 
     private JsonObject buildListenerConfigWithHeadersFilter(JsonObject queueingStrategy, String deviceId, String headersFilter) {
@@ -621,7 +621,7 @@ public class HookHandlerTest {
                 "      \"connectionPoolSize\":10\n" +
                 "   }\n" +
                 "}"));
-        trackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource");
+        trackableEventPublish.publish(HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource");
         // wait a moment to let the router be registered
         Thread.sleep(1000);
 
@@ -650,7 +650,7 @@ public class HookHandlerTest {
                 "      \"connectionPoolSize\":10\n" +
                 "   }\n" +
                 "}"));
-        trackableEventPublish.publish(vertx, HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource");
+        trackableEventPublish.publish(HookHandler.SAVE_ROUTE_ADDRESS, "pathToRouterResource");
         // wait a moment to let the router be registered
         Thread.sleep(1000);
 
@@ -663,7 +663,7 @@ public class HookHandlerTest {
         }
 
         //clean up
-        trackableEventPublish.publish(vertx, HookHandler.REMOVE_ROUTE_ADDRESS, "pathToRouterResource");
+        trackableEventPublish.publish(HookHandler.REMOVE_ROUTE_ADDRESS, "pathToRouterResource");
     }
 
 

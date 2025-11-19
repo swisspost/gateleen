@@ -85,7 +85,7 @@ public class SchedulerResourceManagerTest {
         // reset the mock to start new count after eventbus message
         reset(storage);
 
-        trackableEventPublish.publish(vertx, SchedulerResourceManager.UPDATE_ADDRESS, true);
+        trackableEventPublish.publish(SchedulerResourceManager.UPDATE_ADDRESS, true);
         // after eventbus message, the schedulers must be read from storage again
         verify(storage, timeout(100).times(1)).get(eq(schedulersUri), any());
     }

@@ -68,7 +68,7 @@ public class DefaultLogAppenderRepositoryTest {
         repository.addAppender("my-appender", appender);
         context.assertTrue(repository.hasAppender("my-appender"));
 
-        trackableEventPublish.publish(vertx, UPDATE_ADDRESS, true);
+        trackableEventPublish.publish(UPDATE_ADDRESS, true);
 
         await().atMost(TWO_SECONDS).until(() -> repository.hasAppender("my-appender"), equalTo(false));
     }
