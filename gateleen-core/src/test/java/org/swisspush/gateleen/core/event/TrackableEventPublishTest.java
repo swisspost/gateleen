@@ -68,8 +68,7 @@ public class TrackableEventPublishTest {
 
     @Test
     public void testPublishWithTrackerDisabledAndConsumerReceivesPayload() throws Exception {
-        // trackerEnabled is false by default
-
+        setTrackerEnabled(false);
         String address = "test.address.disabled";
         CountDownLatch handlerLatch = new CountDownLatch(1);
         AtomicReference<String> receivedPayload = new AtomicReference<>();
