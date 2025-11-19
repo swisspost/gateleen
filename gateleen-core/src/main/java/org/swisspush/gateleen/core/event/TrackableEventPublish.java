@@ -95,7 +95,7 @@ public class TrackableEventPublish {
             if (event.result() < 0) {
                 LOG.debug("Tracker is disabled.");
             } else {
-                LOG.info("{} event published, {} consumer answered",address, event.result());
+                LOG.info("{} event published, {} consumer answered", address, event.result());
             }
         });
 
@@ -108,8 +108,8 @@ public class TrackableEventPublish {
      * @param handler
      */
     public void consumer(String address, Handler<String> handler) {
-        if (trackerEnabled) {
-            vertx.eventBus().consumer(address, msg -> {
+        vertx.eventBus().consumer(address, msg -> {
+            if (trackerEnabled) {
                 if (msg.body() instanceof JsonObject) {
                     JsonObject body = (JsonObject) msg.body();
                     if (body.containsKey(KEY_REPLY_ADDRESS)) {
@@ -118,14 +118,12 @@ public class TrackableEventPublish {
                         handler.handle(body.getString(KEY_DATA));
                     }
                 }
-            });
-        } else {
-            vertx.eventBus().consumer(address, msg -> {
+            } else {
                 if (msg.body() instanceof JsonObject) {
                     JsonObject body = (JsonObject) msg.body();
                     handler.handle(body.getString(KEY_DATA));
                 }
-            });
-        }
+            }
+        });
     }
 }
