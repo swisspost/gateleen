@@ -1238,7 +1238,6 @@ public class HookHandler implements LoggableResource {
                     if (logHookConfigurationResourceChanges) {
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
-                    vertx.eventBus().publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
                     trackableEventPublish.publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
                 } else {
                     request.response().setStatusCode(status);

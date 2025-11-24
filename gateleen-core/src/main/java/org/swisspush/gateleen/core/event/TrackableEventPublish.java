@@ -112,11 +112,13 @@ public class TrackableEventPublish {
             if (trackerEnabled) {
                 if (msg.body() instanceof JsonObject) {
                     JsonObject body = (JsonObject) msg.body();
+                    // we may don't have replay address if the function just switch ON.
+                    // the event before the switch on may just arrive
                     if (body.containsKey(KEY_REPLY_ADDRESS)) {
                         String replyAddr = body.getString(KEY_REPLY_ADDRESS);
                         vertx.eventBus().send(replyAddr, null);
-                        handler.handle(body.getString(KEY_DATA));
                     }
+                    handler.handle(body.getString(KEY_DATA));
                 }
             } else {
                 if (msg.body() instanceof JsonObject) {
