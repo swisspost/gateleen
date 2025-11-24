@@ -1,15 +1,14 @@
 package org.swisspush.gateleen.logging;
 
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
@@ -38,6 +37,7 @@ public class LoggingResourceManager implements LoggableResource {
     private final ResourceStorage storage;
     private final Logger log = LoggerFactory.getLogger(LoggingResourceManager.class);
     private final Vertx vertx;
+    private final TrackableEventPublish trackableEventPublish;
     private LoggingResource loggingResource;
     private final String loggingResourceSchema;
     private boolean logConfigurationResourceChanges = false;
@@ -53,13 +53,13 @@ public class LoggingResourceManager implements LoggableResource {
         this.storage = storage;
         this.vertx = vertx;
         this.loggingUri = loggingUri;
-
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         loggingResourceSchema = ResourcesUtils.loadResource("gateleen_logging_schema_logging", true);
 
         updateLoggingResources();
 
         // Receive update notifications
-        vertx.eventBus().consumer(UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> updateLoggingResources());
+        trackableEventPublish.consumer(UPDATE_ADDRESS, event -> updateLoggingResources());
     }
 
     @Override
@@ -123,7 +123,7 @@ public class LoggingResourceManager implements LoggableResource {
                         if(logConfigurationResourceChanges){
                             RequestLogger.logRequest(vertx.eventBus(), request, status, loggingResourceBuffer);
                         }
-                        vertx.eventBus().publish(UPDATE_ADDRESS, true);
+                        trackableEventPublish.publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);
                     }

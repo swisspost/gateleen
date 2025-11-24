@@ -145,6 +145,9 @@ This is a list of the custom headers used by Gateleen.
 * The amount of open files depends on the amount of open Http Requests, which are holding a tcp connection which are holding a file handle.
 * The important number to control the open HTTP requests is the pool size of the Http Client. The higher the pool size the higher the open files.
 
+## Debug function
+* TrackableEventPublish: the key broadcast events which need consumed by each instance can be monitored. publish an event to "gateleen.key.addresses.tracker.enable" address to enable or disable it.
+
 ## Dependencies
 * [vertx-rest-storage](https://github.com/swisspush/vertx-rest-storage) at least release [v2.0.2](https://github.com/swisspush/vertx-rest-storage/releases/tag/v2.0.2)
 * [vertx-redisques](https://github.com/swisspush/vertx-redisques) at least release [v.2.0.1](https://github.com/swisspush/vertx-redisques/releases/tag/2.0.1)

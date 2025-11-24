@@ -5,13 +5,13 @@ import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.UriBuilder;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
@@ -32,7 +32,6 @@ import java.util.regex.Pattern;
 public class Authorizer implements LoggableResource {
 
     private static final String UPDATE_ADDRESS = "gateleen.authorization-updated";
-
     private final Pattern userUriPattern;
 
     private final String aclKey = "acls";
@@ -51,6 +50,7 @@ public class Authorizer implements LoggableResource {
     private boolean logACLChanges = false;
     private final ResourceStorage storage;
     private final RoleExtractor roleExtractor;
+    private final TrackableEventPublish trackableEventPublish;
 
     public static final Logger log = LoggerFactory.getLogger(Authorizer.class);
 
@@ -85,10 +85,12 @@ public class Authorizer implements LoggableResource {
         this.roleExtractor = new RoleExtractor(rolePattern);
         this.roleMapper = new RoleMapper(storage, securityRoot, properties);
         this.roleAuthorizer = new RoleAuthorizer(storage, securityRoot, rolePattern, rolePrefix, roleMapper, grantAccessWithoutRoles);
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         eb = vertx.eventBus();
 
         // Receive update notifications
-        eb.consumer(UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateAllConfigs());
+        trackableEventPublish.consumer(UPDATE_ADDRESS, event -> updateAllConfigs());
+
     }
 
     @Override
@@ -217,7 +219,7 @@ public class Authorizer implements LoggableResource {
             } else if (HttpMethod.DELETE == request.method()) {
                 storage.delete(request.uri(), status -> {
                     if (status == StatusCode.OK.getStatusCode()) {
-                        eb.publish(UPDATE_ADDRESS, "*");
+                        trackableEventPublish.publish(UPDATE_ADDRESS, true);
                     } else {
                         log.warn("Could not delete '{}'. Error code is '{}'.", (request.uri() == null ? "<null>" : request.uri()),
                                 (status == null ? "<null>" : status));
@@ -241,7 +243,7 @@ public class Authorizer implements LoggableResource {
 
     private void scheduleUpdate() {
         vertx.cancelTimer(updateTimerId);
-        updateTimerId = vertx.setTimer(3000, id -> eb.publish(UPDATE_ADDRESS, "*"));
+        updateTimerId = vertx.setTimer(3000, id -> trackableEventPublish.publish(UPDATE_ADDRESS, true));
     }
 
 }

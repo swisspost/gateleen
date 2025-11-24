@@ -22,6 +22,7 @@ import io.vertx.ext.web.RoutingContext;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.HttpRequest;
@@ -90,10 +91,10 @@ public class HookHandler implements LoggableResource {
     private static final String HOOK_LISTENER_STORAGE_PATH = HOOK_STORAGE_PATH + "listeners/";
     private static final String HOOK_ROUTE_STORAGE_PATH = HOOK_STORAGE_PATH + "routes/";
 
-    private static final String SAVE_LISTENER_ADDRESS = "gateleen.hook-listener-insert";
     private static final String REMOVE_LISTENER_ADDRESS = "gateleen.hook-listener-remove";
-    private static final String SAVE_ROUTE_ADDRESS = "gateleen.hook-route-insert";
-    private static final String REMOVE_ROUTE_ADDRESS = "gateleen.hook-route-remove";
+    static final String SAVE_LISTENER_ADDRESS = "gateleen.hook-listener-insert";
+    static final String SAVE_ROUTE_ADDRESS = "gateleen.hook-route-insert";
+    static final String REMOVE_ROUTE_ADDRESS = "gateleen.hook-route-remove";
     private static final int STATUS_CODE_2XX = 2;
 
     private static final int DEFAULT_HOOK_STORAGE_EXPIRE_AFTER_TIME = 60 * 60; // 1h in seconds
@@ -138,6 +139,7 @@ public class HookHandler implements LoggableResource {
     private final ListenerRepository listenerRepository;
     final RouteRepository routeRepository;
     private final RequestQueue requestQueue;
+    private final TrackableEventPublish trackableEventPublish;
 
     private final ReducedPropagationManager reducedPropagationManager;
 
@@ -293,6 +295,7 @@ public class HookHandler implements LoggableResource {
         this.routeBase = hookRootUri + HOOK_ROUTE_STORAGE_PATH;
         this.normalizedListenerBase = this.listenerBase.replaceAll("/+$", "");
         this.normalizedRouteBase = this.routeBase.replaceAll("/+$", "");
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
 
     }
 
@@ -491,16 +494,16 @@ public class HookHandler implements LoggableResource {
      */
     private void registerRouteRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
-        vertx.eventBus().consumer(SAVE_ROUTE_ADDRESS, (Handler<Message<String>>) event -> hookStorage.get(event.body(), buffer -> {
+        trackableEventPublish.consumer(SAVE_ROUTE_ADDRESS, event -> hookStorage.get(event, buffer -> {
             if (buffer != null) {
                 registerRoute(buffer);
             } else {
-                log.warn("Could not get URL '{}' (getting hook route).", (event.body() == null ? "<null>" : event.body()));
+                log.warn("Could not get URL '{}' (getting hook route).", (event == null ? "<null>" : event));
             }
         }));
 
         // Receive listener remove notifications
-        vertx.eventBus().consumer(REMOVE_ROUTE_ADDRESS, (Handler<Message<String>>) event -> unregisterRoute(event.body()));
+        trackableEventPublish.consumer(REMOVE_ROUTE_ADDRESS, this::unregisterRoute);
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -530,16 +533,16 @@ public class HookHandler implements LoggableResource {
      */
     public void registerListenerRegistrationHandler(Handler<Void> readyHandler) {
         // Receive listener insert notifications
-        vertx.eventBus().consumer(SAVE_LISTENER_ADDRESS, (Handler<Message<String>>) event -> hookStorage.get(event.body(), buffer -> {
+        trackableEventPublish.consumer(SAVE_LISTENER_ADDRESS, event -> hookStorage.get(event, buffer -> {
             if (buffer != null) {
                 registerListener(buffer);
             } else {
-                log.warn("Could not get URL '{}' (getting hook listener).", (event.body() == null ? "<null>" : event.body()));
+                log.warn("Could not get URL '{}' (getting hook listener).", (event == null ? "<null>" : event));
             }
         }));
 
         // Receive listener remove notifications
-        vertx.eventBus().consumer(REMOVE_LISTENER_ADDRESS, (Handler<Message<String>>) event -> unregisterListener(event.body()));
+        trackableEventPublish.consumer(REMOVE_LISTENER_ADDRESS, this::unregisterListener);
 
         // method done / no async processing pending
         readyHandler.handle(null);
@@ -1055,8 +1058,7 @@ public class HookHandler implements LoggableResource {
              * 'fails', therefore always an OK status is sent.
              */
 
-            vertx.eventBus().publish(REMOVE_ROUTE_ADDRESS, request.uri());
-
+            trackableEventPublish.publish(REMOVE_ROUTE_ADDRESS, request.uri());
             request.response().end();
         });
     }
@@ -1121,7 +1123,7 @@ public class HookHandler implements LoggableResource {
                     if (logHookConfigurationResourceChanges) {
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
-                    vertx.eventBus().publish(SAVE_ROUTE_ADDRESS, routeStorageUri);
+                    trackableEventPublish.publish(SAVE_ROUTE_ADDRESS, routeStorageUri);
                 } else {
                     request.response().setStatusCode(status);
                 }
@@ -1169,8 +1171,7 @@ public class HookHandler implements LoggableResource {
              * 'fails', therefore always an OK status is sent.
              */
 
-            vertx.eventBus().publish(REMOVE_LISTENER_ADDRESS, request.uri());
-
+            trackableEventPublish.publish(REMOVE_LISTENER_ADDRESS, request.uri());
             request.response().end();
         });
     }
@@ -1237,7 +1238,7 @@ public class HookHandler implements LoggableResource {
                     if (logHookConfigurationResourceChanges) {
                         RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                     }
-                    vertx.eventBus().publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
+                    trackableEventPublish.publish(SAVE_LISTENER_ADDRESS, listenerStorageUri);
                 } else {
                     request.response().setStatusCode(status);
                 }

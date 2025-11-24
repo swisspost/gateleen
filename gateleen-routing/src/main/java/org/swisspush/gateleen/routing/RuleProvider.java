@@ -7,6 +7,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
@@ -24,6 +25,7 @@ import java.util.Map;
  */
 public class RuleProvider {
 
+    private final TrackableEventPublish trackableEventPublish;
     private Logger log = LoggerFactory.getLogger(RuleProvider.class);
 
     private String rulesPath;
@@ -44,11 +46,11 @@ public class RuleProvider {
         this.properties = properties;
         this.routeMultiplier = routeMultiplier;
         routingRulesSchema = ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true);
-
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         notifyRuleChangesObservers();
 
         log.info("Register on vertx event bus to receive routing rules updates");
-        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> notifyRuleChangesObservers());
+        trackableEventPublish.consumer(Address.RULE_UPDATE_ADDRESS,  event -> notifyRuleChangesObservers());
     }
 
     /**

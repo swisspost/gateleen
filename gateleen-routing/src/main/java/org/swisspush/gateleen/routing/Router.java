@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceObserver;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpClientFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -77,7 +78,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private final LocalMap<String, Object> sharedData;
     private boolean initialized = false;
     private final String routingRulesSchema;
-
+    private final TrackableEventPublish trackableEventPublish;
     private boolean logRoutingRuleChanges = false;
 
     private String configResourceUri;
@@ -144,7 +145,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         this.routeMultiplier = routeMultiplier;
         this.oAuthProvider = oAuthProvider;
         this.exceptionFactory =  exceptionFactory;
-
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         if (oAuthProvider != null) {
             this.oAuthStrategy = new OAuthStrategy(oAuthProvider);
         }
@@ -179,12 +180,11 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
         });
 
         // Receive update notifications
-        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, this::onEventBusRuleUpdateEvent);
-
+        trackableEventPublish.consumer(Address.RULE_UPDATE_ADDRESS, this::onEventBusRuleUpdateEvent);
         vertx.eventBus().consumer(ROUTE_MULTIPLIER_ADDRESS, this::onEventBusRouteMultiplierEvent);
     }
 
-    private void onEventBusRuleUpdateEvent(Message<Object> ev) {
+    private void onEventBusRuleUpdateEvent(Object ev) {
         storage.get(rulesUri, buffer -> {
             if( buffer == null ){
                 log.warn("Could not get URL '{}' (getting rules).", (rulesUri == null ? "<null>" : rulesUri));
@@ -202,7 +202,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private void onEventBusRouteMultiplierEvent(Message<String> event) {
         log.debug("Updating router's pool size multiplier: {}", (event.body() == null ? "<null>" : event.body()));
         this.routeMultiplier = Integer.parseInt(event.body());
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        trackableEventPublish.publish(Address.RULE_UPDATE_ADDRESS, true);
     }
 
     public enum DefaultRouteType {
@@ -237,7 +237,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
                         if (logRoutingRuleChanges) {
                             RequestLogger.logRequest(vertx.eventBus(), request, StatusCode.OK.getStatusCode(), buffer);
                         }
-                        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+                        trackableEventPublish.publish(Address.RULE_UPDATE_ADDRESS, true);
                         resetRouterBrokenState();
                     } else {
                         request.response().setStatusCode(status);
@@ -519,7 +519,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
     @Override
     public void refresh() {
-        vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
+        trackableEventPublish.publish(Address.RULE_UPDATE_ADDRESS, true);
         resetRouterBrokenState();
     }
 

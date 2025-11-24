@@ -1,13 +1,12 @@
 package org.swisspush.gateleen.scheduler;
 
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.logging.LoggableResource;
 import org.swisspush.gateleen.core.logging.RequestLogger;
@@ -36,11 +35,12 @@ import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.new
 public class SchedulerResourceManager implements Refreshable, LoggableResource {
 
     public static final String DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY = "dst.observe";
-    private static final String UPDATE_ADDRESS = "gateleen.schedulers-updated";
+    static final String UPDATE_ADDRESS = "gateleen.schedulers-updated";
     private final String schedulersUri;
     private final ResourceStorage storage;
     private final Logger log = LoggerFactory.getLogger(SchedulerResourceManager.class);
     private final Vertx vertx;
+    private final TrackableEventPublish trackableEventPublish;
     private List<Scheduler> schedulers;
     private final Map<String, Object> properties;
     private final SchedulerFactory schedulerFactory;
@@ -82,11 +82,11 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
         this.schedulersSchema = ResourcesUtils.loadResource("gateleen_scheduler_schema_schedulers", true);
         this.schedulerFactory = new SchedulerFactory(properties, defaultRequestHeaders, vertx, redisProvider,
                 exceptionFactory, monitoringHandler, schedulersSchema, redisquesAddress);
-
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         updateSchedulers();
 
         // Receive update notifications
-        vertx.eventBus().consumer(UPDATE_ADDRESS, (Handler<Message<Boolean>>) event -> updateSchedulers());
+        trackableEventPublish.consumer(UPDATE_ADDRESS, event -> updateSchedulers());
 
         // Check for daylight saving time changes every minute
         // If a change is detected, all schedulers are restarted
@@ -137,7 +137,7 @@ public class SchedulerResourceManager implements Refreshable, LoggableResource {
                         if (logConfigurationResourceChanges) {
                             RequestLogger.logRequest(vertx.eventBus(), request, status, buffer);
                         }
-                        vertx.eventBus().publish(UPDATE_ADDRESS, true);
+                        trackableEventPublish.publish(UPDATE_ADDRESS, true);
                     } else {
                         request.response().setStatusCode(status);
                     }

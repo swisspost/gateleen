@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.user;
 
+import org.swisspush.gateleen.core.event.TrackableEventPublish;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonUtil;
 import org.swisspush.gateleen.core.logging.LoggableResource;
@@ -22,7 +23,7 @@ import java.util.regex.Pattern;
 public class RoleProfileHandler implements LoggableResource {
 
     public static final String UPDATE_ADDRESS = "gateleen.roleprofiles-updated";
-
+    private final TrackableEventPublish trackableEventPublish;
     private ResourceStorage storage;
     private Logger log = LoggerFactory.getLogger(RoleProfileHandler.class);
     private boolean logRoleProfileChanges = false;
@@ -33,6 +34,7 @@ public class RoleProfileHandler implements LoggableResource {
     public RoleProfileHandler(Vertx vertx, ResourceStorage storage, String roleProfileUriPattern) {
         this.storage = storage;
         this.vertx = vertx;
+        this.trackableEventPublish = new TrackableEventPublish(vertx);
         uriPattern = Pattern.compile(roleProfileUriPattern);
         eb = vertx.eventBus();
     }
@@ -90,7 +92,7 @@ public class RoleProfileHandler implements LoggableResource {
         case "DELETE":
             storage.delete(request.path(), status -> {
                 if (status == StatusCode.OK.getStatusCode()) {
-                    eb.publish(UPDATE_ADDRESS, "*");
+                    trackableEventPublish.publish(UPDATE_ADDRESS, true);
                 } else {
                     log.warn("Could not delete '" + (request.uri() == null ? "<null>" : request.uri()) + "'. Error code is '" + (status == null ? "<null>" : status) + "'.");
                     request.response().setStatusCode(status);
@@ -110,6 +112,6 @@ public class RoleProfileHandler implements LoggableResource {
 
     private void scheduleUpdate() {
         vertx.cancelTimer(updateTimerId);
-        updateTimerId = vertx.setTimer(3000, id -> eb.publish(UPDATE_ADDRESS, "*"));
+        updateTimerId = vertx.setTimer(3000, id -> trackableEventPublish.publish(UPDATE_ADDRESS, true));
     }
 }
