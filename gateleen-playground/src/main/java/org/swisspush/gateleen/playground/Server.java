@@ -89,6 +89,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.newGateleenWastefulExceptionFactory;
 
@@ -128,6 +129,7 @@ public class Server extends AbstractVerticle {
     private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
     private Authorizer authorizer;
     private Router router;
+    private final AtomicReference<Handler<RoutingContext>> routingContextHandlerRf = new AtomicReference<>();
 
     /*
      * Managers
@@ -174,7 +176,7 @@ public class Server extends AbstractVerticle {
 
     @Override
     public void start() {
-        final LocalHttpClient selfClient = new LocalHttpClient(vertx, exceptionFactory);
+        final LocalHttpClient selfClient = new LocalHttpClient(vertx, this::getRoutingContext, exceptionFactory);
         final JsonObject info = new JsonObject();
         final Map<String, Object> props = RunConfig.buildRedisProps("localhost", defaultRedisPort);
 
@@ -203,6 +205,7 @@ public class Server extends AbstractVerticle {
 
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_HARD_PROPERTY, "100");
         props.put(ExpansionHandler.MAX_EXPANSION_LEVEL_SOFT_PROPERTY, "50");
+        props.put(SchedulerResourceManager.DAYLIGHT_SAVING_TIME_OBSERVE_PROPERTY, true);
 
         RunConfig.deployModules(vertx, Server.class, props, success -> {
             if (success) {
@@ -304,7 +307,7 @@ public class Server extends AbstractVerticle {
                 kafkaHandler.initialize();
 
                 schedulerResourceManager = new SchedulerResourceManager(vertx, redisProvider, storage, monitoringHandler,
-                        SERVER_ROOT + "/admin/v1/schedulers");
+                        SERVER_ROOT + "/admin/v1/schedulers", props);
                 schedulerResourceManager.enableResourceLogging(true);
 
                 zipExtractHandler = new ZipExtractHandler(selfClient);
@@ -384,7 +387,7 @@ public class Server extends AbstractVerticle {
                         .contentTypeConstraintHandler(contentTypeConstraintHandler)
                         .build(vertx, redisProvider, Server.class, router, monitoringHandler);
                 Handler<RoutingContext> routingContextHandlerrNew = runConfig.buildRoutingContextHandler();
-                selfClient.setRoutingContexttHandler(routingContextHandlerrNew);
+                routingContextHandlerRf.compareAndSet(null, routingContextHandlerrNew);
 
                 HttpServerOptions options = new HttpServerOptions();
                 // till vertx2 100-continues was performed automatically (per default),
@@ -399,6 +402,14 @@ public class Server extends AbstractVerticle {
                 mainServer.listen(mainPort);
             }
         });
+    }
+
+    private Handler<RoutingContext> getRoutingContext() {
+        Handler<RoutingContext> routingContextHandler = routingContextHandlerRf.get();
+        if (routingContextHandler == null) {
+            log.debug("HuhWhat? Why is routingContextHandler null?");
+        }
+        return routingContextHandler;
     }
 
     private HttpClient createHttpClientForRouter(HttpClientOptions opts) {

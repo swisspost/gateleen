@@ -30,3 +30,15 @@ Also you have to enable the logging on the [SchedulerResourceManager](src/main/j
 ```java
 schedulerResourceManager.enableResourceLogging(true);
 ```
+
+## Daylight time change observation
+In order to detect DST changes properly, the observation could be enabled with the following property. 
+This will reschedule all schedulers when a DST change is detected and therefore realign the next execution time correctly.
+
+```properties
+dst.observe=true
+```
+
+Reason: The scheduler calculates the next execution time based on the last execution time and stores it persistently. If the 
+last execution time is before the DST change and the next execution time is after the DST change, the scheduler might hop 
+over the DST change hour and therefore miss scheduled executions.

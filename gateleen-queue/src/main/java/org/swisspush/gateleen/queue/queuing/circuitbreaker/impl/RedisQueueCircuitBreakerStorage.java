@@ -26,16 +26,14 @@ import java.util.*;
  */
 public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStorage {
 
+    private final String storage_prefix;
     private final RedisProvider redisProvider;
     private final Logger log = LoggerFactory.getLogger(RedisQueueCircuitBreakerStorage.class);
 
-    public static final String STORAGE_PREFIX = "gateleen.queue-circuit-breaker:";
+    private static final String DEFAULT_STORAGE_PREFIX = "gateleen.queue-circuit-breaker:";
+
     public static final String STORAGE_INFOS_SUFFIX = ":infos";
     public static final String STORAGE_QUEUES_SUFFIX = ":queues";
-    public static final String STORAGE_ALL_CIRCUITS = STORAGE_PREFIX + "all-circuits";
-    public static final String STORAGE_HALFOPEN_CIRCUITS = STORAGE_PREFIX + "half-open-circuits";
-    public static final String STORAGE_OPEN_CIRCUITS = STORAGE_PREFIX + "open-circuits";
-    public static final String STORAGE_QUEUES_TO_UNLOCK = STORAGE_PREFIX + "queues-to-unlock";
     public static final String FIELD_STATE = "state";
     public static final String FIELD_STATUS = "status";
     public static final String FIELD_FAILRATIO = "failRatio";
@@ -50,6 +48,12 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     private final LuaScriptState getAllCircuitsLuaScriptState;
 
     public RedisQueueCircuitBreakerStorage(RedisProvider redisProvider, GateleenExceptionFactory exceptionFactory) {
+        this(null, redisProvider, exceptionFactory);
+    }
+
+    public RedisQueueCircuitBreakerStorage(String storagePrefix, RedisProvider redisProvider, GateleenExceptionFactory exceptionFactory) {
+        this.storage_prefix = Objects.requireNonNullElse(storagePrefix, DEFAULT_STORAGE_PREFIX);
+
         this.redisProvider = redisProvider;
 
         openCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UPDATE_CIRCUIT, redisProvider, exceptionFactory, false);
@@ -58,6 +62,26 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
         halfOpenCircuitLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.HALFOPEN_CIRCUITS, redisProvider, exceptionFactory, false);
         unlockSampleQueuesLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.UNLOCK_SAMPLES, redisProvider, exceptionFactory, false);
         getAllCircuitsLuaScriptState = new LuaScriptState(QueueCircuitBreakerLuaScripts.ALL_CIRCUITS, redisProvider, exceptionFactory, false);
+    }
+
+    public String getStoragePrefix() {
+        return storage_prefix;
+    }
+
+    public String getStorageAllCircuits() {
+        return storage_prefix + "all-circuits";
+    }
+
+    public String getStorageHalfOpenCircuits() {
+        return storage_prefix + "half-open-circuits";
+    }
+
+    public String getStorageOpenCircuits() {
+        return storage_prefix + "open-circuits";
+    }
+
+    public String getStorageQueuesToUnlock() {
+        return storage_prefix + "queues-to-unlock";
     }
 
     @Override
@@ -135,8 +159,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     @Override
     public Future<JsonObject> getAllCircuits() {
         Promise<JsonObject> promise = Promise.promise();
-        List<String> keys = Collections.singletonList(STORAGE_ALL_CIRCUITS);
-        List<String> arguments = Arrays.asList(STORAGE_PREFIX, STORAGE_INFOS_SUFFIX);
+        List<String> keys = Collections.singletonList(getStorageAllCircuits());
+        List<String> arguments = Arrays.asList(getStoragePrefix(), STORAGE_INFOS_SUFFIX);
         GetAllCircuitsRedisCommand cmd = new GetAllCircuitsRedisCommand(getAllCircuitsLuaScriptState,
                 keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
@@ -154,8 +178,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 buildStatsKey(circuitHash, QueueResponseType.SUCCESS),
                 buildStatsKey(circuitHash, QueueResponseType.FAILURE),
                 buildStatsKey(circuitHash, queueResponseType),
-                STORAGE_OPEN_CIRCUITS,
-                STORAGE_ALL_CIRCUITS
+                getStorageOpenCircuits(),
+                getStorageAllCircuits()
         );
 
         List<String> arguments = Arrays.asList(
@@ -193,7 +217,7 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     @Override
     public Future<String> popQueueToUnlock() {
         Promise<String> promise = Promise.promise();
-        redisProvider.redis().onSuccess(redisAPI -> redisAPI.lpop(Collections.singletonList(STORAGE_QUEUES_TO_UNLOCK),
+        redisProvider.redis().onSuccess(redisAPI -> redisAPI.lpop(Collections.singletonList(getStorageQueuesToUnlock()),
                 event -> {
                     if (event.failed()) {
                         promise.fail(event.cause().getMessage());
@@ -222,10 +246,10 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 buildStatsKey(circuitHash, QueueResponseType.SUCCESS),
                 buildStatsKey(circuitHash, QueueResponseType.FAILURE),
                 buildQueuesKey(circuitHash),
-                STORAGE_ALL_CIRCUITS,
-                STORAGE_HALFOPEN_CIRCUITS,
-                STORAGE_OPEN_CIRCUITS,
-                STORAGE_QUEUES_TO_UNLOCK
+                getStorageAllCircuits(),
+                getStorageHalfOpenCircuits(),
+                getStorageOpenCircuits(),
+                getStorageQueuesToUnlock()
         );
 
         List<String> arguments = Arrays.asList(
@@ -243,8 +267,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public Future<Void> closeAllCircuits() {
         Promise<Void> promise = Promise.promise();
 
-        Future<Void> closeOpenCircuitsFuture = closeCircuitsByKey(STORAGE_OPEN_CIRCUITS);
-        Future<Void> closeHalfOpenCircuitsFuture = closeCircuitsByKey(STORAGE_HALFOPEN_CIRCUITS);
+        Future<Void> closeOpenCircuitsFuture = closeCircuitsByKey(getStorageOpenCircuits());
+        Future<Void> closeHalfOpenCircuitsFuture = closeCircuitsByKey(getStorageHalfOpenCircuits());
 
         Future.all(closeOpenCircuitsFuture, closeHalfOpenCircuitsFuture).onComplete(event -> {
             if (event.succeeded()) {
@@ -290,8 +314,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
 
         List<String> keys = Arrays.asList(
                 buildInfosKey(circuitHash),
-                STORAGE_HALFOPEN_CIRCUITS,
-                STORAGE_OPEN_CIRCUITS
+                getStorageHalfOpenCircuits(),
+                getStorageOpenCircuits()
         );
 
         List<String> arguments = Collections.singletonList(circuitHash);
@@ -306,8 +330,8 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     @Override
     public Future<Long> setOpenCircuitsToHalfOpen() {
         Promise<Long> promise = Promise.promise();
-        List<String> keys = Arrays.asList(STORAGE_HALFOPEN_CIRCUITS, STORAGE_OPEN_CIRCUITS);
-        List<String> arguments = Arrays.asList(STORAGE_PREFIX, STORAGE_INFOS_SUFFIX);
+        List<String> keys = Arrays.asList(getStorageHalfOpenCircuits(), getStorageOpenCircuits());
+        List<String> arguments = Arrays.asList(getStoragePrefix(), STORAGE_INFOS_SUFFIX);
         HalfOpenCircuitRedisCommand cmd = new HalfOpenCircuitRedisCommand(halfOpenCircuitLuaScriptState,
                 keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
@@ -318,10 +342,10 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
     public Future<Response> unlockSampleQueues() {
         Promise<Response> promise = Promise.promise();
 
-        List<String> keys = Collections.singletonList(STORAGE_HALFOPEN_CIRCUITS);
+        List<String> keys = Collections.singletonList(getStorageHalfOpenCircuits());
 
         List<String> arguments = Arrays.asList(
-                STORAGE_PREFIX,
+                getStoragePrefix(),
                 STORAGE_QUEUES_SUFFIX,
                 String.valueOf(System.currentTimeMillis()));
 
@@ -336,14 +360,14 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
      * Helper methods
      */
     private String buildInfosKey(String circuitHash) {
-        return STORAGE_PREFIX + circuitHash + STORAGE_INFOS_SUFFIX;
+        return getStoragePrefix() + circuitHash + STORAGE_INFOS_SUFFIX;
     }
 
     private String buildQueuesKey(String circuitHash) {
-        return STORAGE_PREFIX + circuitHash + STORAGE_QUEUES_SUFFIX;
+        return getStoragePrefix() + circuitHash + STORAGE_QUEUES_SUFFIX;
     }
 
     private String buildStatsKey(String circuitHash, QueueResponseType queueResponseType) {
-        return STORAGE_PREFIX + circuitHash + queueResponseType.getKeySuffix();
+        return getStoragePrefix() + circuitHash + queueResponseType.getKeySuffix();
     }
 }
