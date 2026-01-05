@@ -243,11 +243,11 @@ public class Route {
         // checking if the forwarder is for all methods
         if (httpHook.getMethods().isEmpty()) {
             forwarder.handle(ctx, requestBody, afterHandler);
-        } else {
-            // checking if the method from the request is handled by this forwarder
-            if (httpHook.getMethods().contains(ctx.request().method().name())) {
-                forwarder.handle(ctx, requestBody, afterHandler);
-            }
+            return;
+        }
+        // checking if the method from the request is handled by this forwarder
+        if (httpHook.getMethods().contains(ctx.request().method().name())) {
+            forwarder.handle(ctx, requestBody, afterHandler);
         }
     }
 
