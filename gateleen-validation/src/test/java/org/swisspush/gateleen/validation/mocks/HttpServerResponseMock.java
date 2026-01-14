@@ -117,6 +117,11 @@ public class HttpServerResponseMock implements HttpServerResponse {
     }
 
     @Override
+    public Future<Void> writeHead() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Future<Void> write(String chunk, String enc) {
         throw new UnsupportedOperationException();
     }

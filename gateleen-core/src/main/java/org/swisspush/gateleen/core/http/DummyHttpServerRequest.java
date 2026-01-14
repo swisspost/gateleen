@@ -4,6 +4,7 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.codegen.annotations.Nullable;
 import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.net.HostAndPort;
 
@@ -26,10 +27,20 @@ public class DummyHttpServerRequest extends FastFailHttpServerRequest {
     private Charset paramsCharset = StandardCharsets.UTF_8;
     private MultiMap params;
 
+    @Override
+    public HttpVersion version() {
+        return HttpVersion.HTTP_1_0;
+    }
+
     @Override public boolean isSSL() { return false; }
 
     @Override
     public @Nullable HostAndPort authority() {
+        return null;
+    }
+
+    @Override
+    public @Nullable HostAndPort authority(boolean real) {
         return null;
     }
 
@@ -67,6 +78,11 @@ public class DummyHttpServerRequest extends FastFailHttpServerRequest {
             }
         }
         return params;
+    }
+
+    @Override
+    public MultiMap params(boolean b) {
+        return params();
     }
 
     @Override

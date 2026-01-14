@@ -16,6 +16,7 @@ import javax.net.ssl.SSLSession;
 import javax.security.cert.X509Certificate;
 import java.security.cert.Certificate;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -49,6 +50,11 @@ public class LocalHttpConnection implements HttpConnection {
 
     @Override
     public Future<Void> shutdown(long timeoutMs) {
+        throw new UnsupportedOperationException("LocalConnection don't support this");
+    }
+
+    @Override
+    public Future<Void> shutdown(long timeout, TimeUnit unit) {
         throw new UnsupportedOperationException("LocalConnection don't support this");
     }
 
