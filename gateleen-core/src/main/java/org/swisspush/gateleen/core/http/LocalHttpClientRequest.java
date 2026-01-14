@@ -116,8 +116,16 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
         @Override
         public MultiMap params() {
+            return params(false);
+        }
+
+        @Override
+        public MultiMap params(boolean semicolonIsNormalChar) {
             if (params == null) {
-                QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri(), paramsCharset);
+                QueryStringDecoder queryStringDecoder = QueryStringDecoder.builder()
+                        .charset(paramsCharset)
+                        .semicolonIsNormalChar(semicolonIsNormalChar)
+                        .build(uri());
                 Map<String, List<String>> prms = queryStringDecoder.parameters();
                 params = new HeadersMultiMap();
                 if (!prms.isEmpty()) {
@@ -127,11 +135,6 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
                 }
             }
             return params;
-        }
-
-        @Override
-        public MultiMap params(boolean semicolonIsNormalChar) {
-            return params();
         }
 
         @Override

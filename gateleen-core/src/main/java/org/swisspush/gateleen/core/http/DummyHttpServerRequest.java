@@ -67,8 +67,16 @@ public class DummyHttpServerRequest extends FastFailHttpServerRequest {
 
     @Override
     public MultiMap params() {
+        return params(false);
+    }
+
+    @Override
+    public MultiMap params(boolean semicolonIsNormalChar) {
         if (params == null) {
-            QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri(), paramsCharset);
+            QueryStringDecoder queryStringDecoder = QueryStringDecoder.builder()
+                    .charset(paramsCharset)
+                    .semicolonIsNormalChar(semicolonIsNormalChar)
+                    .build(uri());
             Map<String, List<String>> prms = queryStringDecoder.parameters();
             params = new HeadersMultiMap();
             if (!prms.isEmpty()) {
@@ -78,11 +86,6 @@ public class DummyHttpServerRequest extends FastFailHttpServerRequest {
             }
         }
         return params;
-    }
-
-    @Override
-    public MultiMap params(boolean b) {
-        return params();
     }
 
     @Override
