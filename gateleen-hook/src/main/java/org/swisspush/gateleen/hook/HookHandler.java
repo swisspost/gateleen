@@ -118,6 +118,7 @@ public class HookHandler implements LoggableResource {
     private static final String CONTENT_TYPE_JSON = "application/json";
     private static final String LISTENERS_KEY = "listeners";
     private static final String ROUTES_KEY = "routes";
+    public static final String RESOURCE_PATH = "resource_path";
 
     private final Comparator<String> collectionContentComparator;
     private static final Logger log = LoggerFactory.getLogger(HookHandler.class);
@@ -890,6 +891,7 @@ public class HookHandler implements LoggableResource {
             // so that the original request is not overridden with the new values.
             HeadersMultiMap queueHeaders = new HeadersMultiMap();
             queueHeaders.addAll(request.headers());
+            queueHeaders.add(RESOURCE_PATH, listener.getMonitoredUrl() + path);
 
             // Apply the header manipulation chain - errors (unresolvable references) will just be WARN logged - but we still enqueue
             final HeaderFunctions.EvalScope evalScope = listener.getHook().getHeaderFunction().apply(queueHeaders);
