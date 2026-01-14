@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
@@ -28,6 +29,7 @@ public class KafkaMessageValidator {
     private final ValidationResourceManager validationResourceManager;
     private final Validator validator;
     private final Logger log = LoggerFactory.getLogger(KafkaHandler.class);
+    private final Vertx vertx;
 
     private MeterRegistry meterRegistry;
     private final Map<String, Counter> failedToValidateCounterMap = new HashMap<>();
@@ -36,7 +38,8 @@ public class KafkaMessageValidator {
     public static final String FAIL_VALIDATION_MESSAGES_METRIC_DESCRIPTION = "Amount of failed kafka message validations";
     public static final String TOPIC = "topic";
 
-    public KafkaMessageValidator(ValidationResourceManager validationResourceManager, Validator validator) {
+    public KafkaMessageValidator(Vertx vertx, ValidationResourceManager validationResourceManager, Validator validator) {
+        this.vertx = vertx;
         this.validationResourceManager = validationResourceManager;
         this.validator = validator;
     }
@@ -74,15 +77,18 @@ public class KafkaMessageValidator {
         return CompositeFuture.all(futures).compose(compositeFuture -> {
             for (Object o : compositeFuture.list()) {
                 if (((ValidationResult) o).getValidationStatus() != ValidationStatus.VALIDATED_POSITIV) {
-                    incrementValidationFailCount(topic);
-                    return Future.succeededFuture((ValidationResult) o);
+                    return vertx.executeBlocking(() -> {
+                        incrementValidationFailCount(topic);
+                        return ((ValidationResult) o);
+                    });
                 }
             }
             return Future.succeededFuture(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
-        }, throwable -> {
+        },  throwable -> vertx.executeBlocking(event -> {
             incrementValidationFailCount(topic);
-            return Future.failedFuture(throwable);
-        });
+            event.fail(throwable);
+        }));
+
     }
 
     private void incrementValidationFailCount(String topic) {

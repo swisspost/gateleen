@@ -291,8 +291,8 @@ public class Server extends AbstractVerticle {
                 validationHandler = new ValidationHandler(validationResourceManager, selfClient, validator);
 
                 KafkaProducerRepository kafkaProducerRepository = new KafkaProducerRepository(vertx);
-                KafkaMessageSender kafkaMessageSender = new KafkaMessageSender();
-                KafkaMessageValidator messageValidator = new KafkaMessageValidator(validationResourceManager, validator);
+                KafkaMessageSender kafkaMessageSender = new KafkaMessageSender(vertx);
+                KafkaMessageValidator messageValidator = new KafkaMessageValidator(vertx, validationResourceManager, validator);
 
                 kafkaHandler = KafkaHandler.builder()
                         .withVertx(vertx)
