@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpHeaders;
@@ -178,10 +179,9 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
             }
         });
 
-        // Receive update notifications
-        vertx.eventBus().consumer(Address.RULE_UPDATE_ADDRESS, this::onEventBusRuleUpdateEvent);
-
-        vertx.eventBus().consumer(ROUTE_MULTIPLIER_ADDRESS, this::onEventBusRouteMultiplierEvent);
+        EventBus eventBus = vertx.eventBus();
+        eventBus.consumer(Address.RULE_UPDATE_ADDRESS, this::onEventBusRuleUpdateEvent);
+        eventBus.consumer(ROUTE_MULTIPLIER_ADDRESS, this::onEventBusRouteMultiplierEvent);
     }
 
     private void onEventBusRuleUpdateEvent(Message<Object> ev) {
@@ -200,8 +200,14 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     }
 
     private void onEventBusRouteMultiplierEvent(Message<String> event) {
-        log.debug("Updating router's pool size multiplier: {}", (event.body() == null ? "<null>" : event.body()));
-        this.routeMultiplier = Integer.parseInt(event.body());
+        String evBody = event.body();
+        log.debug("Updating router's pool size multiplier: {}", (evBody == null ? "<null>" : evBody));
+        try {
+            this.routeMultiplier = Integer.parseInt(evBody);
+        } catch (NumberFormatException ex) {
+            log.error("{}", ex.getMessage(), log.isDebugEnabled() ? ex : null);
+            return;
+        }
         vertx.eventBus().publish(Address.RULE_UPDATE_ADDRESS, true);
     }
 

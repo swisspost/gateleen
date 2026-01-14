@@ -194,8 +194,6 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 String.valueOf(maxQueueSampleCount)
         );
 
-        log.warn("zzz updateStatistics with keys {} and arguments {}", keys, arguments);
-
         UpdateStatsRedisCommand cmd = new UpdateStatsRedisCommand(openCircuitLuaScriptState,
                 keys, arguments, redisProvider, log, promise);
         cmd.exec(0);
@@ -350,8 +348,6 @@ public class RedisQueueCircuitBreakerStorage implements QueueCircuitBreakerStora
                 getStoragePrefix(),
                 STORAGE_QUEUES_SUFFIX,
                 String.valueOf(System.currentTimeMillis()));
-
-        log.warn("zzz new unlockSampleQueues with keys {} and arguments {}", keys, arguments);
 
         UnlockSampleQueuesRedisCommand cmd = new UnlockSampleQueuesRedisCommand(unlockSampleQueuesLuaScriptState,
                 keys, arguments, redisProvider, log, promise);

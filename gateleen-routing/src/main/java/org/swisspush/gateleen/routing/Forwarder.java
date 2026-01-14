@@ -650,7 +650,11 @@ public class Forwarder extends AbstractForwarder {
         try {
             response.setStatusCode(statusCode);
             response.setStatusMessage(statusMsg);
-            response.end();
+            if (statusCode >= 200 && statusCode <= 299) {
+                response.end();
+            } else {
+                response.end(dbgHint.endsWith("\n") ? dbgHint : (dbgHint + "\n"));
+            }
         } catch (IllegalStateException iex) {
             log.debug("{}", dbgHint, iex);
         }
@@ -739,7 +743,7 @@ public class Forwarder extends AbstractForwarder {
         private final AuthHeader authHeader;
         private final Buffer bodyData;
 
-        public RequestCtx(
+        private RequestCtx(
                 HttpServerRequest dnReq,
                 Logger log,
                 String targetUri,
