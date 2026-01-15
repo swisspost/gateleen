@@ -1,0 +1,25 @@
+name: Branch Protection
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  check-source-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if PR is from develop branch
+        if: github.head_ref != 'develop'
+        run: |
+          echo "Error: Pull requests to master branch are only allowed from develop branch"
+          echo "Current source branch: ${{ github.head_ref }}"
+          exit 1
+      
+      - name: PR from develop approved
+        if: github.head_ref == 'develop'
+        run: |
+          echo "✓ Pull request from develop branch to master is allowed"
