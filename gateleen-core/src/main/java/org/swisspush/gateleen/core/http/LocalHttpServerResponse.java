@@ -209,6 +209,11 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     }
 
     @Override
+    public Future<Void> writeHead() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Future<Void> write(String chunk, String enc) {
         return write(Buffer.buffer(chunk, enc));
     }

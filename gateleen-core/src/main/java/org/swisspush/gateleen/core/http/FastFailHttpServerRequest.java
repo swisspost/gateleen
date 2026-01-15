@@ -9,6 +9,7 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.core.http.impl.HttpServerRequestInternal;
+import io.vertx.core.net.HostAndPort;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 
@@ -72,6 +73,14 @@ public abstract class FastFailHttpServerRequest extends HttpServerRequestInterna
         throw new UnsupportedOperationException( msg );
     }
 
+    public @Nullable HostAndPort authority() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+    public @Nullable HostAndPort authority(boolean real) {
+        throw new UnsupportedOperationException( msg );
+    }
+
     public @Nullable String scheme() {
         throw new UnsupportedOperationException( msg );
     }
@@ -113,6 +122,10 @@ public abstract class FastFailHttpServerRequest extends HttpServerRequestInterna
     }
 
     public MultiMap params() {
+        throw new UnsupportedOperationException( msg );
+    }
+
+    public MultiMap params(boolean semicolonIsNormalChar) {
         throw new UnsupportedOperationException( msg );
     }
 
