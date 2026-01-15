@@ -79,7 +79,7 @@
         <springframework.version>5.3.27</springframework.version>
         <slf4j.version>2.0.10</slf4j.version>
         <quartz.version>2.3.2</quartz.version>
-        <vertx.version>4.5.2</vertx.version>
+        <vertx.version>4.5.22</vertx.version>
         <vertx-redis-client.version>4.5.2</vertx-redis-client.version>
         <wiremock.version>1.58</wiremock.version>
     </properties>
