@@ -73,6 +73,11 @@ public class HttpServerRequestMock extends FastFailHttpServerRequest {
     }
 
     @Override
+    public @Nullable HostAndPort authority(boolean real) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public @Nullable String host() {
         throw new UnsupportedOperationException();
     }
@@ -110,6 +115,11 @@ public class HttpServerRequestMock extends FastFailHttpServerRequest {
     @Override
     public MultiMap params() {
         return MultiMap.caseInsensitiveMultiMap();
+    }
+
+    @Override
+    public MultiMap params(boolean semicolonIsNormalChar) {
+        return params();
     }
 
     @Override

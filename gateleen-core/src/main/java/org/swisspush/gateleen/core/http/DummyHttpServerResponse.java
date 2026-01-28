@@ -62,6 +62,11 @@ public class DummyHttpServerResponse implements FastFailHttpServerResponse {
     }
 
     @Override
+    public Future<Void> writeHead() {
+        return Future.succeededFuture();
+    }
+
+    @Override
     public Future<Void> end(String chunk) {
         this.resultBuffer = chunk;
         return Future.succeededFuture();

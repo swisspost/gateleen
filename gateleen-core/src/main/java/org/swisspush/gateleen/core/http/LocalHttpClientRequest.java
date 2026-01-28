@@ -26,13 +26,7 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.SocketAddressImpl;
 import io.vertx.ext.auth.User;
-import io.vertx.ext.web.FileUpload;
-import io.vertx.ext.web.LanguageHeader;
-import io.vertx.ext.web.ParsedHeaderValues;
-import io.vertx.ext.web.RequestBody;
-import io.vertx.ext.web.Route;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.Session;
+import io.vertx.ext.web.*;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 
@@ -116,9 +110,22 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
         }
 
         @Override
+        public @Nullable HostAndPort authority(boolean real) {
+            return null;
+        }
+
+        @Override
         public MultiMap params() {
+            return params(false);
+        }
+
+        @Override
+        public MultiMap params(boolean semicolonIsNormalChar) {
             if (params == null) {
-                QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri(), paramsCharset);
+                QueryStringDecoder queryStringDecoder = QueryStringDecoder.builder()
+                        .charset(paramsCharset)
+                        .semicolonIsNormalChar(semicolonIsNormalChar)
+                        .build(uri());
                 Map<String, List<String>> prms = queryStringDecoder.parameters();
                 params = new HeadersMultiMap();
                 if (!prms.isEmpty()) {
@@ -432,6 +439,11 @@ public class LocalHttpClientRequest extends BufferBridge implements HttpClientRe
 
         @Override
         public User user() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public UserContext userContext() {
             throw new UnsupportedOperationException();
         }
 
