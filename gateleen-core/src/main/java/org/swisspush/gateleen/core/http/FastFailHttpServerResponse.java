@@ -30,6 +30,10 @@ public interface FastFailHttpServerResponse extends HttpServerResponse {
         throw new UnsupportedOperationException(msg);
     }
 
+    default Future<Void> writeHead() {
+        throw new UnsupportedOperationException( msg );
+    }
+
     default HttpServerResponse setWriteQueueMaxSize(int maxSize) {
         throw new UnsupportedOperationException(msg);
     }
