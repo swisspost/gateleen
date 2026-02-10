@@ -288,7 +288,8 @@ public class Rule {
                 .setKeepAlive(isKeepAlive())
                 .setKeepAliveTimeout(getKeepAliveTimeout())
                 .setPipelining(false)
-                .setMaxWaitQueueSize(getMaxWaitQueueSize());
+                .setMaxWaitQueueSize(getMaxWaitQueueSize())
+                .setMetricsName(null);
         if ("https".equals(getScheme())) {
             options.setSsl(true).setVerifyHost(false).setTrustAll(true);
         }

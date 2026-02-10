@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
@@ -30,8 +31,8 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
      * Creates a new instance of the local in-memory LocalHookListenerRepository.
      */
     public LocalListenerRepository() {
-        urlToListenersMap = new HashMap<>();
-        listenerToUrlMap = new HashMap<>();
+        urlToListenersMap = new ConcurrentHashMap<>();
+        listenerToUrlMap = new ConcurrentHashMap<>();
     }
 
     @Override

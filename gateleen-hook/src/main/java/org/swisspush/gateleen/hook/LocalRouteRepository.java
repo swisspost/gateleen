@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -22,7 +23,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
      * Creates a new instance of a local in-memory HookRouteRepository.
      */
     public LocalRouteRepository() {
-        routes = new HashMap<>();
+        routes = new ConcurrentHashMap<>();
     }
 
     @Override

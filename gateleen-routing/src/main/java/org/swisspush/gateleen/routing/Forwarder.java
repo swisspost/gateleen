@@ -158,6 +158,12 @@ public class Forwarder extends AbstractForwarder {
         }
     }
 
+    public void shutdown() {
+        if (this.meterRegistry != null) {
+            meterRegistry.remove(forwardTimer);
+        }
+    }
+
     private Map<String, String> createProfileHeaderValues(JsonObject profile, Logger log) {
         Map<String, String> profileValues = new HashMap<>();
         if (rule.getProfile() != null) {
