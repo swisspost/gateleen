@@ -27,7 +27,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
     }
 
     @Override
-    public void addRoute(String urlPattern, Route route) {
+    public synchronized void addRoute(String urlPattern, Route route) {
         log.debug("Creating route for url pattern {} and route destination {}", urlPattern, route.getHook().getDestination());
 
         /*
@@ -48,7 +48,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
     }
 
     @Override
-    public void removeRoute(String urlPattern) {
+    public synchronized void removeRoute(String urlPattern) {
         log.debug("Removing route for url pattern {}", urlPattern);
 
         String routeKey = findFirstMatchingKey(routes, urlPattern);
@@ -60,7 +60,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
     }
 
     @Override
-    public Route getRoute(String url) {
+    public synchronized Route getRoute(String url) {
         String key = findFirstMatchingKey(routes, url);
         return key != null ? routes.get(key) : null;
     }

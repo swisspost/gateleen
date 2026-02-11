@@ -48,8 +48,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import static io.vertx.core.Future.failedFuture;
-import static io.vertx.core.Future.succeededFuture;
 import static org.swisspush.gateleen.core.util.HttpHeaderUtil.removeNonForwardHeaders;
 import static org.swisspush.gateleen.core.util.StatusCode.BAD_GATEWAY;
 import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
@@ -159,9 +157,7 @@ public class Forwarder extends AbstractForwarder {
     }
 
     public void shutdown() {
-        if (this.meterRegistry != null) {
-            meterRegistry.remove(forwardTimer);
-        }
+        forwardTimer = null; // remove this reference from Forwarder
     }
 
     private Map<String, String> createProfileHeaderValues(JsonObject profile, Logger log) {
