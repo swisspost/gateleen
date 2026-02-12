@@ -1131,4 +1131,230 @@ public class RouterTest {
             }
         };
     }
+
+    @Test
+    public void testUpdateInfoWithNewJsonObject(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS));
+        JsonObject initialInfo = new JsonObject().put("version", "1.0");
+        Router router = routerBuilder().withInfo(initialInfo).withStorage(storage).build();
+
+        // Update info with new data
+        JsonObject newInfo = new JsonObject().put("version", "2.0").put("name", "updated");
+        router.updateInfo(newInfo);
+
+        // Verify the info endpoint returns the updated info
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        class GETServerInfoRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
+                return HttpMethod.GET;
+            }
+
+            @Override
+            public String uri() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public String path() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public MultiMap params() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
+
+            @Override
+            public MultiMap headers() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        }
+
+        GETServerInfoRequest request = new GETServerInfoRequest();
+        router.route(request);
+
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        JsonObject responseInfo = new JsonObject(request.response().getResultBuffer());
+        context.assertEquals("2.0", responseInfo.getString("version"), "Version should be updated to 2.0");
+        context.assertEquals("updated", responseInfo.getString("name"), "Name should be 'updated'");
+    }
+
+    @Test
+    public void testUpdateInfoWithNull(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS));
+        JsonObject initialInfo = new JsonObject().put("version", "1.0");
+        Router router = routerBuilder().withInfo(initialInfo).withStorage(storage).build();
+
+        // Update info with null
+        router.updateInfo(null);
+
+        // Verify the info endpoint returns an empty object
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        class GETServerInfoRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
+                return HttpMethod.GET;
+            }
+
+            @Override
+            public String uri() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public String path() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public MultiMap params() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
+
+            @Override
+            public MultiMap headers() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        }
+
+        GETServerInfoRequest request = new GETServerInfoRequest();
+        router.route(request);
+
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        JsonObject responseInfo = new JsonObject(request.response().getResultBuffer());
+        context.assertTrue(responseInfo.isEmpty(), "Info should be an empty object when null is passed");
+    }
+
+    @Test
+    public void testUpdateInfoCreatesACopy(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS));
+        JsonObject initialInfo = new JsonObject().put("version", "1.0");
+        Router router = routerBuilder().withInfo(initialInfo).withStorage(storage).build();
+
+        // Create info and update router
+        JsonObject newInfo = new JsonObject().put("version", "2.0").put("mutable", "original");
+        router.updateInfo(newInfo);
+
+        // Modify the original newInfo object after updating
+        newInfo.put("mutable", "modified");
+        newInfo.put("extra", "field");
+
+        // Verify the info endpoint returns the original values (proving a copy was made)
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        class GETServerInfoRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
+                return HttpMethod.GET;
+            }
+
+            @Override
+            public String uri() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public String path() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public MultiMap params() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
+
+            @Override
+            public MultiMap headers() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        }
+
+        GETServerInfoRequest request = new GETServerInfoRequest();
+        router.route(request);
+
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        JsonObject responseInfo = new JsonObject(request.response().getResultBuffer());
+        context.assertEquals("original", responseInfo.getString("mutable"), "Mutable field should remain 'original'");
+        context.assertFalse(responseInfo.containsKey("extra"), "Extra field should not exist (proving a copy was made)");
+    }
+
+    @Test
+    public void testUpdateInfoMultipleTimes(TestContext context) {
+        storage = new MockResourceStorage(ImmutableMap.of(rulesPath, RULES_WITH_HOPS));
+        JsonObject initialInfo = new JsonObject().put("version", "1.0");
+        Router router = routerBuilder().withInfo(initialInfo).withStorage(storage).build();
+
+        // Update info multiple times
+        router.updateInfo(new JsonObject().put("version", "2.0"));
+        router.updateInfo(new JsonObject().put("version", "3.0").put("env", "prod"));
+
+        // Verify the info endpoint returns the latest update
+        final DummyHttpServerResponse response = new DummyHttpServerResponse();
+        response.setStatusCode(StatusCode.OK.getStatusCode());
+        response.setStatusMessage(StatusCode.OK.getStatusMessage());
+
+        class GETServerInfoRequest extends DummyHttpServerRequest {
+            @Override
+            public HttpMethod method() {
+                return HttpMethod.GET;
+            }
+
+            @Override
+            public String uri() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public String path() {
+                return "/gateleen/server/info";
+            }
+
+            @Override
+            public MultiMap params() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
+
+            @Override
+            public MultiMap headers() {
+                return MultiMap.caseInsensitiveMultiMap();
+            }
+
+            @Override
+            public DummyHttpServerResponse response() {
+                return response;
+            }
+        }
+
+        GETServerInfoRequest request = new GETServerInfoRequest();
+        router.route(request);
+
+        context.assertEquals(StatusCode.OK.getStatusCode(), request.response().getStatusCode(), "StatusCode should be 200");
+        JsonObject responseInfo = new JsonObject(request.response().getResultBuffer());
+        context.assertEquals("3.0", responseInfo.getString("version"), "Version should be 3.0 (latest update)");
+        context.assertEquals("prod", responseInfo.getString("env"), "Env should be 'prod'");
+    }
 }
