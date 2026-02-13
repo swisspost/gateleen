@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.HttpHeaderUtil;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
@@ -30,8 +31,8 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
      * Creates a new instance of the local in-memory LocalHookListenerRepository.
      */
     public LocalListenerRepository() {
-        urlToListenersMap = new HashMap<>();
-        listenerToUrlMap = new HashMap<>();
+        urlToListenersMap = new ConcurrentHashMap<>();
+        listenerToUrlMap = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -49,14 +50,14 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
          * do we have already a set of listeners
          * for this url?
          */
-        Set<Listener> listeners = urlToListenersMap.get(listener.getMonitoredUrl());
-        if (listeners == null) {
-            listeners = new HashSet<>();
-        }
+        urlToListenersMap.compute(listener.getMonitoredUrl(), (s, listeners) -> {
+            if (listeners == null) {
+                listeners = new HashSet<>();
+            }
+            listeners.add(listener);
+            return listeners;
+        });
 
-        listeners.add(listener);
-
-        urlToListenersMap.put(listener.getMonitoredUrl(), listeners);
         listenerToUrlMap.put(listener.getListenerId(), listener);
     }
 
@@ -68,19 +69,14 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
     @Override
     public void removeListener(String listenerId) {
         log.debug("Remove listener for id {}", listenerId);
-
-        Listener listenerToRemove = listenerToUrlMap.get(listenerId);
-
-        if (listenerToRemove != null) {
-            listenerToUrlMap.remove(listenerId);
-
+        listenerToUrlMap.computeIfPresent(listenerId, (id, listenerToRemove) -> {
             Set<Listener> listeners = urlToListenersMap.get(listenerToRemove.getMonitoredUrl());
             listeners.remove(listenerToRemove);
-
             if (listeners.isEmpty()) {
                 urlToListenersMap.remove(listenerToRemove.getMonitoredUrl());
             }
-        }
+            return null;
+        });
     }
 
     @Override

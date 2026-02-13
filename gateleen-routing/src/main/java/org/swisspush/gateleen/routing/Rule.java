@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.routing;
 
+import io.vertx.core.http.Http2Settings;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.net.ProxyOptions;
 import org.swisspush.gateleen.core.http.HeaderFunction;
@@ -17,6 +18,7 @@ public class Rule {
     public static final int CONNECTION_POOL_SIZE_DEFAULT_VALUE = 50;
     public static final int MAX_WAIT_QUEUE_SIZE_DEFAULT_VALUE = -1;
     public static final int CONNECTION_TIMEOUT_SEC_DEFAULT_VALUE = 30;
+    private static final Http2Settings htt2Settings = new Http2Settings();
     private String scheme;
     private String host;
     private String metricName;
@@ -288,7 +290,11 @@ public class Rule {
                 .setKeepAlive(isKeepAlive())
                 .setKeepAliveTimeout(getKeepAliveTimeout())
                 .setPipelining(false)
-                .setMaxWaitQueueSize(getMaxWaitQueueSize());
+                .setMaxWaitQueueSize(getMaxWaitQueueSize())
+                // use a static instance.
+                .setInitialSettings(htt2Settings)
+                // disable Metrics for this http client
+                .setMetricsName(null);
         if ("https".equals(getScheme())) {
             options.setSsl(true).setVerifyHost(false).setTrustAll(true);
         }

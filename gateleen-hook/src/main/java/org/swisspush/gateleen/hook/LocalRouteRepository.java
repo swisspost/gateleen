@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -22,11 +23,11 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
      * Creates a new instance of a local in-memory HookRouteRepository.
      */
     public LocalRouteRepository() {
-        routes = new HashMap<>();
+        routes = new ConcurrentHashMap<>();
     }
 
     @Override
-    public void addRoute(String urlPattern, Route route) {
+    public synchronized void addRoute(String urlPattern, Route route) {
         log.debug("Creating route for url pattern {} and route destination {}", urlPattern, route.getHook().getDestination());
 
         /*
@@ -47,7 +48,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
     }
 
     @Override
-    public void removeRoute(String urlPattern) {
+    public synchronized void removeRoute(String urlPattern) {
         log.debug("Removing route for url pattern {}", urlPattern);
 
         String routeKey = findFirstMatchingKey(routes, urlPattern);
@@ -59,7 +60,7 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
     }
 
     @Override
-    public Route getRoute(String url) {
+    public synchronized Route getRoute(String url) {
         String key = findFirstMatchingKey(routes, url);
         return key != null ? routes.get(key) : null;
     }
