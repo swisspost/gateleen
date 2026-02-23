@@ -1697,7 +1697,7 @@ public class HookHandler implements LoggableResource {
             log.debug("Original pool size is {}, applied size is {}", originalPoolSize, appliedPoolSize);
             hook.setConnectionPoolSize(appliedPoolSize);
         } else {
-            log.debug("originalPoolSize is empty or invalid: {}, pool szie will not set", originalPoolSize);
+            log.debug("originalPoolSize is empty or invalid: {}, pool size will not be set", originalPoolSize);
         }
 
         hook.setMaxWaitQueueSize(jsonHook.getInteger(HttpHook.CONNECTION_MAX_WAIT_QUEUE_SIZE_PROPERTY_NAME));
