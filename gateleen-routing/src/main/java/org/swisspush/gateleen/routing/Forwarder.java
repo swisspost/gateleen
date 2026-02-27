@@ -39,6 +39,7 @@ import org.swisspush.gateleen.routing.auth.AuthStrategy;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
@@ -48,8 +49,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import static io.vertx.core.Future.failedFuture;
-import static io.vertx.core.Future.succeededFuture;
 import static org.swisspush.gateleen.core.util.HttpHeaderUtil.removeNonForwardHeaders;
 import static org.swisspush.gateleen.core.util.StatusCode.BAD_GATEWAY;
 import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
@@ -519,6 +518,18 @@ public class Forwarder extends AbstractForwarder {
         ctx.dnRsp.setStatusCode(ctx.upRes.statusCode());
         ctx.dnRsp.setStatusMessage(ctx.upRes.statusMessage());
 
+        /* If upstream announces to close the connection after this response, we
+         * MUST NOT try to re-use this connection (through the connection pool).
+         * So ensure (by closing it) that pool is not going to re-use it.
+         * See also:
+         * https://github.com/swisspost/gateleen/issues/737
+         * https://jira.post.ch/browse/SDCISA-22791
+         * https://jira.post.ch/browse/SDCISA-17956?focusedId=2392370&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-2392370
+         * https://jira.post.ch/browse/SDCISA-21348   */
+        if (isConnCloseHdrSet(ctx.upRes)) {
+            shutdownSinkNoThrow(ctx.upReq);
+        }
+
         int statusCode = ctx.upRes.statusCode();
 
         // translate with header info
@@ -630,6 +641,73 @@ public class Forwarder extends AbstractForwarder {
         } catch (RuntimeException exAlreadySent) {
             LOG.debug("{}: {}", dwnstrmReq.uri(), exAlreadySent.getMessage(), LOG.isTraceEnabled() ? exAlreadySent : null);
         }
+    }
+
+    /**
+     * Returns `true` if there's a HTTP `Connection` header present carrying the
+     * `close` token.
+     */
+    private boolean isConnCloseHdrSet(HttpClientResponse rsp) {
+        List<String> connectionHdr = rsp.headers().getAll(HttpHeaders.CONNECTION);
+        for (String hdrVal : connectionHdr) {
+            if ("close".equalsIgnoreCase(hdrVal)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Do a <a href="https://pubs.opengroup.org/onlinepubs/009695399/functions/shutdown.html">shutdown(req, SHUT_WR)</a>
+     * and don't care about {@link RuntimeException}s.
+     */
+    private void shutdownSinkNoThrow(HttpClientRequest req) {
+        try {
+            shutdownSink(req);
+        } catch (RuntimeException ex) {
+            CharSequence details = " (use DEBUG level for details)";
+            if (LOG.isDebugEnabled()) {
+                var buf = new StringBuilder(256).append(": Forwarded request was:\n");
+                details = appendAsDbgString(buf, req);
+            }
+            LOG.warn("{}{}", ex.getMessage(), details, LOG.isDebugEnabled() ? ex : null);
+        }
+    }
+
+    /**
+     * Do a <a href="https://pubs.opengroup.org/onlinepubs/009695399/functions/shutdown.html">shutdown(req, SHUT_WR)</a>.
+     */
+    private void shutdownSink(HttpClientRequest req) {
+        HttpConnection conn = req.connection();
+        if (conn == null) {
+            /* Q: null-check? What for?
+             * A: https://github.com/swisspost/gateleen/blob/v2.1.41/gateleen-core/src/main/java/org/swisspush/gateleen/core/http/LocalHttpClientRequest.java#L925-L929   */
+            CharSequence details = " (use TRACE level for details)";
+            if (LOG.isTraceEnabled()) {
+                var buf = new StringBuilder(256).append(": Forwarded request was:\n");
+                details = appendAsDbgString(buf, req);
+            }
+            LOG.debug("There's nothing we could close{}", details,
+                    LOG.isTraceEnabled() ? new NullPointerException("connection") : null);
+            return;
+        }
+        conn.close();
+    }
+
+    /**
+     * Appends given `req` to given `buf` in a format similar to how it would
+     * look like when encoded as an HTTP message.
+     * @return
+     *      Fluent reference to given `buf`
+     */
+    private <T extends StringBuilder> T appendAsDbgString(T buf, HttpClientRequest req) {
+        /* unfortunately, `req` seems NOT to give us any information about what
+         * http proto version was used. So we WON'T fill it in here. */
+        buf.append(req.getMethod()).append(' ').append(req.path())/*.append(" HTTP/X.Y")*/.append('\n');
+        for (var hdr : req.headers()) {
+            buf.append(hdr.getKey()).append(": ").append(hdr.getValue()).append('\n');
+        }
+        return buf;
     }
 
     private void tryRespondWithInternalServerError(HttpServerResponse rsp, Logger log, String dbgHint) {
