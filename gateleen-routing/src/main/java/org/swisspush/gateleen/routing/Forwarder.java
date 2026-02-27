@@ -665,12 +665,12 @@ public class Forwarder extends AbstractForwarder {
         try {
             shutdownSink(req);
         } catch (RuntimeException ex) {
-            CharSequence details = " (use DEBUG level for details)";
-            if (LOG.isDebugEnabled()) {
+            CharSequence details = " (use TRACE level for details)";
+            if (LOG.isTraceEnabled()) {
                 var buf = new StringBuilder(256).append(": Forwarded request was:\n");
                 details = appendAsDbgString(buf, req);
             }
-            LOG.warn("{}{}", ex.getMessage(), details, LOG.isDebugEnabled() ? ex : null);
+            LOG.debug("{}{}", ex.getMessage(), details, LOG.isTraceEnabled() ? ex : null);
         }
     }
 
