@@ -39,7 +39,7 @@ public class HookSchemaTest {
                 "  'queueingStrategy':{'type':'reducedPropagation','intervalMs':1000}," +
                 "  'collection':false," +
                 "  'listable':true," +
-                "  'proxyOptions':{'type':'HTTP', 'host':'someHost', 'port':1234, 'username':'johndoe', 'password':'secret'}," +
+                "  'proxyOptions':{'type':'HTTP', 'host':'someHost', 'port':1234, 'username':'johndoe', 'password':'secret', 'connectTimeout':3000}," +
                 "  'timeout':60" +
                 "}");
 
@@ -59,6 +59,43 @@ public class HookSchemaTest {
         dumpValidationMessages(valMsgs);
         Assert.assertEquals("One validation message", 1, valMsgs.size());
         Assert.assertEquals("$.proxyOptions.type: does not have a value in the enumeration [HTTP, SOCKS4, SOCKS5]", new ArrayList<>(valMsgs).get(0).getMessage());
+    }
+
+    @Test
+    public void validProxyOptionsWithConnectTimeout() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'proxyOptions':{'type':'HTTP', 'host':'someHost', 'port':1234, 'username':'johndoe', 'password':'secret', 'connectTimeout':5000}" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("No validation messages", 0, valMsgs.size());
+    }
+
+    @Test
+    public void validProxyOptionsWithoutConnectTimeout() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'proxyOptions':{'type':'SOCKS5', 'host':'someHost', 'port':8080}" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("No validation messages", 0, valMsgs.size());
+    }
+
+    @Test
+    public void invalidProxyOptionsWithNonIntegerConnectTimeout() {
+        JsonNode json = parse("{" +
+                "  'destination':'/go/somewhere'," +
+                "  'proxyOptions':{'type':'HTTP', 'host':'someHost', 'port':1234, 'connectTimeout':'notAnInteger'}" +
+                "}");
+
+        Set<ValidationMessage> valMsgs = schema.validate(json);
+        dumpValidationMessages(valMsgs);
+        Assert.assertEquals("One validation message", 1, valMsgs.size());
+        Assert.assertEquals("$.proxyOptions.connectTimeout: string found, integer expected", new ArrayList<>(valMsgs).get(0).getMessage());
     }
 
     @Test

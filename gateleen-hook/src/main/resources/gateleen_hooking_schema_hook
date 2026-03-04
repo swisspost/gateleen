@@ -181,6 +181,9 @@
 				},
 				"password": {
 					"type": "string"
+				},
+				"connectTimeout": {
+				    "type": "integer"
 				}
 			},
 			"required": [

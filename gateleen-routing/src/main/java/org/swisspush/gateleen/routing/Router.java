@@ -71,7 +71,7 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
     private final Set<HttpClient> httpClients = new HashSet<>();
     private final HttpClient selfClient;
     private final ResourceStorage storage;
-    private final JsonObject info;
+    private JsonObject info;
     private final Map<String, Object> properties;
     private final HttpClientFactory httpClientFactory;
     private final Handler<Void>[] doneHandlers;
@@ -300,6 +300,20 @@ public class Router implements Refreshable, LoggableResource, ConfigurationResou
 
     public boolean isRoutingBroken() {
         return getRoutingBrokenMessage() != null;
+    }
+
+    /**
+     * Updates the server info object that is returned by the info endpoint.
+     *
+     * @param newInfo the new info object to set. If null, an empty JsonObject will be used.
+     */
+    public void updateInfo(JsonObject newInfo) {
+        if (newInfo == null) {
+            log.warn("updateInfo called with null. Setting info to empty object.");
+            this.info = new JsonObject();
+        } else {
+            this.info = newInfo.copy();
+        }
     }
 
     public String getRoutingBrokenMessage() {

@@ -13,6 +13,7 @@ import org.junit.runner.RunWith;
 import org.swisspush.gateleen.core.util.ResourcesUtils;
 import org.swisspush.gateleen.validation.ValidationException;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -550,6 +551,73 @@ public class RuleFactoryTest {
         context.assertNotNull(rulesList.get(2).getProxyOptions());
         context.assertEquals(ProxyType.HTTP, rulesList.get(2).getProxyOptions().getType()); // this is the default value
         context.assertEquals("someOtherHost", rulesList.get(2).getProxyOptions().getHost());
+        context.assertEquals(5678, rulesList.get(2).getProxyOptions().getPort());
+        context.assertNull(rulesList.get(2).getProxyOptions().getUsername());
+        context.assertNull(rulesList.get(2).getProxyOptions().getPassword());
+
+        context.assertNull(rulesList.get(3).getProxyOptions());
+    }
+
+    @Test
+    public void testValidProxyOptionsWithConnectTimeout(TestContext context) throws ValidationException {
+
+        String rules = "{\n" +
+                "  \"/gateleen/rule/1\": {\n" +
+                "    \"description\": \"Test rule 1\",\n" +
+                "    \"proxyOptions\": {\n" +
+                "      \"connectTimeout\": 5000,\n" +
+                "      \"type\": \"HTTP\",\n" +
+                "      \"host\": \"someHost\",\n" +
+                "      \"port\": 1234\n" +
+                "    }\n" +
+                "  },\n" +
+                "  \"/gateleen/rule/2\": {\n" +
+                "    \"description\": \"Test rule 2\",\n" +
+                "    \"proxyOptions\": {\n" +
+                "      \"type\": \"SOCKS5\",\n" +
+                "      \"host\": \"someHost\",\n" +
+                "      \"port\": 1234,\n" +
+                "      \"username\": \"johndoe\",\n" +
+                "      \"password\": \"secret\"\n" +
+                "    }\n" +
+                "  },\n" +
+                "  \"/gateleen/rule/3\": {\n" +
+                "    \"description\": \"Test rule 3\",\n" +
+                "    \"proxyOptions\": {\n" +
+                "      \"host\": \"someOtherHost\",\n" +
+                "      \"connectTimeout\": 7000,\n" +
+                "      \"port\": 5678\n" +
+                "    }\n" +
+                "  },\n" +
+                "  \"/gateleen/rule/4\": {\n" +
+                "    \"description\": \"Test rule 4 (without proxyOptions)\"\n" +
+                "  }\n" +
+                "}";
+
+        List<Rule> rulesList = new RuleFactory(properties, routingRulesSchema).parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
+
+        context.assertEquals(4, rulesList.size());
+
+        context.assertNotNull(rulesList.get(0).getProxyOptions());
+        context.assertEquals(ProxyType.HTTP, rulesList.get(0).getProxyOptions().getType());
+        context.assertEquals("someHost", rulesList.get(0).getProxyOptions().getHost());
+        context.assertEquals(Duration.ofSeconds(5), rulesList.get(0).getProxyOptions().getConnectTimeout());
+        context.assertEquals(1234, rulesList.get(0).getProxyOptions().getPort());
+        context.assertNull(rulesList.get(0).getProxyOptions().getUsername());
+        context.assertNull(rulesList.get(0).getProxyOptions().getPassword());
+
+        context.assertNotNull(rulesList.get(1).getProxyOptions());
+        context.assertEquals(ProxyType.SOCKS5, rulesList.get(1).getProxyOptions().getType());
+        context.assertEquals("someHost", rulesList.get(1).getProxyOptions().getHost());
+        context.assertEquals(Duration.ofSeconds(10), rulesList.get(1).getProxyOptions().getConnectTimeout());
+        context.assertEquals(1234, rulesList.get(1).getProxyOptions().getPort());
+        context.assertEquals("johndoe", rulesList.get(1).getProxyOptions().getUsername());
+        context.assertEquals("secret", rulesList.get(1).getProxyOptions().getPassword());
+
+        context.assertNotNull(rulesList.get(2).getProxyOptions());
+        context.assertEquals(ProxyType.HTTP, rulesList.get(2).getProxyOptions().getType()); // this is the default value
+        context.assertEquals("someOtherHost", rulesList.get(2).getProxyOptions().getHost());
+        context.assertEquals(Duration.ofSeconds(7), rulesList.get(2).getProxyOptions().getConnectTimeout());
         context.assertEquals(5678, rulesList.get(2).getProxyOptions().getPort());
         context.assertNull(rulesList.get(2).getProxyOptions().getUsername());
         context.assertNull(rulesList.get(2).getProxyOptions().getPassword());
