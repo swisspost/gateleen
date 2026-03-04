@@ -74,7 +74,7 @@
         <mod-metrics.version>3.0.0</mod-metrics.version>
         <networknt.version>0.1.15</networknt.version>
         <rest-assured.version>4.4.0</rest-assured.version>
-        <redisques.version>3.1.0</redisques.version>
+        <redisques.version>4.1.34-SNAPSHOT</redisques.version>
         <rest-storage.version>3.1.1</rest-storage.version>
         <springframework.version>5.3.27</springframework.version>
         <slf4j.version>2.0.10</slf4j.version>

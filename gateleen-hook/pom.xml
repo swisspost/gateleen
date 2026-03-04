@@ -21,6 +21,10 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.swisspush</groupId>
+            <artifactId>redisques</artifactId>
+        </dependency>
 
         <!-- TEST dependencies -->
         <dependency>

@@ -12,6 +12,7 @@ import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ResponseStatusCodeLogUtil;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
+import org.swisspush.redisques.util.RedisquesAPI;
 
 import javax.annotation.Nullable;
 
@@ -187,6 +188,26 @@ public class QueueClient implements RequestQueue {
     }
 
     /**
+     * appy custom config to queue matchs the pattern
+     *
+     * @param filterPattern pattern to filter the queue
+     * @param config a set of config will apply to queues match the pattern
+     */
+    @Override
+    public Future<Void> setPerQueueConfig(String filterPattern, JsonObject config) {
+        Promise<Void> promise = Promise.promise();
+        this.vertx.eventBus().request(this.getRedisquesAddress(), RedisquesAPI.buildSetPerQueueConfiguration(filterPattern, config)).onComplete((event) -> {
+            if (event.failed()) {
+                promise.fail(event.cause());
+            } else {
+                promise.complete();
+            }
+
+        });
+        return promise.future();
+    }
+
+    /**
      * Enqueues a request. <br />
      * If no X-Server-Timestamp and / or X-Expire-After headers
      * are set, the server sets the current timestamp and a default
@@ -255,4 +276,5 @@ public class QueueClient implements RequestQueue {
                     }
                 });
     }
+
 }
