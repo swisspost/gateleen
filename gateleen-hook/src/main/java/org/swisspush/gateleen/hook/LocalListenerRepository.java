@@ -11,10 +11,10 @@ import java.util.regex.Pattern;
 
 /**
  * Local in-memory implementation of a LocalListenerRepository.
- * 
+ *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, Set<Listener>>>implements ListenerRepository {
+public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, Set<Listener>>> implements ListenerRepository {
     private Logger log = LoggerFactory.getLogger(LocalListenerRepository.class);
 
     /*
@@ -58,7 +58,7 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
             return listeners;
         });
 
-        listenerToUrlMap.put(listener.getListenerId(), listener);
+        listenerToUrlMap.compute(listener.getListenerId(), (s, existListener) -> listener);
     }
 
     @Override
@@ -70,11 +70,13 @@ public class LocalListenerRepository extends ListenerRepositoryBase<Map<String, 
     public void removeListener(String listenerId) {
         log.debug("Remove listener for id {}", listenerId);
         listenerToUrlMap.computeIfPresent(listenerId, (id, listenerToRemove) -> {
-            Set<Listener> listeners = urlToListenersMap.get(listenerToRemove.getMonitoredUrl());
-            listeners.remove(listenerToRemove);
-            if (listeners.isEmpty()) {
-                urlToListenersMap.remove(listenerToRemove.getMonitoredUrl());
-            }
+            urlToListenersMap.computeIfPresent(listenerToRemove.getMonitoredUrl(), (s, listeners) -> {
+                listeners.remove(listenerToRemove);
+                if (listeners.isEmpty()) {
+                    return null;
+                }
+                return listeners;
+            });
             return null;
         });
     }

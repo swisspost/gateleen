@@ -292,9 +292,7 @@ public class Rule {
                 .setPipelining(false)
                 .setMaxWaitQueueSize(getMaxWaitQueueSize())
                 // use a static instance.
-                .setInitialSettings(htt2Settings)
-                // disable Metrics for this http client
-                .setMetricsName(null);
+                .setInitialSettings(htt2Settings);
         if ("https".equals(getScheme())) {
             options.setSsl(true).setVerifyHost(false).setTrustAll(true);
         }
