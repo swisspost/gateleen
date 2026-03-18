@@ -5,6 +5,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonObject;
 import org.swisspush.gateleen.core.http.HttpRequest;
 
 /**
@@ -26,4 +27,6 @@ public interface RequestQueue {
     Future<Void> deleteAllQueueItems(String queue, boolean unlock);
 
     Future<Void> enqueueFuture(HttpRequest queuedRequest, String queue);
+
+    Future<Void> setPerQueueConfig(String queue, JsonObject config);
 }
