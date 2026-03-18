@@ -1613,7 +1613,7 @@ public class HookHandler implements LoggableResource {
      */
     @SuppressWarnings("unchecked")
     private void registerRoute(Buffer buffer) {
-        JsonObject storageObject = new JsonObject(buffer.toString());
+        JsonObject storageObject = buffer.toJsonObject();
         String requestUrl = storageObject.getString(REQUESTURL);
         String routedUrl = getRoutedUrlSegment(requestUrl);
 

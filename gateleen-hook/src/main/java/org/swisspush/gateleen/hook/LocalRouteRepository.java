@@ -6,14 +6,15 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
  * Local in-memory implementation of a RouteRepository.
- * 
+ *
  * @author https://github.com/ljucam [Mario Ljuca]
  */
-public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>>implements RouteRepository {
+public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>> implements RouteRepository {
     private Logger log = LoggerFactory.getLogger(LocalRouteRepository.class);
 
     private Map<String, Route> routes;
@@ -22,12 +23,12 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
      * Creates a new instance of a local in-memory HookRouteRepository.
      */
     public LocalRouteRepository() {
-        routes = new HashMap<>();
+        routes = new ConcurrentHashMap<>();
     }
 
     @Override
-    public void addRoute(String urlPattern, Route route) {
-        log.debug("Creating route for url pattern {} and route destination {}", urlPattern, route.getHook().getDestination());
+    public void addRoute(String urlPattern, Route newRoute) {
+        log.debug("Creating route for url pattern {} and route destination {}", urlPattern, newRoute.getHook().getDestination());
 
         /*
          * Because we perform a cleanup before
@@ -41,9 +42,10 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
          * Instead we directly check, if a route
          * exists for this pattern.
          */
-        cleanupRoute(routes.get(urlPattern));
-
-        routes.put(urlPattern, route);
+        routes.compute(urlPattern, (key, route) -> {
+            cleanupRoute(route);
+            return newRoute;
+        });
     }
 
     @Override
@@ -51,11 +53,13 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
         log.debug("Removing route for url pattern {}", urlPattern);
 
         String routeKey = findFirstMatchingKey(routes, urlPattern);
-
-        if (routeKey != null) {
-            cleanupRoute(getRoute(routeKey));
-            routes.remove(routeKey);
+        if (routeKey == null) {
+            return;
         }
+        routes.computeIfPresent(routeKey, (key, route) -> {
+            cleanupRoute(route);
+            return null;
+        });
     }
 
     @Override
@@ -80,10 +84,10 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
         parentUri = parentUri.contains("?") ? parentUri.substring(0, parentUri.indexOf('?')) : parentUri;
 
         // add trailing '/'
-        parentUri = ! parentUri.endsWith("/") ? parentUri + "/" : parentUri;
+        parentUri = !parentUri.endsWith("/") ? parentUri + "/" : parentUri;
 
         // make it final for compiler (lambda)
-        final String parent =  parentUri;
+        final String parent = parentUri;
 
         /*  Example:
             parentUri   = /gateleen/server/v1/test
@@ -106,12 +110,12 @@ public class LocalRouteRepository extends RouteRepositoryBase<Map<String, Route>
          */
 
         return routes.entrySet().stream()
-                .filter( entry -> entry.getValue().getHook().isCollection()
+                .filter(entry -> entry.getValue().getHook().isCollection()
                         && entry.getValue().getHook().isListable()
                         && entry.getKey().startsWith(parent)
-                        && ! entry.getKey().substring(parent.length()).contains("/")
+                        && !entry.getKey().substring(parent.length()).contains("/")
                 )
-                .map( (Map.Entry<String, Route> entry) -> entry.getKey().substring(parent.length()) + "/")
+                .map((Map.Entry<String, Route> entry) -> entry.getKey().substring(parent.length()) + "/")
                 .collect(Collectors.toSet());
     }
 }
