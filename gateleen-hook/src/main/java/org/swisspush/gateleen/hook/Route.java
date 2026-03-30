@@ -271,6 +271,7 @@ public class Route {
                 client.close();
             });
         }
+        forwarder.shutdown();
     }
 
     /**
