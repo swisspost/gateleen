@@ -9,6 +9,10 @@ public class Base64Unit {
      * @return decoded data
      */
     public static byte[] decodeBase64Safe(String input) {
+        if (StringUtils.isEmpty(input)) {
+            return new byte[0];
+        }
+
         StringBuilder sb = new StringBuilder(input.length() + 4);
 
         for (int i = 0; i < input.length(); i++) {
