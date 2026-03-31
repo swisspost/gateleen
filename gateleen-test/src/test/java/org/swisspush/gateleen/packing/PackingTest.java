@@ -165,7 +165,7 @@ public class PackingTest extends AbstractTest {
 
         given().header("x-packed", "true").body(payload.encode()).when().put("/tests/packed/myrequest").then().assertThat().statusCode(200);
 
-        TestUtils.waitSomeTime(4);
+        TestUtils.waitSomeTime(10);
         when().get("/tests/sub/").then().assertThat().statusCode(200);
 
         List<String> collection = get("/tests/sub/").then().extract().body().jsonPath().getList("sub");
