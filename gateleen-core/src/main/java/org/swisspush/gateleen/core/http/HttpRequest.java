@@ -83,8 +83,10 @@ public class HttpRequest {
         JsonArray headersArray = object.getJsonArray("headers");
         if (headersArray != null) {
             this.headers = JsonMultiMap.fromJson(headersArray);
-            this.payload = Base64Unit.decodeBase64Safe(object.getString("payload"));
         }
+        //TODO: remove decodeBase64Safe back to getBinary once we have no more old data in storage
+        //this.payload = object.getBinary("payload");
+        this.payload = Base64Unit.decodeBase64Safe(object.getString("payload"));
     }
 
     public JsonObject toJsonObject() {
