@@ -146,7 +146,7 @@ public class PackingTest extends AbstractTest {
     public void testPackedRequestMany(TestContext context) {
         Async async = context.async();
         init();
-
+        TestUtils.waitSomeTime(2);
         JsonObject payload = new JsonObject();
         JsonArray requests = new JsonArray();
         payload.put("requests", requests);
@@ -165,7 +165,7 @@ public class PackingTest extends AbstractTest {
 
         given().header("x-packed", "true").body(payload.encode()).when().put("/tests/packed/myrequest").then().assertThat().statusCode(200);
 
-        TestUtils.waitSomeTime(10);
+        TestUtils.waitSomeTime(2);
         when().get("/tests/sub/").then().assertThat().statusCode(200);
 
         List<String> collection = get("/tests/sub/").then().extract().body().jsonPath().getList("sub");
