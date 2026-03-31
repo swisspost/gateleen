@@ -146,7 +146,8 @@ public class PackingTest extends AbstractTest {
     public void testPackedRequestMany(TestContext context) {
         Async async = context.async();
         init();
-        TestUtils.waitSomeTime(2);
+
+        TestUtils.waitSomeTime(5);
         JsonObject payload = new JsonObject();
         JsonArray requests = new JsonArray();
         payload.put("requests", requests);
