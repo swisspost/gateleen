@@ -276,5 +276,4 @@ public class QueueClient implements RequestQueue {
                     }
                 });
     }
-
 }
