@@ -5,6 +5,7 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.swisspush.gateleen.core.json.JsonMultiMap;
+import org.swisspush.gateleen.core.util.Base64Unit;
 
 import java.util.Arrays;
 
@@ -83,7 +84,7 @@ public class HttpRequest {
         if (headersArray != null) {
             this.headers = JsonMultiMap.fromJson(headersArray);
         }
-        this.payload = object.getBinary("payload");
+        this.payload = Base64Unit.decodeBase64Safe(object.getString("payload"));
     }
 
     public JsonObject toJsonObject() {
