@@ -183,8 +183,6 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                                         } else if (responseContentType != null && responseContentType.contains(TEXT)) {
                                             rsp.end(response.getString(PAYLOAD));
                                         } else {
-                                            //TODO: remove decodeBase64Safe back to getBinary once we have no more old data in storage
-                                            //rsp.end(Buffer.buffer(response.getBinary(PAYLOAD)));
                                             rsp.end(Buffer.buffer(Base64Unit.decodeBase64Safe(response.getString(PAYLOAD))));
                                         }
                                     } catch (DecodeException e) {

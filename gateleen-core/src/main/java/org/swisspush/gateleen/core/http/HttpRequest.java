@@ -84,8 +84,6 @@ public class HttpRequest {
         if (headersArray != null) {
             this.headers = JsonMultiMap.fromJson(headersArray);
         }
-        //TODO: remove decodeBase64Safe back to getBinary once we have no more old data in storage
-        //this.payload = object.getBinary("payload");
         this.payload = Base64Unit.decodeBase64Safe(object.getString("payload"));
     }
 
