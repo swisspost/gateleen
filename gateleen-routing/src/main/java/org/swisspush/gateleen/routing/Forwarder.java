@@ -49,6 +49,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.swisspush.gateleen.core.util.HttpHeaderUtil.removeNonForwardHeaders;
 import static org.swisspush.gateleen.core.util.StatusCode.BAD_GATEWAY;
 import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
@@ -691,7 +692,18 @@ public class Forwarder extends AbstractForwarder {
                     LOG.isTraceEnabled() ? new NullPointerException("connection") : null);
             return;
         }
-        conn.close();
+        /* Vertx API seems not to have any way to do what we need (eg `shutdown(req, SHUT_WR)`)
+         * So we have to use this less accurate alternative, which is similar to a
+         * `shutdown(req, SHUT_RDWR)`, but it will await pending data on the
+         * current request-response cycle (or up to the timeout) before doing so.
+         * Not exactly what we wanted, but hopefully "good enough".
+         * The other alternative (just calling `close()`) is also a bad option,
+         * as it causes undesired effects like
+         * https://jira.post.ch/browse/MSOP-6438
+         * under edge-case conditions.  */
+        conn.shutdown(300, SECONDS).onFailure((Throwable ex) -> {
+            LOG.info("{}", ex, LOG.isDebugEnabled() ? ex : null);
+        });
     }
 
     /**
