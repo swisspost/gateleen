@@ -65,7 +65,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
 
     private final boolean rejectLimitOffsetRequests;
 
-    private List<Pair<Pattern, Rule>> storageRules = new ArrayList<>();
+    List<Pair<Pattern, Rule>> storageRules = new ArrayList<>();
 
 
     private final Vertx vertx;
