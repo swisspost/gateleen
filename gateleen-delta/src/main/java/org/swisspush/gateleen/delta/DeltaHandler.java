@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.HeaderFunction;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.redis.ClusterSafeMget;
 import org.swisspush.gateleen.core.redis.RedisByNameProvider;
 import org.swisspush.gateleen.core.util.*;
 import org.swisspush.gateleen.core.util.ExpansionDeltaUtil.CollectionResourceContainer;
@@ -305,7 +306,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
         log.error("Bad Request: {} '{}'", request.response().getStatusMessage(), deltaStringId);
     }
 
-    private DeltaResourcesContainer getDeltaResourceNames(List<String> subResourceNames, Response storageUpdateIds, long updateId) {
+    private DeltaResourcesContainer getDeltaResourceNames(List<String> subResourceNames, List<Response> storageUpdateIds, long updateId) {
         List<String> deltaResourceNames = new ArrayList<>();
         long maxUpdateId = 0;
 
@@ -382,29 +383,9 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                                         log.trace("DeltaHandler: targetUri ({}) using mget command.", targetUri);
                                     }
 
-                                    // read update-ids
-                                    redisProvider.redis(storageName).onSuccess(redisAPI -> redisAPI.mget(deltaResourceKeys, event -> {
-                                        if (event.failed()) {
-                                            log.error("mget command failed with cause: {}", logCause(event));
-                                            handleError(request, "error reading delta information");
-                                            return;
-                                        }
-                                        Response mgetValues = event.result();
-                                        DeltaResourcesContainer deltaResourcesContainer = getDeltaResourceNames(subResourceNames,
-                                                mgetValues, updateIdNumber);
-
-                                        JsonObject result = buildResultJsonObject(deltaResourcesContainer.getResourceNames(),
-                                                dataContainer.getCollectionName());
-                                        String responseBody = result.toString();
-                                        request.response().putHeader(DELTA_HEADER,
-                                                "" + deltaResourcesContainer.getMaxUpdateId());
-                                        loggingHandler.appendResponsePayload(Buffer.buffer(responseBody));
-                                        loggingHandler.log();
-                                        request.response().end(responseBody);
-                                    })).onFailure(event -> {
-                                        log.error("Redis: handleCollectionGET failed", event);
-                                        handleError(request, "error reading delta information");
-                                    });
+                                    handleMgetAndRespond(request, dataContainer.getCollectionName(),
+                                            subResourceNames, deltaResourceKeys, updateIdNumber,
+                                            loggingHandler, storageName);
                                 } else {
                                     if (log.isTraceEnabled()) {
                                         log.trace("DeltaHandler: targetUri ({}) NOT using database", targetUri);
@@ -435,6 +416,34 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
             });
             cReq.exceptionHandler(ExpansionDeltaUtil.createRequestExceptionHandler(request, targetUri, DeltaHandler.class));
             request.resume();
+        });
+    }
+
+    void handleMgetAndRespond(HttpServerRequest request,
+                               String collectionName,
+                               List<String> subResourceNames,
+                               List<String> deltaResourceKeys,
+                               long updateIdNumber,
+                               LoggingHandler loggingHandler,
+                               @Nullable String storageName) {
+        redisProvider.redis(storageName).onSuccess(redisAPI -> {
+            ClusterSafeMget.clusterSafeMget(redisAPI, deltaResourceKeys).onSuccess(mgetValues -> {
+                DeltaResourcesContainer deltaResourcesContainer = getDeltaResourceNames(subResourceNames,
+                        mgetValues, updateIdNumber);
+
+                JsonObject result = buildResultJsonObject(deltaResourcesContainer.getResourceNames(), collectionName);
+                String responseBody = result.toString();
+                request.response().putHeader(DELTA_HEADER, "" + deltaResourcesContainer.getMaxUpdateId());
+                loggingHandler.appendResponsePayload(Buffer.buffer(responseBody));
+                loggingHandler.log();
+                request.response().end(responseBody);
+            }).onFailure(event -> {
+                log.error("mget command failed with cause: {}", event.getMessage());
+                handleError(request, "error reading delta information");
+            });
+        }).onFailure(event -> {
+            log.error("Redis: handleCollectionGET failed", event);
+            handleError(request, "error reading delta information");
         });
     }
 

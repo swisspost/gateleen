@@ -22,6 +22,7 @@ import org.swisspush.gateleen.core.storage.ResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LogAppenderRepository;
+import org.swisspush.gateleen.logging.LoggingHandler;
 import org.swisspush.gateleen.logging.LoggingResource;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.routing.Router;
@@ -682,6 +683,46 @@ public class DeltaHandlerTest {
 
         // storageRules should still be empty since this rule has no storage
         verify(redisProvider, never()).redis(any());
+    }
+
+    @Test
+    public void testHandleCollectionGetUsesClusterSafeMget(TestContext context) {
+        // Stub the 1-arg Future-returning mget that ClusterSafeMget calls internally.
+        // Both items return null (not found in Redis) → both are newer than delta=0 → included.
+        Response slotResponse = mock(Response.class);
+        when(slotResponse.size()).thenReturn(2);
+        when(slotResponse.get(0)).thenReturn(null);
+        when(slotResponse.get(1)).thenReturn(null);
+        when(redisAPI.mget(any(List.class))).thenReturn(Future.succeededFuture(slotResponse));
+
+        HttpServerRequest getRequest = mock(HttpServerRequest.class);
+        HttpServerResponse getResponse = mock(HttpServerResponse.class);
+        when(getRequest.response()).thenReturn(getResponse);
+        when(getResponse.headers()).thenReturn(new HeadersMultiMap());
+        when(getResponse.putHeader(anyString(), anyString())).thenReturn(getResponse);
+        when(getResponse.end(anyString())).thenReturn(Future.succeededFuture());
+
+        LoggingHandler loggingHandler = mock(LoggingHandler.class);
+
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider,
+                loggingResourceManager, logAppenderRepository);
+
+        deltaHandler.handleMgetAndRespond(
+                getRequest,
+                "col",
+                List.of("item1/", "item2/"),
+                List.of("delta:resources:gateleen:col:item1/", "delta:resources:gateleen:col:item2/"),
+                0L,
+                loggingHandler,
+                null);
+
+        // ClusterSafeMget must have used the 1-arg Future-returning mget
+        verify(redisAPI, atLeastOnce()).mget(any(List.class));
+        // The 2-arg callback-style mget must NOT be called
+        verify(redisAPI, never()).mget(any(List.class), any());
+        // Response must carry x-delta header and a body containing both items
+        verify(getResponse).putHeader(eq("x-delta"), eq("0"));
+        verify(getResponse).end(contains("item1"));
     }
 
     // -------------------------------------------------------------------------
