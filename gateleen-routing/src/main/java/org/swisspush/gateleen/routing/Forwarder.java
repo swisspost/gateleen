@@ -49,7 +49,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.lang.Long.parseLong;
 import static org.swisspush.gateleen.core.util.HttpHeaderUtil.removeNonForwardHeaders;
 import static org.swisspush.gateleen.core.util.StatusCode.BAD_GATEWAY;
 import static org.swisspush.gateleen.core.util.StatusCode.INTERNAL_SERVER_ERROR;
@@ -692,6 +693,31 @@ public class Forwarder extends AbstractForwarder {
                     LOG.isTraceEnabled() ? new NullPointerException("connection") : null);
             return;
         }
+        /* Damn! I just need `shutdown(s, SHUT_WR)`! But now I need to guess-around
+         * with some unneccessary timeouts :(  */
+        /* Q: Why evaluating the timeout value this way?
+         * A: https://github.com/swisspost/gateleen/pull/744#discussion_r3049404951   */
+        long vertxConnShutdownTimeoutMs;
+        String timeoutFromReqHdrAsStr = req.headers().get("x-timeout");
+        if (timeoutFromReqHdrAsStr != null) {
+            /* try to use timeout from the most recent request */
+            try {
+                /* no documentation anywhere, so we have to assume header is in millis? */
+                vertxConnShutdownTimeoutMs = parseLong(timeoutFromReqHdrAsStr);
+            } catch (NumberFormatException ex) {
+                LOG.info("parseLong({}): {}", timeoutFromReqHdrAsStr, ex.getMessage(), LOG.isDebugEnabled() ? ex : null);
+                vertxConnShutdownTimeoutMs = (rule != null) ? rule.getTimeout() : 0;
+            }
+        } else {
+            /* if most recent request had no value, fallback to the value configured
+             * via rule. As there's no documentation anywhere, we have to assume
+             * getter returns millis? */
+            vertxConnShutdownTimeoutMs = (rule != null) ? rule.getTimeout() : 0;
+        }
+        if (vertxConnShutdownTimeoutMs < 1000) {
+            LOG.debug("Refuse tailResponseTimeoutMs {}ms, will go with at least 1000ms", vertxConnShutdownTimeoutMs);
+            vertxConnShutdownTimeoutMs = 1000;
+        }
         /* Vertx API seems not to have any way to do what we need (eg `shutdown(req, SHUT_WR)`)
          * So we have to use this less accurate alternative, which is similar to a
          * `shutdown(req, SHUT_RDWR)`, but it will await pending data on the
@@ -701,7 +727,7 @@ public class Forwarder extends AbstractForwarder {
          * as it causes undesired effects like
          * https://jira.post.ch/browse/MSOP-6438
          * under edge-case conditions.  */
-        conn.shutdown(300, SECONDS).onFailure((Throwable ex) -> {
+        conn.shutdown(vertxConnShutdownTimeoutMs, MILLISECONDS).onFailure((Throwable ex) -> {
             LOG.info("{}", ex, LOG.isDebugEnabled() ? ex : null);
         });
     }
