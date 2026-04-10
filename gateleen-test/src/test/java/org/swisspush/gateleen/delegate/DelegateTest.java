@@ -139,7 +139,7 @@ public class DelegateTest extends AbstractTest {
         given().body(delegate.toString()).put(delegate1).then().assertThat().statusCode(200);
         get(delegate1).then().assertThat().statusCode(200);
 
-        TestUtils.waitSomeTime(1);
+        TestUtils.waitSomeTime(10);
 
         // Execution
         given().put(delegateExec1 + "/user1").then().assertThat().statusCode(202);

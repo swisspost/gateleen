@@ -24,6 +24,7 @@ import org.swisspush.gateleen.core.configuration.ConfigurationResourceConsumer;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.json.JsonMultiMap;
+import org.swisspush.gateleen.core.util.Base64Unit;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -182,7 +183,7 @@ public class EventBusHandler extends ConfigurationResourceConsumer {
                                         } else if (responseContentType != null && responseContentType.contains(TEXT)) {
                                             rsp.end(response.getString(PAYLOAD));
                                         } else {
-                                            rsp.end(Buffer.buffer(response.getBinary(PAYLOAD)));
+                                            rsp.end(Buffer.buffer(Base64Unit.decodeBase64Safe(response.getString(PAYLOAD))));
                                         }
                                     } catch (DecodeException e) {
                                         requestLog.warn("Wrong payload in reply for content-type {}", responseContentType, e);

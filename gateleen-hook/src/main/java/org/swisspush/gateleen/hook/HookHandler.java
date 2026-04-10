@@ -49,6 +49,7 @@ import org.swisspush.gateleen.routing.Rule;
 import org.swisspush.gateleen.routing.RuleFactory;
 import org.swisspush.gateleen.validation.RegexpValidator;
 import org.swisspush.gateleen.validation.ValidationException;
+import org.swisspush.redisques.util.RedisquesAPI;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -82,6 +83,8 @@ public class HookHandler implements LoggableResource {
     public static final String HOOKS_LISTENERS_URI_PART = "/_hooks/listeners/";
     public static final String LISTENER_QUEUE_PREFIX = "listener-hook";
     private static final String X_QUEUE = "x-queue";
+    private static final String X_QUEUE_CONFIG_NAME_PATTERN = "x-queue-config-name-pattern";
+    private static final String X_QUEUE_CONFIG_MAX_LIMIT = "x-queue-config-max-limit";
     private static final String LISTENER_HOOK_TARGET_PATH = "listeners/";
 
     public static final String HOOKS_ROUTE_URI_PART = "/_hooks/route";
@@ -1436,7 +1439,7 @@ public class HookHandler implements LoggableResource {
         JsonObject jsonHook = storageObject.getJsonObject(HOOK);
         JsonArray jsonMethods = jsonHook.getJsonArray(METHODS);
 
-
+        applyQueueConfig(jsonHook.getJsonArray("headers"));
         HttpHook hook = new HttpHook(jsonHook.getString(DESTINATION));
         if (jsonMethods != null) {
             hook.setMethods(jsonMethods.getList());
@@ -1613,7 +1616,7 @@ public class HookHandler implements LoggableResource {
      */
     @SuppressWarnings("unchecked")
     private void registerRoute(Buffer buffer) {
-        JsonObject storageObject = new JsonObject(buffer.toString());
+        JsonObject storageObject = buffer.toJsonObject();
         String requestUrl = storageObject.getString(REQUESTURL);
         String routedUrl = getRoutedUrlSegment(requestUrl);
 
@@ -1628,6 +1631,7 @@ public class HookHandler implements LoggableResource {
             hook.setMethods(jsonMethods.getList());
         }
 
+        applyQueueConfig(jsonHook.getJsonArray("headers"));
         String headersFilter = jsonHook.getString(HEADERS_FILTER);
         if (headersFilter != null) {
             try {
@@ -1726,6 +1730,30 @@ public class HookHandler implements LoggableResource {
         if(monitoringHandler != null) {
             monitoringHandler.updateRoutesCount(routeRepository.getRoutes().size());
         }
+    }
+
+    private void applyQueueConfig(JsonArray headers) {
+        if (headers != null) {
+            Map<String, String> headerMap = headers.stream()
+                    .map(obj -> (JsonObject) obj)
+                    .collect(Collectors.toMap(
+                            h -> h.getString("header"),
+                            h -> h.getString("value")
+                    ));
+            if (headerMap.containsKey(X_QUEUE_CONFIG_NAME_PATTERN) && headerMap.containsKey(X_QUEUE_CONFIG_MAX_LIMIT)) {
+                final String queueFilter = headerMap.getOrDefault(X_QUEUE_CONFIG_NAME_PATTERN, "");
+                JsonObject jsonObject = new JsonObject();
+                jsonObject.put(RedisquesAPI.PER_QUEUE_CONFIG_MAX_QUEUE_ENTRIES, Long.parseLong(headerMap.getOrDefault(X_QUEUE_CONFIG_MAX_LIMIT, "0")));
+                requestQueue.setPerQueueConfig(queueFilter, jsonObject).onComplete(event -> {
+                    if (event.failed()) {
+                        log.error("faile to apply queue config for {}", queueFilter);
+                    } else {
+                        log.debug("applied queue config for {}", queueFilter);
+                    }
+                });
+            }
+        }
+
     }
 
     /**

@@ -35,6 +35,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
+import java.util.Base64;
 import java.util.function.Supplier;
 
 import static org.mockito.Mockito.*;
