@@ -10,4 +10,3 @@ build
 playground_logs.log
 **/node/
 **/node_modules/
-redis
