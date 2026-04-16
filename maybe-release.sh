@@ -3,6 +3,11 @@ set -ev
 
 # Ensure we have the complete history including all branches and tags
 git fetch --all --tags --prune
+
+# Detach HEAD to allow updating branch refs
+git checkout --detach
+
+# Now safely fetch branches
 git fetch origin master:master
 git fetch origin develop:develop
 
