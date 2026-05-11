@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -352,12 +353,45 @@ public class Forwarder extends AbstractForwarder {
         Timer.Sample timerSample = (meterRegistry == null) ? null : Timer.start(meterRegistry);
         Long startTime = (monitoringHandler == null) ? null
                 : monitoringHandler.startRequestMetricTracking(rule.getMetricName(), req.uri());
+        final long timeoutMs = timeout != null ? parseLong(timeout) : rule.getTimeout();
         /* bundle it into a handy context */
         RequestCtx ctx = new RequestCtx(
                 req, log, targetUri, startTime, timerSample, profileHeaderMap, loggingHandler,
-                afterHandler, timeout, uniqueId, authHeader.orElse(null), bodyData);
+                afterHandler, timeout, timeoutMs, uniqueId, authHeader.orElse(null), bodyData);
+
+        /*
+         * Arm a pool-wait guard timer BEFORE calling client.request().
+         * If the connection pool is exhausted, client.request() will queue this request
+         * internally and never invoke the callback until a slot is freed. Without this
+         * guard, queued requests have no timeout of their own and can hang indefinitely.
+         *
+         * The timer fires after the same timeout configured for the rule / x-timeout header.
+         * If it fires first it responds with 504 and abandons the pool-queue entry.
+         * If client.request() fires first it cancels the timer and proceeds normally.
+         *
+         * When timeoutMs <= 0 the timer is skipped (no timeout configured).
+         */
+        final AtomicBoolean responded = new AtomicBoolean(false);
+        final long poolWaitTimerId = timeoutMs > 0
+                ? vertx.setTimer(timeoutMs, id -> {
+                    if (responded.compareAndSet(false, true)) {
+                        ctx.log.warn("Timeout waiting for pool connection to {}:{}{}", rule.getHost(), port, ctx.targetUri);
+                        error("Timeout waiting for connection pool", ctx.dnReq, ctx.targetUri);
+                        respondError(ctx.dnReq, StatusCode.TIMEOUT);
+                        handleForwardDurationMetrics(ctx.timerSample);
+                    }
+                })
+                : -1;
+
         /* initiate request to target server */
         client.request(req.method(), port, rule.getHost(), ctx.targetUri, ev -> {
+            if (!responded.compareAndSet(false, true)) {
+                /* pool-wait timer already fired and responded with 504 — abandon the
+                 * connection we just obtained so it is returned cleanly to the pool */
+                if (ev.succeeded()) ev.result().reset(0);
+                return;
+            }
+            vertx.cancelTimer(poolWaitTimerId);
             if (ev.failed()) {
                 ctx.log.warn("Problem to request {}: {}", ctx.targetUri, ev.cause());
                 tryRespondWithServiceUnavailable(ctx.dnReq.response(), log, "findme_48hj349lgnt8j");
@@ -408,11 +442,7 @@ public class Forwarder extends AbstractForwarder {
             onUpstreamResponseNoThrow(ev.result(), ctx, "findme_3q908hjq98t");
         });
 
-        if (ctx.timeout != null) {
-            ctx.upReq.idleTimeout(Long.parseLong(ctx.timeout));
-        } else {
-            ctx.upReq.idleTimeout(rule.getTimeout());
-        }
+        ctx.upReq.idleTimeout(ctx.timeoutMs);
 
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
         MultiMap headersToForward = ctx.dnReq.headers();
@@ -859,6 +889,7 @@ public class Forwarder extends AbstractForwarder {
         private final LoggingHandler loggingHandler;
         private final AtomicReference<Handler<Void>> afterHandlerRf;
         private final String timeout;
+        private final long timeoutMs;
         private final String uniqueId;
         private final AuthHeader authHeader;
         private final Buffer bodyData;
@@ -873,6 +904,7 @@ public class Forwarder extends AbstractForwarder {
                 LoggingHandler loggingHandler,
                 Handler<Void> afterHandler,
                 String timeout,
+                long timeoutMs,
                 String uniqueId,
                 AuthHeader authHeader,
                 Buffer bodyData
@@ -886,6 +918,7 @@ public class Forwarder extends AbstractForwarder {
             this.loggingHandler = loggingHandler;
             this.afterHandlerRf = new AtomicReference<>(afterHandler);
             this.timeout = timeout;
+            this.timeoutMs = timeoutMs;
             this.uniqueId = uniqueId;
             this.authHeader = authHeader;
             this.bodyData = bodyData;

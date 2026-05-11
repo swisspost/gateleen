@@ -123,113 +123,104 @@ public class ForwarderConnectionCloseTest {
     }
 
     /**
-     * Reproduces the production bug where requests hang indefinitely when the connection
-     * pool is exhausted.
+     * Regression test for the pool-exhaustion fix.
      *
-     * <p>Setup: pool size is 1, the backend accepts connections but never writes any
-     * response and never closes the connection (simulating a half-open connection kept
-     * alive by an intermediate load balancer).
+     * <p>Verifies that after the fix — a pool-wait guard timer armed in
+     * {@code Forwarder.handleRequest} before {@code client.request()} is called —
+     * a request stuck in the pool wait queue receives a timeout error response
+     * within the configured timeout, even when the backend never responds and never
+     * closes the connection.
      *
-     * <p>Request #1 acquires the only pool connection. {@code onNewRequestComplete} fires
-     * and {@code idleTimeout} is armed with 2000 ms. The test observes for only 1500 ms,
-     * so req1's timeout has not yet fired during the observation window — the connection
-     * remains occupied.
-     *
-     * <p>Request #2 finds the pool full and enters the pool's unbounded wait queue.
-     * {@code onNewRequestComplete} <em>never fires</em> for this request because no
-     * connection becomes available. Therefore {@code idleTimeout} is <em>never armed</em>,
-     * and the request hangs indefinitely — well beyond the configured timeout — with no
-     * error response sent to the downstream client. This is the actual production bug.
+     * <p>Two outcomes are possible depending on event-loop scheduling:
+     * <ul>
+     *   <li>Pool-wait timer wins: req2 receives 504 at ~500 ms</li>
+     *   <li>Pool callback wins: req2 gets a connection once req1's slot is freed at
+     *       ~500 ms, then its own {@code idleTimeout} fires → 502 at ~1000 ms</li>
+     * </ul>
+     * In both cases the request completes within the 2000 ms observation window.
+     * Before the fix, req2 would hang indefinitely with no response.
      */
     @Test
-    public void testExhaustedConnectionPool_requestsHangBeyondConfiguredTimeout(TestContext ctx) {
-        // --- 1. Open a raw ServerSocket that accepts connections and reads the request
-        //        but never writes any response — simulating a half-open LB connection.
-        //        Using a raw ServerSocket (not a Vert.x HttpServer) ensures that Vert.x
-        //        has no opportunity to close the server-side connection automatically.
-        final java.net.ServerSocket serverSocket;
-        try {
-            serverSocket = new java.net.ServerSocket(0);
-        } catch (java.io.IOException e) {
-            ctx.fail(e);
-            return;
-        }
-        int[] silentPort = new int[]{serverSocket.getLocalPort()};
-        // Accept connections in a background thread and hold them open indefinitely.
-        Thread acceptThread = new Thread(() -> {
-            java.util.List<java.net.Socket> held = new java.util.ArrayList<>();
-            try {
-                serverSocket.setSoTimeout(5000); // unblock accept() when test ends
-                while (!Thread.currentThread().isInterrupted()) {
-                    try {
-                        java.net.Socket client = serverSocket.accept();
-                        client.setTcpNoDelay(true);
-                        held.add(client); // hold — never close, never write anything
-                    } catch (java.net.SocketTimeoutException e) {
-                        break;
-                    }
-                }
-            } catch (Exception ignored) { }
+    public void testExhaustedConnectionPool_req2TimesOutWith504AfterFix(TestContext ctx) {
+        // --- 1. Vert.x NetServer that accepts connections, drains all incoming bytes
+        //        (so the HTTP client can fully write its request and the channel becomes
+        //        idle), but never writes any HTTP response back.
+        //        A raw ServerSocket would block Netty writes once the OS receive buffer
+        //        fills, preventing idleTimeout from firing on the second request.
+        Async backendReady = ctx.async();
+        io.vertx.core.net.NetServer silentNetServer = vertx.createNetServer();
+        silentNetServer.connectHandler(socket -> {
+            // Drain all incoming bytes so the client-side write completes and the
+            // connection enters an idle state where idleTimeout can fire.
+            socket.handler(buf -> { /* discard — never write a response */ });
         });
-        acceptThread.setDaemon(true);
-        acceptThread.start();
+        int[] silentPort = new int[1];
+        silentNetServer.listen(0, ctx.asyncAssertSuccess(s -> {
+            silentPort[0] = s.actualPort();
+            backendReady.complete();
+        }));
+        backendReady.awaitSuccess(2000);
 
-        // --- 2. Rule: pool size 1, timeout 2000 ms (longer than the 1500 ms observation
-        //        window), keep-alive so the client does not send Connection:close.
-        //        Using a timeout > observation window means req2 will still be in the
-        //        pool wait queue when we check — proving the indefinite-hang scenario.
-        Rule rule = buildRule(silentPort[0], 2000);
-        rule.setKeepAlive(true);
+        // --- 2. Rule: pool size 1, timeout 500 ms, keep-alive=false (production default) ---
+        Rule rule = buildRule(silentPort[0], 500);
         HttpClient httpClient = vertx.createHttpClient(rule.buildHttpClientOptions());
         Forwarder forwarder = buildForwarder(rule, httpClient);
 
-        // --- 3. Request #1: acquires the only pool connection, holds it until timeout ---
-        // Use CountDownLatches instead of Async so that incomplete requests do not
-        // cause the TestContext to fail with a mandatory-completion timeout.
+        // --- 3. Request #1: acquires the pool connection, pool-wait timer armed ---
         java.util.concurrent.CountDownLatch req1Latch = new java.util.concurrent.CountDownLatch(1);
         AtomicInteger capturedStatus1 = new AtomicInteger(-1);
         forwarder.handle(buildRoutingContext(buildCapturingResponse(req1Latch, capturedStatus1)));
 
-        // --- 4. Request #2: pool is full, enters the unbounded wait queue ---
+        // Give req1 time to acquire the pool connection before dispatching req2.
+        // Without this pause, with keepAlive=false, req2 might open its own TCP
+        // connection before req1 has claimed the single pool slot.
+        try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+        // --- 4. Request #2: pool full, enters wait queue, pool-wait timer armed ---
         java.util.concurrent.CountDownLatch req2Latch = new java.util.concurrent.CountDownLatch(1);
         AtomicInteger capturedStatus2 = new AtomicInteger(-1);
         forwarder.handle(buildRoutingContext(buildCapturingResponse(req2Latch, capturedStatus2)));
 
-        // --- 5. Observe for 1500 ms — less than the 2000 ms configured timeout ---
+        // --- 5. Observe for 2000 ms (4× the 500 ms timeout) ---
+        // Two scenarios are possible depending on event-loop scheduling:
+        //
+        // A) Pool-wait timer wins the race (fires before pool slot is freed):
+        //    req2 gets 504 at ~500 ms.
+        //
+        // B) Pool callback wins the race (pool slot freed by req1's idleTimeout at ~500 ms,
+        //    req2 gets a connection, cancelTimer runs, req2's idleTimeout fires at ~1000 ms):
+        //    req2 gets 502 at ~1000 ms.
+        //
+        // In both cases req2 must complete well within 2000 ms.
+        // Before the fix, req2 would hang indefinitely (no response ever sent).
         final boolean req1Done;
         final boolean req2Done;
         try {
-            req1Done = req1Latch.await(1500, java.util.concurrent.TimeUnit.MILLISECONDS);
-            req2Done = req2Latch.await(0, java.util.concurrent.TimeUnit.MILLISECONDS);
+            req1Done = req1Latch.await(2000, java.util.concurrent.TimeUnit.MILLISECONDS);
+            req2Done = req2Latch.await(2000, java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             ctx.fail("Test interrupted");
             return;
         }
 
-        // Request #1 is still holding the pool connection and waiting for a response.
-        // The 2000 ms idleTimeout has not yet fired (we only waited 1500 ms), so req1
-        // has not yet received any response.
-        ctx.assertFalse(
-                req1Done,
-                "Request #1 should still be waiting — idleTimeout (2000 ms) has not fired yet"
-        );
+        ctx.assertTrue(req1Done, "Request #1 should have completed within 2000 ms");
+        ctx.assertTrue(req2Done,
+                "Request #2 should have completed within 2000 ms — " +
+                        "either the pool-wait guard timer (504) or idleTimeout (502) must fire. " +
+                        "Before the fix, this request would hang indefinitely.");
 
-        // Request #2 never obtained a connection — it is stuck in the pool wait queue.
-        // onNewRequestComplete never fired, so idleTimeout was never armed.
-        // After 1500 ms (well within the 2000 ms timeout) the downstream client has still
-        // received no response. This is the actual production bug: requests in the pool
-        // wait queue have no timeout guard of their own.
-        ctx.assertFalse(
-                req2Done,
-                "Request #2 should still be hanging after 1500 ms — it is " +
-                        "stuck in the pool wait queue with no timeout guard"
+        // Both requests must have received a timeout-class error response.
+        // 504 = pool-wait timer fired first; 502 = idleTimeout fired after connection obtained.
+        ctx.assertTrue(
+                capturedStatus1.get() == StatusCode.TIMEOUT.getStatusCode() ||
+                capturedStatus1.get() == StatusCode.BAD_GATEWAY.getStatusCode(),
+                "Expected 504 or 502 for request #1, got: " + capturedStatus1.get()
         );
-        ctx.assertEquals(
-                -1,
-                capturedStatus2.get(),
-                "Expected no response status for request #2 (still hanging), but got: " +
-                        capturedStatus2.get()
+        ctx.assertTrue(
+                capturedStatus2.get() == StatusCode.TIMEOUT.getStatusCode() ||
+                capturedStatus2.get() == StatusCode.BAD_GATEWAY.getStatusCode(),
+                "Expected 504 or 502 for request #2, got: " + capturedStatus2.get()
         );
     }
 
@@ -317,6 +308,9 @@ public class ForwarderConnectionCloseTest {
 
             @Override
             public HttpServerResponse setChunked(boolean chunked) { return this; }
+
+            @Override
+            public boolean headWritten() { return false; }
         };
     }
 
@@ -349,6 +343,9 @@ public class ForwarderConnectionCloseTest {
 
             @Override
             public HttpServerResponse setChunked(boolean chunked) { return this; }
+
+            @Override
+            public boolean headWritten() { return false; }
         };
     }
 
