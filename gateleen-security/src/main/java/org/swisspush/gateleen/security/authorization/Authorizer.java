@@ -70,12 +70,17 @@ public class Authorizer implements LoggableResource {
         this(vertx, storage, securityRoot, rolePattern, rolePrefix, properties, true);
     }
 
+    public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern,
+                      String rolePrefix, Map<String, Object> properties, boolean grantAccessWithoutRoles) {
+        this(vertx, storage, securityRoot, rolePattern, rolePrefix, properties, grantAccessWithoutRoles, false);
+    }
+
     /*
      * Initializes the ACL security system with the RoleMapper from the corresponding storage resources containing the
      * ACL groups (without the role prefix) and the RoleMapper resource. Requests without roles can be granted or rejected
      */
     public Authorizer(Vertx vertx, final ResourceStorage storage, String securityRoot, String rolePattern,
-                      String rolePrefix, Map<String, Object> properties, boolean grantAccessWithoutRoles) {
+                      String rolePrefix, Map<String, Object> properties, boolean grantAccessWithoutRoles, boolean haltIfAclInitFailed) {
         this.vertx = vertx;
         this.storage = storage;
         String aclRoot = UriBuilder.concatUriSegments(securityRoot, aclKey, "/");
@@ -89,6 +94,18 @@ public class Authorizer implements LoggableResource {
 
         // Receive update notifications
         eb.consumer(UPDATE_ADDRESS, (Handler<Message<String>>) role -> updateAllConfigs());
+        roleAuthorizer.init().onComplete(event -> {
+            if (event.succeeded()) {
+                log.debug("role authorizer initialized");
+            } else {
+                if (haltIfAclInitFailed) {
+                    log.error("role authorizer initialization failed, application will shutdown", event.cause());
+                    vertx.close().onComplete(ar -> System.exit(1));
+                } else {
+                    log.error("role authorizer initialization failed", event.cause());
+                }
+            }
+        });
     }
 
     @Override
