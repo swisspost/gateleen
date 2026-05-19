@@ -242,7 +242,7 @@ public class RoleAuthorizer implements ConfigurationResource {
                     mergeAcl(role, buffer);
                     promise.complete(null);
                 } catch (ValidationException validationException) {
-                    log.error("Could not parse acls: {}: {}", role, buffer, validationException);
+                    log.error("Could not parse acls: {}", role, validationException);
                     promise.fail(validationException);
                 }
             } else {
