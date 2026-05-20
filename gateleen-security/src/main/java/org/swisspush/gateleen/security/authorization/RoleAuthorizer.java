@@ -1,5 +1,6 @@
 package org.swisspush.gateleen.security.authorization;
 
+import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
@@ -16,6 +17,7 @@ import org.swisspush.gateleen.validation.ValidationException;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 
 
@@ -40,6 +42,7 @@ public class RoleAuthorizer implements ConfigurationResource {
     private final RoleExtractor roleExtractor;
     private final Map<PatternHolder, Map<String, Set<String>>> initialGrantedRoles;
     private final boolean grantAccessWithoutRoles;
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
 
     // URI -> Method -> Roles
     private Map<PatternHolder, Map<String, Set<String>>> grantedRoles = new HashMap<>();
@@ -75,8 +78,13 @@ public class RoleAuthorizer implements ConfigurationResource {
         initialGrantedRoles.get(aclUriPattern).get("PUT").add(adminRole);
         initialGrantedRoles.get(aclUriPattern).get("GET").add(adminRole);
         initialGrantedRoles.get(aclUriPattern).get("DELETE").add(adminRole);
+    }
 
-        configUpdate();
+    public Future<Void> init() {
+        if (initialized.compareAndSet(false, true)) {
+            return configUpdateInternal();
+        }
+        return Future.failedFuture("RoleAuthorizer already initialized");
     }
 
     public void handleIsAuthorized(final HttpServerRequest request, Promise<Boolean> promise) {
@@ -96,20 +104,34 @@ public class RoleAuthorizer implements ConfigurationResource {
 
     @Override
     public void configUpdate() {
+        configUpdateInternal();
+    }
+
+    private Future<Void> configUpdateInternal() {
+        final Promise<Void> promise = Promise.promise();
         storage.get(aclRoot, buffer -> {
+            final List<Future<Void>> futures = new ArrayList<>();
             if (buffer != null) {
                 grantedRoles = new HashMap<>();
                 for (Object roleObject : new JsonObject(buffer).getJsonArray(aclKey)) {
                     String role = (String) roleObject;
-                    updateAcl(role);
+                    futures.add(updateAcl(role));
                 }
             } else {
                 log.warn("No ACLs in storage, using initial authorization.");
                 grantedRoles = initialGrantedRoles;
+                futures.add(Future.succeededFuture());
             }
+            Future.all(futures).onComplete(event -> {
+                if (event.failed()) {
+                    promise.fail(event.cause());
+                } else {
+                    promise.complete();
+                }
+            });
         });
+        return promise.future();
     }
-
 
     /**
      * Extracts the Users Roles from the Request and further validates if the user is allowed to access
@@ -211,19 +233,23 @@ public class RoleAuthorizer implements ConfigurationResource {
         return authorized;
     }
 
-    private void updateAcl(final String role) {
+    private Future<Void> updateAcl(final String role) {
+        final Promise<Void> promise = Promise.promise();
         storage.get(aclRoot + role, buffer -> {
             if (buffer != null) {
                 try {
                     log.info("Applying acl for {}", role);
                     mergeAcl(role, buffer);
+                    promise.complete(null);
                 } catch (ValidationException validationException) {
-                    log.error("Could not parse acls: {}", validationException.toString());
+                    log.error("Could not parse acls: {}", role, validationException);
+                    promise.fail(validationException);
                 }
             } else {
-                log.error("No acl for role {} found in storage", role);
+                promise.fail("No acl for role " + role + " found in storage");
             }
         });
+        return promise.future();
     }
 
     private void mergeAcl(String role, Buffer buffer) throws ValidationException {
