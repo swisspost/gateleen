@@ -138,6 +138,10 @@ public class Forwarder extends AbstractForwarder {
         return new ForwarderBuilder();
     }
 
+    static String buildTargetUri(Pattern urlPattern, String requestUri, String rulePath) {
+        return urlPattern.matcher(requestUri).replaceFirst(rulePath).replaceAll("\\/\\/", "/");
+    }
+
     /**
      * Sets the MeterRegistry for this Forwarder.
      * If the provided MeterRegistry is not null, it initializes the forwardCounter
@@ -253,7 +257,7 @@ public class Forwarder extends AbstractForwarder {
             monitoringHandler.updateRequestsMeter(target, req.uri());
             monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getMetricName());
         }
-        final String targetUri = urlPattern.matcher(req.uri()).replaceFirst(rule.getPath()).replaceAll("\\/\\/", "/");
+        final String targetUri = buildTargetUri(urlPattern, req.uri(), rule.getPath());
         log.debug("Forwarding request: {} to {}://{} with rule {}", req.uri(), rule.getScheme(), target + targetUri, rule.getRuleIdentifier());
         final String userId = extractUserId(req, log);
         req.pause(); // pause the request to avoid problems with starting another async request (storage)

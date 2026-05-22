@@ -164,16 +164,6 @@ public class ForwarderTest {
     // ========================================================================
 
     /**
-     * Helper method that replicates the targetUri construction logic from Forwarder.handle()
-     * See Forwarder.java line ~256:
-     * {@code final String targetUri = urlPattern.matcher(req.uri()).replaceFirst(rule.getPath()).replaceAll("\\/\\/", "/");}
-     */
-    private String buildTargetUri(String urlPatternStr, String requestUri, String rulePath) {
-        Pattern urlPattern = Pattern.compile(urlPatternStr);
-        return urlPattern.matcher(requestUri).replaceFirst(rulePath).replaceAll("\\/\\/", "/");
-    }
-
-    /**
      * Tests that when a request has a path suffix beyond the hook registration path,
      * the suffix is appended to the destination path.
      * <p>
@@ -185,11 +175,11 @@ public class ForwarderTest {
      */
     @Test
     public void testTargetUriConstruction_SuffixIsAppendedToDestination() {
-        String hookRegistrationPath = "/gateleen/server/push/v1/publish/my-project";
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
         String destinationPath = "/v1/projects/my-project/messages:send";
         String requestUri = "/gateleen/server/push/v1/publish/my-project/some-token";
 
-        String targetUri = buildTargetUri(hookRegistrationPath, requestUri, destinationPath);
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
 
         Assert.assertEquals("/v1/projects/my-project/messages:send/some-token", targetUri);
     }
@@ -200,11 +190,11 @@ public class ForwarderTest {
      */
     @Test
     public void testTargetUriConstruction_NoSuffixWhenRequestMatchesExactly() {
-        String hookRegistrationPath = "/gateleen/server/push/v1/publish/my-project";
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
         String destinationPath = "/v1/projects/my-project/messages:send";
         String requestUri = "/gateleen/server/push/v1/publish/my-project";
 
-        String targetUri = buildTargetUri(hookRegistrationPath, requestUri, destinationPath);
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
 
         Assert.assertEquals("/v1/projects/my-project/messages:send", targetUri);
     }
@@ -214,11 +204,11 @@ public class ForwarderTest {
      */
     @Test
     public void testTargetUriConstruction_DeepSuffixIsAppended() {
-        String hookRegistrationPath = "/api/gateway";
+        Pattern urlPattern = Pattern.compile("/api/gateway");
         String destinationPath = "/backend/service";
         String requestUri = "/api/gateway/users/123/profile/settings";
 
-        String targetUri = buildTargetUri(hookRegistrationPath, requestUri, destinationPath);
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
 
         Assert.assertEquals("/backend/service/users/123/profile/settings", targetUri);
     }
@@ -229,11 +219,11 @@ public class ForwarderTest {
      */
     @Test
     public void testTargetUriConstruction_DoubleSlashesAreNormalized() {
-        String hookRegistrationPath = "/api/gateway";
+        Pattern urlPattern = Pattern.compile("/api/gateway");
         String destinationPath = "/backend/service/";
         String requestUri = "/api/gateway/resource";
 
-        String targetUri = buildTargetUri(hookRegistrationPath, requestUri, destinationPath);
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
 
         Assert.assertEquals("/backend/service/resource", targetUri);
     }
@@ -244,11 +234,11 @@ public class ForwarderTest {
      */
     @Test
     public void testTargetUriConstruction_SuffixWithQueryParameters() {
-        String hookRegistrationPath = "/api/gateway";
+        Pattern urlPattern = Pattern.compile("/api/gateway");
         String destinationPath = "/backend/service";
         String requestUri = "/api/gateway/resource?param=value&other=123";
 
-        String targetUri = buildTargetUri(hookRegistrationPath, requestUri, destinationPath);
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
 
         Assert.assertEquals("/backend/service/resource?param=value&other=123", targetUri);
     }
@@ -260,11 +250,11 @@ public class ForwarderTest {
      */
     @Test
     public void testTargetUriConstruction_FCMScenario_SuffixIsAppended() {
-        String hookRegistrationPath = "/gateleen/server/push/v1/publish/my-project";
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
         String destinationPath = "/v1/projects/my-project/messages:send";
         String requestUri = "/gateleen/server/push/v1/publish/my-project/device-token-abc123";
 
-        String targetUri = buildTargetUri(hookRegistrationPath, requestUri, destinationPath);
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
 
         Assert.assertEquals("/v1/projects/my-project/messages:send/device-token-abc123", targetUri);
     }
