@@ -93,6 +93,19 @@ public class Forwarder extends AbstractForwarder {
     private Timer forwardTimer;
     private MeterRegistry meterRegistry;
 
+    /**
+     * Controls path suffix handling for hook-based forwarding only.
+     * <p>
+     * When {@code false} (default): the path suffix after the hook registration path is appended to the destination.
+     * When {@code true}: the request is forwarded to the exact destination without any path suffix.
+     * <p>
+     * This property is only relevant for route hooks and should be set via {@link #setFullUrl(boolean)}.
+     * For regular routing rules, this property has no effect as path rewriting is controlled by regex patterns.
+     *
+     * @see <a href="https://github.com/swisspost/gateleen/issues/758">GitHub issue #758</a>
+     */
+    private boolean fullUrl = false;
+
     /** @deprecated use {@link #newForwarder()}. */
     public Forwarder(Vertx vertx, HttpClient client, Rule rule, final ResourceStorage storage,
                      LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
@@ -139,7 +152,25 @@ public class Forwarder extends AbstractForwarder {
     }
 
     static String buildTargetUri(Pattern urlPattern, String requestUri, String rulePath) {
+        return buildTargetUri(urlPattern, requestUri, rulePath, false);
+    }
+
+    static String buildTargetUri(Pattern urlPattern, String requestUri, String rulePath, boolean fullUrl) {
+        if (fullUrl) {
+            return rulePath.replaceAll("\\/\\/", "/");
+        }
         return urlPattern.matcher(requestUri).replaceFirst(rulePath).replaceAll("\\/\\/", "/");
+    }
+
+    /**
+     * Sets whether the forwarder should use the full destination URL without appending any path suffix.
+     * This is only relevant for hook-based forwarding.
+     *
+     * @param fullUrl when {@code true}, forwards to exact destination; when {@code false}, appends path suffix
+     * @see #fullUrl
+     */
+    public void setFullUrl(boolean fullUrl) {
+        this.fullUrl = fullUrl;
     }
 
     /**
@@ -257,7 +288,7 @@ public class Forwarder extends AbstractForwarder {
             monitoringHandler.updateRequestsMeter(target, req.uri());
             monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getMetricName());
         }
-        final String targetUri = buildTargetUri(urlPattern, req.uri(), rule.getPath());
+        final String targetUri = buildTargetUri(urlPattern, req.uri(), rule.getPath(), fullUrl);
         log.debug("Forwarding request: {} to {}://{} with rule {}", req.uri(), rule.getScheme(), target + targetUri, rule.getRuleIdentifier());
         final String userId = extractUserId(req, log);
         req.pause(); // pause the request to avoid problems with starting another async request (storage)

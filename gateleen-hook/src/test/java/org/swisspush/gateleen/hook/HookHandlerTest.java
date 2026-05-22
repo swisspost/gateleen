@@ -663,6 +663,82 @@ public class HookHandlerTest {
         vertx.eventBus().request("gateleen.hook-route-remove", "pathToRouterResource");
     }
 
+    @Test
+    public void hookRegistration_RouteWithFullUrl(TestContext testContext) throws InterruptedException {
+        String expirationTime = DateTime.now().plusSeconds(10).toString();
+        String routeStorageKey = HOOK_ROOT_URI + "registrations/routes/+server+services+api+_hooks+route";
+        storage.putMockData(routeStorageKey, ("{\n" +
+                "   \"requesturl\":\"/server/services/api/_hooks/route\",\n" +
+                "   \"expirationTime\":\"" + expirationTime + "\",\n" +
+                "   \"hook\":{\n" +
+                "      \"destination\":\"http://localhost/aservice/v1/events\",\n" +
+                "      \"methods\":[\n" +
+                "         \"PUT\"\n" +
+                "      ],\n" +
+                "      \"fullUrl\":true\n" +
+                "   }\n" +
+                "}"));
+        vertx.eventBus().request("gateleen.hook-route-insert", routeStorageKey);
+
+        for (int i = 0; i < 20 && hookHandler.routeRepository.getRoutes().isEmpty(); i++) {
+            Thread.sleep(100);
+        }
+
+        testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
+        Route route = hookHandler.routeRepository.getRoutes().values().iterator().next();
+        testContext.assertTrue(route.getHook().isFullUrl(), "fullUrl should be true when set in hook configuration");
+    }
+
+    @Test
+    public void hookRegistration_RouteWithFullUrlFalse(TestContext testContext) throws InterruptedException {
+        String expirationTime = DateTime.now().plusSeconds(10).toString();
+        String routeStorageKey = HOOK_ROOT_URI + "registrations/routes/+server+services+api+_hooks+route";
+        storage.putMockData(routeStorageKey, ("{\n" +
+                "   \"requesturl\":\"/server/services/api/_hooks/route\",\n" +
+                "   \"expirationTime\":\"" + expirationTime + "\",\n" +
+                "   \"hook\":{\n" +
+                "      \"destination\":\"http://localhost/aservice/v1/events\",\n" +
+                "      \"methods\":[\n" +
+                "         \"PUT\"\n" +
+                "      ],\n" +
+                "      \"fullUrl\":false\n" +
+                "   }\n" +
+                "}"));
+        vertx.eventBus().request("gateleen.hook-route-insert", routeStorageKey);
+
+        for (int i = 0; i < 20 && hookHandler.routeRepository.getRoutes().isEmpty(); i++) {
+            Thread.sleep(100);
+        }
+
+        testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
+        Route route = hookHandler.routeRepository.getRoutes().values().iterator().next();
+        testContext.assertFalse(route.getHook().isFullUrl(), "fullUrl should be false when set to false in hook configuration");
+    }
+
+    @Test
+    public void hookRegistration_RouteWithFullUrlDefault(TestContext testContext) throws InterruptedException {
+        String expirationTime = DateTime.now().plusSeconds(10).toString();
+        String routeStorageKey = HOOK_ROOT_URI + "registrations/routes/+server+services+api+_hooks+route";
+        storage.putMockData(routeStorageKey, ("{\n" +
+                "   \"requesturl\":\"/server/services/api/_hooks/route\",\n" +
+                "   \"expirationTime\":\"" + expirationTime + "\",\n" +
+                "   \"hook\":{\n" +
+                "      \"destination\":\"http://localhost/aservice/v1/events\",\n" +
+                "      \"methods\":[\n" +
+                "         \"PUT\"\n" +
+                "      ]\n" +
+                "   }\n" +
+                "}"));
+        vertx.eventBus().request("gateleen.hook-route-insert", routeStorageKey);
+
+        for (int i = 0; i < 20 && hookHandler.routeRepository.getRoutes().isEmpty(); i++) {
+            Thread.sleep(100);
+        }
+
+        testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
+        Route route = hookHandler.routeRepository.getRoutes().values().iterator().next();
+        testContext.assertFalse(route.getHook().isFullUrl(), "fullUrl should default to false when not specified in hook configuration");
+    }
 
     @Test
     public void testHandleGETRequestWithEmptyParam(TestContext testContext) {

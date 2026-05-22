@@ -259,4 +259,66 @@ public class ForwarderTest {
         Assert.assertEquals("/v1/projects/my-project/messages:send/device-token-abc123", targetUri);
     }
 
+    // ========================================================================
+    // Tests for fullUrl=true behavior (GitHub issue #758 fix)
+    // These tests verify that when fullUrl=true, the path suffix is NOT appended.
+    // ========================================================================
+
+    @Test
+    public void testTargetUriConstruction_FullUrlTrue_SuffixIsNotAppended() {
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
+        String destinationPath = "/v1/projects/my-project/messages:send";
+        String requestUri = "/gateleen/server/push/v1/publish/my-project/some-token";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, true);
+
+        Assert.assertEquals("/v1/projects/my-project/messages:send", targetUri);
+    }
+
+    @Test
+    public void testTargetUriConstruction_FullUrlTrue_FCMScenario_ExactDestination() {
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
+        String destinationPath = "/v1/projects/my-project/messages:send";
+        String requestUri = "/gateleen/server/push/v1/publish/my-project/device-token-abc123";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, true);
+
+        Assert.assertEquals("/v1/projects/my-project/messages:send", targetUri);
+    }
+
+    @Test
+    public void testTargetUriConstruction_FullUrlTrue_DeepSuffixIgnored() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service";
+        String requestUri = "/api/gateway/users/123/profile/settings";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, true);
+
+        Assert.assertEquals("/backend/service", targetUri);
+    }
+
+    @Test
+    public void testTargetUriConstruction_FullUrlTrue_DoubleSlashesNormalized() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service//endpoint";
+        String requestUri = "/api/gateway/ignored";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, true);
+
+        Assert.assertEquals("/backend/service/endpoint", targetUri);
+    }
+
+    @Test
+    public void testTargetUriConstruction_FullUrlFalse_BehavesLikeDefault() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service";
+        String requestUri = "/api/gateway/resource";
+
+        String withExplicitFalse = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, false);
+        String withDefault = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals(withDefault, withExplicitFalse);
+        Assert.assertEquals("/backend/service/resource", withExplicitFalse);
+    }
+
 }
