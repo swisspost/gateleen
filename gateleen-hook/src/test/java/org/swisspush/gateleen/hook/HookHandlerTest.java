@@ -35,8 +35,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static io.vertx.core.http.HttpMethod.PUT;
+import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -664,7 +666,7 @@ public class HookHandlerTest {
     }
 
     @Test
-    public void hookRegistration_RouteWithFullUrl(TestContext testContext) throws InterruptedException {
+    public void hookRegistration_RouteWithFullUrl(TestContext testContext) {
         String expirationTime = DateTime.now().plusSeconds(10).toString();
         String routeStorageKey = HOOK_ROOT_URI + "registrations/routes/+server+services+api+_hooks+route";
         storage.putMockData(routeStorageKey, ("{\n" +
@@ -680,9 +682,7 @@ public class HookHandlerTest {
                 "}"));
         vertx.eventBus().request("gateleen.hook-route-insert", routeStorageKey);
 
-        for (int i = 0; i < 20 && hookHandler.routeRepository.getRoutes().isEmpty(); i++) {
-            Thread.sleep(100);
-        }
+        await().atMost(2, TimeUnit.SECONDS).until(() -> !hookHandler.routeRepository.getRoutes().isEmpty());
 
         testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
         Route route = hookHandler.routeRepository.getRoutes().values().iterator().next();
@@ -690,7 +690,7 @@ public class HookHandlerTest {
     }
 
     @Test
-    public void hookRegistration_RouteWithFullUrlFalse(TestContext testContext) throws InterruptedException {
+    public void hookRegistration_RouteWithFullUrlFalse(TestContext testContext) {
         String expirationTime = DateTime.now().plusSeconds(10).toString();
         String routeStorageKey = HOOK_ROOT_URI + "registrations/routes/+server+services+api+_hooks+route";
         storage.putMockData(routeStorageKey, ("{\n" +
@@ -706,9 +706,7 @@ public class HookHandlerTest {
                 "}"));
         vertx.eventBus().request("gateleen.hook-route-insert", routeStorageKey);
 
-        for (int i = 0; i < 20 && hookHandler.routeRepository.getRoutes().isEmpty(); i++) {
-            Thread.sleep(100);
-        }
+        await().atMost(2, TimeUnit.SECONDS).until(() -> !hookHandler.routeRepository.getRoutes().isEmpty());
 
         testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
         Route route = hookHandler.routeRepository.getRoutes().values().iterator().next();
@@ -716,7 +714,7 @@ public class HookHandlerTest {
     }
 
     @Test
-    public void hookRegistration_RouteWithFullUrlDefault(TestContext testContext) throws InterruptedException {
+    public void hookRegistration_RouteWithFullUrlDefault(TestContext testContext) {
         String expirationTime = DateTime.now().plusSeconds(10).toString();
         String routeStorageKey = HOOK_ROOT_URI + "registrations/routes/+server+services+api+_hooks+route";
         storage.putMockData(routeStorageKey, ("{\n" +
@@ -731,9 +729,7 @@ public class HookHandlerTest {
                 "}"));
         vertx.eventBus().request("gateleen.hook-route-insert", routeStorageKey);
 
-        for (int i = 0; i < 20 && hookHandler.routeRepository.getRoutes().isEmpty(); i++) {
-            Thread.sleep(100);
-        }
+        await().atMost(2, TimeUnit.SECONDS).until(() -> !hookHandler.routeRepository.getRoutes().isEmpty());
 
         testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
         Route route = hookHandler.routeRepository.getRoutes().values().iterator().next();
