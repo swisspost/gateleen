@@ -337,4 +337,158 @@ public class RouteTest extends AbstractTest {
 
         async.complete();
     }
+
+    /**
+     * Tests that path suffixes are appended to the destination when routing requests.
+     * This verifies the current behavior described in GitHub issue #758.
+     * <p>
+     * When a route hook is registered at path A with destination B, and a request
+     * comes in to A/suffix, the request is forwarded to B/suffix.
+     */
+    @Test
+    public void testRoutePathSuffixIsAppendedToDestination(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String subresource = "suffixTest";
+        String routeName = "suffixTestTarget";
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = targetUrlBase + "/" + routeName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        delete(requestUrl);
+
+        final String routedResourceWithSuffix = requestUrlBase + "/" + subresource + "/deep/nested/path";
+        final String expectedTargetWithSuffix = targetUrlBase + "/" + routeName + "/deep/nested/path";
+
+        TestUtils.registerRoute(requestUrl, target, methods);
+
+        String body = "{ \"name\" : \"suffix test data\"}";
+        given().body(body).put(routedResourceWithSuffix).then().assertThat().statusCode(200);
+
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
+            when().get(routedResourceWithSuffix).then().assertThat().body(containsString(body));
+            when().get(expectedTargetWithSuffix).then().assertThat().body(containsString(body));
+        });
+
+        TestUtils.unregisterRoute(requestUrl);
+        async.complete();
+    }
+
+    /**
+     * Tests that a single path segment suffix is appended to the destination.
+     * Simulates the FCM scenario from GitHub issue #758 where a device token
+     * is passed as a path segment.
+     */
+    @Test
+    public void testRouteSingleSegmentSuffixIsAppended(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String subresource = "fcmSimulation";
+        String routeName = "messagesEndpoint";
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = targetUrlBase + "/" + routeName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        delete(requestUrl);
+
+        final String routedResourceWithToken = requestUrlBase + "/" + subresource + "/device-token-abc123";
+        final String expectedTargetWithToken = targetUrlBase + "/" + routeName + "/device-token-abc123";
+
+        TestUtils.registerRoute(requestUrl, target, methods);
+
+        String body = "{ \"message\" : \"push notification\"}";
+        given().body(body).put(routedResourceWithToken).then().assertThat().statusCode(200);
+
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
+            when().get(routedResourceWithToken).then().assertThat().body(containsString(body));
+            when().get(expectedTargetWithToken).then().assertThat().body(containsString(body));
+        });
+
+        TestUtils.unregisterRoute(requestUrl);
+        async.complete();
+    }
+
+    /**
+     * Tests that with fullUrl=true, requests are forwarded to the exact destination URL
+     * without appending the path suffix. This is the feature from GitHub issue #758.
+     * <p>
+     * When a route hook is registered at path A with destination B and fullUrl=true,
+     * a request to A/suffix is forwarded to B (not B/suffix).
+     */
+    @Test
+    public void testRouteWithFullUrlTrue(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String subresource = "fullUrlTest";
+        String routeName = "fullUrlTarget";
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = targetUrlBase + "/" + routeName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        delete(requestUrl);
+
+        String body = "{ \"name\" : \"fullUrl test data\"}";
+        given().body(body).put(target).then().assertThat().statusCode(200);
+
+        TestUtils.registerRoute(requestUrl, target, methods, null, true, false, null, true);
+
+        final String routedResourceWithSuffix = requestUrlBase + "/" + subresource + "/deep/nested/path";
+
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
+            when().get(routedResourceWithSuffix).then().assertThat()
+                    .statusCode(200)
+                    .body(containsString(body));
+        });
+
+        final String targetWithSuffix = targetUrlBase + "/" + routeName + "/deep/nested/path";
+        when().get(targetWithSuffix).then().assertThat().statusCode(404);
+
+        TestUtils.unregisterRoute(requestUrl);
+        async.complete();
+    }
+
+    /**
+     * Tests that with fullUrl=false (explicit), path suffix is still appended to destination.
+     * This verifies backward compatibility when fullUrl is explicitly set to false.
+     */
+    @Test
+    public void testRouteWithFullUrlFalseExplicit(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String subresource = "fullUrlFalseTest";
+        String routeName = "fullUrlFalseTarget";
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = targetUrlBase + "/" + routeName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        delete(requestUrl);
+
+        final String routedResourceWithSuffix = requestUrlBase + "/" + subresource + "/sub/path";
+        final String expectedTargetWithSuffix = target + "/sub/path";
+
+        TestUtils.registerRoute(requestUrl, target, methods, null, true, false, null, false);
+
+        String body = "{ \"name\" : \"fullUrl false test data\"}";
+        given().body(body).put(routedResourceWithSuffix).then().assertThat().statusCode(200);
+
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
+            when().get(routedResourceWithSuffix).then().assertThat().body(containsString(body));
+            when().get(expectedTargetWithSuffix).then().assertThat().body(containsString(body));
+        });
+
+        TestUtils.unregisterRoute(requestUrl);
+        async.complete();
+    }
 }

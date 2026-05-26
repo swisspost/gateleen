@@ -112,6 +112,7 @@ public class Route {
     private void createForwarder() {
         forwarder = new Forwarder(vertx, client, rule, storage, loggingResourceManager, logAppenderRepository,
                 monitoringHandler, userProfilePath, null);
+        forwarder.setFullUrl(httpHook.isFullUrl());
     }
 
     /**

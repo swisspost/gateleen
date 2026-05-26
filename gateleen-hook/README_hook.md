@@ -28,6 +28,7 @@ Adding hooks requires a validation against a schema to be positive. Check the sc
 | staticHeaders      | no  | (*deprecated - use headers*) This property allows you to set static headers passed down to every request. The defined static headers will overwrite given ones!                                                                                                                                                                                                                                           |
 | headers            | no  | array of request header manipulations: set, remove, complete (set-if-absent) and override (set-if-present)                                                                                                                                                                                                                                                                                                |
 | headersFilter      | no  | A regular expression to define which requests headers must be present for the route to be used. Each request header entry is validated in the format `<KEY>: <VALUE>`, so you are able to filter for request header names and values.                                                                                                                                                                     |
+| fullUrl            | no  | Default: false <br><br> When `false`, the path suffix after the hooked resource is appended to the destination URL. When `true`, requests are forwarded to the exact destination URL without appending any path suffix. <br><br> Example with `fullUrl: false` (default): <br> hooked url = `/gateleen/example` <br> request = `/gateleen/example/sub/path` <br> destination = `http://target/api` <br> result = `http://target/api/sub/path` <br><br> Example with `fullUrl: true`: <br> hooked url = `/gateleen/example` <br> request = `/gateleen/example/sub/path` <br> destination = `http://target/api` <br> result = `http://target/api` |
 | collection         | no  | This property specifies if the given URL is a resource or a collection. If this property is not set, the default is true (collection).                                                                                                                                                                                                                                                                    |
 | listable           | no  | This property specifies if a route is listed if a GET is performed on its parent or not. The default is false or set by the value passed during the initialization.                                                                                                                                                                                                                                       | 
 | translateStatus    | no  | This property defines a mapping to translate http respond status values.                                                                                                                                                                                                                                                                                                                                  | 
@@ -124,8 +125,33 @@ GET http://myserver:7012/gateleen/example/
 ```
 
 
+#### Route with fullUrl
+By default, when a request matches a route, the path suffix after the hooked resource is appended to the destination URL. Setting `fullUrl: true` changes this behavior to forward requests to the exact destination URL without any path suffix.
 
+This is particularly useful when integrating with external APIs that expect requests at a specific endpoint regardless of the original request path.
 
+##### Default behavior (fullUrl: false)
+```json
+PUT http://myserver:7012/gateleen/proxy/api/_hooks/route
+{
+    "destination": "https://external-api.example.com/v1/endpoint",
+    "methods": ["POST"]
+}
+```
+A request to `http://myserver:7012/gateleen/proxy/api/sub/path` will be forwarded to:
+`https://external-api.example.com/v1/endpoint/sub/path`
+
+##### With fullUrl: true
+```json
+PUT http://myserver:7012/gateleen/proxy/api/_hooks/route
+{
+    "destination": "https://external-api.example.com/v1/endpoint",
+    "methods": ["POST"],
+    "fullUrl": true
+}
+```
+A request to `http://myserver:7012/gateleen/proxy/api/sub/path` will be forwarded to:
+`https://external-api.example.com/v1/endpoint`
 
 ## Listener - Hooks
 > <font color="orange"><b>Attention:</b> </font>A listener registers an additional destination for a resource, which also will get a copy of the original request. You may registers as many listeners per resource as you wish. Requests forwarded to a listener are always enqueued and delivered as soon as the target destination is available.  

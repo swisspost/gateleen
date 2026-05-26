@@ -239,22 +239,47 @@ public class TestUtils {
     public static void registerRoute(final String requestUrl, final String target, String[] methods,
                                      Map<String, String> staticHeaders, boolean collection, boolean listable,
                                      Map<Pattern, Integer> translateStatus) {
-        registerRoute(requestUrl, target, methods, staticHeaders, collection, listable, translateStatus, null);
+        registerRoute(requestUrl, target, methods, staticHeaders, collection, listable, translateStatus, null, false);
+    }
+
+    public static void registerRoute(final String requestUrl, final String target, String[] methods,
+                                     Map<String, String> staticHeaders, boolean collection, boolean listable,
+                                     Map<Pattern, Integer> translateStatus, boolean fullUrl) {
+        registerRoute(requestUrl, target, methods, staticHeaders, collection, listable, translateStatus, null, fullUrl);
     }
 
         /**
-         * Registers a route.
-         *
-         * @param requestUrl
-         * @param target
-         * @param methods
-         * @param staticHeaders
-         * @param translateStatus
-         * @param headersFilter
-         */
+          * Registers a route.
+          *
+          * @param requestUrl
+          * @param target
+          * @param methods
+          * @param staticHeaders
+          * @param translateStatus
+          * @param headersFilter
+          */
     public static void registerRoute(final String requestUrl, final String target, String[] methods,
                                      Map<String, String> staticHeaders, boolean collection, boolean listable,
                                      Map<Pattern, Integer> translateStatus, String headersFilter) {
+        registerRoute(requestUrl, target, methods, staticHeaders, collection, listable, translateStatus, headersFilter, false);
+    }
+
+    /**
+     * Registers a route with fullUrl option.
+     *
+     * @param requestUrl the URL to register the route hook at
+     * @param target the destination URL
+     * @param methods the HTTP methods to route
+     * @param staticHeaders static headers to add to forwarded requests
+     * @param collection whether this is a collection
+     * @param listable whether the route should be listable
+     * @param translateStatus status code translation map
+     * @param headersFilter regex filter for request headers
+     * @param fullUrl when true, forward to exact destination without appending path suffix
+     */
+    public static void registerRoute(final String requestUrl, final String target, String[] methods,
+                                     Map<String, String> staticHeaders, boolean collection, boolean listable,
+                                     Map<Pattern, Integer> translateStatus, String headersFilter, boolean fullUrl) {
         JsonObject route = new JsonObject();
 
         route.put("destination", target);
@@ -284,6 +309,9 @@ public class TestUtils {
 
         route.put("collection", collection);
         route.put("listable", listable);
+        if (fullUrl) {
+            route.put("fullUrl", true);
+        }
 
         with().body(route.encode()).put(requestUrl).then().assertThat().statusCode(200);
     }
