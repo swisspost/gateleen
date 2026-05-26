@@ -413,4 +413,82 @@ public class RouteTest extends AbstractTest {
         TestUtils.unregisterRoute(requestUrl);
         async.complete();
     }
+
+    /**
+     * Tests that with fullUrl=true, requests are forwarded to the exact destination URL
+     * without appending the path suffix. This is the feature from GitHub issue #758.
+     * <p>
+     * When a route hook is registered at path A with destination B and fullUrl=true,
+     * a request to A/suffix is forwarded to B (not B/suffix).
+     */
+    @Test
+    public void testRouteWithFullUrlTrue(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String subresource = "fullUrlTest";
+        String routeName = "fullUrlTarget";
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = targetUrlBase + "/" + routeName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        delete(requestUrl);
+
+        String body = "{ \"name\" : \"fullUrl test data\"}";
+        given().body(body).put(target).then().assertThat().statusCode(200);
+
+        TestUtils.registerRoute(requestUrl, target, methods, null, true, false, null, true);
+
+        final String routedResourceWithSuffix = requestUrlBase + "/" + subresource + "/deep/nested/path";
+
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
+            when().get(routedResourceWithSuffix).then().assertThat()
+                    .statusCode(200)
+                    .body(containsString(body));
+        });
+
+        final String targetWithSuffix = targetUrlBase + "/" + routeName + "/deep/nested/path";
+        when().get(targetWithSuffix).then().assertThat().statusCode(404);
+
+        TestUtils.unregisterRoute(requestUrl);
+        async.complete();
+    }
+
+    /**
+     * Tests that with fullUrl=false (explicit), path suffix is still appended to destination.
+     * This verifies backward compatibility when fullUrl is explicitly set to false.
+     */
+    @Test
+    public void testRouteWithFullUrlFalseExplicit(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String subresource = "fullUrlFalseTest";
+        String routeName = "fullUrlFalseTarget";
+
+        String requestUrl = requestUrlBase + "/" + subresource + TestUtils.getHookRouteUrlSuffix();
+        String target = targetUrlBase + "/" + routeName;
+        String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
+
+        delete(requestUrl);
+
+        final String routedResourceWithSuffix = requestUrlBase + "/" + subresource + "/sub/path";
+        final String expectedTargetWithSuffix = target + "/sub/path";
+
+        TestUtils.registerRoute(requestUrl, target, methods, null, true, false, null, false);
+
+        String body = "{ \"name\" : \"fullUrl false test data\"}";
+        given().body(body).put(routedResourceWithSuffix).then().assertThat().statusCode(200);
+
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
+            when().get(routedResourceWithSuffix).then().assertThat().body(containsString(body));
+            when().get(expectedTargetWithSuffix).then().assertThat().body(containsString(body));
+        });
+
+        TestUtils.unregisterRoute(requestUrl);
+        async.complete();
+    }
 }
