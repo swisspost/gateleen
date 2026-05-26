@@ -24,6 +24,8 @@ import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
+import java.util.regex.Pattern;
+
 /**
  * Tests for the Forwarder class
  */
@@ -153,6 +155,170 @@ public class ForwarderTest {
         String errorMessage = forwarder.applyHeaderFunctions(logger, reqHeaders);
         Assert.assertNull(errorMessage);
         Assert.assertEquals(HOST_DEFAULT, reqHeaders.get(HOST_HEADER));
+    }
+
+    // ========================================================================
+    // Tests for URL suffix behavior (GitHub issue #758)
+    // These tests verify the current behavior where path suffixes are always
+    // appended to the destination URL when forwarding requests.
+    // ========================================================================
+
+    /**
+     * Tests that when a request has a path suffix beyond the hook registration path,
+     * the suffix is appended to the destination path.
+     * <p>
+     * This is the current behavior that GitHub issue #758 describes:
+     * - Hook registered at: /gateleen/server/push/v1/publish/my-project
+     * - Destination: /v1/projects/my-project/messages:send
+     * - Request: /gateleen/server/push/v1/publish/my-project/some-token
+     * - Current result: /v1/projects/my-project/messages:send/some-token (suffix appended)
+     */
+    @Test
+    public void testTargetUriConstruction_SuffixIsAppendedToDestination() {
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
+        String destinationPath = "/v1/projects/my-project/messages:send";
+        String requestUri = "/gateleen/server/push/v1/publish/my-project/some-token";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals("/v1/projects/my-project/messages:send/some-token", targetUri);
+    }
+
+    /**
+     * Tests that when a request exactly matches the hook registration path (no suffix),
+     * the destination path is returned as-is.
+     */
+    @Test
+    public void testTargetUriConstruction_NoSuffixWhenRequestMatchesExactly() {
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
+        String destinationPath = "/v1/projects/my-project/messages:send";
+        String requestUri = "/gateleen/server/push/v1/publish/my-project";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals("/v1/projects/my-project/messages:send", targetUri);
+    }
+
+    /**
+     * Tests suffix appending with a deeply nested path suffix.
+     */
+    @Test
+    public void testTargetUriConstruction_DeepSuffixIsAppended() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service";
+        String requestUri = "/api/gateway/users/123/profile/settings";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals("/backend/service/users/123/profile/settings", targetUri);
+    }
+
+    /**
+     * Tests that double slashes are normalized to single slashes.
+     * This can happen when the destination path ends with "/" and the suffix starts with "/".
+     */
+    @Test
+    public void testTargetUriConstruction_DoubleSlashesAreNormalized() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service/";
+        String requestUri = "/api/gateway/resource";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals("/backend/service/resource", targetUri);
+    }
+
+    /**
+     * Tests suffix behavior with query parameters.
+     * The entire request URI including query string is subject to the pattern replacement.
+     */
+    @Test
+    public void testTargetUriConstruction_SuffixWithQueryParameters() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service";
+        String requestUri = "/api/gateway/resource?param=value&other=123";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals("/backend/service/resource?param=value&other=123", targetUri);
+    }
+
+    /**
+     * Tests the FCM (Firebase Cloud Messaging) scenario from GitHub issue #758.
+     * This demonstrates the problem: FCM expects a fixed endpoint without any path suffix,
+     * but the current behavior appends the suffix. Issue #758 proposes adding a "stripPath" option.
+     */
+    @Test
+    public void testTargetUriConstruction_FCMScenario_SuffixIsAppended() {
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
+        String destinationPath = "/v1/projects/my-project/messages:send";
+        String requestUri = "/gateleen/server/push/v1/publish/my-project/device-token-abc123";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals("/v1/projects/my-project/messages:send/device-token-abc123", targetUri);
+    }
+
+    // ========================================================================
+    // Tests for fullUrl=true behavior (GitHub issue #758 fix)
+    // These tests verify that when fullUrl=true, the path suffix is NOT appended.
+    // ========================================================================
+
+    @Test
+    public void testTargetUriConstruction_FullUrlTrue_SuffixIsNotAppended() {
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
+        String destinationPath = "/v1/projects/my-project/messages:send";
+        String requestUri = "/gateleen/server/push/v1/publish/my-project/some-token";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, true);
+
+        Assert.assertEquals("/v1/projects/my-project/messages:send", targetUri);
+    }
+
+    @Test
+    public void testTargetUriConstruction_FullUrlTrue_FCMScenario_ExactDestination() {
+        Pattern urlPattern = Pattern.compile("/gateleen/server/push/v1/publish/my-project");
+        String destinationPath = "/v1/projects/my-project/messages:send";
+        String requestUri = "/gateleen/server/push/v1/publish/my-project/device-token-abc123";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, true);
+
+        Assert.assertEquals("/v1/projects/my-project/messages:send", targetUri);
+    }
+
+    @Test
+    public void testTargetUriConstruction_FullUrlTrue_DeepSuffixIgnored() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service";
+        String requestUri = "/api/gateway/users/123/profile/settings";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, true);
+
+        Assert.assertEquals("/backend/service", targetUri);
+    }
+
+    @Test
+    public void testTargetUriConstruction_FullUrlTrue_DoubleSlashesNormalized() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service//endpoint";
+        String requestUri = "/api/gateway/ignored";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, true);
+
+        Assert.assertEquals("/backend/service/endpoint", targetUri);
+    }
+
+    @Test
+    public void testTargetUriConstruction_FullUrlFalse_BehavesLikeDefault() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service";
+        String requestUri = "/api/gateway/resource";
+
+        String withExplicitFalse = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath, false);
+        String withDefault = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals(withDefault, withExplicitFalse);
+        Assert.assertEquals("/backend/service/resource", withExplicitFalse);
     }
 
 }

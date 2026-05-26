@@ -35,8 +35,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static io.vertx.core.http.HttpMethod.PUT;
+import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -663,6 +665,76 @@ public class HookHandlerTest {
         vertx.eventBus().request("gateleen.hook-route-remove", "pathToRouterResource");
     }
 
+    @Test
+    public void hookRegistration_RouteWithFullUrl(TestContext testContext) {
+        String expirationTime = DateTime.now().plusSeconds(10).toString();
+        String routeStorageKey = HOOK_ROOT_URI + "registrations/routes/+server+services+api+_hooks+route";
+        storage.putMockData(routeStorageKey, ("{\n" +
+                "   \"requesturl\":\"/server/services/api/_hooks/route\",\n" +
+                "   \"expirationTime\":\"" + expirationTime + "\",\n" +
+                "   \"hook\":{\n" +
+                "      \"destination\":\"http://localhost/aservice/v1/events\",\n" +
+                "      \"methods\":[\n" +
+                "         \"PUT\"\n" +
+                "      ],\n" +
+                "      \"fullUrl\":true\n" +
+                "   }\n" +
+                "}"));
+        vertx.eventBus().request("gateleen.hook-route-insert", routeStorageKey);
+
+        await().atMost(2, TimeUnit.SECONDS).until(() -> !hookHandler.routeRepository.getRoutes().isEmpty());
+
+        testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
+        Route route = hookHandler.routeRepository.getRoutes().values().iterator().next();
+        testContext.assertTrue(route.getHook().isFullUrl(), "fullUrl should be true when set in hook configuration");
+    }
+
+    @Test
+    public void hookRegistration_RouteWithFullUrlFalse(TestContext testContext) {
+        String expirationTime = DateTime.now().plusSeconds(10).toString();
+        String routeStorageKey = HOOK_ROOT_URI + "registrations/routes/+server+services+api+_hooks+route";
+        storage.putMockData(routeStorageKey, ("{\n" +
+                "   \"requesturl\":\"/server/services/api/_hooks/route\",\n" +
+                "   \"expirationTime\":\"" + expirationTime + "\",\n" +
+                "   \"hook\":{\n" +
+                "      \"destination\":\"http://localhost/aservice/v1/events\",\n" +
+                "      \"methods\":[\n" +
+                "         \"PUT\"\n" +
+                "      ],\n" +
+                "      \"fullUrl\":false\n" +
+                "   }\n" +
+                "}"));
+        vertx.eventBus().request("gateleen.hook-route-insert", routeStorageKey);
+
+        await().atMost(2, TimeUnit.SECONDS).until(() -> !hookHandler.routeRepository.getRoutes().isEmpty());
+
+        testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
+        Route route = hookHandler.routeRepository.getRoutes().values().iterator().next();
+        testContext.assertFalse(route.getHook().isFullUrl(), "fullUrl should be false when set to false in hook configuration");
+    }
+
+    @Test
+    public void hookRegistration_RouteWithFullUrlDefault(TestContext testContext) {
+        String expirationTime = DateTime.now().plusSeconds(10).toString();
+        String routeStorageKey = HOOK_ROOT_URI + "registrations/routes/+server+services+api+_hooks+route";
+        storage.putMockData(routeStorageKey, ("{\n" +
+                "   \"requesturl\":\"/server/services/api/_hooks/route\",\n" +
+                "   \"expirationTime\":\"" + expirationTime + "\",\n" +
+                "   \"hook\":{\n" +
+                "      \"destination\":\"http://localhost/aservice/v1/events\",\n" +
+                "      \"methods\":[\n" +
+                "         \"PUT\"\n" +
+                "      ]\n" +
+                "   }\n" +
+                "}"));
+        vertx.eventBus().request("gateleen.hook-route-insert", routeStorageKey);
+
+        await().atMost(2, TimeUnit.SECONDS).until(() -> !hookHandler.routeRepository.getRoutes().isEmpty());
+
+        testContext.assertEquals(1, hookHandler.routeRepository.getRoutes().values().size());
+        Route route = hookHandler.routeRepository.getRoutes().values().iterator().next();
+        testContext.assertFalse(route.getHook().isFullUrl(), "fullUrl should default to false when not specified in hook configuration");
+    }
 
     @Test
     public void testHandleGETRequestWithEmptyParam(TestContext testContext) {

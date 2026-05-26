@@ -1686,7 +1686,7 @@ public class HookHandler implements LoggableResource {
             return;
         }
 
-        hook.setFullUrl(storageObject.getBoolean(FULL_URL, false));
+        hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
         hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(storageObject));
 
         // Configure connection pool size
