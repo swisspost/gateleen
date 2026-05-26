@@ -151,10 +151,43 @@ public class Forwarder extends AbstractForwarder {
         return new ForwarderBuilder();
     }
 
+    /**
+     * Builds the target URI for forwarding a request, using default path rewriting behavior.
+     * <p>
+     * This is a convenience overload that delegates to {@link #buildTargetUri(Pattern, String, String, boolean)}
+     * with {@code fullUrl=false}.
+     *
+     * @param urlPattern the compiled regex pattern from the routing rule's URL pattern
+     * @param requestUri the incoming request URI to be transformed
+     * @param rulePath   the destination path template (may contain regex back-references like {@code $1})
+     * @return the transformed target URI with any duplicate slashes normalized to single slashes
+     * @see #buildTargetUri(Pattern, String, String, boolean)
+     */
     static String buildTargetUri(Pattern urlPattern, String requestUri, String rulePath) {
         return buildTargetUri(urlPattern, requestUri, rulePath, false);
     }
 
+    /**
+     * Builds the target URI for forwarding a request.
+     * <p>
+     * The behavior depends on the {@code fullUrl} flag:
+     * <ul>
+     *   <li><b>{@code fullUrl=false}</b> (default): Uses regex replacement where the {@code urlPattern}
+     *       is matched against {@code requestUri} and replaced with {@code rulePath}. This allows
+     *       capturing groups in the pattern to be referenced in the path (e.g., {@code $1}, {@code $2}).</li>
+     *   <li><b>{@code fullUrl=true}</b>: Returns {@code rulePath} directly without any pattern matching.
+     *       This is used for hook-based forwarding where the exact destination should be used.</li>
+     * </ul>
+     * In both cases, any duplicate slashes ({@code //}) in the result are normalized to single slashes.
+     *
+     * @param urlPattern the compiled regex pattern from the routing rule's URL pattern
+     * @param requestUri the incoming request URI to be transformed
+     * @param rulePath   the destination path template (may contain regex back-references when {@code fullUrl=false})
+     * @param fullUrl    when {@code true}, bypasses pattern matching and uses {@code rulePath} directly;
+     *                   when {@code false}, performs regex replacement
+     * @return the transformed target URI with any duplicate slashes normalized to single slashes
+     * @see #fullUrl
+     */
     static String buildTargetUri(Pattern urlPattern, String requestUri, String rulePath, boolean fullUrl) {
         if (fullUrl) {
             return rulePath.replaceAll("\\/\\/", "/");
