@@ -1747,7 +1747,7 @@ public class HookHandler implements LoggableResource {
         // try to find X_QUEUE_CONFIG_NAME_PATTERN and X_QUEUE_CONFIG_MAX_LIMIT headers
         for (Object obj : headers) {
             if (!(obj instanceof JsonObject)) {
-                log.warn("Ignoring invalid header config entry: {}", obj);
+                log.info("Ignoring invalid header config entry: {}", obj);
                 continue;
             }
             JsonObject headerPair = (JsonObject) obj;
