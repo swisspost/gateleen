@@ -29,6 +29,7 @@ import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.core.util.ExpiryCheckHandler;
 import org.swisspush.gateleen.queue.queuing.RequestQueue;
 import org.swisspush.gateleen.routing.Router;
+import org.swisspush.redisques.util.RedisquesAPI;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -982,6 +983,131 @@ public class HookHandlerTest {
         testContext.assertTrue(result);
         String jsonResponse = responseCaptor.getValue();
         assertEmptyResult(jsonResponse);
+    }
+
+    @Test
+    public void testApplyQueueConfigWithDuplicateHeaders() {
+        JsonArray headers = new JsonArray()
+                .add(new JsonObject().put("header", "x-queue-config-name-pattern").put("value", "q.*"))
+                .add(new JsonObject().put("header", "x-queue-config-name-pattern").put("value", "q2.*"))
+                .add(new JsonObject().put("header", "x-queue-config-max-limit").put("value", "100"));
+        when(requestQueue.setPerQueueConfig(eq("q2.*"), any(JsonObject.class))).thenReturn(Future.succeededFuture());
+        hookHandler.applyQueueConfig(headers);
+    }
+    @Test
+    public void testApplyQueueConfigWithNonJsonObjectHeader() {
+        JsonArray headers = new JsonArray()
+                .add("bad-entry")
+                .add(new JsonObject().put("header", "x-queue-config-max-limit").put("value", "100"));
+
+        hookHandler.applyQueueConfig(headers);
+    }
+    @Test
+    public void testApplyQueueConfigWithInvalidMaxLimit() {
+        JsonArray headers = new JsonArray()
+                .add(new JsonObject().put("header", "x-queue-config-name-pattern").put("value", "q.*"))
+                .add(new JsonObject().put("header", "x-queue-config-max-limit").put("value", "abc"));
+
+        hookHandler.applyQueueConfig(headers);
+    }
+    @Test
+    public void testApplyQueueConfigWithNullValue() {
+        JsonArray headers = new JsonArray()
+                .add(new JsonObject().put("header", "x-queue-config-name-pattern").put("value", "q.*"))
+                .add(new JsonObject().put("header", "x-queue-config-max-limit"));
+
+        hookHandler.applyQueueConfig(headers);
+    }
+
+    @Test
+    public void testApplyQueueConfigWithValidHeadersShouldSetPerQueueConfig() {
+        JsonArray headers = new JsonArray()
+                .add(new JsonObject()
+                        .put("header", "x-queue-config-name-pattern")
+                        .put("value", "queue.*"))
+                .add(new JsonObject()
+                        .put("header", "x-queue-config-max-limit")
+                        .put("value", "100"));
+        when(requestQueue.setPerQueueConfig(any(), any(JsonObject.class))).thenReturn(Future.succeededFuture());
+        hookHandler.applyQueueConfig(headers);
+
+        verify(requestQueue).setPerQueueConfig(
+                eq("queue.*"),
+                argThat(cfg ->
+                        cfg.getLong(RedisquesAPI.PER_QUEUE_CONFIG_MAX_QUEUE_ENTRIES) == 100L)
+        );
+    }
+    
+    @Test
+    public void testApplyQueueConfigWithUnrelatedHeadersShouldIgnoreThem() {
+        JsonArray headers = new JsonArray()
+                .add(new JsonObject()
+                        .put("header", "content-type")
+                        .put("value", "application/json"))
+                .add(new JsonObject()
+                        .put("header", "x-queue-config-name-pattern")
+                        .put("value", "queue.*"))
+                .add(new JsonObject()
+                        .put("header", "x-queue-config-max-limit")
+                        .put("value", "200"));
+        when(requestQueue.setPerQueueConfig(any(), any(JsonObject.class))).thenReturn(Future.succeededFuture());
+        hookHandler.applyQueueConfig(headers);
+
+        verify(requestQueue).setPerQueueConfig(
+                eq("queue.*"),
+                argThat(cfg ->
+                        cfg.getLong(RedisquesAPI.PER_QUEUE_CONFIG_MAX_QUEUE_ENTRIES) == 200L)
+        );
+    }
+    
+    @Test
+    public void testApplyQueueConfigWithoutQueueConfigHeadersShouldNotSetConfig() {
+        JsonArray headers = new JsonArray()
+                .add(new JsonObject()
+                        .put("header", "content-type")
+                        .put("value", "application/json"));
+
+        hookHandler.applyQueueConfig(headers);
+
+        verify(requestQueue, never()).setPerQueueConfig(anyString(), any(JsonObject.class));
+    }
+    
+    @Test
+    public void testApplyQueueConfigWithOnlyNamePatternShouldNotSetConfig() {
+        JsonArray headers = new JsonArray()
+                .add(new JsonObject()
+                        .put("header", "x-queue-config-name-pattern")
+                        .put("value", "queue.*"));
+
+        hookHandler.applyQueueConfig(headers);
+
+        verify(requestQueue, never()).setPerQueueConfig(anyString(), any(JsonObject.class));
+    }
+    
+    @Test
+    public void testApplyQueueConfigWithOnlyMaxLimitShouldNotSetConfig() {
+        JsonArray headers = new JsonArray()
+                .add(new JsonObject()
+                        .put("header", "x-queue-config-max-limit")
+                        .put("value", "100"));
+
+        hookHandler.applyQueueConfig(headers);
+        verify(requestQueue, never()).setPerQueueConfig(anyString(), any(JsonObject.class));
+    }
+
+    @Test
+    public void testApplyQueueConfigWithDifferentCaseHeadersShouldNotSetConfig() {
+        JsonArray headers = new JsonArray()
+                .add(new JsonObject()
+                        .put("header", "X-Queue-Config-Name-Pattern")
+                        .put("value", "queue.*"))
+                .add(new JsonObject()
+                        .put("header", "X-Queue-Config-Max-Limit")
+                        .put("value", "100"));
+
+        hookHandler.applyQueueConfig(headers);
+
+        verify(requestQueue, never()).setPerQueueConfig(anyString(), any(JsonObject.class));
     }
 
     ///////////////////////////////////////////////////////////////////////////////

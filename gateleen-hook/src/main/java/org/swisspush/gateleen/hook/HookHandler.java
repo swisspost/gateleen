@@ -1732,28 +1732,63 @@ public class HookHandler implements LoggableResource {
         }
     }
 
-    private void applyQueueConfig(JsonArray headers) {
-        if (headers != null) {
-            Map<String, String> headerMap = headers.stream()
-                    .map(obj -> (JsonObject) obj)
-                    .collect(Collectors.toMap(
-                            h -> h.getString("header"),
-                            h -> h.getString("value")
-                    ));
-            if (headerMap.containsKey(X_QUEUE_CONFIG_NAME_PATTERN) && headerMap.containsKey(X_QUEUE_CONFIG_MAX_LIMIT)) {
-                final String queueFilter = headerMap.getOrDefault(X_QUEUE_CONFIG_NAME_PATTERN, "");
-                JsonObject jsonObject = new JsonObject();
-                jsonObject.put(RedisquesAPI.PER_QUEUE_CONFIG_MAX_QUEUE_ENTRIES, Long.parseLong(headerMap.getOrDefault(X_QUEUE_CONFIG_MAX_LIMIT, "0")));
-                requestQueue.setPerQueueConfig(queueFilter, jsonObject).onComplete(event -> {
-                    if (event.failed()) {
-                        log.error("faile to apply queue config for {}", queueFilter);
-                    } else {
-                        log.debug("applied queue config for {}", queueFilter);
-                    }
-                });
+    /**
+     * find the special headers {@link #X_QUEUE_CONFIG_NAME_PATTERN} and {@link #X_QUEUE_CONFIG_MAX_LIMIT} in the headermap and apply to queue by RedisQues-API
+     * @param headers
+     */
+    void applyQueueConfig(JsonArray headers) {
+        if (headers == null) {
+            return;
+        }
+
+        String queueNamePattern = null;
+        String maxLimitRaw = null;
+
+        // try to find X_QUEUE_CONFIG_NAME_PATTERN and X_QUEUE_CONFIG_MAX_LIMIT headers
+        for (Object obj : headers) {
+            if (!(obj instanceof JsonObject)) {
+                log.warn("Ignoring invalid header config entry: {}", obj);
+                continue;
+            }
+            JsonObject headerPair = (JsonObject) obj;
+            String name = headerPair.getString("header");
+            String value = headerPair.getString("value");
+
+            if (X_QUEUE_CONFIG_NAME_PATTERN.equals(name)) {
+                queueNamePattern = value;
+            } else if (X_QUEUE_CONFIG_MAX_LIMIT.equals(name)) {
+                maxLimitRaw = value;
             }
         }
 
+        if (queueNamePattern == null || maxLimitRaw == null) {
+            return;
+        }
+
+        final long maxLimit;
+        try {
+            maxLimit = Long.parseLong(maxLimitRaw);
+        } catch (NumberFormatException e) {
+            log.warn("Invalid max queue limit value: {}", maxLimitRaw);
+            return;
+        }
+
+        if (maxLimit < 0) {
+            log.warn("Invalid negative queue max limit: {}", maxLimit);
+            return;
+        }
+
+        JsonObject maxLimitConfig = new JsonObject()
+                .put(RedisquesAPI.PER_QUEUE_CONFIG_MAX_QUEUE_ENTRIES, maxLimit);
+
+        final String finalQueueNamePattern = queueNamePattern;
+        requestQueue.setPerQueueConfig(queueNamePattern, maxLimitConfig).onComplete(ar -> {
+            if (ar.failed()) {
+                log.error("Failed to apply queue config for {}", finalQueueNamePattern, ar.cause());
+            } else {
+                log.debug("Applied queue config for {}", finalQueueNamePattern);
+            }
+        });
     }
 
     /**
