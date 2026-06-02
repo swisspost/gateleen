@@ -512,9 +512,10 @@ Queue splitters are configured together (for example in admin/v1/queueSplitters)
 * postfix rule: rule used to generate the postfix to append to the initial queue name
 * postfixDelimiter: Optional delimiter value to add between queue name and postfix. When not configured, _-_ is used
 
-There are two types of postfix rules:
+There are three types of postfix rules:
 * static
 * based on request
+* request header
 
 ### Static postfix rule
 In the rule all postfixes for splitting are listed. Here is an example of splitter configuration with static postfix rule:
@@ -549,6 +550,13 @@ Request header to use as postfix and/or the regex to extract parts from the url 
         }
     }
 ```
+
+### Request header
+Request header _number_of_static_queues_ to use as property to set how many sub-queue to use, the number must large and equal to 2, Here are an examples:
+```text
+"number_of_static_queues": "5"
+```
+
 In both cases the splitter is applied to all the queues matching the name regex.
 
 In first case the value of the header 'x-rp-deviceid' is added. A queue with name 'queue-header-test' and with a request header 'x-rp-deviceid' valued 'A1B2C3D4' the request is splitted in the sub-queue 'queue-header-test+A1B2C3D4'.
