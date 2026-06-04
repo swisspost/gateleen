@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceConsumer;
 import org.swisspush.gateleen.core.configuration.ConfigurationResourceManager;
-import org.swisspush.gateleen.queue.queuing.splitter.executors.DynamicQueueSplitExecutor;
 import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutor;
 import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromRequest;
 import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromStaticList;
@@ -21,18 +20,15 @@ import java.util.stream.IntStream;
 
 import static org.swisspush.gateleen.queue.queuing.splitter.QueueSplitterConfigurationParser.DEFAULT_POSTFIX_DELIMITER;
 
-/**
- * {@inheritDoc}
- */
 public class QueueSplitterImpl extends ConfigurationResourceConsumer implements QueueSplitter {
 
-    public static final String NUMBER_OF_STATIC_QUEUES = "number_of_static_queues";
+    public static final String NUMBER_OF_STATIC_QUEUES = "x-static-queue-count";
     private final Logger log = LoggerFactory.getLogger(QueueSplitterImpl.class);
 
     private final Map<String, Object> properties;
 
     private List<QueueSplitExecutor> configurableQueueSplitExecutors = new ArrayList<>();
-    private Map<String, DynamicQueueSplitExecutor> dynamicQueueSplitExecutors = new HashMap<>();
+    private Map<String, QueueSplitExecutorFromStaticList> dynamicQueueSplitExecutors = new HashMap<>();
 
     public QueueSplitterImpl(
             ConfigurationResourceManager configurationResourceManager,
@@ -101,14 +97,15 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
 
         // split a queue into ONE group, there is meaningless
         if (numberOfQueue <= 1) {
-            log.warn("number of queue {} is less than 2, queue split will not enable", queueName);
+            log.warn("number of queue {} is less than 2, queue split will not enable, exist queue split will disable", queueName);
+            dynamicQueueSplitExecutors.remove(queueName);
             return queueName;
         }
 
-        DynamicQueueSplitExecutor dynamicQueueSplitExecutor = null;
+        QueueSplitExecutorFromStaticList dynamicQueueSplitExecutor = null;
         // do we have existed split executor, create if missing
         if (dynamicQueueSplitExecutors.containsKey(queueName)) {
-            DynamicQueueSplitExecutor existDynamicQueueSplitExecutor = dynamicQueueSplitExecutors.get(queueName);
+            QueueSplitExecutorFromStaticList existDynamicQueueSplitExecutor = dynamicQueueSplitExecutors.get(queueName);
             int existConfigSize = existDynamicQueueSplitExecutor.getConfiguration().getPostfixFromStatic() == null ? 0 : existDynamicQueueSplitExecutor.getConfiguration().getPostfixFromStatic().size();
             if (existConfigSize != numberOfQueue) {
                 // queue split config changed, will update
@@ -123,14 +120,10 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
             dynamicQueueSplitExecutors.put(queueName, dynamicQueueSplitExecutor);
         }
 
-        if (dynamicQueueSplitExecutor != null) {
-            return dynamicQueueSplitExecutor.executeSplit(queueName, request);
-        }
-
-        return queueName;
+        return dynamicQueueSplitExecutor.executeSplit(queueName, request);
     }
 
-    private DynamicQueueSplitExecutor createDynamicQueueSplitExecutor(String queueName, int numberOfQueue) {
+    private QueueSplitExecutorFromStaticList createDynamicQueueSplitExecutor(String queueName, int numberOfQueue) {
         List<String> staticPostfixes = IntStream.rangeClosed(1, numberOfQueue)
                 .mapToObj(i -> "Q" + i)
                 .collect(Collectors.toList());
@@ -140,7 +133,7 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
                 staticPostfixes,
                 null,
                 null);
-        return new DynamicQueueSplitExecutor(queueSplitterConfiguration);
+        return new QueueSplitExecutorFromStaticList(queueSplitterConfiguration);
     }
 
     /**

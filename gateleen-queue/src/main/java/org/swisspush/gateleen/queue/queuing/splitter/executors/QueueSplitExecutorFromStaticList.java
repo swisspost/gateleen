@@ -13,6 +13,10 @@ public class QueueSplitExecutorFromStaticList extends QueueSplitExecutorBase {
         super(configuration);
     }
 
+    public QueueSplitterConfiguration getConfiguration() {
+        return configuration;
+    }
+
     @Override
     public String executeSplit(String queue, HttpServerRequest request) {
         StringBuilder stringBuilder = new StringBuilder(queue);
