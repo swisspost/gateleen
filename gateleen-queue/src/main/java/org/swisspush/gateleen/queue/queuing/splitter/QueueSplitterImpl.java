@@ -1,6 +1,8 @@
 package org.swisspush.gateleen.queue.queuing.splitter;
 
 import com.google.common.base.Strings;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
@@ -14,6 +16,7 @@ import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecuto
 import org.swisspush.gateleen.queue.queuing.splitter.executors.QueueSplitExecutorFromStaticList;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -23,12 +26,12 @@ import static org.swisspush.gateleen.queue.queuing.splitter.QueueSplitterConfigu
 public class QueueSplitterImpl extends ConfigurationResourceConsumer implements QueueSplitter {
 
     public static final String NUMBER_OF_STATIC_QUEUES = "x-static-queue-count";
+    public static final int DYNAMIC_QUEUES_EXPIRE_TIME_DAYS = 24;
     private final Logger log = LoggerFactory.getLogger(QueueSplitterImpl.class);
 
     private final Map<String, Object> properties;
-
     private List<QueueSplitExecutor> configurableQueueSplitExecutors = new ArrayList<>();
-    private Map<String, QueueSplitExecutorFromStaticList> dynamicQueueSplitExecutors = new HashMap<>();
+    private final Cache<String, QueueSplitExecutorFromStaticList> dynamicQueueSplitExecutors;
 
     public QueueSplitterImpl(
             ConfigurationResourceManager configurationResourceManager,
@@ -44,6 +47,10 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
     ) {
         super(configurationResourceManager, configResourceUri, "gateleen_queue_splitter_configuration_schema");
         this.properties = properties;
+        dynamicQueueSplitExecutors = CacheBuilder.newBuilder()
+                .expireAfterAccess(DYNAMIC_QUEUES_EXPIRE_TIME_DAYS, TimeUnit.HOURS)
+                .build();
+
     }
 
     public Future<Void> initialize() {
@@ -82,38 +89,42 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
     private String dynamicSplitProcessing(String queueName, HttpServerRequest request) {
 
         final String numberOfQueueString = request.headers() == null ? null : request.headers().get(NUMBER_OF_STATIC_QUEUES);
-        if (Strings.isNullOrEmpty(numberOfQueueString)) {
+        final QueueSplitExecutorFromStaticList existDynamicQueueSplitExecutor = dynamicQueueSplitExecutors.getIfPresent(queueName);
+
+        if (Strings.isNullOrEmpty(numberOfQueueString) && existDynamicQueueSplitExecutor == null) {
             // do nothing
             return queueName;
         }
 
-        int numberOfQueue;
+        // take the numberOfQueue from exist executor, if there is one.
+        int numberOfQueue = existDynamicQueueSplitExecutor == null ? 0 : existDynamicQueueSplitExecutor.getConfiguration().getPostfixFromStatic().size();
         try {
             numberOfQueue = Integer.parseInt(numberOfQueueString);
         } catch (NumberFormatException ex) {
             log.error("can not parsing number of queue from {}", numberOfQueueString, log.isDebugEnabled() ? ex : null);
-            return queueName;
+            if (existDynamicQueueSplitExecutor == null) {
+                return queueName;
+            }
         }
 
         // split a queue into ONE group, there is meaningless
         if (numberOfQueue <= 1) {
             log.warn("number of queue {} is less than 2, queue split will not enable, exist queue split will disable", queueName);
-            dynamicQueueSplitExecutors.remove(queueName);
+            dynamicQueueSplitExecutors.invalidate(queueName);
             return queueName;
         }
 
-        QueueSplitExecutorFromStaticList dynamicQueueSplitExecutor = null;
+        QueueSplitExecutorFromStaticList dynamicQueueSplitExecutor;
         // do we have existed split executor, create if missing
-        if (dynamicQueueSplitExecutors.containsKey(queueName)) {
-            QueueSplitExecutorFromStaticList existDynamicQueueSplitExecutor = dynamicQueueSplitExecutors.get(queueName);
+        if (existDynamicQueueSplitExecutor != null) {
             int existConfigSize = existDynamicQueueSplitExecutor.getConfiguration().getPostfixFromStatic() == null ? 0 : existDynamicQueueSplitExecutor.getConfiguration().getPostfixFromStatic().size();
+            dynamicQueueSplitExecutor = existDynamicQueueSplitExecutor;
             if (existConfigSize != numberOfQueue) {
                 // queue split config changed, will update
                 log.debug("{} already exists in queue, will update, number of queue change from {} to {}", queueName, existConfigSize, numberOfQueue);
-                existDynamicQueueSplitExecutor = createDynamicQueueSplitExecutor(queueName, numberOfQueue);
-                dynamicQueueSplitExecutors.put(queueName, existDynamicQueueSplitExecutor);
+                dynamicQueueSplitExecutor = createDynamicQueueSplitExecutor(queueName, numberOfQueue);
+                dynamicQueueSplitExecutors.put(queueName, dynamicQueueSplitExecutor);
             }
-            dynamicQueueSplitExecutor = existDynamicQueueSplitExecutor;
         } else {
             log.info("create new queue split executor for queue '{}'", queueName);
             dynamicQueueSplitExecutor = createDynamicQueueSplitExecutor(queueName, numberOfQueue);
@@ -162,5 +173,6 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
             log.info("Queue splitter configuration resource {} was removed. Going to release all executors", resourceUri);
             configurableQueueSplitExecutors.clear();
         }
+        dynamicQueueSplitExecutors.invalidateAll();
     }
 }
