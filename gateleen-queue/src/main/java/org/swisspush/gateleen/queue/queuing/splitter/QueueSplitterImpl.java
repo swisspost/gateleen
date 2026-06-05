@@ -97,7 +97,9 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
         }
 
         // take the numberOfQueue from exist executor, if there is one.
-        int numberOfQueue = existDynamicQueueSplitExecutor == null ? 0 : existDynamicQueueSplitExecutor.getConfiguration().getPostfixFromStatic().size();
+        int numberOfQueue = existDynamicQueueSplitExecutor == null ? 0 :
+                existDynamicQueueSplitExecutor.getConfiguration().getPostfixFromStatic() == null ? 0 :
+                existDynamicQueueSplitExecutor.getConfiguration().getPostfixFromStatic().size();
         try {
             numberOfQueue = Integer.parseInt(numberOfQueueString);
         } catch (NumberFormatException ex) {
