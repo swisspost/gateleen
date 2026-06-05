@@ -26,7 +26,7 @@ import static org.swisspush.gateleen.queue.queuing.splitter.QueueSplitterConfigu
 public class QueueSplitterImpl extends ConfigurationResourceConsumer implements QueueSplitter {
 
     public static final String NUMBER_OF_STATIC_QUEUES = "x-static-queue-count";
-    public static final int DYNAMIC_QUEUES_EXPIRE_TIME_DAYS = 24;
+    public static final int DYNAMIC_QUEUES_EXPIRE_TIME_HOURS = 24;
     private final Logger log = LoggerFactory.getLogger(QueueSplitterImpl.class);
 
     private final Map<String, Object> properties;
@@ -48,7 +48,7 @@ public class QueueSplitterImpl extends ConfigurationResourceConsumer implements 
         super(configurationResourceManager, configResourceUri, "gateleen_queue_splitter_configuration_schema");
         this.properties = properties;
         dynamicQueueSplitExecutors = CacheBuilder.newBuilder()
-                .expireAfterAccess(DYNAMIC_QUEUES_EXPIRE_TIME_DAYS, TimeUnit.HOURS)
+                .expireAfterAccess(DYNAMIC_QUEUES_EXPIRE_TIME_HOURS, TimeUnit.HOURS)
                 .build();
 
     }
