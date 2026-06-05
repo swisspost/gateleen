@@ -28,5 +28,11 @@ public interface RequestQueue {
 
     Future<Void> enqueueFuture(HttpRequest queuedRequest, String queue);
 
-    Future<Void> setPerQueueConfig(String queue, JsonObject config);
+    /**
+     * appy custom config to queue matchs the pattern
+     *
+     * @param filterPattern pattern to filter the queue
+     * @param config a set of config will apply to queues match the pattern
+     */
+    Future<Void> setPerQueueConfig(String filterPattern, JsonObject config);
 }

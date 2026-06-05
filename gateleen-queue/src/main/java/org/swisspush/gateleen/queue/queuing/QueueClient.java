@@ -187,12 +187,6 @@ public class QueueClient implements RequestQueue {
         return promise.future();
     }
 
-    /**
-     * appy custom config to queue matchs the pattern
-     *
-     * @param filterPattern pattern to filter the queue
-     * @param config a set of config will apply to queues match the pattern
-     */
     @Override
     public Future<Void> setPerQueueConfig(String filterPattern, JsonObject config) {
         Promise<Void> promise = Promise.promise();
