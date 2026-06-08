@@ -197,6 +197,82 @@ public class QueueSplitterImplTest {
         });
     }
 
+    @Test
+    public void resourceRemovedShouldAlsoCleanTheDynamicQueueSplit(TestContext context) {
+
+        // Given
+        Async async = context.async();
+        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
+
+        // When
+        queueSplitter.initialize().onComplete(event -> {
+
+            // Then
+            verifySplitWithDynamicExecuted(context);
+            // When
+            queueSplitter.resourceRemoved(configResourceUri);
+            // Then
+            verifySplitWithDynamicNotExecutedWithoutHeader(context);
+            async.complete();
+        });
+    }
+
+    @Test
+    public void dynamicQueueSplitHeaderControl(TestContext context) {
+
+        // Given
+        Async async = context.async();
+        storage.putMockData(configResourceUri, CONFIG_RESOURCE_VALID_1);
+
+        // When
+        queueSplitter.initialize().onComplete(event -> {
+            HttpServerRequest request = mock(HttpServerRequest.class);
+
+            //turn ON
+            when(request.headers()).thenReturn(new HeadersMultiMap().add(NUMBER_OF_STATIC_QUEUES, "3"));
+            context.assertEquals("my-other-queue-1-Q1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q2", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q3", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+
+            //turn OFF by set to 0
+            when(request.headers()).thenReturn(new HeadersMultiMap().add(NUMBER_OF_STATIC_QUEUES, "0"));
+            context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+
+            //turn ON Again
+            when(request.headers()).thenReturn(new HeadersMultiMap().add(NUMBER_OF_STATIC_QUEUES, "2"));
+            context.assertEquals("my-other-queue-1-Q1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q2", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q2", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+
+            // Empty header
+            when(request.headers()).thenReturn(new HeadersMultiMap());
+            context.assertEquals("my-other-queue-1-Q1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q2", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q2", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+
+            //Wrong header
+            when(request.headers()).thenReturn(new HeadersMultiMap().add(NUMBER_OF_STATIC_QUEUES, "X"));
+            context.assertEquals("my-other-queue-1-Q1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q2", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1-Q2", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+
+            //turn OFF by set to 1
+            when(request.headers()).thenReturn(new HeadersMultiMap().add(NUMBER_OF_STATIC_QUEUES, "1"));
+            context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+
+            // Empty header, remain OfFF
+            when(request.headers()).thenReturn(new HeadersMultiMap());
+            context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+            async.complete();
+        });
+    }
 
     private void verifySplitStaticExecuted(TestContext context) {
         HttpServerRequest request = mock(HttpServerRequest.class);
@@ -243,6 +319,13 @@ public class QueueSplitterImplTest {
         when(request.headers()).thenReturn(new HeadersMultiMap().add(NUMBER_OF_STATIC_QUEUES, "Not A Number"));
         context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
         when(request.headers()).thenReturn(new HeadersMultiMap().add(NUMBER_OF_STATIC_QUEUES, "1"));
+        context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+    }
+
+    private void verifySplitWithDynamicNotExecutedWithoutHeader(TestContext context) {
+        HttpServerRequest request = mock(HttpServerRequest.class);
+        context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
+        context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
         context.assertEquals("my-other-queue-1", queueSplitter.convertToSubQueue("my-other-queue-1", request));
     }
 
