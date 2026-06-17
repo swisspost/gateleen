@@ -95,7 +95,7 @@ public class QueueClient implements RequestQueue {
      * @param doneHandler a handler which is called as soon as the request is written into the queue.
      */
     @Override
-    public void enqueue(HttpRequest request, final String queue, final Handler<Void> doneHandler) {
+    public void enqueue(HttpRequest request, final String queue, final Handler<Boolean> doneHandler) {
         enqueue(null, request, queue, doneHandler);
     }
 
@@ -108,18 +108,20 @@ public class QueueClient implements RequestQueue {
      * @param doneHandler     a handler which is called as soon as the request is written into the queue.
      */
     @Override
-    public void lockedEnqueue(HttpRequest queuedRequest, String queue, String lockRequestedBy, Handler<Void> doneHandler) {
+    public void lockedEnqueue(HttpRequest queuedRequest, String queue, String lockRequestedBy, Handler<Boolean> doneHandler) {
         vertx.eventBus().request(getRedisquesAddress(), buildLockedEnqueueOperation(queue,
                 queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode(), lockRequestedBy),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+                    boolean succeed = false;
                     if (OK.equals(event.result().body().getString(STATUS)) && monitoringHandler != null) {
+                        succeed = true;
                         monitoringHandler.updateLastUsedQueueSizeInformation(queue);
                         monitoringHandler.updateEnqueue();
                     }
                     // call the done handler to tell,
                     // that the request was written
                     if (doneHandler != null) {
-                        doneHandler.handle(null);
+                        doneHandler.handle(succeed);
                     }
                 });
     }
@@ -226,7 +228,7 @@ public class QueueClient implements RequestQueue {
      * @param queue         queue
      * @param doneHandler   a handler which is called as soon as the request is written into the queue.
      */
-    void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Void> doneHandler) {
+    void enqueue(final HttpServerRequest request, HttpRequest queuedRequest, final String queue, final Handler<Boolean> doneHandler) {
         if (!QueueProcessor.httpMethodIsQueueable(queuedRequest.getMethod())) {
             log.warn("Ignore enqueue of unsupported HTTP method in '{} {}'.", queuedRequest.getMethod(), queuedRequest.getUri());
             if (doneHandler != null) doneHandler.handle(null);
@@ -234,6 +236,7 @@ public class QueueClient implements RequestQueue {
         }
         vertx.eventBus().request(getRedisquesAddress(), buildEnqueueOperation(queue, queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode()),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
+                    boolean succeed = false;
                     if (event.failed()) {
                         if (request != null) {
                             ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, QueueClient.class);
@@ -242,8 +245,8 @@ public class QueueClient implements RequestQueue {
                             request.response().end(event.cause().getMessage());
                         }
                     } else {
-
                         if (OK.equals(event.result().body().getString(STATUS))) {
+                            succeed =true;
                             if (monitoringHandler != null) {
                                 monitoringHandler.updateLastUsedQueueSizeInformation(queue);
                                 monitoringHandler.updateEnqueue();
@@ -255,18 +258,21 @@ public class QueueClient implements RequestQueue {
                                 request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
                                 request.response().end();
                             }
-                        } else if (request != null) {
-                            ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, QueueClient.class);
-                            request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
-                            request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
-                            request.response().end(event.result().body().getString(MESSAGE));
+                        } else {
+                            log.warn("enqueue {} failed: {}", queue, event.result().body().getString(MESSAGE));
+                            if (request != null) {
+                                ResponseStatusCodeLogUtil.info(request, StatusCode.INTERNAL_SERVER_ERROR, QueueClient.class);
+                                request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                                request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+                                request.response().end(event.result().body().getString(MESSAGE));
+                            }
                         }
                     }
 
                     // call the done handler to tell,
                     // that the request was written
                     if (doneHandler != null) {
-                        doneHandler.handle(null);
+                        doneHandler.handle(succeed);
                     }
                 });
     }

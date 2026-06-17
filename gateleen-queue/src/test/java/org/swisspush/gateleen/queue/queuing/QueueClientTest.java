@@ -260,7 +260,10 @@ public class QueueClientTest {
         });
 
         HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
-        queueClient.lockedEnqueue(request, "myQueue", "LockRequester", event -> async.complete());
+        queueClient.lockedEnqueue(request, "myQueue", "LockRequester", event -> {
+            context.assertTrue(event);
+            async.complete();
+        });
 
         Mockito.verify(monitoringHandler, Mockito.timeout(1000).times(1)).updateEnqueue();
         Mockito.verify(monitoringHandler, Mockito.timeout(1000).times(1)).updateLastUsedQueueSizeInformation(eq("myQueue"));
@@ -280,7 +283,10 @@ public class QueueClientTest {
                 });
 
         HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
-        queueClient.lockedEnqueue(request, "myQueue", "LockRequester", event -> async.complete());
+        queueClient.lockedEnqueue(request, "myQueue", "LockRequester", event -> {
+            context.assertFalse(event);
+            async.complete();
+        });
 
         // since redisques answered with a 'failure', the monitoringHandler should not be called
         Mockito.verifyNoInteractions(monitoringHandler);
