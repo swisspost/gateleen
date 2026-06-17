@@ -945,7 +945,7 @@ public class HookHandler implements LoggableResource {
         // is executed. This way the after handler will
         // also be called properly.
         if (filteredListeners.isEmpty() && handler != null) {
-            handler.handle(null);
+            handler.handle(true);
         }
     }
 
