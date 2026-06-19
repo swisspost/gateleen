@@ -846,7 +846,7 @@ public class HookHandler implements LoggableResource {
 
             // Create handlers for before/after - cases
             Handler<Void> afterHandler = installAfterHandler(ctx, buffer, afterListener);
-            Handler<Void> beforeHandler = installBeforeHandler(ctx, buffer, beforeListener, afterHandler);
+            Handler<Boolean> beforeHandler = installBeforeHandler(ctx, buffer, beforeListener, afterHandler);
 
             // call the listeners (before)
             callListener(ctx, buffer, beforeListener, beforeHandler);
@@ -861,7 +861,7 @@ public class HookHandler implements LoggableResource {
      * @param filteredListeners all listeners which should be called
      * @param handler           the handler, which should handle the requests
      */
-    private void callListener(RoutingContext ctx, final Buffer buffer, final List<Listener> filteredListeners, final Handler<Void> handler) {
+    private void callListener(RoutingContext ctx, final Buffer buffer, final List<Listener> filteredListeners, final Handler<Boolean> handler) {
         HttpServerRequest request = ctx.request();
         for (Listener listener : filteredListeners) {
             log.debug("Enqueue request matching {} {} with listener {}", request.method(), listener.getMonitoredUrl(), listener.getListener());
@@ -945,7 +945,7 @@ public class HookHandler implements LoggableResource {
         // is executed. This way the after handler will
         // also be called properly.
         if (filteredListeners.isEmpty() && handler != null) {
-            handler.handle(null);
+            handler.handle(true);
         }
     }
 
@@ -976,46 +976,53 @@ public class HookHandler implements LoggableResource {
      * @param afterHandler   the handler for listeners which have to be called after the original request
      * @return the before handler
      */
-    private Handler<Void> installBeforeHandler(final RoutingContext ctx, final Buffer buffer, final List<Listener> beforeListener, final Handler<Void> afterHandler) {
+    private Handler<Boolean> installBeforeHandler(final RoutingContext ctx, final Buffer buffer, final List<Listener> beforeListener, final Handler<Void> afterHandler) {
         return new Handler<>() {
             private AtomicInteger currentCount = new AtomicInteger(0);
             private boolean sent = false;
 
             @Override
-            public void handle(Void event) {
-                // If the last queued request is performed
-                // the original request will be triggered.
-                // Because this handler is called async. we
-                // have to secure, that it is only executed
-                // once.
-                if ((currentCount.incrementAndGet() == beforeListener.size() || beforeListener.isEmpty()) && !sent) {
-                    sent = true;
-
-                    /*
-                     * we should find exactly one or none route (first match rtl)
-                     * routes will only be found for requests coming from
-                     * enqueueing through the listener and only for external
-                     * requests.
-                     */
-                    Route route = routeRepository.getRoute(ctx.request().uri());
-
-                    if (doMethodsMatch(route, ctx) && doHeadersMatch(route, ctx)) {
-                        log.debug("Forward request (consumed) {}", ctx.request().uri());
-                        route.forward(ctx, buffer, afterHandler);
-                    } else {
-                        // mark the original request as hooked
-                        ctx.request().headers().set(HOOKED_HEADER, "true");
+            public void handle(Boolean isSuccess) {
+                if (isSuccess) {
+                    // If the last queued request is performed
+                    // the original request will be triggered.
+                    // Because this handler is called async. we
+                    // have to secure, that it is only executed
+                    // once.
+                    if ((currentCount.incrementAndGet() == beforeListener.size() || beforeListener.isEmpty()) && !sent) {
+                        sent = true;
 
                         /*
-                         * self requests are only made for original
-                         * requests which were consumed during the
-                         * enqueueing process, therefore it is
-                         * imperative to use isRequestAlreadyHooked(HttpServerRequest request)
-                         * before calling the handle method of
-                         * this class!
+                         * we should find exactly one or none route (first match rtl)
+                         * routes will only be found for requests coming from
+                         * enqueueing through the listener and only for external
+                         * requests.
                          */
-                        createSelfRequest(ctx.request(), buffer, afterHandler);
+                        Route route = routeRepository.getRoute(ctx.request().uri());
+
+                        if (doMethodsMatch(route, ctx) && doHeadersMatch(route, ctx)) {
+                            log.debug("Forward request (consumed) {}", ctx.request().uri());
+                            route.forward(ctx, buffer, afterHandler);
+                        } else {
+                            // mark the original request as hooked
+                            ctx.request().headers().set(HOOKED_HEADER, "true");
+
+                            /*
+                             * self requests are only made for original
+                             * requests which were consumed during the
+                             * enqueueing process, therefore it is
+                             * imperative to use isRequestAlreadyHooked(HttpServerRequest request)
+                             * before calling the handle method of
+                             * this class!
+                             */
+                            createSelfRequest(ctx.request(), buffer, afterHandler);
+                        }
                     }
+                }else {
+                    log.warn("Request failed: {}", ctx.request().uri());
+                    ctx.request().response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+                    ctx.request().response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+                    ctx.request().response().end();
                 }
             }
         };
