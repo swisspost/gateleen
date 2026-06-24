@@ -35,7 +35,6 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
-import java.util.Base64;
 import java.util.function.Supplier;
 
 import static org.mockito.Mockito.*;
@@ -54,6 +53,7 @@ public class QueueProcessorTest {
     private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
 
     private String PAYLOAD = "{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"}";
+    private String BATCHED_PAYLOAD = "[{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"},{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"},{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"}]";
     private final String QUEUE_RETRY_400 = ResourcesUtils.loadResource("testresource_queue_retry_400", true);
 
     @org.junit.Rule
@@ -146,7 +146,7 @@ public class QueueProcessorTest {
     }
 
     @Test
-    public void testSuccessfulRequestResponse(TestContext context) {
+    public void testSuccessfulNormalRequestResponse(TestContext context) {
         Async async = context.async();
         new QueueProcessor(vertx, httpClient, monitoringHandler, null);
 
@@ -158,6 +158,27 @@ public class QueueProcessorTest {
             context.assertEquals("ok", result.getString("status"));
 
             verify(httpClient, times(1)).request(any(HttpMethod.class), anyString());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testSuccessfulBatchedRequestResponse(TestContext context) {
+        Async async = context.async();
+        new QueueProcessor(vertx, httpClient, monitoringHandler, null);
+
+        setHttpClientRespondStatusCode(StatusCode.OK);
+        JsonObject batchedQueue = new JsonObject();
+        batchedQueue.put("batchQueue", true);
+        batchedQueue.put("queue", "my_queue");
+        batchedQueue.put("payload", BATCHED_PAYLOAD);
+
+        vertx.eventBus().request(Address.queueProcessorAddress(), batchedQueue, event -> {
+            context.assertTrue(event.succeeded());
+            JsonObject result = (JsonObject) event.result().body();
+            context.assertEquals("ok", result.getString("status"));
+
+            verify(httpClient, times(1)).request(eq(HttpMethod.PUT), anyString());
             async.complete();
         });
     }

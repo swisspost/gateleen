@@ -3,6 +3,7 @@ package org.swisspush.gateleen.queue.queuing;
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.Message;
@@ -11,6 +12,7 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.json.jackson.DatabindCodec;
 import org.slf4j.Logger;
@@ -18,7 +20,9 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
 import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
+import org.swisspush.gateleen.core.json.JsonMultiMap;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.Base64Unit;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.util.StringUtils;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
@@ -86,19 +90,74 @@ public class QueueProcessor {
         DatabindCodec.mapper().getFactory().setStreamReadConstraints(src);
     }
 
+    /**
+     * Combines multiple queue items into a single JSON object by aggregating
+     * all decoded payloads into a JSON array and storing the array as a
+     * binary payload. Non-payload fields are copied from the first
+     * response.
+     *
+     * @param queueItems queue items to merge
+     * @return merged queue items containing all payloads
+     */
+    private JsonObject mergeQueueResponses(JsonArray queueItems) {
+        // create a base json object container for all pay loads
+        JsonObject baseJsonObject = queueItems.getJsonObject(0).copy();
+        JsonArray payloadArray = new JsonArray();
+        baseJsonObject.remove(PAYLOAD);
+        for (int i = 0; i < queueItems.size(); i++) {
+            JsonObject reponseJsonObject = queueItems.getJsonObject(i);
+            JsonObject payloadObject = new JsonObject(new String(Base64Unit.decodeBase64Safe(reponseJsonObject.getString("payload"))));
+            payloadArray.add(payloadObject);
+        }
+        baseJsonObject.put(PAYLOAD, payloadArray.encode().getBytes());
+        return baseJsonObject;
+    }
+
     public void startQueueProcessing() {
         if (this.consumer == null || !this.consumer.isRegistered()) {
             log.info("about to register consumer to start queue processing");
-            this.consumer = vertx.eventBus().consumer(getQueueProcessorAddress(), (Handler<Message<JsonObject>>) message -> {
-                HttpRequest queuedRequestTry = null;
-                JsonObject jsonRequest = parseStringToJsonObject(message.body().getString("payload"));
+            this.consumer = vertx.eventBus().consumer(getQueueProcessorAddress(), message -> {
+                HttpRequest queuedRequestTry;
+                JsonObject jsonRequest;
                 try {
-                    queuedRequestTry = new HttpRequest(jsonRequest);
+                    JsonObject messageBody = message.body();
+                    if (messageBody.getBoolean("batchQueue", false)) {
+                        log.debug("Batch queue message received");
+                        jsonRequest = mergeQueueResponses(new JsonArray(messageBody.getString("payload")));
+                        try {
+                            HttpMethod method = HttpMethod.valueOf(jsonRequest.getString("method"));
+                            String uri = jsonRequest.getString("uri");
+                            if (uri == null) {
+                                throw new IllegalArgumentException("Request fields 'uri' must be set");
+                            }
+                            JsonArray headersArray = jsonRequest.getJsonArray("headers");
+                            MultiMap multiMap = null;
+                            if (headersArray != null) {
+                                multiMap = JsonMultiMap.fromJson(headersArray);
+                            }
+                            queuedRequestTry = new HttpRequest(method, uri, multiMap, jsonRequest.getBinary("payload"));
+                        } catch (Exception exception) {
+                            log.error("Could not build batched request: {} error is {}", message.body().toString(), exception.getMessage());
+                            message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
+                            return;
+                        }
+                    } else {
+                        jsonRequest = parseStringToJsonObject(message.body().getString("payload"));
+                        try {
+                            queuedRequestTry = new HttpRequest(jsonRequest);
+                        } catch (Exception exception) {
+                            log.error("Could not build request: {} error is {}", message.body().toString(), exception.getMessage());
+                            message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
+                            return;
+                        }
+                    }
                 } catch (Exception exception) {
-                    log.error("Could not build request: {} error is {}", message.body().toString(), exception.getMessage());
+                    log.error("Could not build queue request: {} error is {}", message.body().toString(), exception.getMessage());
                     message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, exception.getMessage()));
                     return;
                 }
+
+                final JsonObject jsonRequestFinal = jsonRequest;
                 final HttpRequest queuedRequest = queuedRequestTry;
                 final Logger logger = RequestLoggerFactory.getLogger(QueueProcessor.class, queuedRequest.getHeaders());
                 if (logger.isTraceEnabled()) {
@@ -121,7 +180,7 @@ public class QueueProcessor {
                         if (QueueCircuitState.OPEN == state) {
                             message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, "Circuit for queue " + queueName + " is " + state + ". Queues using this endpoint are not allowed to be executed right now"));
                         } else {
-                            executeQueuedRequest(message, logger, queuedRequest, jsonRequest, queueName, state);
+                            executeQueuedRequest(message, logger, queuedRequest, jsonRequestFinal, queueName, state);
                         }
                     });
                 }
