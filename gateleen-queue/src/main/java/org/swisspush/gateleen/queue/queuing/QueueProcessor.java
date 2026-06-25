@@ -115,14 +115,14 @@ public class QueueProcessor {
 
     public void startQueueProcessing() {
         if (this.consumer == null || !this.consumer.isRegistered()) {
-            log.info("about to register consumer to start queue processing");
+            log.info("about to register queue processor consumer to start queue processing");
             this.consumer = vertx.eventBus().consumer(getQueueProcessorAddress(), message -> {
                 HttpRequest queuedRequestTry;
                 JsonObject jsonRequest;
                 try {
                     JsonObject messageBody = message.body();
                     if (messageBody.getBoolean("batchQueue", false)) {
-                        log.debug("Batch queue message received");
+                        // this is a batched queue message, merge all payloads as one
                         jsonRequest = mergeQueueResponses(new JsonArray(messageBody.getString("payload")));
                         try {
                             HttpMethod method = HttpMethod.valueOf(jsonRequest.getString("method"));
