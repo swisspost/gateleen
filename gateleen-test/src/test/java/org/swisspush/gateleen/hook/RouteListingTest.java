@@ -7,6 +7,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.awaitility.Awaitility;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
@@ -15,6 +16,7 @@ import org.swisspush.gateleen.AbstractTest;
 import org.swisspush.gateleen.TestUtils;
 
 import static io.restassured.RestAssured.*;
+import static org.awaitility.Durations.TWO_SECONDS;
 
 /**
  * Test class for the hook route feature.
@@ -72,39 +74,39 @@ public class RouteListingTest extends AbstractTest {
         initTestCollections();
 
         // Check if the returend array contains 1, 2, 3
-        assertResponse(get(requestUrlBase), new String[]{"1/", "2/", "3/"});
+        assertResponse(requestUrlBase, new String[]{"1/", "2/", "3/"});
 
         // add a listable route
         addRoute("ok", true, true);
-        assertResponse(get(requestUrlBase), new String[]{"1/", "2/", "3/", "ok/"});
+        assertResponse(requestUrlBase, new String[]{"1/", "2/", "3/", "ok/"});
 
         // add another listable route
         addRoute("ok2", true, true);
-        assertResponse(get(requestUrlBase), new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
 
         // add a nonlistable route
         addRoute("nok/nok", true, true);
-        assertResponse(get(requestUrlBase), new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
 
         // add another nonlistable route => collection: false
         addRoute("nok2", false, true);
-        assertResponse(get(requestUrlBase), new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
 
         // add another nonlistable route => listable: false
         addRoute("nok3", true, false);
-        assertResponse(get(requestUrlBase), new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
 
         // add another nonlistable route => collection: false, listable: false
         addRoute("nok4", false, false);
-        assertResponse(get(requestUrlBase), new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"1/", "2/", "3/", "ok/", "ok2/"});
 
         // remove one listable route
         removeRoute("ok2");
-        assertResponse(get(requestUrlBase), new String[]{"1/", "2/", "3/", "ok/"});
+        assertResponse(requestUrlBase, new String[]{"1/", "2/", "3/", "ok/"});
 
         // remove another listable route
         removeRoute("ok");
-        assertResponse(get(requestUrlBase), new String[]{"1/", "2/", "3/"});
+        assertResponse(requestUrlBase, new String[]{"1/", "2/", "3/"});
 
         // remove all routes
         removeRoute("ok");
@@ -128,27 +130,27 @@ public class RouteListingTest extends AbstractTest {
 
         // add a listable route
         addRoute("ok", true, true);
-        assertResponse(get(requestUrlBase), new String[]{"ok/"});
+        assertResponse(requestUrlBase, new String[]{"ok/"});
 
         // add another listable route
         addRoute("ok2", true, true);
-        assertResponse(get(requestUrlBase), new String[]{"ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"ok/", "ok2/"});
 
         // add a nonlistable route
         addRoute("nok/nok", true, true);
-        assertResponse(get(requestUrlBase), new String[]{"ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"ok/", "ok2/"});
 
         // add another nonlistable route => collection: false
         addRoute("nok2", false, true);
-        assertResponse(get(requestUrlBase), new String[]{"ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"ok/", "ok2/"});
 
         // add another nonlistable route => listable: false
         addRoute("nok3", true, false);
-        assertResponse(get(requestUrlBase), new String[]{"ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"ok/", "ok2/"});
 
         // add another nonlistable route => collection: false, listable: false
         addRoute("nok4", false, false);
-        assertResponse(get(requestUrlBase), new String[]{"ok/", "ok2/"});
+        assertResponse(requestUrlBase, new String[]{"ok/", "ok2/"});
 
         // remove all routes
         removeRoute("ok");
@@ -231,7 +233,7 @@ public class RouteListingTest extends AbstractTest {
 
         // Register a route using the addRoute method
         addRoute(queryParam, true, true);
-        assertResponse(get(requestUrlBase), new String[]{queryParam + "/"});
+        assertResponse(requestUrlBase, new String[]{queryParam + "/"});
 
         Response response = searchWithQueryParam("q", queryParam, 200);
         Assert.assertTrue("Query param should be found in response",
@@ -317,14 +319,17 @@ public class RouteListingTest extends AbstractTest {
         TestUtils.registerRoute(route, target, methods, null, collection, listable);
    }
 
-    private void assertResponse(final Response response, final String[] expectedArray) {
-        Assert.assertEquals(200, response.statusCode());
-        String bodyString = response.getBody().asString();
-        System.out.println("BODY => " + bodyString + " <=");
-        JsonObject body = new JsonObject(bodyString);
-        JsonArray array = body.getJsonArray(parentKey);
-        Assert.assertEquals(expectedArray.length, array.size());
-        Assert.assertThat(array, Matchers.contains(expectedArray));
+    private void assertResponse(final String requestUrl, final String[] expectedArray) {
+        Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() -> {
+            Response response = get(requestUrl);
+            Assert.assertEquals(200, response.statusCode());
+            String bodyString = response.getBody().asString();
+            System.out.println("BODY => " + bodyString + " <=");
+            JsonObject body = new JsonObject(bodyString);
+            JsonArray array = body.getJsonArray(parentKey);
+            Assert.assertEquals(expectedArray.length, array.size());
+            Assert.assertThat(array, Matchers.contains(expectedArray));
+        });
     }
 
     private Response searchWithQueryParam(String queryParamName, String queryParamValue, int expectedStatusCode ) {
