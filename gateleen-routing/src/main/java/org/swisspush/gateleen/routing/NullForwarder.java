@@ -93,8 +93,6 @@ public class NullForwarder extends AbstractForwarder {
         }
 
         final Buffer header = Buffer.buffer(new HttpRequest(ctx.request().method(), ctx.request().uri(), requestHeaders, null).toJsonObject().encode());
-        final Buffer requestBuffer = Buffer.buffer();
-        requestBuffer.setInt(0, header.length()).appendBuffer(header);
 
         int statusCode = StatusCode.OK.getStatusCode();
         String statusMessage = StatusCode.OK.getStatusMessage();
@@ -110,7 +108,6 @@ public class NullForwarder extends AbstractForwarder {
 
         ctx.request().handler(buffer -> {
             loggingHandler.appendRequestPayload(buffer, requestHeaders);
-            requestBuffer.appendBuffer(buffer);
         });
 
         ctx.request().endHandler(event -> {

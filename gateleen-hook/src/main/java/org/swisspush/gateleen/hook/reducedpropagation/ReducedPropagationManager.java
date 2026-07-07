@@ -108,7 +108,7 @@ public class ReducedPropagationManager {
      * @param doneHandler         a handler which is called as soon as the request is written into the queue.
      * @return a future when the processing is done
      */
-    public Promise<Void> processIncomingRequest(HttpMethod method, String targetUri, MultiMap queueHeaders, Buffer payload, String queue, long propagationIntervalMs, Handler<Void> doneHandler) {
+    public Promise<Void> processIncomingRequest(HttpMethod method, String targetUri, MultiMap queueHeaders, Buffer payload, String queue, long propagationIntervalMs, Handler<Boolean> doneHandler) {
         Promise<Void> promise = Promise.promise();
 
         long expireTS = System.currentTimeMillis() + propagationIntervalMs;
