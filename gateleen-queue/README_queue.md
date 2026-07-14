@@ -11,6 +11,20 @@ Example values are:
 ```
 For now, only a retry count of `0` is supported. So the main use case for this feature are requests which should be tried once and then be discarded when not successful.
 
+## Dropping expired requests
+Requests carrying an `X-Client-Timestamp` header (the timestamp set by the client when it originally issued the request) are checked for expiry before being enqueued. The expiration duration is taken from the `x-queue-expire-after` header, falling back to the `X-Expire-After` header when `x-queue-expire-after` is not present.
+
+If the time elapsed between the `X-Client-Timestamp` and now exceeds the configured expire-after value, the request is considered expired and is silently dropped instead of being enqueued. Requests without an `X-Client-Timestamp` header, or with a value that cannot be parsed, are never considered expired.
+
+This check is performed by `QueuingHandler.isRequestExpired(MultiMap)` and is applied both when a request is queued directly (`QueuingHandler`) and when unpacking requests from a packed payload (`PackingHandler`). When multiple requests are unpacked together, only the expired ones are dropped - the remaining, non-expired requests are still enqueued normally.
+
+Example headers:
+```
+"X-Client-Timestamp": "2020-03-05T10:21:27.021+01:00"
+"x-queue-expire-after": "60"
+```
+In the example above, the request expires 60 seconds after `2020-03-05T10:21:27.021+01:00`.
+
 ## Queue Circuit Breaker
 The Queue Circuit Breaker hereinafter referred to as **QCB** can be used to protect your server from having to deal with lots of queued requests when a backend is not reachable.
 

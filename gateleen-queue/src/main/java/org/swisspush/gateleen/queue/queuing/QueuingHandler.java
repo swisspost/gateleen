@@ -8,6 +8,7 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.Address;
+import org.swisspush.gateleen.core.util.ExpiryCheckHandler;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 import org.swisspush.gateleen.queue.duplicate.DuplicateCheckHandler;
@@ -28,6 +29,7 @@ public class QueuingHandler implements Handler<Buffer> {
     public static final String QUEUE_HEADER = "x-queue";
     public static final String ORIGINALLY_QUEUED_HEADER = "x-originally-queued";
     public static final String DUPLICATE_CHECK_HEADER = "x-duplicate-check";
+    public static final String CLIENT_TIMESTAMP_HEADER = "X-Client-Timestamp";
 
     private final RequestQueue requestQueue;
 
@@ -40,6 +42,7 @@ public class QueuingHandler implements Handler<Buffer> {
     private final Vertx vertx;
     private final RedisProvider redisProvider;
     private final QueueSplitter queueSplitter;
+    private final boolean enqueueExpiredRequest;
 
     public QueuingHandler(
             Vertx vertx,
@@ -73,17 +76,38 @@ public class QueuingHandler implements Handler<Buffer> {
             RequestQueue requestQueue,
             QueueSplitter queueSplitter
     ) {
+        this(vertx, redisProvider, request, requestQueue, queueSplitter, false);
+    }
+
+    public QueuingHandler(
+            Vertx vertx,
+            RedisProvider redisProvider,
+            HttpServerRequest request,
+            RequestQueue requestQueue,
+            QueueSplitter queueSplitter,
+            boolean enqueueExpiredRequest
+    ) {
         this.request = request;
         this.vertx = vertx;
         this.redisProvider = redisProvider;
         this.requestQueue = requestQueue;
         this.queueSplitter = queueSplitter;
+        this.enqueueExpiredRequest = enqueueExpiredRequest;
     }
 
     @Override
     public void handle(final Buffer buffer) {
         final String queue = request.headers().get(QUEUE_HEADER);
         final MultiMap headers = request.headers();
+
+        if (!enqueueExpiredRequest && isRequestExpired(headers)) {
+            // just skip this request, because the queue already expired
+            request.response().setStatusCode(StatusCode.ACCEPTED.getStatusCode());
+            request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
+            request.response().end();
+            return;
+        }
+
         // Remove the queue header to avoid feedback loop
         headers.remove(QUEUE_HEADER);
 
@@ -104,6 +128,33 @@ public class QueuingHandler implements Handler<Buffer> {
 
         } else {
             requestQueue.enqueue(request, headers, buffer, queueSplitter.convertToSubQueue(queue, request));
+        }
+    }
+
+    /**
+     * Checks whether the request has expired based on the "X-Client-Timestamp" header
+     * (the moment the client originally sent the request) together with the
+     * "x-queue-expire-after" (or "X-Expire-After") header defining how long the request
+     * is valid for.
+     *
+     * @param headers the request headers
+     * @return true if the request has expired, false otherwise (also if no client
+     * timestamp is present or its value can't be parsed)
+     */
+    public static boolean isRequestExpired(MultiMap headers) {
+        if (headers == null || headers.isEmpty()) {
+            return false;
+        }
+        String clientTimestamp = headers.get(CLIENT_TIMESTAMP_HEADER);
+        if (clientTimestamp == null) {
+            return false;
+        }
+        try {
+            long timestamp = ExpiryCheckHandler.parseDateTime(clientTimestamp).getMillis();
+            return ExpiryCheckHandler.isExpired(headers, timestamp);
+        } catch (IllegalArgumentException e) {
+            // invalid/unparseable timestamp, treat request as not expired
+            return false;
         }
     }
 

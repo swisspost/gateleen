@@ -41,6 +41,7 @@ public class PackingHandler {
     private final String queuePrefix;
     private final PackingValidator validator;
     private final GateleenExceptionFactory exceptionFactory;
+    private final boolean enqueueExpiredRequest;
     private MeterRegistry meterRegistry;
     private Counter packingRequestsSuccessCounter;
     private Counter packingRequestsFailCounter;
@@ -59,14 +60,20 @@ public class PackingHandler {
      * @param groupRequestHeader the header holding the user group information
      * @param validator the PackingValidator instance
      * @param exceptionFactory the GateleenExceptionFactory instance
+     * @param enqueueExpiredRequest enqueue the request which already expired
      */
-    public PackingHandler(Vertx vertx, String queuePrefix, String redisquesAddress, String groupRequestHeader, PackingValidator validator, GateleenExceptionFactory exceptionFactory) {
+    public PackingHandler(Vertx vertx, String queuePrefix, String redisquesAddress, String groupRequestHeader, PackingValidator validator, GateleenExceptionFactory exceptionFactory, boolean enqueueExpiredRequest) {
         this.vertx = vertx;
         this.queuePrefix = queuePrefix;
         this.redisquesAddress = redisquesAddress;
         this.groupRequestHeader = groupRequestHeader;
         this.validator = validator;
         this.exceptionFactory = exceptionFactory;
+        this.enqueueExpiredRequest = enqueueExpiredRequest;
+    }
+
+    public PackingHandler(Vertx vertx, String queuePrefix, String redisquesAddress, String groupRequestHeader, PackingValidator validator, GateleenExceptionFactory exceptionFactory) {
+        this(vertx, queuePrefix, redisquesAddress, groupRequestHeader, validator, exceptionFactory, false);
     }
 
     public boolean isPacked(HttpServerRequest request) {
@@ -128,6 +135,11 @@ public class PackingHandler {
                 if (req.getHeaders() != null) {
                     req.getHeaders().remove(ExpiryCheckHandler.SERVER_TIMESTAMP_HEADER);
                     req.getHeaders().remove(QueuingHandler.QUEUE_HEADER);
+                }
+
+                if (!enqueueExpiredRequest && QueuingHandler.isRequestExpired(req.getHeaders())) {
+                    requestLog.info("Dropping expired packed request '{}'", req.getUri());
+                    continue;
                 }
 
                 ExpiryCheckHandler.updateServerTimestampHeader(req);
