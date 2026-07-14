@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <name>gateleen-hook-ts</name>
+    <parent>
+        <groupId>org.swisspush.gateleen</groupId>
+        <artifactId>gateleen</artifactId>
+        <version>2.1.54-SNAPSHOT</version>
+    </parent>
+    <artifactId>gateleen-hook-ts</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <!-- No framework dependencies: framework-agnostic design -->
+    </dependencies>
+
+    <properties>
+        <npmrcFile>.npmrc</npmrcFile>
+    </properties>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.7</version>
+                <executions>
+                    <execution>
+                        <id>prepare-webjar</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>
+                                ${project.basedir}/target/classes/META-INF/resources/webjars/${project.artifactId}/${project.version}
+                            </outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/dist</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>1.14.2</version>
+                <executions>
+                    <execution>
+                        <id>install node and npm</id>
+                        <goals>
+                            <goal>install-node-and-npm</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                        <configuration>
+                            <nodeVersion>v26.0.0</nodeVersion>
+                            <npmVersion>11.16.0</npmVersion>
+                            <nodeDownloadRoot>https://artifactory.tools.post.ch/artifactory/nodejs-remote/</nodeDownloadRoot>
+<!--                            <nodeDownloadRoot>${nodeDownloadRoot}</nodeDownloadRoot>-->
+<!--                            <npmDownloadRoot>${npmDownloadRoot}</npmDownloadRoot>-->
+                            <npmDownloadRoot>https://artifactory.tools.post.ch/artifactory/npm-virtual/npm/-/</npmDownloadRoot>
+                        </configuration>
+                    </execution>
+
+                    <execution>
+                        <id>npm install</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>--userconfig ${basedir}/${npmrcFile} install</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>npm build</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>run build</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>npm test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>test</arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+
+        <pluginManagement>
+            <plugins>
+                <!--This plugin's configuration is used to store Eclipse m2e settings
+                    only. It has no influence on the Maven build itself. -->
+                <plugin>
+                    <groupId>org.eclipse.m2e</groupId>
+                    <artifactId>lifecycle-mapping</artifactId>
+                    <version>1.0.0</version>
+                    <configuration>
+                        <lifecycleMappingMetadata>
+                            <pluginExecutions>
+                                <pluginExecution>
+                                    <pluginExecutionFilter>
+                                        <groupId>com.github.eirslett</groupId>
+                                        <artifactId>frontend-maven-plugin</artifactId>
+                                        <versionRange>[1.0,)</versionRange>
+                                        <goals>
+                                            <goal>install-node-and-npm</goal>
+                                            <goal>npm</goal>
+                                        </goals>
+                                    </pluginExecutionFilter>
+                                    <action>
+                                        <ignore />
+                                    </action>
+                                </pluginExecution>
+                            </pluginExecutions>
+                        </lifecycleMappingMetadata>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>publicRepos</id>
+            <properties>
+                <nodeDownloadRoot>https://nodejs.org/dist/</nodeDownloadRoot>
+                <npmDownloadRoot>http://registry.npmjs.org/npm/-/</npmDownloadRoot>
+                <npmrcFile>.npmrc-public</npmrcFile>
+            </properties>
+        </profile>
+    </profiles>
+</project>

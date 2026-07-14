@@ -110,6 +110,7 @@
                 <module>gateleen-scheduler</module>
                 <module>gateleen-hook</module>
                 <module>gateleen-hook-js</module>
+                <module>gateleen-hook-ts</module>
                 <module>gateleen-qos</module>
                 <module>gateleen-player</module>
                 <module>gateleen-runconfig</module>
@@ -159,6 +160,7 @@
                 <module>gateleen-expansion</module>
                 <module>gateleen-hook</module>
                 <module>gateleen-hook-js</module>
+                <module>gateleen-hook-ts</module>
                 <module>gateleen-logging</module>
                 <module>gateleen-merge</module>
                 <module>gateleen-monitoring</module>

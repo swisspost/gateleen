@@ -65,6 +65,11 @@
         </dependency>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
+            <artifactId>gateleen-hook-ts</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.swisspush.gateleen</groupId>
             <artifactId>gateleen-packing</artifactId>
             <version>${project.version}</version>
         </dependency>
