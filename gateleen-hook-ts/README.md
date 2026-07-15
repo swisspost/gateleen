@@ -1,4 +1,4 @@
-# gateleen-hook-js
+# gateleen-hook-ts
 
 Framework-agnostic TypeScript client for [Gateleen](https://github.com/swisspush/gateleen) webhooks.
 
@@ -12,7 +12,7 @@ Framework-agnostic TypeScript client for [Gateleen](https://github.com/swisspush
 ## Installation
 
 ```bash
-npm install gateleen-hook-js
+npm install gateleen-hook-ts
 ```
 
 ## Quick Start
@@ -21,7 +21,7 @@ npm install gateleen-hook-js
 
 ```typescript
 import { Injectable, signal } from '@angular/core';
-import { HookService, HttpMethods } from 'gateleen-hook-js';
+import { HookService, HttpMethods } from 'gateleen-hook-ts';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
@@ -48,7 +48,7 @@ export class UserService {
 ### WebComponent
 
 ```typescript
-import { HookService, HttpMethods } from 'gateleen-hook-js';
+import { HookService, HttpMethods } from 'gateleen-hook-ts';
 
 class UserList extends HTMLElement {
   private readonly hooks = new HookService();
@@ -76,7 +76,7 @@ class UserList extends HTMLElement {
 ### Vanilla JavaScript
 
 ```javascript
-import { HookService, HttpMethods } from 'gateleen-hook-js';
+import { HookService, HttpMethods } from 'gateleen-hook-ts';
 
 const hooks = new HookService();
 
@@ -205,7 +205,7 @@ enum HttpMethods {
 
 The library uses a two-service architecture:
 
-1. **EventBusService** - Manages the Vert.x WebSocket connection as a singleton
+1. **EventBusService** - Manages the Vert.x WebSocket connection for one app instance
 2. **HookService** - Manages hook registrations with smart refresh and auto-reconnection
 
 Benefits:
@@ -246,7 +246,7 @@ If EventBus takes longer than timeout to open, promise rejects:
 
 ```typescript
 try {
-  await EventBusService.waitUntilOpen(3000); // 3 second timeout
+  await eventBusService.waitUntilOpen(3000); // 3 second timeout
 } catch (err) {
   console.error('EventBus connection timeout');
 }
@@ -289,4 +289,3 @@ npm run lint
 
 - Modern browsers with ES2022 support
 - Requires EventBus WebSocket endpoint (Gateleen)
-

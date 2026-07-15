@@ -8,9 +8,9 @@
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
@@ -23,7 +23,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "lint": "tsc --noEmit",
-    "clean": "rm -rf dist node_modules"
+    "clean": "rm -rf dist node_modules",
+    "npm-link-for-local-use": "npm link"
   },
   "dependencies": {
     "vertx3-eventbus-client": "^3.9.4"
