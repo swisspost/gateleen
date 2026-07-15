@@ -317,13 +317,51 @@ Decodes each item’s Base64 payload.
 Adds all decoded payloads into one JSON array.
 Sends one HTTP request with the merged payload.
 
-Example merged HTTP payload:
+Example of source data:
 ```json
-[
-    { "key": "value" },
-    { "key": "value" }
+[ 
+  {
+    "method":"PUT",
+    "uri":"/playground/server/tests/exp/item_2",
+    "headers":[],
+    "payload":"eyJrZXkiOiAidmFsdWUifQ=="
+  },
+  {
+    "method":"PUT",
+    "uri":"/playground/server/tests/exp/item_2",
+    "headers":[],
+    "payload":"eyJrZXkiOiAidmFsdWUifQ=="
+  },
+  {
+    "method":"PUT",
+    "uri":"/playground/server/tests/exp/item_2",
+    "headers":[],
+    "payload":"eyJrZXkiOiAidmFsdWUifQ=="
+  }
 ]
 ```
+
+Example merged HTTP request:
+```json
+{
+  "method" : "PUT",
+  "uri" : "/playground/server/tests/exp/item_2",
+  "headers" : [ ],
+  "payload" : "W3sia2V5IjoidmFsdWUifSx7ImtleSI6InZhbHVlIn0seyJrZXkiOiJ2YWx1ZSJ9XQ"
+}
+```
+
+Example of merged payload, data from base64 encoded data "W3sia2V5IjoidmFsdWUifSx7ImtleSI6InZhbHVlIn0seyJrZXkiOiJ2YWx1ZSJ9XQ"
+
+```json
+[
+  {"key":"value"},
+  {"key":"value"},
+  {"key":"value"}
+]
+```
+
+
 
 ### API
 To check the current circuit states or close some or all circuits, the API handled by [QueueCircuitBreakerHttpRequestHandler](src/main/java/org/swisspush/gateleen/queue/queuing/circuitbreaker/api/QueueCircuitBreakerHttpRequestHandler.java) can be used.

@@ -53,7 +53,7 @@ public class QueueProcessorTest {
     private final GateleenExceptionFactory exceptionFactory = newGateleenWastefulExceptionFactory();
 
     private String PAYLOAD = "{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"}";
-    private String BATCHED_PAYLOAD = "[{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"},{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"},{\"method\":\"PUT\",\"uri\":\"/playground/server/tests/exp/item_2\",\"headers\":[],\"payload\":\"eyJrZXkiOiAidmFsdWUifQ==\"}]";
+    private String BATCHED_PAYLOAD = "[\"{\\\"method\\\":\\\"PUT\\\",\\\"uri\\\":\\\"/playground/server/tests/exp/item_2\\\",\\\"headers\\\":[],\\\"payload\\\":\\\"eyJrZXkiOiAidmFsdWUifQ==\\\"}\",\"{\\\"method\\\":\\\"PUT\\\",\\\"uri\\\":\\\"/playground/server/tests/exp/item_2\\\",\\\"headers\\\":[],\\\"payload\\\":\\\"eyJrZXkiOiAidmFsdWUifQ==\\\"}\",\"{\\\"method\\\":\\\"PUT\\\",\\\"uri\\\":\\\"/playground/server/tests/exp/item_2\\\",\\\"headers\\\":[],\\\"payload\\\":\\\"eyJrZXkiOiAidmFsdWUifQ==\\\"}\"]";
     private final String QUEUE_RETRY_400 = ResourcesUtils.loadResource("testresource_queue_retry_400", true);
 
     @org.junit.Rule

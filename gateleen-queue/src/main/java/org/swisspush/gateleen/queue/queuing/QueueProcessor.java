@@ -91,6 +91,29 @@ public class QueueProcessor {
     }
 
     /**
+     * Filters out expired queue items from a batched queue payload, based on
+     * each item's own headers and {@link QueueClient#QUEUE_TIMESTAMP}.
+     *
+     * @param queueItems queue items to check
+     * @return a new JsonArray containing only the non-expired items
+     */
+    private JsonArray removeExpiredQueueItems(JsonArray queueItems) {
+        JsonArray filteredQueueItems = new JsonArray();
+        for (int i = 0; i < queueItems.size(); i++) {
+            JsonObject item = new JsonObject(queueItems.getList().get(i).toString());
+            JsonArray headersArray = item.getJsonArray("headers");
+            MultiMap headers = headersArray != null ? JsonMultiMap.fromJson(headersArray) : null;
+            Long timestamp = item.getLong(QueueClient.QUEUE_TIMESTAMP);
+            if (ExpiryCheckHandler.isExpired(headers, timestamp)) {
+                log.info("Skipping expired batched queue item: {}", item.encode());
+            } else {
+                filteredQueueItems.add(item);
+            }
+        }
+        return filteredQueueItems;
+    }
+
+    /**
      * Combines multiple queue items into a single JSON object by aggregating
      * all decoded payloads into a JSON array and storing the array as a
      * binary payload. Non-payload fields are copied from the first
@@ -101,11 +124,11 @@ public class QueueProcessor {
      */
     private JsonObject mergeQueueResponses(JsonArray queueItems) {
         // create a base json object container for all pay loads
-        JsonObject baseJsonObject = queueItems.getJsonObject(0).copy();
+        JsonObject baseJsonObject = new JsonObject(queueItems.getList().get(0).toString());
         JsonArray payloadArray = new JsonArray();
         baseJsonObject.remove(PAYLOAD);
         for (int i = 0; i < queueItems.size(); i++) {
-            JsonObject reponseJsonObject = queueItems.getJsonObject(i);
+            JsonObject reponseJsonObject =new JsonObject(queueItems.getList().get(i).toString());
             JsonObject payloadObject = new JsonObject(new String(Base64Unit.decodeBase64Safe(reponseJsonObject.getString("payload"))));
             payloadArray.add(payloadObject);
         }
@@ -122,8 +145,15 @@ public class QueueProcessor {
                 try {
                     JsonObject messageBody = message.body();
                     if (messageBody.getBoolean("batchQueue", false)) {
+                        // drop expired items before merging so they don't end up in the merged payload
+                        JsonArray queueItems = removeExpiredQueueItems(new JsonArray(messageBody.getString("payload")));
+                        if (queueItems.isEmpty()) {
+                            log.info("All items of batched queue message are expired, nothing to do");
+                            message.reply(new JsonObject().put(STATUS, OK));
+                            return;
+                        }
                         // this is a batched queue message, merge all payloads as one
-                        jsonRequest = mergeQueueResponses(new JsonArray(messageBody.getString("payload")));
+                        jsonRequest = mergeQueueResponses(queueItems);
                         try {
                             HttpMethod method = HttpMethod.valueOf(jsonRequest.getString("method"));
                             String uri = jsonRequest.getString("uri");
@@ -158,8 +188,7 @@ public class QueueProcessor {
                 }
 
                 final JsonObject jsonRequestFinal = jsonRequest;
-                final HttpRequest queuedRequest = queuedRequestTry;
-                final Logger logger = RequestLoggerFactory.getLogger(QueueProcessor.class, queuedRequest.getHeaders());
+                final Logger logger = RequestLoggerFactory.getLogger(QueueProcessor.class, queuedRequestTry.getHeaders());
                 if (logger.isTraceEnabled()) {
                     logger.trace("process message: " + message);
                 }
@@ -167,9 +196,9 @@ public class QueueProcessor {
                 String queueName = message.body().getString("queue");
 
                 if (!isCircuitCheckEnabled()) {
-                    executeQueuedRequest(message, logger, queuedRequest, jsonRequest, queueName, null);
+                    executeQueuedRequest(message, logger, queuedRequestTry, jsonRequest, queueName, null);
                 } else {
-                    queueCircuitBreaker.handleQueuedRequest(queueName, queuedRequest).onComplete(event -> {
+                    queueCircuitBreaker.handleQueuedRequest(queueName, queuedRequestTry).onComplete(event -> {
                         if (event.failed()) {
                             String msg = "Error in QueueCircuitBreaker occurred for queue " + queueName + ". Reply with status ERROR. Message is: " + event.cause().getMessage();
                             logger.error(msg);
@@ -180,7 +209,7 @@ public class QueueProcessor {
                         if (QueueCircuitState.OPEN == state) {
                             message.reply(new JsonObject().put(STATUS, ERROR).put(MESSAGE, "Circuit for queue " + queueName + " is " + state + ". Queues using this endpoint are not allowed to be executed right now"));
                         } else {
-                            executeQueuedRequest(message, logger, queuedRequest, jsonRequestFinal, queueName, state);
+                            executeQueuedRequest(message, logger, queuedRequestTry, jsonRequestFinal, queueName, state);
                         }
                     });
                 }
