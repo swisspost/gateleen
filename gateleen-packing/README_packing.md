@@ -61,6 +61,7 @@ x-queue: <queueName>
 The packing feature is monitored with micrometer. The following metrics are available:
 * gateleen_packing_requests_success_total
 * gateleen_packing_requests_fail_total
+* gateleen_packing_requests_drop_total
 
 Example metrics:
 
@@ -71,6 +72,9 @@ gateleen_packing_requests_success_total 8234.0
 # HELP gateleen_packing_requests_fail_total Amount of failed packed requests processed
 # TYPE gateleen_packing_requests_fail_total counter
 gateleen_packing_requests_fail_total 0.0
+# HELP gateleen_packing_requests_drop_total Amount of dropped (expired) packed requests processed
+# TYPE gateleen_packing_requests_drop_total counter
+gateleen_packing_requests_drop_total 0.0
 ```
 
 To enable `gateleen_kafka_send_success_messages_total` and `gateleen_kafka_send_fail_messages_total` metrics, set a `MeterRegistry` instance by calling `setMeterRegistry(MeterRegistry meterRegistry)` method in `KafkaMessageSender` class.

@@ -45,11 +45,14 @@ public class PackingHandler {
     private MeterRegistry meterRegistry;
     private Counter packingRequestsSuccessCounter;
     private Counter packingRequestsFailCounter;
+    private Counter packingRequestsDropCounter;
 
     public static final String PACKING_REQUESTS_SUCCESS_COUNTER = "gateleen.packing.requests.success";
     public static final String PACKING_REQUESTS_SUCCESS_COUNTER_DESCRIPTION = "Amount of successfully packed requests processed";
     public static final String PACKING_REQUESTS_FAIL_COUNTER = "gateleen.packing.requests.fail";
     public static final String PACKING_REQUESTS_FAIL_COUNTER_DESCRIPTION = "Amount of failed packed requests processed";
+    public static final String PACKING_REQUESTS_DROP_COUNTER = "gateleen.packing.requests.drop";
+    public static final String PACKING_REQUESTS_DROP_COUNTER_DESCRIPTION = "Amount of dropped (expired) packed requests processed";
 
     /**
      * Constructs a new PackingHandler.
@@ -73,7 +76,7 @@ public class PackingHandler {
     }
 
     public PackingHandler(Vertx vertx, String queuePrefix, String redisquesAddress, String groupRequestHeader, PackingValidator validator, GateleenExceptionFactory exceptionFactory) {
-        this(vertx, queuePrefix, redisquesAddress, groupRequestHeader, validator, exceptionFactory, false);
+        this(vertx, queuePrefix, redisquesAddress, groupRequestHeader, validator, exceptionFactory, true);
     }
 
     public boolean isPacked(HttpServerRequest request) {
@@ -93,9 +96,13 @@ public class PackingHandler {
             packingRequestsFailCounter = Counter.builder(PACKING_REQUESTS_FAIL_COUNTER)
                     .description(PACKING_REQUESTS_FAIL_COUNTER_DESCRIPTION)
                     .register(meterRegistry);
+            packingRequestsDropCounter = Counter.builder(PACKING_REQUESTS_DROP_COUNTER)
+                    .description(PACKING_REQUESTS_DROP_COUNTER_DESCRIPTION)
+                    .register(meterRegistry);
         } else {
             packingRequestsSuccessCounter = null;
             packingRequestsFailCounter = null;
+            packingRequestsDropCounter = null;
         }
     }
 
@@ -139,6 +146,7 @@ public class PackingHandler {
 
                 if (!enqueueExpiredRequest && QueuingHandler.isRequestExpired(req.getHeaders())) {
                     requestLog.info("Dropping expired packed request '{}'", req.getUri());
+                    incrementDropCounter();
                     continue;
                 }
 
@@ -193,6 +201,12 @@ public class PackingHandler {
     private void incrementFailCounter() {
         if(packingRequestsFailCounter != null) {
             packingRequestsFailCounter.increment();
+        }
+    }
+
+    private void incrementDropCounter() {
+        if(packingRequestsDropCounter != null) {
+            packingRequestsDropCounter.increment();
         }
     }
 }

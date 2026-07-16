@@ -6,6 +6,8 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.redis.RedisProvider;
 import org.swisspush.gateleen.core.util.Address;
 import org.swisspush.gateleen.core.util.ExpiryCheckHandler;
@@ -25,7 +27,7 @@ import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
  * @author https://github.com/lbovet [Laurent Bovet]
  */
 public class QueuingHandler implements Handler<Buffer> {
-
+    private Logger log = LoggerFactory.getLogger(QueuingHandler.class);
     public static final String QUEUE_HEADER = "x-queue";
     public static final String ORIGINALLY_QUEUED_HEADER = "x-originally-queued";
     public static final String DUPLICATE_CHECK_HEADER = "x-duplicate-check";
@@ -76,7 +78,7 @@ public class QueuingHandler implements Handler<Buffer> {
             RequestQueue requestQueue,
             QueueSplitter queueSplitter
     ) {
-        this(vertx, redisProvider, request, requestQueue, queueSplitter, false);
+        this(vertx, redisProvider, request, requestQueue, queueSplitter, true);
     }
 
     public QueuingHandler(
@@ -102,6 +104,7 @@ public class QueuingHandler implements Handler<Buffer> {
 
         if (!enqueueExpiredRequest && isRequestExpired(headers)) {
             // just skip this request, because the queue already expired
+            log.info("Dropping expired queued request '{}'", request.uri());
             request.response().setStatusCode(StatusCode.ACCEPTED.getStatusCode());
             request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
             request.response().end();
