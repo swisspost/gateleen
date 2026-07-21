@@ -314,9 +314,13 @@ export class HookService {
   }
 
   /**
-   * Stops background refresh work and detaches EventBus lifecycle listeners.
+   * Stops background refresh work, deregisters active hooks, and detaches EventBus lifecycle listeners.
    */
   public dispose(): void {
+    for (const id of [...this.registrations.keys()]) {
+      this.deregister(id);
+    }
+
     clearInterval(this.refreshTimer);
     this.unsubscribeOpen();
     this.unsubscribeClose();

@@ -1,10 +1,12 @@
 import { vi } from 'vitest';
 
 export function createOkResponse(): Response {
-  return {
-    ok: true,
-    status: 200
-  } as Response;
+  return new Response('{}', {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
 }
 
 export class MockEventBus {

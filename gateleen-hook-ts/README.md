@@ -26,20 +26,18 @@ import { HookService, HttpMethods } from 'gateleen-hook-ts';
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private readonly hooks = new HookService();
-  private readonly tearDowns: Array<() => void> = [];
   readonly lastUser = signal<UserData | null>(null);
 
   setupHook() {
-    this.hooks.listen<UserData>(
+    void this.hooks.listen<UserData>(
       { path: '/api/users', methods: [HttpMethods.PUT], fetch: true },
       (user, params) => {
         this.lastUser.set(user);
       }
-    ).then((deregisterer) => this.tearDowns.push(() => deregisterer.deregister()));
+    );
   }
 
   ngOnDestroy() {
-    this.tearDowns.forEach((dispose) => dispose());
     this.hooks.dispose();
   }
 }
@@ -52,7 +50,6 @@ import { HookService, HttpMethods } from 'gateleen-hook-ts';
 
 class UserList extends HTMLElement {
   private readonly hooks = new HookService();
-  private deregisterer?: { deregister(): void };
 
   connectedCallback() {
     void this.hooks.listen<UserData>(
@@ -61,13 +58,10 @@ class UserList extends HTMLElement {
         console.log('User updated:', user);
         this.updateDisplay(user);
       }
-    ).then((handle) => {
-      this.deregisterer = handle;
-    });
+    );
   }
 
   disconnectedCallback() {
-    this.deregisterer?.deregister();
     this.hooks.dispose();
   }
 }
