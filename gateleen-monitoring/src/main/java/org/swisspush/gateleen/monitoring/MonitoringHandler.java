@@ -23,6 +23,8 @@ import org.swisspush.gateleen.core.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.swisspush.redisques.util.RedisquesAPI.*;
 
@@ -38,6 +40,18 @@ public class MonitoringHandler {
     public static final String MARK = "mark";
     public static final String SET = "set";
 
+    /**
+     * Action used for a message that carries multiple merged metrics at once (see {@link #METRICS_BATCH_ITEMS}).
+     * Used only when the {@code mergeMetricsIntoSingleMessage} constructor parameter is enabled.
+     */
+    public static final String BATCH = "batch";
+
+    /**
+     * Key holding the {@link JsonArray} of individual metric {@link JsonObject}s (each with the usual
+     * {@link #METRIC_NAME}/{@link #METRIC_ACTION}/"n" fields) inside a {@link #BATCH} message.
+     */
+    public static final String METRICS_BATCH_ITEMS = "metrics";
+
     private Vertx vertx;
     private ResourceStorage storage;
 
@@ -47,6 +61,9 @@ public class MonitoringHandler {
     private Map<String, Long> requestPerRuleMonitoringMap;
 
     private static Logger log = LoggerFactory.getLogger(MonitoringHandler.class);
+    private final Logger metricLogger = LoggerFactory.getLogger("Metrics");
+    private final Map<String, Long> metricCache = new HashMap<>();
+    private final Map<String, Long> lastDumps = new HashMap<>();
 
     public static final String REQUESTS_CLIENT_NAME = "requests.localhost";
     public static final String REQUESTS_BACKENDS_NAME = "requests.backends";
@@ -67,7 +84,7 @@ public class MonitoringHandler {
     @Deprecated
     public static final int MAX_AGE_MILLISECONDS = 120000; // 120 seconds
 
-    private static final int QUEUE_SIZE_REFRESH_TIME = 5000; // 5 seconds
+    private static final int NON_TIME_SENSITIVE_METRICS_PUBLISH_TIME = 5000; // 5 seconds
 
     public static final String REQUEST_PER_RULE_PREFIX = "rpr.";
     public static final String REQUEST_PER_RULE_PROPERTY = "org.swisspush.request.rule.property";
@@ -83,6 +100,26 @@ public class MonitoringHandler {
     private long requestPerRuleExpiry;
     private final UUID uuid;
     private final List<Handler<Message<JsonObject>>> receivers = new ArrayList<>();
+
+    // Local buffers for non-time-sensitive metrics. Instead of sending an eventbus message on every
+    // single update, the value is accumulated/cached locally and flushed periodically (see
+    // registerQueueSizeTrackingTimer) - only when the value actually changed - to reduce eventbus load.
+    private final AtomicLong pendingRequestCount = new AtomicLong(0);
+    // starts at the same value as pendingRequestCount (0) so that an initial flush without any prior
+    // startRequestMetricTracking/stopRequestMetricTracking call does not needlessly send a "0" value
+    private final AtomicLong lastSentPendingRequestCount = new AtomicLong(0);
+    private final AtomicReference<String> pendingLastUsedQueueName = new AtomicReference<>();
+    private final AtomicLong lastSentLastUsedQueueSize = new AtomicLong(Long.MIN_VALUE);
+    private final AtomicLong listenerCount = new AtomicLong(Long.MIN_VALUE);
+    private final AtomicLong lastSentListenerCount = new AtomicLong(Long.MIN_VALUE);
+    private final AtomicLong routeCount = new AtomicLong(Long.MIN_VALUE);
+    private final AtomicLong lastSentRouteCount = new AtomicLong(Long.MIN_VALUE);
+
+    // When enabled, the non-time-sensitive metrics flushed together in a single flush cycle (see
+    // flushBufferedMetrics) are combined into a single eventbus message (action == BATCH) instead of being sent
+    // as one message per metric. This further reduces the eventbus load. Disabled by default to preserve the
+    // existing wire format for consumers listening on the monitoring address. Configurable via constructor.
+    private final boolean mergeMetricsIntoSingleMessage;
 
     public interface MonitoringCallback {
 
@@ -120,45 +157,80 @@ public class MonitoringHandler {
     }
 
     public MonitoringHandler(Vertx vertx, final ResourceStorage storage, String prefix, String requestPerRulePath) {
+        this(vertx, storage, prefix, requestPerRulePath, false);
+    }
+
+    /**
+     * Constructor
+     *
+     * @param vertx vertx
+     * @param storage the resource storage
+     * @param prefix the prefix used for all metric names
+     * @param requestPerRulePath the storage path used for the request per rule monitoring feature
+     * @param mergeMetricsIntoSingleMessage when {@code true}, the non-time-sensitive metrics (pending request
+     *                                      count, last used queue size, listener count, route count) flushed
+     *                                      together in a single flush cycle are combined into a single eventbus
+     *                                      message (action == {@link #BATCH}) instead of being sent as one
+     *                                      message per metric, further reducing the load on the eventbus.
+     *                                      Defaults to {@code false} when using a constructor without this
+     *                                      parameter.
+     */
+    public MonitoringHandler(Vertx vertx, final ResourceStorage storage, String prefix, String requestPerRulePath,
+                              boolean mergeMetricsIntoSingleMessage) {
         this.vertx = vertx;
         this.storage = storage;
         this.prefix = prefix;
         this.requestPerRuleMonitoringPath = initRequestPerRuleMonitoringPath(requestPerRulePath);
         this.uuid = UUID.randomUUID();
+        this.mergeMetricsIntoSingleMessage = mergeMetricsIntoSingleMessage;
 
         registerQueueSizeTrackingTimer();
 
         initRequestPerRuleMonitoring();
-
-        final Logger metricLogger = LoggerFactory.getLogger("Metrics");
-
-        final Map<String, Long> metricCache = new HashMap<>();
-        final Map<String, Long> lastDumps = new HashMap<>();
 
         vertx.eventBus().consumer(getMonitoringAddress(), (Handler<Message<JsonObject>>) message -> {
             for (Handler<Message<JsonObject>> receiver : receivers) {
                 receiver.handle(message);
             }
             final JsonObject body = message.body();
-            final String action = body.getString(METRIC_ACTION);
-            final String name = body.getString(METRIC_NAME);
-            handleRequestPerRuleMessage(name);
-            long now;
-            switch (action) {
-                case "set":
-                case "update":
-                    Long currentValue = metricCache.get(name);
-                    Long newValue = body.getLong("n");
-                    Long lastDump = lastDumps.get(name);
-                    now = System.currentTimeMillis() / 1000;
-                    if (!newValue.equals(currentValue) || lastDump != null && lastDump < now - 300) {
-                        metricLogger.info(name + " " + body.getLong("n") + " " + now);
-                        metricCache.put(name, newValue);
-                        lastDumps.put(name, now);
+            if (BATCH.equals(body.getString(METRIC_ACTION))) {
+                JsonArray items = body.getJsonArray(METRICS_BATCH_ITEMS);
+                if (items != null) {
+                    for (int i = 0; i < items.size(); i++) {
+                        handleMetricMessage(items.getJsonObject(i));
                     }
-                    break;
+                }
+            } else {
+                handleMetricMessage(body);
             }
         });
+    }
+
+    /**
+     * Processes a single metric message (name/action/n), updating the internal metric cache used to decide when
+     * a value change should be logged, and forwarding rule-per-request metrics to storage.
+     *
+     * @param body the metric message, either received directly or extracted from a {@link #BATCH} message
+     */
+    private void handleMetricMessage(JsonObject body) {
+        final String action = body.getString(METRIC_ACTION);
+        final String name = body.getString(METRIC_NAME);
+        handleRequestPerRuleMessage(name);
+        long now;
+        switch (action) {
+            case "set":
+            case "update":
+                Long currentValue = metricCache.get(name);
+                Long newValue = body.getLong("n");
+                Long lastDump = lastDumps.get(name);
+                now = System.currentTimeMillis() / 1000;
+                if (!newValue.equals(currentValue) || lastDump != null && lastDump < now - 300) {
+                    metricLogger.info(name + " " + body.getLong("n") + " " + now);
+                    metricCache.put(name, newValue);
+                    lastDumps.put(name, now);
+                }
+                break;
+        }
     }
 
     /**
@@ -224,6 +296,15 @@ public class MonitoringHandler {
         return requestPerRuleMonitoringActive;
     }
 
+    /**
+     * Returns whether the non-time-sensitive metrics (pending request count, last used queue size, listener
+     * count, route count) flushed in a single flush cycle are merged into one combined eventbus message
+     * (action == {@link #BATCH}) instead of being sent as one message per metric. Configured via constructor.
+     */
+    public boolean isMergeMetricsIntoSingleMessage() {
+        return mergeMetricsIntoSingleMessage;
+    }
+
     private Map<String, Long> getRequestPerRuleMonitoringMap() {
         if(requestPerRuleMonitoringMap == null){
             requestPerRuleMonitoringMap = new HashMap<>();
@@ -232,7 +313,89 @@ public class MonitoringHandler {
     }
 
     private void registerQueueSizeTrackingTimer() {
-        vertx.setPeriodic(QUEUE_SIZE_REFRESH_TIME, event -> updateQueueCountInformation());
+        vertx.setPeriodic(NON_TIME_SENSITIVE_METRICS_PUBLISH_TIME, event -> {
+            updateQueueCountInformation();
+            flushBufferedMetrics();
+        });
+    }
+
+    /**
+     * Flushes locally buffered non-time-sensitive metrics (pending request count, last used queue size,
+     * listener count, route count) to the eventbus. Values are only sent when they actually changed since
+     * the last flush, in order to minimize the load on the eventbus.
+     * <p>
+     * When {@link #isMergeMetricsIntoSingleMessage()} is enabled, all the metrics of this flush cycle that
+     * actually changed are combined and sent as a single {@link #BATCH} message instead of one message per
+     * metric, further reducing the number of eventbus sends.
+     */
+    void flushBufferedMetrics() {
+        final JsonArray mergedMetrics = mergeMetricsIntoSingleMessage ? new JsonArray() : null;
+
+        flushPendingRequestCount(mergedMetrics);
+        flushListenerCount(mergedMetrics);
+        flushRouteCount(mergedMetrics);
+
+        // last used queue size requires an async roundtrip to redisques, so it is flushed last. Once it
+        // completes (or is skipped because there is nothing to flush), the merged batch (if any) is sent.
+        flushLastUsedQueueSize(mergedMetrics, () -> {
+            if (mergedMetrics != null && !mergedMetrics.isEmpty()) {
+                vertx.eventBus().send(getMonitoringAddress(),
+                        new JsonObject().put(METRIC_ACTION, BATCH).put(METRICS_BATCH_ITEMS, mergedMetrics));
+            }
+        });
+    }
+
+    /**
+     * Either adds the given metric to the mergedMetrics array (when merging is enabled, i.e. mergedMetrics is
+     * not null) or sends it immediately as its own eventbus message (when merging is disabled).
+     */
+    private void collectOrSendMetric(JsonArray mergedMetrics, String metricName, long value) {
+        JsonObject metric = new JsonObject().put(METRIC_NAME, prefix + metricName).put(METRIC_ACTION, SET).put("n", value);
+        if (mergedMetrics != null) {
+            mergedMetrics.add(metric);
+        } else {
+            vertx.eventBus().send(getMonitoringAddress(), metric);
+        }
+    }
+
+    private void flushPendingRequestCount(JsonArray mergedMetrics) {
+        long current = pendingRequestCount.get();
+        if (current != lastSentPendingRequestCount.getAndSet(current)) {
+            collectOrSendMetric(mergedMetrics, PENDING_REQUESTS_METRIC, current);
+        }
+    }
+
+    private void flushLastUsedQueueSize(JsonArray mergedMetrics, Runnable onComplete) {
+        final String queue = pendingLastUsedQueueName.getAndSet(null);
+        if (queue == null) {
+            onComplete.run();
+            return;
+        }
+        vertx.eventBus().request(getRedisquesAddress(), buildGetQueueItemsCountOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
+            if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
+                final long count = reply.result().body().getLong(VALUE);
+                if (count != lastSentLastUsedQueueSize.getAndSet(count)) {
+                    collectOrSendMetric(mergedMetrics, LAST_USED_QUEUE_SIZE_METRIC, count);
+                }
+            } else {
+                log.error("Error gathering queue size for queue '{}'", queue);
+            }
+            onComplete.run();
+        });
+    }
+
+    private void flushListenerCount(JsonArray mergedMetrics) {
+        long current = listenerCount.get();
+        if (current != Long.MIN_VALUE && current != lastSentListenerCount.getAndSet(current)) {
+            collectOrSendMetric(mergedMetrics, LISTENER_COUNT_METRIC, current);
+        }
+    }
+
+    private void flushRouteCount(JsonArray mergedMetrics) {
+        long current = routeCount.get();
+        if (current != Long.MIN_VALUE && current != lastSentRouteCount.getAndSet(current)) {
+            collectOrSendMetric(mergedMetrics, ROUTE_COUNT_METRIC, current);
+        }
     }
 
     private void registerRequestPerRuleMonitoringTimer(){
@@ -371,9 +534,8 @@ public class MonitoringHandler {
     }
 
     private void updatePendingRequestCount(boolean incrementCount) {
-        final String action = incrementCount ? "inc" : "dec";
-        log.trace("Updating count for pending requests: {} remaining", action);
-        vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + PENDING_REQUESTS_METRIC).put(METRIC_ACTION, action));
+        long updated = incrementCount ? pendingRequestCount.incrementAndGet() : pendingRequestCount.decrementAndGet();
+        log.trace("Updating count for pending requests: {} remaining (buffered, flushed periodically)", updated);
     }
 
     /**
@@ -396,15 +558,8 @@ public class MonitoringHandler {
      * @param queue the name of the queue the last update was made
      */
     public void updateLastUsedQueueSizeInformation(final String queue) {
-        log.trace("About to update last used Queue size counter");
-        vertx.eventBus().request(getRedisquesAddress(), buildGetQueueItemsCountOperation(queue), (Handler<AsyncResult<Message<JsonObject>>>) reply -> {
-            if (reply.succeeded() && OK.equals(reply.result().body().getString(STATUS))) {
-                final long count = reply.result().body().getLong(VALUE);
-                vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LAST_USED_QUEUE_SIZE_METRIC).put(METRIC_ACTION, "set").put("n", count));
-            } else {
-                log.error("Error gathering queue size for queue '{}'", queue);
-            }
-        });
+        log.trace("About to update last used Queue size counter (buffered, flushed periodically)");
+        pendingLastUsedQueueName.set(queue);
     }
 
     /**
@@ -478,12 +633,11 @@ public class MonitoringHandler {
     }
 
     public void updateListenerCount(long count){
-        vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + LISTENER_COUNT_METRIC).put(METRIC_ACTION, SET).put("n",count));
+        listenerCount.set(count);
     }
 
     public void updateRoutesCount(long count){
-        vertx.eventBus().send(getMonitoringAddress(), new JsonObject().put(METRIC_NAME, prefix + ROUTE_COUNT_METRIC).put(METRIC_ACTION, SET).put("n",count));
-
+        routeCount.set(count);
     }
 
     private void sortResultMap(List<Map.Entry<String, Long>> input) {
