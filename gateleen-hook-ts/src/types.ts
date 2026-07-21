@@ -24,7 +24,7 @@ export interface HookDefinition {
   /**
    * If true, fetch current state of the resource on registration
    */
-  fetch?: boolean;
+  fetch: boolean;
 }
 
 /**
