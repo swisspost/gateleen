@@ -57,6 +57,15 @@ The defined requests will be enqueued using the configured queueName prefix and 
 x-queue: <queueName>
 ```
 
+## Expired packed requests
+Packed sub-requests carrying `X-Client-Timestamp` are checked for expiry using `x-queue-expire-after` (or fallback `X-Expire-After`) in the same way as queueing requests.
+
+When `PackingHandler` is configured with `enqueueExpiredRequest = false`, expired packed sub-requests are dropped and not enqueued.
+
+If all packed sub-requests in one packed request are dropped as expired, the HTTP response status defaults to `202 Accepted`. This can be overridden via the constructor overload parameter `StatusCode expiredRequestStatusCode`.
+
+If at least one packed sub-request is still enqueued, the packed request response remains `200 OK`.
+
 ## Micrometer metrics
 The packing feature is monitored with micrometer. The following metrics are available:
 * gateleen_packing_requests_success_total

@@ -414,8 +414,55 @@ public class PackingHandlerTest {
         boolean handled = packingHandler.handle(request);
         context.assertTrue(handled);
 
-        verify(response, times(1)).setStatusCode(eq(StatusCode.OK.getStatusCode()));
-        verify(response, times(1)).setStatusMessage(eq(StatusCode.OK.getStatusMessage()));
+        verify(response, times(1)).setStatusCode(eq(StatusCode.ACCEPTED.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq(StatusCode.ACCEPTED.getStatusMessage()));
+        verify(validator, times(1)).validatePackingPayload(eq(data));
+
+        Thread.sleep(500);
+
+        assertSuccessMetricCounts(context, 0.0);
+        assertFailMetricCounts(context, 0.0);
+        assertDropMetricCounts(context, 1.0);
+    }
+
+    @Test
+    public void testHandleDropsExpiredRequestWithConfiguredStatus(TestContext context) throws InterruptedException {
+        PackingHandler customStatusPackingHandler = new PackingHandler(
+                vertx, queuePrefix, redisquesAddress, RoleExtractor.groupHeader, validator, exceptionFactory, false, StatusCode.REQUEST_TIMEOUT);
+        customStatusPackingHandler.setMeterRegistry(meterRegistry);
+
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "master"));
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(validator.validatePackingPayload(any())).thenReturn(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+
+        String expiredClientTimestamp = ExpiryCheckHandler.printDateTime(DateTime.now().minusHours(1));
+
+        Buffer data = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1\n" +
+                "      },\n" +
+                "      \"headers\": [[\"X-Client-Timestamp\", \"" + expiredClientTimestamp + "\"], [\"X-Expire-After\", \"1\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+
+        doAnswer(invocation -> {
+            Handler<Buffer> bodyHandler = invocation.getArgument(0);
+            bodyHandler.handle(data);
+            return request;
+        }).when(request).bodyHandler(any());
+
+        eventBus.consumer(redisquesAddress, message -> context.fail("Expired request should not have been enqueued"));
+
+        boolean handled = customStatusPackingHandler.handle(request);
+        context.assertTrue(handled);
+
+        verify(response, times(1)).setStatusCode(eq(StatusCode.REQUEST_TIMEOUT.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq(StatusCode.REQUEST_TIMEOUT.getStatusMessage()));
         verify(validator, times(1)).validatePackingPayload(eq(data));
 
         Thread.sleep(500);

@@ -45,6 +45,7 @@ public class QueuingHandler implements Handler<Buffer> {
     private final RedisProvider redisProvider;
     private final QueueSplitter queueSplitter;
     private final boolean enqueueExpiredRequest;
+    private final StatusCode expiredRequestStatusCode;
 
     public QueuingHandler(
             Vertx vertx,
@@ -62,12 +63,25 @@ public class QueuingHandler implements Handler<Buffer> {
             @Nullable MonitoringHandler monitoringHandler,
             QueueSplitter queueSplitter
     ) {
+        this(vertx, redisProvider, request, monitoringHandler, queueSplitter, StatusCode.ACCEPTED);
+    }
+
+    public QueuingHandler(
+            Vertx vertx,
+            RedisProvider redisProvider,
+            HttpServerRequest request,
+            @Nullable MonitoringHandler monitoringHandler,
+            QueueSplitter queueSplitter,
+            StatusCode expiredRequestStatusCode
+    ) {
         this(
                 vertx,
                 redisProvider,
                 request,
                 new QueueClient(vertx, monitoringHandler),
-                queueSplitter == null ? new NoOpQueueSplitter() : queueSplitter
+                queueSplitter == null ? new NoOpQueueSplitter() : queueSplitter,
+                true,
+                expiredRequestStatusCode
         );
     }
 
@@ -89,12 +103,25 @@ public class QueuingHandler implements Handler<Buffer> {
             QueueSplitter queueSplitter,
             boolean enqueueExpiredRequest
     ) {
+        this(vertx, redisProvider, request, requestQueue, queueSplitter, enqueueExpiredRequest, StatusCode.ACCEPTED);
+    }
+
+    public QueuingHandler(
+            Vertx vertx,
+            RedisProvider redisProvider,
+            HttpServerRequest request,
+            RequestQueue requestQueue,
+            QueueSplitter queueSplitter,
+            boolean enqueueExpiredRequest,
+            StatusCode expiredRequestStatusCode
+    ) {
         this.request = request;
         this.vertx = vertx;
         this.redisProvider = redisProvider;
         this.requestQueue = requestQueue;
         this.queueSplitter = queueSplitter;
         this.enqueueExpiredRequest = enqueueExpiredRequest;
+        this.expiredRequestStatusCode = expiredRequestStatusCode == null ? StatusCode.ACCEPTED : expiredRequestStatusCode;
     }
 
     @Override
@@ -105,8 +132,8 @@ public class QueuingHandler implements Handler<Buffer> {
         if (!enqueueExpiredRequest && isRequestExpired(headers)) {
             // just skip this request, because the queue already expired
             log.info("Dropping expired queued request '{}'", request.uri());
-            request.response().setStatusCode(StatusCode.ACCEPTED.getStatusCode());
-            request.response().setStatusMessage(StatusCode.ACCEPTED.getStatusMessage());
+            request.response().setStatusCode(expiredRequestStatusCode.getStatusCode());
+            request.response().setStatusMessage(expiredRequestStatusCode.getStatusMessage());
             request.response().end();
             return;
         }
