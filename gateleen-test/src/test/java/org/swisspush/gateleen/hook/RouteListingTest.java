@@ -65,6 +65,13 @@ public class RouteListingTest extends AbstractTest {
         given().body("{ \"empty\" : \"empty\" }" ).put(requestUrlBase + "/3/resource").then().assertThat().statusCode(200);
     }
 
+    private void haveSomeDelay() {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Test
     public void testListing(TestContext context) {
@@ -306,6 +313,7 @@ public class RouteListingTest extends AbstractTest {
     private void removeRoute(String name) {
         String route = requestUrlBase + "/" + name + TestUtils.getHookRouteUrlSuffix();
         TestUtils.unregisterRoute(route);
+        haveSomeDelay();
     }
 
     private void addRoute(String name, boolean collection, boolean listable) {
@@ -317,6 +325,7 @@ public class RouteListingTest extends AbstractTest {
         TestUtils.unregisterRoute(route);
 
         TestUtils.registerRoute(route, target, methods, null, collection, listable);
+        haveSomeDelay();
    }
 
     private void assertResponse(final String requestUrl, final String[] expectedArray) {

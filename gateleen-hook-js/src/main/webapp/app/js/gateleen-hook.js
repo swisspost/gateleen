@@ -20,6 +20,17 @@
             open,
             pendingFetches = [];
 
+        function logIfDebug(level) {
+            var logger;
+            if (!$window.GATELEEN_HOOK_DEBUG || !$window.console) {
+                return;
+            }
+            logger = $window.console[level] || $window.console.log;
+            if (logger && logger.apply) {
+                logger.apply($window.console, Array.prototype.slice.call(arguments, 1));
+            }
+        }
+
         /**
          * Places a listener hooks to an URI path.
          * @param path The path to hook.
@@ -32,7 +43,7 @@
          * @returns a function removing the hook.
          */
         function listen(path, handler, options) {
-            console.debug('gateleen-hook-js listen');
+            logIfDebug('debug', 'gateleen-hook-js listen');
             var id = ('gateleen-hook-js-' + Math.random()).replace('.', '');
             if (/\/$/.test(path)) {
                 path = path.slice(0, -1);
@@ -118,9 +129,9 @@
                         'x-expire-after': hookTimeToLive
                     }
                 }).then(function () {
-                    console.debug('Placed hook', hookUrl);
+                    logIfDebug('debug', 'Placed hook', hookUrl);
                 }, function (e) {
-                    console.error('Could not place hook', hookUrl, e);
+                    logIfDebug('error', 'Could not place hook', hookUrl, e);
                 });
             };
             var interval = $interval(refresh, hookRefreshInterval, 0, false);
@@ -150,7 +161,7 @@
         function initEventBus() {
             eventBus = new $window.vertx.EventBus(context + '/server/event/v1/sock');
             eventBus.onopen = function () {
-                console.debug('Opened sock ');
+                logIfDebug('debug', 'Opened sock ');
                 if (registrations.length === 0) { // the bus was opened but the listeners already removed -> we can close it again
                     eventBus.close();
                     eventBus = null;
@@ -165,7 +176,7 @@
                 open = true;
             };
             eventBus.onclose = function () { // reconnect automatically
-                console.debug('Sock closed ');
+                logIfDebug('debug', 'Sock closed ');
                 if (registrations.length > 0) {
                     $timeout(initEventBus, 5000);
                 }
