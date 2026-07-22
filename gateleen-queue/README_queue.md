@@ -274,6 +274,96 @@ The configuration includes the activation / deactivation of the queue unlocking 
 
 **Note:** During the execution only 1 queue will be unlocked. Taken the configuration above, a queue is unlocked every 10s
 
+#### Redisques batch queue support
+Gateleen queue processing now supports batched queue messages produced by Redisques.
+
+Normally, Redisques sends queued items one by one to the queue processor. With batch queue support, Redisques can send multiple queued items in one event-bus message. Gateleen then merges these items and forwards them as one HTTP request.
+
+This is similar in purpose to packing, but it works at dequeue time.
+
+gateleen-packing packs incoming requests before they are queued. This feature handles queue items already dequeued by Redisques and lets Redisques deliver many queued items to Gateleen in one batch instead of one by one.
+##### Message format
+
+A batched queue message must contain:
+
+Note: non-payload properties are taken from the first queue item. Headers are therefore expected to be homogeneous across the batch. `Content-Length` from the base item is removed because the merged payload size differs.
+
+```json
+{
+  "batchQueue": true,
+  "queue": "my_queue",
+  "payload": [
+    {
+      "method": "PUT",
+      "uri": "/playground/server/tests/exp/item_2",
+      "headers": [],
+      "payload": "eyJrZXkiOiAidmFsdWUifQ=="
+    },
+    {
+      "method": "PUT",
+      "uri": "/playground/server/tests/exp/item_2",
+      "headers": [],
+      "payload": "eyJrZXkiOiAidmFsdWUifQ=="
+    }
+  ]
+}
+```
+When batchQueue is set to true, the queue processor treats payload as a JSON array of queue items.
+Batch queue processing supports JSON payloads only (each decoded item payload must be a JSON object).
+
+The processor:
+
+* Uses the first item as the base request.
+* Decodes each item’s Base64 payload.
+* Adds all decoded payloads into one JSON array.
+* Sends one HTTP request with the merged payload.
+
+Example of source data:
+```json
+[ 
+  {
+    "method":"PUT",
+    "uri":"/playground/server/tests/exp/item_2",
+    "headers":[],
+    "payload":"eyJrZXkiOiAidmFsdWUifQ=="
+  },
+  {
+    "method":"PUT",
+    "uri":"/playground/server/tests/exp/item_2",
+    "headers":[],
+    "payload":"eyJrZXkiOiAidmFsdWUifQ=="
+  },
+  {
+    "method":"PUT",
+    "uri":"/playground/server/tests/exp/item_2",
+    "headers":[],
+    "payload":"eyJrZXkiOiAidmFsdWUifQ=="
+  }
+]
+```
+
+Example merged HTTP request:
+```json
+{
+  "method" : "PUT",
+  "uri" : "/playground/server/tests/exp/item_2",
+  "headers" : [ ],
+  "payload" : "W3sia2V5IjoidmFsdWUifSx7ImtleSI6InZhbHVlIn0seyJrZXkiOiJ2YWx1ZSJ9XQ"
+}
+```
+
+Example of merged payload, data from base64 encoded data "W3sia2V5IjoidmFsdWUifSx7ImtleSI6InZhbHVlIn0seyJrZXkiOiJ2YWx1ZSJ9XQ"
+
+```json
+[
+  {"key":"value"},
+  {"key":"value"},
+  {"key":"value"}
+]
+```
+
+
+
 ### API
 To check the current circuit states or close some or all circuits, the API handled by [QueueCircuitBreakerHttpRequestHandler](src/main/java/org/swisspush/gateleen/queue/queuing/circuitbreaker/api/QueueCircuitBreakerHttpRequestHandler.java) can be used.
 
