@@ -40,10 +40,24 @@ describe('hook', function(){
     spies.push(jasmine.createSpy(''+(i)));
   }));
   afterEach(function() {
+    delete $window.GATELEEN_HOOK_DEBUG;
     $window.vertx.EventBus = _originalEventBus;
   });
 
   describe('registering listener', function(){
+    it('should not log debug by default', function() {
+      spyOn($window.console, 'debug');
+      Hook.listen('/context/path', function() {});
+      expect($window.console.debug).not.toHaveBeenCalled();
+    });
+
+    it('should log debug when debug flag is enabled', function() {
+      $window.GATELEEN_HOOK_DEBUG = true;
+      spyOn($window.console, 'debug');
+      Hook.listen('/context/path', function() {});
+      expect($window.console.debug).toHaveBeenCalledWith('gateleen-hook-js listen');
+    });
+
     it('should open event bus', function(){
       Hook.listen('/context/path', function() {});
       expect(eventBus.onopen).toBeDefined();
