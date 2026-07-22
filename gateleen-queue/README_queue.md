@@ -12,9 +12,9 @@ Example values are:
 For now, only a retry count of `0` is supported. So the main use case for this feature are requests which should be tried once and then be discarded when not successful.
 
 ## Dropping expired requests
-Requests carrying an `X-Client-Timestamp` header (the timestamp set by the client when it originally issued the request) are checked for expiry before being enqueued. The expiration duration is taken from the `x-queue-expire-after` header, falling back to the `X-Expire-After` header when `x-queue-expire-after` is not present.
+Requests carrying an `X-Client-Timestamp` header (the timestamp set by the client when it originally issued the request) can be checked for expiry before being enqueued. The expiration duration is taken from the `x-queue-expire-after` header, falling back to the `X-Expire-After` header when `x-queue-expire-after` is not present.
 
-If the time elapsed between the `X-Client-Timestamp` and now exceeds the configured expire-after value, the request is considered expired and is dropped instead of being enqueued. Requests without an `X-Client-Timestamp` header, or with a value that cannot be parsed, are never considered expired.
+If the time elapsed between the `X-Client-Timestamp` and now exceeds the configured expire-after value, the request is considered expired. Expired requests are dropped only when `QueuingHandler`/`PackingHandler` is configured with `enqueueExpiredRequest = false`; otherwise they are still enqueued. Requests without an `X-Client-Timestamp` header, or with a value that cannot be parsed, are never considered expired.
 
 This check is performed by `QueuingHandler.isRequestExpired(MultiMap)` and is applied both when a request is queued directly (`QueuingHandler`) and when unpacking requests from a packed payload (`PackingHandler`). When multiple requests are unpacked together, only the expired ones are dropped - the remaining, non-expired requests are still enqueued normally.
 
