@@ -286,7 +286,7 @@ gateleen-packing packs incoming requests before they are queued. This feature ha
 
 A batched queue message must contain:
 
-Note: the non-payload proprieties are took from first queue item.
+Note: non-payload properties are taken from the first queue item. Headers are therefore expected to be homogeneous across the batch. `Content-Length` from the base item is removed because the merged payload size differs.
 
 ```json
 {
@@ -309,13 +309,14 @@ Note: the non-payload proprieties are took from first queue item.
 }
 ```
 When batchQueue is set to true, the queue processor treats payload as a JSON array of queue items.
+Batch queue processing supports JSON payloads only (each decoded item payload must be a JSON object).
 
 The processor:
 
-Uses the first item as the base request.
-Decodes each item’s Base64 payload.
-Adds all decoded payloads into one JSON array.
-Sends one HTTP request with the merged payload.
+* Uses the first item as the base request.
+* Decodes each item’s Base64 payload.
+* Adds all decoded payloads into one JSON array.
+* Sends one HTTP request with the merged payload.
 
 Example of source data:
 ```json

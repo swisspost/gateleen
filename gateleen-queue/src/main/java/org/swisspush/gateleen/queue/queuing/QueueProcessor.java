@@ -32,6 +32,7 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitStat
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
 import javax.annotation.Nullable;
+import java.nio.charset.StandardCharsets;
 
 import static io.vertx.core.Future.failedFuture;
 import static io.vertx.core.Future.succeededFuture;
@@ -100,7 +101,7 @@ public class QueueProcessor {
     private JsonArray removeExpiredQueueItems(JsonArray queueItems) {
         JsonArray filteredQueueItems = new JsonArray();
         for (int i = 0; i < queueItems.size(); i++) {
-            JsonObject item = new JsonObject(queueItems.getList().get(i).toString());
+            JsonObject item = new JsonObject(queueItems.getString(i));
             JsonArray headersArray = item.getJsonArray("headers");
             MultiMap headers = headersArray != null ? JsonMultiMap.fromJson(headersArray) : null;
             Long timestamp = item.getLong(QueueClient.QUEUE_TIMESTAMP);
@@ -117,22 +118,28 @@ public class QueueProcessor {
      * Combines multiple queue items into a single JSON object by aggregating
      * all decoded payloads into a JSON array and storing the array as a
      * binary payload. Non-payload fields are copied from the first
-     * response.
+     * request. Removes Content-Length because the payload size changes.
      *
      * @param queueItems queue items to merge
      * @return merged queue items containing all payloads
      */
     private JsonObject mergeQueueResponses(JsonArray queueItems) {
         // create a base json object container for all pay loads
-        JsonObject baseJsonObject = new JsonObject(queueItems.getList().get(0).toString());
+        JsonObject baseJsonObject = new JsonObject(queueItems.getString(0));
         JsonArray payloadArray = new JsonArray();
         baseJsonObject.remove(PAYLOAD);
+        JsonArray baseHeadersArray = baseJsonObject.getJsonArray("headers");
+        if (baseHeadersArray != null) {
+            MultiMap baseHeaders = JsonMultiMap.fromJson(baseHeadersArray);
+            baseHeaders.remove("Content-Length");
+            baseJsonObject.put("headers", JsonMultiMap.toJson(baseHeaders));
+        }
         for (int i = 0; i < queueItems.size(); i++) {
-            JsonObject reponseJsonObject =new JsonObject(queueItems.getList().get(i).toString());
-            JsonObject payloadObject = new JsonObject(new String(Base64Unit.decodeBase64Safe(reponseJsonObject.getString("payload"))));
+            JsonObject responseJsonObject = new JsonObject(queueItems.getString(i));
+            JsonObject payloadObject = new JsonObject(new String(Base64Unit.decodeBase64Safe(responseJsonObject.getString("payload")), StandardCharsets.UTF_8));
             payloadArray.add(payloadObject);
         }
-        baseJsonObject.put(PAYLOAD, payloadArray.encode().getBytes());
+        baseJsonObject.put(PAYLOAD, payloadArray.encode().getBytes(StandardCharsets.UTF_8));
         return baseJsonObject;
     }
 
@@ -146,6 +153,7 @@ public class QueueProcessor {
                     JsonObject messageBody = message.body();
                     if (messageBody.getBoolean("batchQueue", false)) {
                         // drop expired items before merging so they don't end up in the merged payload
+                        // here is not duplicate with expire check in executeQueuedRequest
                         JsonArray queueItems = removeExpiredQueueItems(new JsonArray(messageBody.getString("payload")));
                         if (queueItems.isEmpty()) {
                             log.info("All items of batched queue message are expired, nothing to do");
