@@ -39,6 +39,8 @@ public class MonitoringHandler {
     public static final String METRIC_ACTION = "action";
     public static final String MARK = "mark";
     public static final String SET = "set";
+    public static final String INC = "inc";
+    public static final String DEC = "dec";
 
     /**
      * Action used for a message that carries multiple merged metrics at once (see {@link #METRICS_BATCH_ITEMS}).
@@ -101,13 +103,9 @@ public class MonitoringHandler {
     private final UUID uuid;
     private final List<Handler<Message<JsonObject>>> receivers = new ArrayList<>();
 
-    // Local buffers for non-time-sensitive metrics. Instead of sending an eventbus message on every
-    // single update, the value is accumulated/cached locally and flushed periodically (see
-    // registerQueueSizeTrackingTimer) - only when the value actually changed - to reduce eventbus load.
-    private final AtomicLong pendingRequestCount = new AtomicLong(0);
-    // starts at the same value as pendingRequestCount (0) so that an initial flush without any prior
-    // startRequestMetricTracking/stopRequestMetricTracking call does not needlessly send a "0" value
-    private final AtomicLong lastSentPendingRequestCount = new AtomicLong(0);
+    // Buffered delta for pending requests. It is flushed periodically as one counter update (inc/dec with n)
+    // to preserve cross-instance aggregation semantics while reducing eventbus traffic.
+    private final AtomicLong pendingRequestDelta = new AtomicLong(0);
     private final AtomicReference<String> pendingLastUsedQueueName = new AtomicReference<>();
     private final AtomicLong lastSentLastUsedQueueSize = new AtomicLong(Long.MIN_VALUE);
     private final AtomicLong listenerCount = new AtomicLong(Long.MIN_VALUE);
@@ -115,10 +113,10 @@ public class MonitoringHandler {
     private final AtomicLong routeCount = new AtomicLong(Long.MIN_VALUE);
     private final AtomicLong lastSentRouteCount = new AtomicLong(Long.MIN_VALUE);
 
-    // When enabled, the non-time-sensitive metrics flushed together in a single flush cycle (see
+    // When enabled, gauge-like non-time-sensitive metrics flushed together in a single flush cycle (see
     // flushBufferedMetrics) are combined into a single eventbus message (action == BATCH) instead of being sent
-    // as one message per metric. This further reduces the eventbus load. Disabled by default to preserve the
-    // existing wire format for consumers listening on the monitoring address. Configurable via constructor.
+    // as one message per metric. Pending request count is intentionally excluded from this merge because it must
+    // be emitted as counter deltas (inc/dec) to preserve correct cross-instance aggregation semantics.
     private final boolean mergeMetricsIntoSingleMessage;
 
     public interface MonitoringCallback {
@@ -167,11 +165,12 @@ public class MonitoringHandler {
      * @param storage the resource storage
      * @param prefix the prefix used for all metric names
      * @param requestPerRulePath the storage path used for the request per rule monitoring feature
-     * @param mergeMetricsIntoSingleMessage when {@code true}, the non-time-sensitive metrics (pending request
-     *                                      count, last used queue size, listener count, route count) flushed
-     *                                      together in a single flush cycle are combined into a single eventbus
-     *                                      message (action == {@link #BATCH}) instead of being sent as one
-     *                                      message per metric, further reducing the load on the eventbus.
+     * @param mergeMetricsIntoSingleMessage when {@code true}, the gauge-like non-time-sensitive metrics
+     *                                      (last used queue size, listener count, route count) flushed
+     *                                      together in a single flush cycle are combined into a single
+     *                                      eventbus message (action == {@link #BATCH}) instead of being sent
+     *                                      as one message per metric, further reducing the load on the eventbus.
+     *                                      Pending request count is flushed separately as counter deltas.
      *                                      Defaults to {@code false} when using a constructor without this
      *                                      parameter.
      */
@@ -320,18 +319,20 @@ public class MonitoringHandler {
     }
 
     /**
-     * Flushes locally buffered non-time-sensitive metrics (pending request count, last used queue size,
-     * listener count, route count) to the eventbus. Values are only sent when they actually changed since
-     * the last flush, in order to minimize the load on the eventbus.
+     * Flushes locally buffered non-time-sensitive metrics to the eventbus.
      * <p>
-     * When {@link #isMergeMetricsIntoSingleMessage()} is enabled, all the metrics of this flush cycle that
-     * actually changed are combined and sent as a single {@link #BATCH} message instead of one message per
-     * metric, further reducing the number of eventbus sends.
+     * Pending request count is flushed as a single counter delta update (inc/dec with n), while
+     * gauge-like metrics (last used queue size, listener count, route count) are sent only when they changed
+     * since the last flush.
+     * <p>
+     * When {@link #isMergeMetricsIntoSingleMessage()} is enabled, the changed gauge-like metrics of this flush
+     * cycle are combined and sent as a single {@link #BATCH} message instead of one message per metric.
      */
     void flushBufferedMetrics() {
+        flushPendingRequestCount();
+
         final JsonArray mergedMetrics = mergeMetricsIntoSingleMessage ? new JsonArray() : null;
 
-        flushPendingRequestCount(mergedMetrics);
         flushListenerCount(mergedMetrics);
         flushRouteCount(mergedMetrics);
 
@@ -358,10 +359,18 @@ public class MonitoringHandler {
         }
     }
 
-    private void flushPendingRequestCount(JsonArray mergedMetrics) {
-        long current = pendingRequestCount.get();
-        if (current != lastSentPendingRequestCount.getAndSet(current)) {
-            collectOrSendMetric(mergedMetrics, PENDING_REQUESTS_METRIC, current);
+    private void flushPendingRequestCount() {
+        long delta = pendingRequestDelta.getAndSet(0);
+        if (delta > 0) {
+            vertx.eventBus().send(getMonitoringAddress(), new JsonObject()
+                    .put(METRIC_NAME, prefix + PENDING_REQUESTS_METRIC)
+                    .put(METRIC_ACTION, INC)
+                    .put("n", delta));
+        } else if (delta < 0) {
+            vertx.eventBus().send(getMonitoringAddress(), new JsonObject()
+                    .put(METRIC_NAME, prefix + PENDING_REQUESTS_METRIC)
+                    .put(METRIC_ACTION, DEC)
+                    .put("n", -delta));
         }
     }
 
@@ -534,8 +543,8 @@ public class MonitoringHandler {
     }
 
     private void updatePendingRequestCount(boolean incrementCount) {
-        long updated = incrementCount ? pendingRequestCount.incrementAndGet() : pendingRequestCount.decrementAndGet();
-        log.trace("Updating count for pending requests: {} remaining (buffered, flushed periodically)", updated);
+        long updatedDelta = incrementCount ? pendingRequestDelta.incrementAndGet() : pendingRequestDelta.decrementAndGet();
+        log.trace("Buffered pending request delta is now {}", updatedDelta);
     }
 
     /**

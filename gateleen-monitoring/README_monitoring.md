@@ -2,7 +2,7 @@
 This module provides monitoring functionality based on the [mod-metrics](https://github.com/swisspush/mod-metrics) module.
 
 ## Batch metric message (MonitoringHandler)
-`MonitoringHandler` supports sending non-time-sensitive metrics as one batch message on the event bus.
+`MonitoringHandler` supports sending gauge-like non-time-sensitive metrics as one batch message on the event bus.
 
 Enable this by using the constructor with `mergeMetricsIntoSingleMessage=true`:
 
@@ -18,11 +18,13 @@ Each entry in `metrics` uses the regular metric fields (`name`, `action`, `n`), 
 {
   "action": "batch",
   "metrics": [
-    { "name": "gateleen.requests.pending.count", "action": "set", "n": 2 },
+    { "name": "gateleen.hooks.listener.count", "action": "set", "n": 2 },
     { "name": "gateleen.queues.last.size", "action": "set", "n": 14 }
   ]
 }
 ```
+
+`requests.pending.count` is not merged into `batch`. It is buffered and flushed periodically as counter deltas (`inc`/`dec` with `n`) to preserve correct cross-instance aggregation.
 
 ## Request per Rule Monitoring
 Monitor incoming requests and routing rules matching these requests.
