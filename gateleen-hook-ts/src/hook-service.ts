@@ -80,9 +80,9 @@ export class HookService {
 
       const message = request as HookMessage<TPayload>;
       callback(message.body.payload, {
-        uri: message.uri,
-        headers: message.headers,
-        method: message.method,
+        uri: message.body.uri,
+        headers: message.body.headers,
+        method: message.body.method,
         channelId: id
       });
     };
@@ -118,11 +118,11 @@ export class HookService {
         if (initial !== null) {
           handler(null, {
             body: {
-              payload: initial
-            },
-            uri: def.path,
-            headers: {},
-            method: HttpMethods.PUT
+              payload: initial,
+              uri: def.path,
+              headers: {},
+              method: HttpMethods.PUT
+            }
           } as unknown as any);
         }
       } catch (err) {
@@ -148,6 +148,17 @@ export class HookService {
     }
 
     return `gateleen-hook-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  /**
+   * Extracts the application context (e.g. protocol/host + first path segment)
+   * from a hooked resource path, so the hook destination can be routed to the
+   * same backend context as the hooked resource itself. Mirrors the legacy
+   * gateleen-hook-js behavior: `/eagle/vehicle/trailer/v1/status` -> `/eagle`.
+   */
+  private static extractContext(path: string): string {
+    const match = /^(https?:\/\/[^/]+)?\/[^/]+/.exec(path);
+    return match ? match[0] : '';
   }
 
   /**
@@ -254,7 +265,8 @@ export class HookService {
    */
   private async registerRemote(registration: Registration): Promise<number> {
     const hookUrl = `${registration.definition.path}/_hooks/listeners/http/${registration.id}`;
-    const hookDestination = `/server/event/v1/channels/${registration.id}`;
+    const context = HookService.extractContext(registration.definition.path);
+    const hookDestination = `${context}/server/event/v1/channels/${registration.id}`;
     const expiresAt =
       Date.now() + HookService.HOOK_EXPIRATION_AFTER_MINUTES * 60 * 1000;
 
@@ -404,8 +416,8 @@ interface ManagedRegistration {
 interface HookMessage<TPayload> {
   body: {
     payload: TPayload;
+    uri: string;
+    headers: Record<string, string>;
+    method: HttpMethods;
   };
-  uri: string;
-  headers: Record<string, string>;
-  method: HttpMethods;
 }
