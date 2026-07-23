@@ -6,11 +6,13 @@ import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.Message;
 
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.redis.client.impl.RedisClient;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -21,12 +23,13 @@ import org.swisspush.gateleen.core.util.Address;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import static org.awaitility.Awaitility.await;
 import static org.awaitility.Durations.TWO_SECONDS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.verify;
+import static org.swisspush.redisques.util.RedisquesAPI.OK;
+import static org.swisspush.redisques.util.RedisquesAPI.STATUS;
+import static org.swisspush.redisques.util.RedisquesAPI.VALUE;
 
 
 /**
@@ -55,6 +58,13 @@ public class MonitoringHandlerTest {
         System.clearProperty(MonitoringHandler.REQUEST_PER_RULE_PROPERTY);
         System.clearProperty(MonitoringHandler.REQUEST_PER_RULE_SAMPLING_PROPERTY);
         System.clearProperty(MonitoringHandler.REQUEST_PER_RULE_EXPIRY_PROPERTY);
+    }
+
+    @After
+    public void tearDown(TestContext testContext){
+        // close vertx to stop any periodic timers (e.g. the queue size / buffered metrics flush timer) so
+        // that they don't leak into and interfere with subsequent tests
+        vertx.close(testContext.asyncAssertSuccess());
     }
 
     @Test
@@ -102,7 +112,7 @@ public class MonitoringHandlerTest {
     }
 
     @Test
-    public void tesExternalReceiver(TestContext testContext){
+    public void testExternalReceiver(TestContext testContext){
         Async async = testContext.async();
 
         activateRequestPerRuleMonitoring(true);
@@ -172,4 +182,280 @@ public class MonitoringHandlerTest {
             System.clearProperty(MonitoringHandler.REQUEST_PER_RULE_PROPERTY);
         }
     }
+
+    @Test
+    public void testPendingRequestCountIsBufferedAndFlushedAsDelta(TestContext testContext) throws InterruptedException {
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
+
+        AtomicInteger receivedMessages = new AtomicInteger(0);
+        AtomicReference<JsonObject> lastMessage = new AtomicReference<>();
+        mh.registerReceiver(message -> {
+            JsonObject body = message.body();
+            if ((PREFIX + MonitoringHandler.PENDING_REQUESTS_METRIC).equals(body.getString("name"))) {
+                receivedMessages.incrementAndGet();
+                lastMessage.set(body);
+            }
+        });
+
+        // starting/stopping requests must not send anything to the eventbus directly, values are buffered locally
+        long t1 = mh.startRequestMetricTracking(null, "/some/uri");
+        mh.startRequestMetricTracking(null, "/some/uri");
+        mh.startRequestMetricTracking(null, "/some/uri");
+        mh.stopRequestMetricTracking(null, t1, "/some/uri");
+        testContext.assertEquals(0, receivedMessages.get(),
+                "no eventbus message should have been sent before the buffered metrics are flushed");
+
+        // flushing should send exactly one counter-delta message (3 starts - 1 stop = +2)
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedMessages.get() == 1);
+        testContext.assertEquals(MonitoringHandler.INC, lastMessage.get().getString("action"));
+        testContext.assertEquals(2L, lastMessage.get().getLong("n"));
+
+        // flushing again without any change in between must not send another message
+        mh.flushBufferedMetrics();
+        Thread.sleep(200);
+        testContext.assertEquals(1, receivedMessages.get());
+
+        // a negative delta should be sent as dec
+        mh.stopRequestMetricTracking(null, t1, "/some/uri");
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedMessages.get() == 2);
+        testContext.assertEquals(MonitoringHandler.DEC, lastMessage.get().getString("action"));
+        testContext.assertEquals(1L, lastMessage.get().getLong("n"));
+    }
+
+    @Test
+    public void testLastUsedQueueSizeIsBufferedAndFlushedOnlyOnChange(TestContext testContext) throws InterruptedException {
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
+
+        AtomicInteger queueSizeReplyValue = new AtomicInteger(5);
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message ->
+                message.reply(new JsonObject().put(STATUS, OK).put(VALUE, queueSizeReplyValue.get())));
+
+        AtomicInteger receivedMessages = new AtomicInteger(0);
+        AtomicReference<JsonObject> lastMessage = new AtomicReference<>();
+        mh.registerReceiver(message -> {
+            JsonObject body = message.body();
+            if ((PREFIX + MonitoringHandler.LAST_USED_QUEUE_SIZE_METRIC).equals(body.getString("name"))) {
+                receivedMessages.incrementAndGet();
+                lastMessage.set(body);
+            }
+        });
+
+        mh.updateLastUsedQueueSizeInformation("myQueue");
+        testContext.assertEquals(0, receivedMessages.get(),
+                "no eventbus message should have been sent before the buffered metrics are flushed");
+
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedMessages.get() == 1);
+        testContext.assertEquals(5L, lastMessage.get().getLong("n"));
+
+        // flushing again without a new update in between must not trigger another redisques roundtrip / message
+        mh.flushBufferedMetrics();
+        Thread.sleep(200);
+        testContext.assertEquals(1, receivedMessages.get());
+
+        // an update with the same underlying queue size should still not produce a new message once flushed
+        mh.updateLastUsedQueueSizeInformation("myQueue");
+        mh.flushBufferedMetrics();
+        Thread.sleep(200);
+        testContext.assertEquals(1, receivedMessages.get());
+
+        // a changed queue size should be sent again
+        queueSizeReplyValue.set(9);
+        mh.updateLastUsedQueueSizeInformation("myQueue");
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedMessages.get() == 2);
+        testContext.assertEquals(9L, lastMessage.get().getLong("n"));
+    }
+
+    @Test
+    public void testListenerCountIsBufferedAndFlushedOnlyOnChange(TestContext testContext) throws InterruptedException {
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
+
+        AtomicInteger receivedMessages = new AtomicInteger(0);
+        AtomicReference<JsonObject> lastMessage = new AtomicReference<>();
+        mh.registerReceiver(message -> {
+            JsonObject body = message.body();
+            if ((PREFIX + MonitoringHandler.LISTENER_COUNT_METRIC).equals(body.getString("name"))) {
+                receivedMessages.incrementAndGet();
+                lastMessage.set(body);
+            }
+        });
+
+        mh.updateListenerCount(3);
+        testContext.assertEquals(0, receivedMessages.get(),
+                "no eventbus message should have been sent before the buffered metrics are flushed");
+
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedMessages.get() == 1);
+        testContext.assertEquals(3L, lastMessage.get().getLong("n"));
+
+        // unchanged value must not be re-sent
+        mh.updateListenerCount(3);
+        mh.flushBufferedMetrics();
+        Thread.sleep(200);
+        testContext.assertEquals(1, receivedMessages.get());
+
+        // changed value must be sent again
+        mh.updateListenerCount(7);
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedMessages.get() == 2);
+        testContext.assertEquals(7L, lastMessage.get().getLong("n"));
+    }
+
+    @Test
+    public void testRouteCountIsBufferedAndFlushedOnlyOnChange(TestContext testContext) throws InterruptedException {
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
+
+        AtomicInteger receivedMessages = new AtomicInteger(0);
+        AtomicReference<JsonObject> lastMessage = new AtomicReference<>();
+        mh.registerReceiver(message -> {
+            JsonObject body = message.body();
+            if ((PREFIX + MonitoringHandler.ROUTE_COUNT_METRIC).equals(body.getString("name"))) {
+                receivedMessages.incrementAndGet();
+                lastMessage.set(body);
+            }
+        });
+
+        mh.updateRoutesCount(4);
+        testContext.assertEquals(0, receivedMessages.get(),
+                "no eventbus message should have been sent before the buffered metrics are flushed");
+
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedMessages.get() == 1);
+        testContext.assertEquals(4L, lastMessage.get().getLong("n"));
+
+        // unchanged value must not be re-sent
+        mh.updateRoutesCount(4);
+        mh.flushBufferedMetrics();
+        Thread.sleep(200);
+        testContext.assertEquals(1, receivedMessages.get());
+
+        // changed value must be sent again
+        mh.updateRoutesCount(8);
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedMessages.get() == 2);
+        testContext.assertEquals(8L, lastMessage.get().getLong("n"));
+    }
+
+    @Test
+    public void testMergeMetricsIntoSingleMessageDisabledByDefault(TestContext testContext){
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
+        testContext.assertFalse(mh.isMergeMetricsIntoSingleMessage(),
+                "merging of metrics into a single message should be disabled by default");
+    }
+
+    @Test
+    public void testMergeMetricsIntoSingleMessageDisabledByDefaultWithRequestPerRulePath(TestContext testContext){
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX, "/gateleen/monitoring/rpr");
+        testContext.assertFalse(mh.isMergeMetricsIntoSingleMessage(),
+                "merging of metrics into a single message should be disabled by default also when using the " +
+                        "constructor accepting a requestPerRulePath but no explicit mergeMetricsIntoSingleMessage flag");
+    }
+
+    @Test
+    public void testMergeMetricsIntoSingleMessageCanBeExplicitlyDisabled(TestContext testContext){
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX, null, false);
+        testContext.assertFalse(mh.isMergeMetricsIntoSingleMessage());
+    }
+
+    @Test
+    public void testMergeMetricsIntoSingleMessage(TestContext testContext) throws InterruptedException {
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX, null, true);
+        testContext.assertTrue(mh.isMergeMetricsIntoSingleMessage());
+
+        AtomicInteger receivedBatchMessages = new AtomicInteger(0);
+        AtomicInteger receivedPendingSingleMessages = new AtomicInteger(0);
+        AtomicReference<JsonObject> lastBatch = new AtomicReference<>();
+        AtomicReference<JsonObject> lastPendingSingle = new AtomicReference<>();
+        mh.registerReceiver((Handler<Message<JsonObject>>) message -> {
+            JsonObject body = message.body();
+            if (MonitoringHandler.BATCH.equals(body.getString(MonitoringHandler.METRIC_ACTION))) {
+                receivedBatchMessages.incrementAndGet();
+                lastBatch.set(body);
+            } else if (body.getString("name") != null
+                    && body.getString("name").equals(PREFIX + MonitoringHandler.PENDING_REQUESTS_METRIC)) {
+                receivedPendingSingleMessages.incrementAndGet();
+                lastPendingSingle.set(body);
+            }
+        });
+
+        // pending requests are flushed as a single delta counter message, listener count as merged gauge
+        mh.startRequestMetricTracking(null, "/some/uri");
+        mh.updateListenerCount(5);
+
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedBatchMessages.get() == 1);
+        await().atMost(TWO_SECONDS).until(() -> receivedPendingSingleMessages.get() == 1);
+        testContext.assertEquals(MonitoringHandler.INC, lastPendingSingle.get().getString("action"));
+        testContext.assertEquals(1L, lastPendingSingle.get().getLong("n"));
+
+        JsonArray items = lastBatch.get().getJsonArray(MonitoringHandler.METRICS_BATCH_ITEMS);
+        testContext.assertEquals(1, items.size());
+
+        boolean foundListener = false;
+        for (int i = 0; i < items.size(); i++) {
+            JsonObject item = items.getJsonObject(i);
+            if ((PREFIX + MonitoringHandler.LISTENER_COUNT_METRIC).equals(item.getString("name"))) {
+                foundListener = true;
+                testContext.assertEquals(5L, item.getLong("n"));
+            }
+        }
+        testContext.assertTrue(foundListener, "batch should contain the listener count metric");
+
+        // flushing again without any change must not send more messages
+        mh.flushBufferedMetrics();
+        Thread.sleep(200);
+        testContext.assertEquals(1, receivedBatchMessages.get());
+        testContext.assertEquals(1, receivedPendingSingleMessages.get());
+    }
+
+    @Test
+    public void testMergeMetricsIntoSingleMessageIncludesLastUsedQueueSize(TestContext testContext){
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX, null, true);
+
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message ->
+                message.reply(new JsonObject().put(STATUS, OK).put(VALUE, 5)));
+
+        AtomicInteger receivedBatchMessages = new AtomicInteger(0);
+        AtomicReference<JsonObject> lastBatch = new AtomicReference<>();
+        mh.registerReceiver(message -> {
+            JsonObject body = message.body();
+            if (MonitoringHandler.BATCH.equals(body.getString(MonitoringHandler.METRIC_ACTION))) {
+                receivedBatchMessages.incrementAndGet();
+                lastBatch.set(body);
+            }
+        });
+
+        // trigger both a synchronous (listener count) and an asynchronous (last used queue size) metric change
+        // within the same flush cycle; both must end up merged into the same single batch message
+        mh.updateListenerCount(3);
+        mh.updateLastUsedQueueSizeInformation("myQueue");
+
+        mh.flushBufferedMetrics();
+        await().atMost(TWO_SECONDS).until(() -> receivedBatchMessages.get() == 1);
+
+        JsonArray items = lastBatch.get().getJsonArray(MonitoringHandler.METRICS_BATCH_ITEMS);
+        testContext.assertEquals(2, items.size());
+
+        boolean foundListener = false;
+        boolean foundQueueSize = false;
+        for (int i = 0; i < items.size(); i++) {
+            JsonObject item = items.getJsonObject(i);
+            if ((PREFIX + MonitoringHandler.LISTENER_COUNT_METRIC).equals(item.getString("name"))) {
+                foundListener = true;
+                testContext.assertEquals(3L, item.getLong("n"));
+            } else if ((PREFIX + MonitoringHandler.LAST_USED_QUEUE_SIZE_METRIC).equals(item.getString("name"))) {
+                foundQueueSize = true;
+                testContext.assertEquals(5L, item.getLong("n"));
+            }
+        }
+        testContext.assertTrue(foundListener, "batch should contain the listener count metric");
+        testContext.assertTrue(foundQueueSize, "batch should contain the last used queue size metric");
+
+        // only one batch message must have been sent, not two separate ones
+        testContext.assertEquals(1, receivedBatchMessages.get());
+    }
 }
+
