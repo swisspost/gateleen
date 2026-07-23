@@ -22,6 +22,15 @@ export class EventBusService {
   ) {
     this.eventBus = new EventBus(socketPath);
 
+    // The underlying vertx3-eventbus-client has automatic reconnection
+    // disabled by default. Without enabling it, a single dropped connection
+    // (network blip, idle proxy timeout, backend restart, etc.) would
+    // permanently stop the app from receiving further hook events, since
+    // nothing else re-opens the WebSocket. Enabling it lets the client
+    // transparently reconnect with backoff and fire `onopen` again, which
+    // HookService relies on (via onOpen) to rebind its handlers.
+    this.eventBus.enableReconnect(true);
+
     this.eventBus.onopen = () => {
       console.log('Vert.x EventBus connected');
       this.open = true;

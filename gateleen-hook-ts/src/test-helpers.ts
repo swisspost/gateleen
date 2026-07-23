@@ -19,6 +19,7 @@ export class MockEventBus {
   public state = 'CLOSED';
   public registerHandler = vi.fn();
   public unregisterHandler = vi.fn();
+  public enableReconnect = vi.fn();
 
   constructor(_url: string) {
     this.readyState = MockEventBus.nextReadyState;

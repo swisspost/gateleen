@@ -8,6 +8,7 @@ vi.mock('vertx3-eventbus-client', () => ({
     public state = 'CLOSED';
     public registerHandler = vi.fn();
     public unregisterHandler = vi.fn();
+    public enableReconnect = vi.fn();
 
     constructor(_url: string) {}
   }

@@ -11,6 +11,15 @@ describe('EventBusService', () => {
       const service = new EventBusService();
       expect(service.getEventBus()).toBeDefined();
     });
+
+    it('should enable automatic reconnection so a dropped connection is re-established', () => {
+      const service = new EventBusService();
+      const eventBus = service.getEventBus() as unknown as {
+        enableReconnect: (enable: boolean) => void;
+      };
+
+      expect(eventBus.enableReconnect).toHaveBeenCalledWith(true);
+    });
   });
 
   describe('waitUntilOpen', () => {
