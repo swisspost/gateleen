@@ -57,10 +57,20 @@ The defined requests will be enqueued using the configured queueName prefix and 
 x-queue: <queueName>
 ```
 
+## Expired packed requests
+Packed sub-requests carrying `X-Client-Timestamp` are checked for expiry using `x-queue-expire-after` (or fallback `X-Expire-After`) in the same way as queueing requests.
+
+When `PackingHandler` is configured with `enqueueExpiredRequest = false`, expired packed sub-requests are dropped and not enqueued.
+
+If all packed sub-requests in one packed request are dropped as expired, the HTTP response status defaults to `202 Accepted`. This can be overridden via the constructor overload parameter `StatusCode expiredRequestStatusCode`.
+
+If at least one packed sub-request is still enqueued, the packed request response remains `200 OK`.
+
 ## Micrometer metrics
 The packing feature is monitored with micrometer. The following metrics are available:
 * gateleen_packing_requests_success_total
 * gateleen_packing_requests_fail_total
+* gateleen_packing_requests_drop_total
 
 Example metrics:
 
@@ -71,6 +81,9 @@ gateleen_packing_requests_success_total 8234.0
 # HELP gateleen_packing_requests_fail_total Amount of failed packed requests processed
 # TYPE gateleen_packing_requests_fail_total counter
 gateleen_packing_requests_fail_total 0.0
+# HELP gateleen_packing_requests_drop_total Amount of dropped (expired) packed requests processed
+# TYPE gateleen_packing_requests_drop_total counter
+gateleen_packing_requests_drop_total 0.0
 ```
 
 To enable `gateleen_kafka_send_success_messages_total` and `gateleen_kafka_send_fail_messages_total` metrics, set a `MeterRegistry` instance by calling `setMeterRegistry(MeterRegistry meterRegistry)` method in `KafkaMessageSender` class.

@@ -41,14 +41,19 @@ public class PackingHandler {
     private final String queuePrefix;
     private final PackingValidator validator;
     private final GateleenExceptionFactory exceptionFactory;
+    private final boolean enqueueExpiredRequest;
+    private final StatusCode expiredRequestStatusCode;
     private MeterRegistry meterRegistry;
     private Counter packingRequestsSuccessCounter;
     private Counter packingRequestsFailCounter;
+    private Counter packingRequestsDropCounter;
 
     public static final String PACKING_REQUESTS_SUCCESS_COUNTER = "gateleen.packing.requests.success";
     public static final String PACKING_REQUESTS_SUCCESS_COUNTER_DESCRIPTION = "Amount of successfully packed requests processed";
     public static final String PACKING_REQUESTS_FAIL_COUNTER = "gateleen.packing.requests.fail";
     public static final String PACKING_REQUESTS_FAIL_COUNTER_DESCRIPTION = "Amount of failed packed requests processed";
+    public static final String PACKING_REQUESTS_DROP_COUNTER = "gateleen.packing.requests.drop";
+    public static final String PACKING_REQUESTS_DROP_COUNTER_DESCRIPTION = "Amount of dropped (expired) packed requests processed";
 
     /**
      * Constructs a new PackingHandler.
@@ -59,14 +64,34 @@ public class PackingHandler {
      * @param groupRequestHeader the header holding the user group information
      * @param validator the PackingValidator instance
      * @param exceptionFactory the GateleenExceptionFactory instance
+     * @param enqueueExpiredRequest enqueue the request which already expired
      */
-    public PackingHandler(Vertx vertx, String queuePrefix, String redisquesAddress, String groupRequestHeader, PackingValidator validator, GateleenExceptionFactory exceptionFactory) {
+    public PackingHandler(Vertx vertx, String queuePrefix, String redisquesAddress, String groupRequestHeader, PackingValidator validator, GateleenExceptionFactory exceptionFactory, boolean enqueueExpiredRequest) {
+        this(vertx, queuePrefix, redisquesAddress, groupRequestHeader, validator, exceptionFactory, enqueueExpiredRequest, StatusCode.ACCEPTED);
+    }
+
+    public PackingHandler(
+            Vertx vertx,
+            String queuePrefix,
+            String redisquesAddress,
+            String groupRequestHeader,
+            PackingValidator validator,
+            GateleenExceptionFactory exceptionFactory,
+            boolean enqueueExpiredRequest,
+            StatusCode expiredRequestStatusCode
+    ) {
         this.vertx = vertx;
         this.queuePrefix = queuePrefix;
         this.redisquesAddress = redisquesAddress;
         this.groupRequestHeader = groupRequestHeader;
         this.validator = validator;
         this.exceptionFactory = exceptionFactory;
+        this.enqueueExpiredRequest = enqueueExpiredRequest;
+        this.expiredRequestStatusCode = expiredRequestStatusCode == null ? StatusCode.ACCEPTED : expiredRequestStatusCode;
+    }
+
+    public PackingHandler(Vertx vertx, String queuePrefix, String redisquesAddress, String groupRequestHeader, PackingValidator validator, GateleenExceptionFactory exceptionFactory) {
+        this(vertx, queuePrefix, redisquesAddress, groupRequestHeader, validator, exceptionFactory, true);
     }
 
     public boolean isPacked(HttpServerRequest request) {
@@ -86,9 +111,13 @@ public class PackingHandler {
             packingRequestsFailCounter = Counter.builder(PACKING_REQUESTS_FAIL_COUNTER)
                     .description(PACKING_REQUESTS_FAIL_COUNTER_DESCRIPTION)
                     .register(meterRegistry);
+            packingRequestsDropCounter = Counter.builder(PACKING_REQUESTS_DROP_COUNTER)
+                    .description(PACKING_REQUESTS_DROP_COUNTER_DESCRIPTION)
+                    .register(meterRegistry);
         } else {
             packingRequestsSuccessCounter = null;
             packingRequestsFailCounter = null;
+            packingRequestsDropCounter = null;
         }
     }
 
@@ -122,6 +151,8 @@ public class PackingHandler {
                 return;
             }
 
+            int droppedExpiredRequests = 0;
+            int enqueuedRequests = 0;
             for (HttpRequest req : parseRequestsResult.ok()) {
                 String queueName = getQueueFromRequestOrPrefix(req, fallbackQueueNameSuffix);
 
@@ -129,6 +160,14 @@ public class PackingHandler {
                     req.getHeaders().remove(ExpiryCheckHandler.SERVER_TIMESTAMP_HEADER);
                     req.getHeaders().remove(QueuingHandler.QUEUE_HEADER);
                 }
+
+                if (!enqueueExpiredRequest && QueuingHandler.isRequestExpired(req.getHeaders())) {
+                    requestLog.info("Dropping expired packed request '{}'", req.getUri());
+                    incrementDropCounter();
+                    droppedExpiredRequests++;
+                    continue;
+                }
+                enqueuedRequests++;
 
                 ExpiryCheckHandler.updateServerTimestampHeader(req);
 
@@ -152,7 +191,11 @@ public class PackingHandler {
                 });
             }
 
-            respondWith(request, StatusCode.OK);
+            if (droppedExpiredRequests > 0 && enqueuedRequests == 0) {
+                respondWith(request, expiredRequestStatusCode);
+            } else {
+                respondWith(request, StatusCode.OK);
+            }
         });
 
         return true;
@@ -181,6 +224,12 @@ public class PackingHandler {
     private void incrementFailCounter() {
         if(packingRequestsFailCounter != null) {
             packingRequestsFailCounter.increment();
+        }
+    }
+
+    private void incrementDropCounter() {
+        if(packingRequestsDropCounter != null) {
+            packingRequestsDropCounter.increment();
         }
     }
 }
