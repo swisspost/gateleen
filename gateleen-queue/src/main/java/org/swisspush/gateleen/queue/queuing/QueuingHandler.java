@@ -19,6 +19,7 @@ import org.swisspush.gateleen.queue.queuing.splitter.QueueSplitter;
 
 import javax.annotation.Nullable;
 
+import static org.swisspush.gateleen.core.util.ExpiryCheckHandler.CLIENT_TIMESTAMP_HEADER;
 import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
 
 /**
@@ -27,11 +28,10 @@ import static org.swisspush.redisques.util.RedisquesAPI.buildCheckOperation;
  * @author https://github.com/lbovet [Laurent Bovet]
  */
 public class QueuingHandler implements Handler<Buffer> {
-    private Logger log = LoggerFactory.getLogger(QueuingHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(QueuingHandler.class);
     public static final String QUEUE_HEADER = "x-queue";
     public static final String ORIGINALLY_QUEUED_HEADER = "x-originally-queued";
     public static final String DUPLICATE_CHECK_HEADER = "x-duplicate-check";
-    public static final String CLIENT_TIMESTAMP_HEADER = "X-Client-Timestamp";
 
     private final RequestQueue requestQueue;
 
@@ -172,7 +172,7 @@ public class QueuingHandler implements Handler<Buffer> {
      * timestamp is present or its value can't be parsed)
      */
     public static boolean isRequestExpired(MultiMap headers) {
-        if (headers == null || headers.isEmpty()) {
+        if (headers == null) {
             return false;
         }
         String clientTimestamp = headers.get(CLIENT_TIMESTAMP_HEADER);

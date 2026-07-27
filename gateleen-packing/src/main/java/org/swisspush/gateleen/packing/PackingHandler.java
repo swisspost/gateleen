@@ -191,6 +191,8 @@ public class PackingHandler {
                 });
             }
 
+            // Response reflects synchronous packing validation/drop decisions only.
+            // Actual enqueue operations complete asynchronously via event bus callbacks.
             if (droppedExpiredRequests > 0 && enqueuedRequests == 0) {
                 respondWith(request, expiredRequestStatusCode);
             } else {

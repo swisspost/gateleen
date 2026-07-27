@@ -65,6 +65,7 @@ When `PackingHandler` is configured with `enqueueExpiredRequest = false`, expire
 If all packed sub-requests in one packed request are dropped as expired, the HTTP response status defaults to `202 Accepted`. This can be overridden via the constructor overload parameter `StatusCode expiredRequestStatusCode`.
 
 If at least one packed sub-request is still enqueued, the packed request response remains `200 OK`.
+This status is an acceptance of packed request processing; actual sub-request enqueues complete asynchronously.
 
 ## Micrometer metrics
 The packing feature is monitored with micrometer. The following metrics are available:
