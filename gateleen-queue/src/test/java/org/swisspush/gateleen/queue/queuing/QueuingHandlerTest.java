@@ -20,9 +20,9 @@ import org.swisspush.gateleen.queue.queuing.splitter.NoOpQueueSplitter;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.swisspush.gateleen.core.util.ExpiryCheckHandler.CLIENT_TIMESTAMP_HEADER;
 import static org.swisspush.gateleen.core.util.ExpiryCheckHandler.EXPIRE_AFTER_HEADER;
 import static org.swisspush.gateleen.core.util.ExpiryCheckHandler.QUEUE_EXPIRE_AFTER_HEADER;
-import static org.swisspush.gateleen.queue.queuing.QueuingHandler.CLIENT_TIMESTAMP_HEADER;
 
 /**
  * Tests for the {@link QueuingHandler#isRequestExpired(MultiMap)} method.
