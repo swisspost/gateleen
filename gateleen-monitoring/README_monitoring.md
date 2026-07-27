@@ -26,6 +26,10 @@ Each entry in `metrics` uses the regular metric fields (`name`, `action`, `n`), 
 
 `requests.pending.count` is not merged into `batch`. It is buffered and flushed periodically as counter deltas (`inc`/`dec` with `n`) to preserve correct cross-instance aggregation.
 
+All non-time-sensitive metrics are flushed periodically (currently every 5 seconds), so their publication can be delayed by up to one flush interval.
+
+For `queues.last.size`, only the latest queue name seen within one flush interval is retained; if multiple queue names are updated in that interval, earlier ones are intentionally superseded.
+
 ## Request per Rule Monitoring
 Monitor incoming requests and routing rules matching these requests.
 

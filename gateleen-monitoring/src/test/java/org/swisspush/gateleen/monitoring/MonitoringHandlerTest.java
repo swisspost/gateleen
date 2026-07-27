@@ -21,6 +21,9 @@ import org.swisspush.gateleen.core.http.DummyHttpServerRequest;
 import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.core.util.Address;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -270,6 +273,38 @@ public class MonitoringHandlerTest {
     }
 
     @Test
+    public void testLastUsedQueueSizeKeepsLatestQueueWithinFlushWindow(TestContext testContext) {
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
+
+        List<String> requestedQueues = new ArrayList<>();
+        vertx.eventBus().consumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            String queue = message.body().getJsonObject("payload").getString("queuename");
+            requestedQueues.add(queue);
+            long size = "queue-b".equals(queue) ? 11L : 5L;
+            message.reply(new JsonObject().put(STATUS, OK).put(VALUE, size));
+        });
+
+        AtomicInteger receivedMessages = new AtomicInteger(0);
+        AtomicReference<JsonObject> lastMessage = new AtomicReference<>();
+        mh.registerReceiver(message -> {
+            JsonObject body = message.body();
+            if ((PREFIX + MonitoringHandler.LAST_USED_QUEUE_SIZE_METRIC).equals(body.getString("name"))) {
+                receivedMessages.incrementAndGet();
+                lastMessage.set(body);
+            }
+        });
+
+        mh.updateLastUsedQueueSizeInformation("queue-a");
+        mh.updateLastUsedQueueSizeInformation("queue-b");
+        mh.flushBufferedMetrics();
+
+        await().atMost(TWO_SECONDS).until(() -> receivedMessages.get() == 1);
+        testContext.assertEquals(1, requestedQueues.size());
+        testContext.assertEquals("queue-b", requestedQueues.get(0));
+        testContext.assertEquals(11L, lastMessage.get().getLong("n"));
+    }
+
+    @Test
     public void testListenerCountIsBufferedAndFlushedOnlyOnChange(TestContext testContext) throws InterruptedException {
         MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX);
 
@@ -457,5 +492,36 @@ public class MonitoringHandlerTest {
         // only one batch message must have been sent, not two separate ones
         testContext.assertEquals(1, receivedBatchMessages.get());
     }
-}
 
+    @Test
+    public void testBatchIgnoresInvalidItemsButProcessesValidOnes(TestContext testContext) throws Exception {
+        MonitoringHandler mh = new MonitoringHandler(vertx, storage, PREFIX, null, true);
+
+        String metricName = PREFIX + MonitoringHandler.LISTENER_COUNT_METRIC;
+        JsonObject validMetric = new JsonObject()
+                .put(MonitoringHandler.METRIC_NAME, metricName)
+                .put(MonitoringHandler.METRIC_ACTION, MonitoringHandler.SET)
+                .put("n", 4L);
+
+        JsonArray items = new JsonArray();
+        items.add((Object) null);
+        items.add("not-an-object");
+        items.add(validMetric);
+
+        vertx.eventBus().send(Address.monitoringAddress(),
+                new JsonObject().put(MonitoringHandler.METRIC_ACTION, MonitoringHandler.BATCH)
+                        .put(MonitoringHandler.METRICS_BATCH_ITEMS, items));
+
+        await().atMost(TWO_SECONDS).until(() -> {
+            Map<String, Long> metricCache = getMetricCache(mh);
+            return metricCache.containsKey(metricName) && metricCache.get(metricName) == 4L;
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Long> getMetricCache(MonitoringHandler monitoringHandler) throws Exception {
+        Field field = MonitoringHandler.class.getDeclaredField("metricCache");
+        field.setAccessible(true);
+        return (Map<String, Long>) field.get(monitoringHandler);
+    }
+}

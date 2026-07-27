@@ -105,6 +105,9 @@ public class MonitoringHandler {
 
     // Buffered delta for pending requests. It is flushed periodically as one counter update (inc/dec with n)
     // to preserve cross-instance aggregation semantics while reducing eventbus traffic.
+    // These atomic fields are intentionally used because public update* methods may be called from different
+    // threads/contexts, while flushBufferedMetrics() is triggered by a periodic Vert.x timer. Flush semantics are
+    // "best effort latest value within one flush window": intermediate updates may be collapsed intentionally.
     private final AtomicLong pendingRequestDelta = new AtomicLong(0);
     private final AtomicReference<String> pendingLastUsedQueueName = new AtomicReference<>();
     private final AtomicLong lastSentLastUsedQueueSize = new AtomicLong(Long.MIN_VALUE);
@@ -196,7 +199,12 @@ public class MonitoringHandler {
                 JsonArray items = body.getJsonArray(METRICS_BATCH_ITEMS);
                 if (items != null) {
                     for (int i = 0; i < items.size(); i++) {
-                        handleMetricMessage(items.getJsonObject(i));
+                        Object item = items.getValue(i);
+                        if (item instanceof JsonObject) {
+                            handleMetricMessage((JsonObject) item);
+                        } else {
+                            log.warn("Ignoring invalid metric batch item at index {} because it is not a JsonObject", i);
+                        }
                     }
                 }
             } else {
@@ -212,8 +220,16 @@ public class MonitoringHandler {
      * @param body the metric message, either received directly or extracted from a {@link #BATCH} message
      */
     private void handleMetricMessage(JsonObject body) {
+        if (body == null) {
+            log.warn("Ignoring invalid metric message because body is null");
+            return;
+        }
         final String action = body.getString(METRIC_ACTION);
         final String name = body.getString(METRIC_NAME);
+        if (action == null || name == null) {
+            log.warn("Ignoring invalid metric message because mandatory fields are missing");
+            return;
+        }
         handleRequestPerRuleMessage(name);
         long now;
         switch (action) {
@@ -221,6 +237,10 @@ public class MonitoringHandler {
             case "update":
                 Long currentValue = metricCache.get(name);
                 Long newValue = body.getLong("n");
+                if (newValue == null) {
+                    log.warn("Ignoring invalid metric message for '{}' because field 'n' is missing", name);
+                    return;
+                }
                 Long lastDump = lastDumps.get(name);
                 now = System.currentTimeMillis() / 1000;
                 if (!newValue.equals(currentValue) || lastDump != null && lastDump < now - 300) {
@@ -568,6 +588,8 @@ public class MonitoringHandler {
      */
     public void updateLastUsedQueueSizeInformation(final String queue) {
         log.trace("About to update last used Queue size counter (buffered, flushed periodically)");
+        // "Last used queue size" is a latest-value metric: within one flush window, only the latest queue name
+        // is retained and used for the redisques roundtrip.
         pendingLastUsedQueueName.set(queue);
     }
 
