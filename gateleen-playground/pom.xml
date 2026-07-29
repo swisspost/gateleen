@@ -248,6 +248,19 @@
                                     <outputDirectory>${project.build.directory}/js/hookjs</outputDirectory>
                                 </configuration>
                             </execution>
+                            <execution>
+                                <phase>deploy</phase>
+                                <id>unpack hook-ts</id>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeGroupIds>org.swisspush.gateleen</includeGroupIds>
+                                    <includeArtifactIds>gateleen-hook-ts</includeArtifactIds>
+                                    <includes>**/*.js</includes>
+                                    <outputDirectory>${project.build.directory}/js/hookts</outputDirectory>
+                                </configuration>
+                            </execution>
                         </executions>
                     </plugin>
                     <plugin>
@@ -309,6 +322,20 @@
                                 <configuration>
                                     <fromDir>
                                         ${project.build.directory}/js/hookjs/META-INF/resources/webjars/gateleen-hook-js/${project.version}/js
+                                    </fromDir>
+                                    <includes>**</includes>
+                                    <url>http://${targetHost}:${targetPort}/playground/js</url>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>upload-hookts</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>upload</goal>
+                                </goals>
+                                <configuration>
+                                    <fromDir>
+                                        ${project.build.directory}/js/hookts/META-INF/resources/webjars/gateleen-hook-ts/${project.version}
                                     </fromDir>
                                     <includes>**</includes>
                                     <url>http://${targetHost}:${targetPort}/playground/js</url>

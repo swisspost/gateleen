@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Gateleen Playground</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+    <link href="css/gateleen.css" rel="stylesheet">
+
+    <!-- Self-contained browser bundle of gateleen-hook-ts (framework-agnostic, no Angular). -->
+    <script src="js/gateleen-hook-ts.browser.global.js"></script>
+</head>
+
+<body>
+
+<div class="container-fluid" style="margin: 15px">
+    <div class="row">
+        <div class="panel panel-default">
+            <div class="panel-heading">Hook TS Demo</div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Single Hook"
+                                onclick="install('hook-demo')">Place Single Hook
+                        </button>
+                        </br>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Single Fetching Hook"
+                                onclick="install('hook-demo', true)">Place Single Fetching Hook
+                        </button>
+                        </br>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Collection Hook"
+                                onclick="install('messages/')">Place Collection Hook
+                        </button>
+                        </br>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Collection Fetching Hook"
+                                onclick="install('messages/', true)">Place Collection Fetching Hook
+                        </button>
+                        </br>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Remove Last Hook"
+                                onclick="remove()">Remove Last Hook
+                        </button>
+                        </br>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="PUT Single"
+                                onclick="put('hook-demo')">PUT Single
+                        </button>
+                        </br>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="PUT Collection"
+                                onclick="put('messages', true)">PUT Collection
+                        </button>
+                    </div>
+
+                    <div class="col-md-9">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-info btn-lg btn-block" id="Clear log"
+                                        onclick="clearLog()">Clear log
+                                </button>
+                            </div>
+
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-info btn-lg btn-block" id="Clear collection"
+                                        onclick="clearCollection('messages')">Clear collection
+                                </button>
+                            </div>
+                        </div>
+                        </br>
+                        <div class="row" style="padding-right: 15px">
+                            <ul class="list-group" id="hookjs messages"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Placed after the markup above so getElementById('hookjs messages') below finds the
+     <ul> element; the browser parses/creates DOM nodes top-to-bottom as it encounters them. -->
+<script>
+    // The socket must be opened against the same application context as the hooked resource.
+    window.GATELEEN_SOCKET_PATH = '/playground/server/event/v1/sock';
+
+    // Uses its own root (separate from the hookjs demo's /tests/hooktest/) so the two demos
+    // don't share/contaminate the same Redis-backed collection between test runs.
+    var HOOK_TEST_URL = '/playground/server/tests/hooktest-ts/';
+    var HttpMethods = GateleenHookTs.HttpMethods;
+    var hookService = new GateleenHookTs.HookService();
+
+    var eventId = 1,
+        handlerId = 1,
+        messages = [],
+        handlers = [];
+
+    var messagesList = document.getElementById('hookjs messages');
+
+    function render() {
+        messagesList.innerHTML = '';
+        messages.forEach(function (message) {
+            var li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.textContent = (message.info || '') + (message.text || '');
+            messagesList.appendChild(li);
+        });
+    }
+
+    function pushMessage(message) {
+        messages.push(message);
+        render();
+    }
+
+    function install(path, fetch) {
+        var id = handlerId++;
+        var fullPath = HOOK_TEST_URL + path;
+        hookService.listen({
+            path: fullPath,
+            methods: [HttpMethods.PUT, HttpMethods.POST],
+            fetch: !!fetch
+        }, function (payload, params) {
+            var resource = /\/$/.test(fullPath) ? params.uri.split('/').pop() : '';
+            var info = 'Listener ' + id + ' received:' + (resource.length > 0 ? '[' + resource + '] ' : '');
+            pushMessage({info: info, text: (payload && payload.text) || ''});
+        }).then(function (deregisterer) {
+            handlers.push({deregisterer: deregisterer, id: id});
+        });
+        pushMessage({text: 'Installing listener ' + id});
+    }
+
+    function remove() {
+        var handler = handlers.pop();
+        if (handler) {
+            pushMessage({text: 'Removing listener ' + handler.id});
+            handler.deregisterer.deregister();
+        }
+    }
+
+    function put(path, collection) {
+        var id = eventId++;
+        var fullPath = path + (collection ? '/resource-' + id : '');
+        fetch(HOOK_TEST_URL + fullPath, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text: '<Message ' + id + '>'})
+        });
+    }
+
+    function clearLog() {
+        messages = [];
+        render();
+    }
+
+    function clearCollection(path) {
+        fetch(HOOK_TEST_URL + path, {method: 'DELETE'});
+    }
+</script>
+
+</body>
+
+</html>

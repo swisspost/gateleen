@@ -16,6 +16,12 @@
 
     <properties>
         <npmrcFile>.npmrc</npmrcFile>
+        <!-- Points to the npm userconfig file passed to `npm install`. Defaults to the
+             (untracked, local-only) ${npmrcFile} in this module, but can be overridden
+             (e.g. in your ~/.m2/settings.xml `property-overrides` profile) with an
+             absolute path to a local npmrc file that adds an internal registry mirror,
+             without having to add such a file to this repository. -->
+        <npmUserConfig>${basedir}/${npmrcFile}</npmUserConfig>
     </properties>
     <build>
         <plugins>
@@ -59,10 +65,8 @@
                         <configuration>
                             <nodeVersion>v26.0.0</nodeVersion>
                             <npmVersion>11.16.0</npmVersion>
-                            <nodeDownloadRoot>https://artifactory.tools.post.ch/artifactory/nodejs-remote/</nodeDownloadRoot>
-<!--                            <nodeDownloadRoot>${nodeDownloadRoot}</nodeDownloadRoot>-->
-<!--                            <npmDownloadRoot>${npmDownloadRoot}</npmDownloadRoot>-->
-                            <npmDownloadRoot>https://artifactory.tools.post.ch/artifactory/npm-virtual/npm/-/</npmDownloadRoot>
+                            <nodeDownloadRoot>${nodeDownloadRoot}</nodeDownloadRoot>
+                            <npmDownloadRoot>${npmDownloadRoot}</npmDownloadRoot>
                         </configuration>
                     </execution>
 
@@ -73,7 +77,7 @@
                             <goal>npm</goal>
                         </goals>
                         <configuration>
-                            <arguments>--userconfig ${basedir}/${npmrcFile} install</arguments>
+                            <arguments>--userconfig ${npmUserConfig} install</arguments>
                         </configuration>
                     </execution>
                     <execution>

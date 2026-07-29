@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "nmpi": "npm i",
-    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "build": "tsup",
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",

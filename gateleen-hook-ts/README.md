@@ -262,8 +262,11 @@ npm run build
 ```
 
 Outputs:
-- `dist/index.js` - ESM + CJS
+- `dist/index.js` / `dist/index.cjs` - ESM + CJS build for bundler-based consumers
 - `dist/index.d.ts` - TypeScript declarations
+- `dist/gateleen-hook-ts.browser.global.js` - self-contained IIFE bundle (all dependencies
+  inlined, including `vertx3-eventbus-client`) for plain `<script>` tag usage, exposing the
+  `GateleenHookTs` global (used by the `gateleen-playground` `hooktest-ts.html` demo page)
 
 ### Test
 

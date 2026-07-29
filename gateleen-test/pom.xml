@@ -11,6 +11,28 @@
     <artifactId>gateleen-test</artifactId>
     <packaging>jar</packaging>
 
+    <properties>
+        <!--
+            The (very old) cucumber-java 1.2.6 dependency used by the hookjs/hookts UI
+            integration tests relies on XStream for report serialization, which reflectively
+            accesses JDK internals (java.util, java.awt.font, ...). Modern JDKs (9+ module
+            system, tightened further on newer releases) block this reflective access unless
+            explicitly opened up. Without these flags, UI integration tests fail immediately
+            with InaccessibleObjectException before Chrome is even started.
+        -->
+        <uiTestArgLine>
+            --add-opens java.base/java.util=ALL-UNNAMED
+            --add-opens java.base/java.lang=ALL-UNNAMED
+            --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+            --add-opens java.base/java.text=ALL-UNNAMED
+            --add-opens java.base/java.util.concurrent=ALL-UNNAMED
+            --add-opens java.base/java.io=ALL-UNNAMED
+            --add-opens java.base/java.net=ALL-UNNAMED
+            --add-opens java.sql/java.sql=ALL-UNNAMED
+            --add-opens java.desktop/java.awt.font=ALL-UNNAMED
+        </uiTestArgLine>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.swisspush.gateleen</groupId>
@@ -313,6 +335,7 @@
                                            several hours of travis-debugging. IMHO this should be done using
                                            junit categories -->
                                 <exclude>org/swisspush/gateleen/hookjs/**</exclude>
+                                <exclude>org/swisspush/gateleen/hookts/**</exclude>
                                 <exclude>org/swisspush/gateleen/routing/RuleUpdateTest</exclude>
                             </excludes>
                             <includes>
@@ -327,11 +350,14 @@
                         </goals>
                         <configuration>
                             <skipTests>${skipUiTests}</skipTests>
+                            <!-- Opens JDK internals needed by the old cucumber/XStream dependency, see uiTestArgLine above. -->
+                            <argLine>${uiTestArgLine}</argLine>
                             <includes>
                                 <!-- TODO: Get rid of those ugly per-test rules. This kludge just did cost me
                                            several hours of travis-debugging. IMHO this should be done using
                                            junit categories -->
                                 <include>org/swisspush/gateleen/hookjs/**</include>
+                                <include>org/swisspush/gateleen/hookts/**</include>
                                 <include>org/swisspush/gateleen/routing/RuleUpdateTest</include>
                             </includes>
                         </configuration>

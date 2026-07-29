@@ -37,9 +37,10 @@ export interface CallbackParams {
   uri: string;
 
   /**
-   * HTTP headers from the original request
+   * HTTP headers from the original request. Gateleen delivers these as an
+   * array of [name, value] tuples (not a plain object) over the event bus.
    */
-  headers: Record<string, string>;
+  headers: [string, string][];
 
   /**
    * HTTP method used (PUT, POST, DELETE)

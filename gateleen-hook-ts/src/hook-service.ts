@@ -79,8 +79,9 @@ export class HookService {
       }
 
       const message = request as HookMessage<TPayload>;
+      const resourcePath = HookService.getHeaderValue(message.body.headers, 'resource_path') ?? message.body.uri;
       callback(message.body.payload, {
-        uri: message.body.uri,
+        uri: resourcePath,
         headers: message.body.headers,
         method: message.body.method,
         channelId: id
@@ -114,16 +115,20 @@ export class HookService {
 
     if (def.fetch) {
       try {
-        const initial = await this.fetch<TPayload>(def.path);
-        if (initial !== null) {
-          handler(null, {
-            body: {
-              payload: initial,
-              uri: def.path,
-              headers: {},
-              method: HttpMethods.PUT
-            }
-          } as unknown as any);
+        if (HookService.isCollectionPath(def.path)) {
+          await this.fetchCollectionAndDispatch<TPayload>(def.path, handler);
+        } else {
+          const initial = await this.fetch<TPayload>(def.path);
+          if (initial !== null) {
+            handler(null, {
+              body: {
+                payload: initial,
+                uri: def.path,
+                headers: [],
+                method: HttpMethods.PUT
+              }
+            } as unknown as any);
+          }
         }
       } catch (err) {
         this.deregister(id);
@@ -159,6 +164,62 @@ export class HookService {
   private static extractContext(path: string): string {
     const match = /^(https?:\/\/[^/]+)?\/[^/]+/.exec(path);
     return match ? match[0] : '';
+  }
+
+  /**
+   * A hooked path ending in "/" designates a collection (mirrors gateleen-hook-js
+   * semantics), where each contained sub-resource should trigger its own callback
+   * invocation rather than delivering the whole collection as a single payload.
+   */
+  private static isCollectionPath(path: string): boolean {
+    return /\/$/.test(path);
+  }
+
+  /**
+   * Fetches the current state of a hooked collection resource (using
+   * `?expand=1` to inline sub-resources) and invokes the handler once per
+   * contained item, mirroring gateleen-hook-js's collection "fetch" behavior.
+   */
+  private async fetchCollectionAndDispatch<TPayload>(
+    path: string,
+    handler: MessageHandler
+  ): Promise<void> {
+    const collectionPath = path.replace(/\/$/, '');
+    const collectionName = collectionPath.split('/').pop() ?? '';
+    const response = await fetch(`${collectionPath}/?expand=1`);
+
+    if (response.status === 404) {
+      return;
+    }
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = (await response.json()) as Record<string, Record<string, TPayload>>;
+    const entries = data[collectionName] ?? {};
+
+    for (const [key, value] of Object.entries(entries)) {
+      handler(null, {
+        body: {
+          payload: value,
+          uri: `${collectionPath}/${key}`,
+          headers: [],
+          method: HttpMethods.PUT
+        }
+      } as unknown as any);
+    }
+  }
+
+  /**
+   * Looks up a header value (case-insensitive) in the [name, value] tuple
+   * array delivered by the Gateleen event bus payload. Used to find the
+   * `resource_path` header, which carries the concrete resource path for
+   * events triggered on a hooked collection (the plain `uri` field only
+   * reflects the hooked collection path itself, not the specific sub-resource).
+   */
+  private static getHeaderValue(headers: [string, string][] | undefined, name: string): string | undefined {
+    const entry = headers?.find(([key]) => key.toLowerCase() === name.toLowerCase());
+    return entry ? entry[1] : undefined;
   }
 
   /**
@@ -264,8 +325,14 @@ export class HookService {
    * @returns Unix timestamp in milliseconds when the hook is expected to expire.
    */
   private async registerRemote(registration: Registration): Promise<number> {
-    const hookUrl = `${registration.definition.path}/_hooks/listeners/http/${registration.id}`;
-    const context = HookService.extractContext(registration.definition.path);
+    // Strip any trailing slash before building the hook URL — a path ending in
+    // "/" designates a collection hook (see isCollectionPath), but the actual
+    // server-side hook registration must not have a doubled slash before
+    // "/_hooks/...", which would break hook matching (mirrors gateleen-hook-js,
+    // which strips the trailing slash from the path before registering).
+    const normalizedPath = registration.definition.path.replace(/\/$/, '');
+    const hookUrl = `${normalizedPath}/_hooks/listeners/http/${registration.id}`;
+    const context = HookService.extractContext(normalizedPath);
     const hookDestination = `${context}/server/event/v1/channels/${registration.id}`;
     const expiresAt =
       Date.now() + HookService.HOOK_EXPIRATION_AFTER_MINUTES * 60 * 1000;
@@ -344,7 +411,8 @@ export class HookService {
    * HTTP 404 is treated as success because the desired end-state is achieved.
    */
   private async deleteRemoteHook(registration: Registration): Promise<void> {
-    const hookUrl = `${registration.definition.path}/_hooks/listeners/http/${registration.id}`;
+    const normalizedPath = registration.definition.path.replace(/\/$/, '');
+    const hookUrl = `${normalizedPath}/_hooks/listeners/http/${registration.id}`;
     const response = await fetch(hookUrl, { method: 'DELETE' });
 
     if (!response.ok && response.status !== 404) {
@@ -417,7 +485,7 @@ interface HookMessage<TPayload> {
   body: {
     payload: TPayload;
     uri: string;
-    headers: Record<string, string>;
+    headers: [string, string][];
     method: HttpMethods;
   };
 }
