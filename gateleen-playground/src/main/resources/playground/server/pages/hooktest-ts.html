@@ -31,6 +31,10 @@
                                 onclick="install('hook-demo', true)">Place Single Fetching Hook
                         </button>
                         </br>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Single Hook with Filter"
+                                onclick="installWithFilter('messages/public', '.*/messages/public')">Place Single Hook with Filter
+                        </button>
+                        </br>
                         <button type="button" class="btn btn-primary btn-lg btn-block" id="Place Collection Hook"
                                 onclick="install('messages/')">Place Collection Hook
                         </button>
@@ -122,6 +126,22 @@
             var resource = /\/$/.test(fullPath) ? params.uri.split('/').pop() : '';
             var info = 'Listener ' + id + ' received:' + (resource.length > 0 ? '[' + resource + '] ' : '');
             pushMessage({info: info, text: (payload && payload.text) || ''});
+        }).then(function (deregisterer) {
+            handlers.push({deregisterer: deregisterer, id: id});
+        });
+        pushMessage({text: 'Installing listener ' + id});
+    }
+
+    function installWithFilter(path, filter) {
+        var id = handlerId++;
+        var fullPath = HOOK_TEST_URL + path;
+        hookService.listen({
+            path: fullPath,
+            methods: [HttpMethods.PUT, HttpMethods.POST],
+            fetch: false,
+            filter: filter
+        }, function (payload) {
+            pushMessage({info: 'Listener ' + id + ' received:', text: (payload && payload.text) || ''});
         }).then(function (deregisterer) {
             handlers.push({deregisterer: deregisterer, id: id});
         });

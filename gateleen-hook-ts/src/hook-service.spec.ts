@@ -69,6 +69,32 @@ describe('HookService', () => {
       const {deregisterer} = await simulateOpenEventBusConnection();
       expect(typeof deregisterer.deregister).toBe('function');
     });
+
+    it('should include filter in the remote hook registration payload when provided', async () => {
+      const eventBusService = new EventBusService();
+      openEventBus(eventBusService);
+      const service = new HookService(eventBusService);
+
+      vi.mocked(global.fetch).mockResolvedValue(createOkResponse());
+
+      const BASE_URL = '/api/messages/public';
+      await service.listen(
+        {
+          path: BASE_URL,
+          methods: [HttpMethods.PUT],
+          fetch: false,
+          filter: BASE_URL + '([^/]+)/message'
+        },
+        vi.fn()
+      );
+
+      const putCall = vi.mocked(global.fetch).mock.calls.find(
+        (call) => (call[1] as RequestInit | undefined)?.method === 'PUT'
+      );
+      expect(putCall).toBeDefined();
+      const body = JSON.parse((putCall![1] as RequestInit).body as string) as { filter?: string };
+      expect(body.filter).toBe(BASE_URL + '([^/]+)/message');
+    });
   });
 
   describe('dispose', () => {

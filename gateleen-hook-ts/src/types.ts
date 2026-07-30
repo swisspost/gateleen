@@ -25,6 +25,12 @@ export interface HookDefinition {
    * If true, fetch current state of the resource on registration
    */
   fetch: boolean;
+
+  /**
+   * Optional regular expression used by Gateleen to restrict which
+   * sub-resources of a hooked collection trigger the hook.
+   */
+  filter?: string;
 }
 
 /**

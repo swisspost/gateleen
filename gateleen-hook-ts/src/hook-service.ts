@@ -350,7 +350,8 @@ export class HookService {
           header: 'x-queue-mode',
           value: 'transient'
         }
-      ]
+      ],
+      filter: registration.definition.filter
     };
 
     const response = await fetch(hookUrl, {
@@ -464,6 +465,7 @@ interface RegisterHookDto {
   destination: string;
   expireAfter: number;
   headers: { header: string; value: string }[];
+  filter?: string;
 }
 
 interface Registration {

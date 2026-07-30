@@ -129,6 +129,6 @@ public class HookTsSteps {
         message.put("text", text);
         RestAssured.given().contentType(ContentType.JSON)
                 .body(message.getMap())
-                .put(PLAYGROUND_URL + "/server/tests/hooktest" + path);
+                .put(HOOK_TEST_BASE + path);
     }
 }
