@@ -20,12 +20,37 @@ npm install gateleen-hook-ts
 ### Angular 22
 
 ```typescript
+import { Service, OnDestroy } from '@angular/core';
+import { HookService } from 'gateleen-hook-ts';
+
+/**
+ * @Service() = App-wide singleton wrapper around `HookService`.
+ *
+ * `HookService` opens its own WebSocket (via `EventBusService`) as soon as
+ * it is constructed. Instantiating it per-component (`new HookService()`)
+ * therefore forces a fresh socket handshake every time a component is
+ * created, delaying on load hook-driven renders.
+ */
+@Service()
+export class GateleenHookService extends HookService implements OnDestroy {
+  constructor() {
+    super();
+  }
+
+  ngOnDestroy(): void {
+    this.dispose();
+  }
+}
+```
+
+```typescript
+
 import { Injectable, signal } from '@angular/core';
 import { HookService, HttpMethods } from 'gateleen-hook-ts';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class UserService {
-  private readonly hooks = new HookService();
+  private readonly hooks = inject(GateleenHookService);
   readonly lastUser = signal<UserData | null>(null);
 
   setupHook() {
@@ -35,10 +60,6 @@ export class UserService {
         this.lastUser.set(user);
       }
     );
-  }
-
-  ngOnDestroy() {
-    this.hooks.dispose();
   }
 }
 ```
