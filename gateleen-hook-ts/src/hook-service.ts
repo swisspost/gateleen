@@ -48,7 +48,7 @@ export class HookService {
    * @returns Promise resolving to deregistration handle to stop listening and remove the remote hook.
    * @throws Error if initial registration fails.
    */
-  async listen<TPayload = unknown>(
+  async listen<TPayload>(
     def: HookDefinition,
     callback: (payload: TPayload, params?: CallbackParams) => void,
   ): Promise<HookDeregisterer> {
@@ -57,13 +57,12 @@ export class HookService {
 
     await this.eventBusService.waitUntilOpen();
 
-    const handler: MessageHandler = (err, request) => {
+    const handler: MessageHandler<TPayload> = (err, message) => {
       if (err) {
         console.error(`EventBus handler failed for hook ${id}:`, err);
         return;
       }
 
-      const message = request as HookMessage<TPayload>;
       const resourcePath = HookService.getHeaderValue(message.body.headers, 'resource_path') ?? message.body.uri;
       callback(message.body.payload, {
         uri: resourcePath,
@@ -72,7 +71,7 @@ export class HookService {
         channelId: id,
       });
     };
-    const managedRegistration = this.createRegistration(id, handler, def, address);
+    const managedRegistration = this.createRegistration<TPayload>(id, handler, def, address);
 
     this.registrations.set(id, managedRegistration);
     this.bindHandler(managedRegistration);
@@ -96,7 +95,7 @@ export class HookService {
     };
   }
 
-  private async listenFetch<TPayload>(def: HookDefinition, handler: MessageHandler, id: string) {
+  private async listenFetch<TPayload>(def: HookDefinition, handler: MessageHandler<TPayload>, id: string) {
     try {
       if (HookService.isCollectionPath(def.path)) {
         await this.fetchCollectionAndDispatch<TPayload>(def.path, handler);
@@ -110,7 +109,7 @@ export class HookService {
               headers: [],
               method: HttpMethods.PUT,
             },
-          } as unknown as any);
+          });
         }
       }
     } catch (err) {
@@ -119,8 +118,13 @@ export class HookService {
     }
   }
 
-  private createRegistration(id: string, handler: MessageHandler, def: HookDefinition, address: string) {
-    const registration: Registration = {
+  private createRegistration<TPayload>(
+    id: string,
+    handler: MessageHandler<TPayload>,
+    def: HookDefinition,
+    address: string,
+  ) {
+    const registration: Registration<TPayload> = {
       id,
       handler,
       definition: def,
@@ -173,7 +177,7 @@ export class HookService {
    * `?expand=1` to inline sub-resources) and invokes the handler once per
    * contained item, mirroring gateleen-hook-js's collection "fetch" behavior.
    */
-  private async fetchCollectionAndDispatch<TPayload>(path: string, handler: MessageHandler): Promise<void> {
+  private async fetchCollectionAndDispatch<TPayload>(path: string, handler: MessageHandler<TPayload>): Promise<void> {
     const collectionPath = path.replace(/\/$/, '');
     const collectionName = collectionPath.split('/').pop() ?? '';
     const response = await fetch(`${collectionPath}/?expand=1`);
@@ -196,7 +200,7 @@ export class HookService {
           headers: [],
           method: HttpMethods.PUT,
         },
-      } as unknown as any);
+      });
     }
   }
 
@@ -416,17 +420,16 @@ export class HookService {
     }
   }
 
-  private fetch<TPayload>(url: string): Promise<TPayload | null> {
-    return fetch(url).then((response) => {
-      if (response.status === 404) {
-        return null;
-      }
+  private async fetch<TPayload>(url: string): Promise<TPayload | null> {
+    const response = await fetch(url);
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json() as Promise<TPayload>;
-    });
+    return (await response.json()) as TPayload;
   }
 }
 
@@ -438,26 +441,17 @@ interface RegisterHookDto {
   filter?: string;
 }
 
-interface Registration {
+interface Registration<TPayload = unknown> {
   id: string;
-  handler: MessageHandler;
+  handler: MessageHandler<TPayload>;
   definition: HookDefinition;
 }
 
 interface ManagedRegistration {
-  registration: Registration;
+  registration: Registration<any>;
   address: string;
   expiresAt: number;
   disposed: boolean;
   handlerBound: boolean;
   inFlightRegistration?: Promise<void>;
-}
-
-interface HookMessage<TPayload> {
-  body: {
-    payload: TPayload;
-    uri: string;
-    headers: [string, string][];
-    method: HttpMethods;
-  };
 }

@@ -1,4 +1,6 @@
-export type MessageHandler = (error: unknown, message: unknown) => void;
+import { HookMessage } from './hook-message.ts';
+
+export type MessageHandler<T> = (error: unknown, message: HookMessage<T>) => void;
 
 export default class EventBus {
   constructor(url: string);
