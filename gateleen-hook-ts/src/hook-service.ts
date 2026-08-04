@@ -99,21 +99,25 @@ export class HookService {
     try {
       if (HookService.isCollectionPath(def.path)) {
         await this.fetchCollectionAndDispatch<TPayload>(def.path, handler);
-      } else {
-        const initial = await this.fetch<TPayload>(def.path);
-        if (initial !== null) {
-          handler(null, {
-            body: {
-              payload: initial,
-              uri: def.path,
-              headers: [],
-              method: HttpMethods.PUT,
-            },
-          });
-        }
+        return;
       }
+
+      const initial = await this.fetch<TPayload>(def.path);
+      if (initial === null) {
+        return;
+      }
+
+      handler(null, {
+        body: {
+          payload: initial,
+          uri: def.path,
+          headers: [],
+          method: HttpMethods.PUT,
+        },
+      });
     } catch (err) {
       this.deregister(id);
+      console.error(`failed at fetching the initial state, deregistered itself ${id} ${def.path} :`, err);
       throw err;
     }
   }
