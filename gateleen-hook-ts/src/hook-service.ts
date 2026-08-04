@@ -104,7 +104,7 @@ export class HookService {
 
       const initial = await this.fetch<TPayload>(def.path);
       if (initial === null) {
-        return;
+        return; //404
       }
 
       handler(null, {
@@ -184,16 +184,10 @@ export class HookService {
   private async fetchCollectionAndDispatch<TPayload>(path: string, handler: MessageHandler<TPayload>): Promise<void> {
     const collectionPath = path.replace(/\/$/, '');
     const collectionName = collectionPath.split('/').pop() ?? '';
-    const response = await fetch(`${collectionPath}/?expand=1`);
-
-    if (response.status === 404) {
-      return;
+    const data = await this.fetch<Record<string, Record<string, TPayload>>>(`${collectionPath}/?expand=1`);
+    if (data === null) {
+      return; //404
     }
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = (await response.json()) as Record<string, Record<string, TPayload>>;
     const entries = data[collectionName] ?? {};
 
     for (const [key, value] of Object.entries(entries)) {
@@ -424,7 +418,7 @@ export class HookService {
     }
   }
 
-  private async fetch<TPayload>(url: string): Promise<TPayload | null> {
+  private async fetch<T>(url: string): Promise<T | null> {
     const response = await fetch(url);
     if (response.status === 404) {
       return null;
@@ -433,7 +427,7 @@ export class HookService {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return (await response.json()) as TPayload;
+    return (await response.json()) as T;
   }
 }
 
