@@ -3,6 +3,7 @@ package org.swisspush.gateleen.queue.queuing;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -12,6 +13,7 @@ import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.impl.future.SucceededFuture;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -35,7 +37,9 @@ import org.swisspush.gateleen.queue.queuing.circuitbreaker.QueueCircuitBreaker;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueCircuitState;
 import org.swisspush.gateleen.queue.queuing.circuitbreaker.util.QueueResponseType;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.mockito.Mockito.*;
@@ -146,7 +150,7 @@ public class QueueProcessorTest {
     }
 
     @Test
-    public void testSuccessfulRequestResponse(TestContext context) {
+    public void testSuccessfulNormalRequestResponse(TestContext context) {
         Async async = context.async();
         new QueueProcessor(vertx, httpClient, monitoringHandler, null);
 
@@ -158,6 +162,69 @@ public class QueueProcessorTest {
             context.assertEquals("ok", result.getString("status"));
 
             verify(httpClient, times(1)).request(any(HttpMethod.class), anyString());
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testSuccessfulBatchedRequestResponse(TestContext context) {
+        Async async = context.async();
+        new QueueProcessor(vertx, httpClient, monitoringHandler, null);
+
+        AtomicReference<Buffer> sentPayload = new AtomicReference<>();
+        MultiMap requestHeaders = MultiMap.caseInsensitiveMultiMap();
+        setHttpClientRespondStatusCodeAndCapturePayload(StatusCode.OK, sentPayload, requestHeaders);
+
+        long now = System.currentTimeMillis();
+        String payload1 = "{\"key\":\"value\",\"text\":\"Hällo\"}";
+        String payloadExpired = "{\"key\":\"expired\"}";
+        String payload2 = "{\"key\":\"value2\"}";
+
+        JsonArray queueItems = new JsonArray()
+                .add(buildQueueItem(payload1, now, 60, true))
+                .add(buildQueueItem(payloadExpired, now - 3_000, 1, false))
+                .add(buildQueueItem(payload2, now, 60, false));
+
+        JsonObject batchedQueue = new JsonObject()
+                .put("batchQueue", true)
+                .put("queue", "my_queue")
+                .put("payload", queueItems.encode());
+
+        vertx.eventBus().request(Address.queueProcessorAddress(), batchedQueue, event -> {
+            context.assertTrue(event.succeeded());
+            JsonObject result = (JsonObject) event.result().body();
+            context.assertEquals("ok", result.getString("status"));
+
+            verify(httpClient, times(1)).request(eq(HttpMethod.PUT), anyString());
+            context.assertFalse(requestHeaders.contains("Content-Length"));
+
+            Buffer actual = sentPayload.get();
+            context.assertNotNull(actual);
+            JsonArray actualPayloadArray = new JsonArray(actual.toString(StandardCharsets.UTF_8));
+            context.assertEquals(2, actualPayloadArray.size());
+            context.assertEquals(new JsonObject(payload1), actualPayloadArray.getJsonObject(0));
+            context.assertEquals(new JsonObject(payload2), actualPayloadArray.getJsonObject(1));
+            async.complete();
+        });
+    }
+
+    @Test
+    public void testAllExpiredBatchedRequestResponse(TestContext context) {
+        Async async = context.async();
+        new QueueProcessor(vertx, httpClient, monitoringHandler, null);
+
+        JsonArray queueItems = new JsonArray()
+                .add(buildQueueItem("{\"key\":\"expired\"}", System.currentTimeMillis() - 3_000, 1, false));
+        JsonObject batchedQueue = new JsonObject()
+                .put("batchQueue", true)
+                .put("queue", "my_queue")
+                .put("payload", queueItems.encode());
+
+        vertx.eventBus().request(Address.queueProcessorAddress(), batchedQueue, event -> {
+            context.assertTrue(event.succeeded());
+            JsonObject result = (JsonObject) event.result().body();
+            context.assertEquals("ok", result.getString("status"));
+            verify(httpClient, never()).request(any(HttpMethod.class), anyString());
             async.complete();
         });
     }
@@ -279,6 +346,11 @@ public class QueueProcessorTest {
                         public HttpClientResponse bodyHandler(Handler<Buffer> bodyHandler) {
                             return this;
                         }
+
+                        @Override
+                        public HttpClientResponse handler(Handler<Buffer> handler) {
+                            return this;
+                        }
                     };
                     handler.handle(new SucceededFuture<>(response));
                     return this;
@@ -286,6 +358,30 @@ public class QueueProcessorTest {
             };
             return Future.succeededFuture(request);
         }).when(httpClient).request(any(HttpMethod.class), anyString());
+    }
+
+    private void setHttpClientRespondStatusCodeAndCapturePayload(StatusCode statusCode, AtomicReference<Buffer> sentPayload, MultiMap requestHeaders) {
+        HttpClientRequest request = Mockito.mock(HttpClientRequest.class);
+        HttpClientResponse response = Mockito.mock(HttpClientResponse.class);
+
+        when(request.headers()).thenReturn(requestHeaders);
+        when(request.exceptionHandler(any())).thenReturn(request);
+        when(request.idleTimeout(anyLong())).thenReturn(request);
+
+        when(response.statusCode()).thenReturn(statusCode.getStatusCode());
+        when(response.statusMessage()).thenReturn(statusCode.getStatusMessage());
+        when(response.handler(any())).thenReturn(response);
+        when(response.endHandler(any())).thenReturn(response);
+        when(response.exceptionHandler(any())).thenReturn(response);
+
+        doAnswer(invocation -> {
+            sentPayload.set(invocation.getArgument(0));
+            Handler<AsyncResult<HttpClientResponse>> handler = invocation.getArgument(1);
+            handler.handle(new SucceededFuture<>(response));
+            return request;
+        }).when(request).send(any(Buffer.class), any());
+
+        when(httpClient.request(any(HttpMethod.class), anyString())).thenReturn(Future.succeededFuture(request));
     }
 
     private JsonObject buildQueueEventBusMessage(String queueName) {
@@ -297,6 +393,23 @@ public class QueueProcessorTest {
         message.put("queue", queueName);
         message.put("payload", payload);
         return message;
+    }
+
+    private String buildQueueItem(String payload, long queueTimestamp, int queueExpireAfterSeconds, boolean includeContentLength) {
+        JsonArray headers = new JsonArray()
+                .add(new JsonArray().add("x-queue-expire-after").add(String.valueOf(queueExpireAfterSeconds)));
+        if (includeContentLength) {
+            headers.add(new JsonArray().add("Content-Length").add(String.valueOf(payload.length())));
+        }
+
+        String encodedPayload = Base64.getEncoder().encodeToString(payload.getBytes(StandardCharsets.UTF_8));
+        return new JsonObject()
+                .put("method", "PUT")
+                .put("uri", "/playground/server/tests/exp/item_2")
+                .put("headers", headers)
+                .put("payload", encodedPayload)
+                .put(QueueClient.QUEUE_TIMESTAMP, queueTimestamp)
+                .encode();
     }
 
     static class ConfigurableQueueCircuitBreaker implements QueueCircuitBreaker {
