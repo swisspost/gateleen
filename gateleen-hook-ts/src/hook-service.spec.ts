@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { HookService } from './hook-service.js';
 import { EventBusService } from './event-bus-service.js';
-import {HookDefinition, HttpMethods} from './types.js';
+import { HookDefinition, HttpMethods } from './types.js';
 import { createOkResponse } from './test-helpers.js';
 
 describe('HookService', () => {
@@ -25,7 +25,7 @@ describe('HookService', () => {
   const def: HookDefinition = {
     path: '/api/test',
     methods: [HttpMethods.PUT],
-    fetch: false
+    fetch: false,
   };
 
   async function simulateOpenEventBusConnection() {
@@ -37,12 +37,12 @@ describe('HookService', () => {
     vi.mocked(global.fetch).mockResolvedValue(createOkResponse());
 
     const deregisterer = await service.listen(def, callback);
-    return {eventBusService, deregisterer};
+    return { eventBusService, deregisterer };
   }
 
   describe('listen', () => {
     it('should require hookDefinition with path and methods', async () => {
-      const {eventBusService, deregisterer} = await simulateOpenEventBusConnection();
+      const { eventBusService, deregisterer } = await simulateOpenEventBusConnection();
       expect(deregisterer).toBeDefined();
       expect(typeof deregisterer.deregister).toBe('function');
       expect(eventBusService.getEventBus().registerHandler).toHaveBeenCalledTimes(1);
@@ -66,7 +66,7 @@ describe('HookService', () => {
     });
 
     it('deregisterer should have deregister method', async () => {
-      const {deregisterer} = await simulateOpenEventBusConnection();
+      const { deregisterer } = await simulateOpenEventBusConnection();
       expect(typeof deregisterer.deregister).toBe('function');
     });
 
@@ -83,16 +83,18 @@ describe('HookService', () => {
           path: BASE_URL,
           methods: [HttpMethods.PUT],
           fetch: false,
-          filter: BASE_URL + '([^/]+)/message'
+          filter: BASE_URL + '([^/]+)/message',
         },
-        vi.fn()
+        vi.fn(),
       );
 
-      const putCall = vi.mocked(global.fetch).mock.calls.find(
-        (call) => (call[1] as RequestInit | undefined)?.method === 'PUT'
-      );
+      const putCall = vi
+        .mocked(global.fetch)
+        .mock.calls.find((call) => (call[1] as RequestInit | undefined)?.method === 'PUT');
       expect(putCall).toBeDefined();
-      const body = JSON.parse((putCall![1] as RequestInit).body as string) as { filter?: string };
+      const body = JSON.parse((putCall![1] as RequestInit).body as string) as {
+        filter?: string;
+      };
       expect(body.filter).toBe(BASE_URL + '([^/]+)/message');
     });
   });
@@ -105,20 +107,14 @@ describe('HookService', () => {
 
       vi.mocked(global.fetch).mockResolvedValue(createOkResponse());
 
-      await service.listen(
-        { path: '/api/test-one', methods: [HttpMethods.PUT], fetch: false },
-        vi.fn()
-      );
-      await service.listen(
-        { path: '/api/test-two', methods: [HttpMethods.PUT], fetch: false },
-        vi.fn()
-      );
+      await service.listen({ path: '/api/test-one', methods: [HttpMethods.PUT], fetch: false }, vi.fn());
+      await service.listen({ path: '/api/test-two', methods: [HttpMethods.PUT], fetch: false }, vi.fn());
 
       service.dispose();
 
-      const methods = vi.mocked(global.fetch).mock.calls.map(
-        (call) => (call[1] as RequestInit | undefined)?.method ?? 'GET'
-      );
+      const methods = vi
+        .mocked(global.fetch)
+        .mock.calls.map((call) => (call[1] as RequestInit | undefined)?.method ?? 'GET');
       expect(methods.filter((value) => value === 'PUT')).toHaveLength(2);
       await vi.waitFor(() => {
         const deleteCount = vi

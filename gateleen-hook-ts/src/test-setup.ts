@@ -11,5 +11,5 @@ vi.mock('vertx3-eventbus-client', () => ({
     public enableReconnect = vi.fn();
 
     constructor(_url: string) {}
-  }
+  },
 }));

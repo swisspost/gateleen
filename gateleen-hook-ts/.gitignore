@@ -12,3 +12,5 @@ coverage/
 .env
 .env.local
 target/
+# Ignore package-lock.json to avoid corparate artefactory issues.
+package-lock.json

@@ -34,9 +34,7 @@ describe('EventBusService', () => {
     it('should reject on timeout', async () => {
       const service = new EventBusService();
 
-      await expect(service.waitUntilOpen(50)).rejects.toThrow(
-        /EventBus open timeout/
-      );
+      await expect(service.waitUntilOpen(50)).rejects.toThrow(/EventBus open timeout/);
     });
   });
 

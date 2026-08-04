@@ -4,7 +4,7 @@ Framework-agnostic TypeScript client for [Gateleen](https://github.com/swisspush
 
 ## Features
 
-- ✅ **Framework Agnostic** - Works with Angular 22, WebComponents, vanilla JS, or any framework
+- ✅ **Framework Agnostic** - Works with Angular 22, WebComponents, or any framework
 - ✅ **TypeScript** - Full type safety with generic types
 - ✅ **Single Dependency** - Only depends on `vertx3-eventbus-client`
 - ✅ **Modern** - Uses async/await, native Fetch API, ES2022
@@ -86,22 +86,6 @@ class UserList extends HTMLElement {
     this.hooks.dispose();
   }
 }
-```
-
-### Vanilla JavaScript
-
-```javascript
-import { HookService, HttpMethods } from 'gateleen-hook-ts';
-
-const hooks = new HookService();
-
-await hooks.listen(
-  { path: '/api/data', methods: [HttpMethods.PUT], fetch: true },
-  (payload, params) => console.log('Updated:', payload)
-);
-
-// When you're done with the instance:
-hooks.dispose();
 ```
 
 ## API
@@ -225,7 +209,6 @@ The library uses a two-service architecture:
 
 Benefits:
 - Clean separation of concerns
-- EventBusService can be reused for other services
 - Robust auto-recovery on network interruptions
 - Smart hook refresh (only refreshes hooks nearing expiry)
 

@@ -1,11 +1,6 @@
 import EventBus, { type MessageHandler } from 'vertx3-eventbus-client';
 import { EventBusService } from './event-bus-service.js';
-import {
-  CallbackParams,
-  HookDefinition,
-  HookDeregisterer,
-  HttpMethods
-} from './types.js';
+import { CallbackParams, HookDefinition, HookDeregisterer, HttpMethods } from './types.js';
 
 /**
  * Manages Gateleen HTTP hook registrations and routes incoming events
@@ -52,20 +47,10 @@ export class HookService {
    * @param callback Called for each incoming payload.
    * @returns Promise resolving to deregistration handle to stop listening and remove the remote hook.
    * @throws Error if initial registration fails.
-   *
-   * @example
-   * const service = new HookService();
-   * const deregisterer = await service.listen<UserData>(
-   *   { path: '/api/users', methods: [HttpMethods.PUT], fetch: true },
-   *   (user, params) => console.log('Updated:', user)
-   * );
-   *
-   * // Later: cleanup
-   * deregisterer.deregister();
    */
   async listen<TPayload = unknown>(
     def: HookDefinition,
-    callback: (payload: TPayload, params?: CallbackParams) => void
+    callback: (payload: TPayload, params?: CallbackParams) => void,
   ): Promise<HookDeregisterer> {
     const id = HookService.createHookId();
     const address = `event/channels/${id}`;
@@ -84,23 +69,10 @@ export class HookService {
         uri: resourcePath,
         headers: message.body.headers,
         method: message.body.method,
-        channelId: id
+        channelId: id,
       });
     };
-
-    const registration: Registration = {
-      id,
-      handler,
-      definition: def
-    };
-
-    const managedRegistration: ManagedRegistration = {
-      registration,
-      address,
-      expiresAt: 0,
-      disposed: false,
-      handlerBound: false
-    };
+    const managedRegistration = this.createRegistration(id, handler, def, address);
 
     this.registrations.set(id, managedRegistration);
     this.bindHandler(managedRegistration);
@@ -114,33 +86,54 @@ export class HookService {
     }
 
     if (def.fetch) {
-      try {
-        if (HookService.isCollectionPath(def.path)) {
-          await this.fetchCollectionAndDispatch<TPayload>(def.path, handler);
-        } else {
-          const initial = await this.fetch<TPayload>(def.path);
-          if (initial !== null) {
-            handler(null, {
-              body: {
-                payload: initial,
-                uri: def.path,
-                headers: [],
-                method: HttpMethods.PUT
-              }
-            } as unknown as any);
-          }
-        }
-      } catch (err) {
-        this.deregister(id);
-        throw err;
-      }
+      await this.listenFetch<TPayload>(def, handler, id);
     }
 
     return {
       deregister: () => {
         this.deregister(id);
-      }
+      },
     };
+  }
+
+  private async listenFetch<TPayload>(def: HookDefinition, handler: MessageHandler, id: string) {
+    try {
+      if (HookService.isCollectionPath(def.path)) {
+        await this.fetchCollectionAndDispatch<TPayload>(def.path, handler);
+      } else {
+        const initial = await this.fetch<TPayload>(def.path);
+        if (initial !== null) {
+          handler(null, {
+            body: {
+              payload: initial,
+              uri: def.path,
+              headers: [],
+              method: HttpMethods.PUT,
+            },
+          } as unknown as any);
+        }
+      }
+    } catch (err) {
+      this.deregister(id);
+      throw err;
+    }
+  }
+
+  private createRegistration(id: string, handler: MessageHandler, def: HookDefinition, address: string) {
+    const registration: Registration = {
+      id,
+      handler,
+      definition: def,
+    };
+
+    const managedRegistration: ManagedRegistration = {
+      registration,
+      address,
+      expiresAt: 0,
+      disposed: false,
+      handlerBound: false,
+    };
+    return managedRegistration;
   }
 
   /**
@@ -180,10 +173,7 @@ export class HookService {
    * `?expand=1` to inline sub-resources) and invokes the handler once per
    * contained item, mirroring gateleen-hook-js's collection "fetch" behavior.
    */
-  private async fetchCollectionAndDispatch<TPayload>(
-    path: string,
-    handler: MessageHandler
-  ): Promise<void> {
+  private async fetchCollectionAndDispatch<TPayload>(path: string, handler: MessageHandler): Promise<void> {
     const collectionPath = path.replace(/\/$/, '');
     const collectionName = collectionPath.split('/').pop() ?? '';
     const response = await fetch(`${collectionPath}/?expand=1`);
@@ -204,8 +194,8 @@ export class HookService {
           payload: value,
           uri: `${collectionPath}/${key}`,
           headers: [],
-          method: HttpMethods.PUT
-        }
+          method: HttpMethods.PUT,
+        },
       } as unknown as any);
     }
   }
@@ -228,7 +218,7 @@ export class HookService {
   private async refreshHooks(): Promise<void> {
     const refreshThreshold = Date.now() + HookService.HOOK_REFRESH_LEEWAY_MS;
     const registrationsToRefresh = [...this.registrations.values()].filter(
-      (value) => !value.disposed && value.expiresAt <= refreshThreshold
+      (value) => !value.disposed && value.expiresAt <= refreshThreshold,
     );
 
     for (const managedRegistration of registrationsToRefresh) {
@@ -265,15 +255,9 @@ export class HookService {
       }
 
       try {
-        this.eventBus.unregisterHandler(
-          managedRegistration.address,
-          managedRegistration.registration.handler
-        );
+        this.eventBus.unregisterHandler(managedRegistration.address, managedRegistration.registration.handler);
       } catch (err) {
-        console.warn(
-          `Failed to unbind local EventBus handler for hook ${managedRegistration.registration.id}:`,
-          err
-        );
+        console.warn(`Failed to unbind local EventBus handler for hook ${managedRegistration.registration.id}:`, err);
       }
       managedRegistration.handlerBound = false;
     }
@@ -287,10 +271,7 @@ export class HookService {
       return;
     }
 
-    this.eventBus.registerHandler(
-      managedRegistration.address,
-      managedRegistration.registration.handler
-    );
+    this.eventBus.registerHandler(managedRegistration.address, managedRegistration.registration.handler);
     managedRegistration.handlerBound = true;
   }
 
@@ -305,9 +286,7 @@ export class HookService {
     }
 
     if (!managedRegistration.inFlightRegistration) {
-      managedRegistration.inFlightRegistration = this.registerRemote(
-        managedRegistration.registration
-      )
+      managedRegistration.inFlightRegistration = this.registerRemote(managedRegistration.registration)
         .then((expiresAt) => {
           managedRegistration.expiresAt = expiresAt;
         })
@@ -334,11 +313,10 @@ export class HookService {
     const hookUrl = `${normalizedPath}/_hooks/listeners/http/${registration.id}`;
     const context = HookService.extractContext(normalizedPath);
     const hookDestination = `${context}/server/event/v1/channels/${registration.id}`;
-    const expiresAt =
-      Date.now() + HookService.HOOK_EXPIRATION_AFTER_MINUTES * 60 * 1000;
+    const expiresAt = Date.now() + HookService.HOOK_EXPIRATION_AFTER_MINUTES * 60 * 1000;
 
     console.log(
-      `Registering hook ${registration.id} for [${registration.definition.methods.join(', ')}] ${registration.definition.path}`
+      `Registering hook ${registration.id} for [${registration.definition.methods.join(', ')}] ${registration.definition.path}`,
     );
 
     const dto: RegisterHookDto = {
@@ -348,18 +326,18 @@ export class HookService {
       headers: [
         {
           header: 'x-queue-mode',
-          value: 'transient'
-        }
+          value: 'transient',
+        },
       ],
-      filter: registration.definition.filter
+      filter: registration.definition.filter,
     };
 
     const response = await fetch(hookUrl, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(dto)
+      body: JSON.stringify(dto),
     });
 
     if (!response.ok) {
@@ -417,9 +395,7 @@ export class HookService {
     const response = await fetch(hookUrl, { method: 'DELETE' });
 
     if (!response.ok && response.status !== 404) {
-      throw new Error(
-        `Failed to delete hook ${registration.id}. Status: ${response.status}`
-      );
+      throw new Error(`Failed to delete hook ${registration.id}. Status: ${response.status}`);
     }
   }
 
@@ -432,15 +408,9 @@ export class HookService {
     }
 
     try {
-      this.eventBus.unregisterHandler(
-        managedRegistration.address,
-        managedRegistration.registration.handler
-      );
+      this.eventBus.unregisterHandler(managedRegistration.address, managedRegistration.registration.handler);
     } catch (err) {
-      console.warn(
-        `Failed to unbind local EventBus handler for hook ${managedRegistration.registration.id}:`,
-        err
-      );
+      console.warn(`Failed to unbind local EventBus handler for hook ${managedRegistration.registration.id}:`, err);
     } finally {
       managedRegistration.handlerBound = false;
     }

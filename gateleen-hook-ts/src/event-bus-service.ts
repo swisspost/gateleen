@@ -17,9 +17,7 @@ export class EventBusService {
   /**
    * Creates a new EventBusService bound to the configured socket path.
    */
-  constructor(
-    socketPath = globalThis.GATELEEN_SOCKET_PATH || '/server/event/v1/sock'
-  ) {
+  constructor(socketPath = globalThis.GATELEEN_SOCKET_PATH || '/server/event/v1/sock') {
     this.eventBus = new EventBus(socketPath);
 
     // The underlying vertx3-eventbus-client has automatic reconnection
