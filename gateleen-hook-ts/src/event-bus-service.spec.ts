@@ -32,9 +32,18 @@ describe('EventBusService', () => {
     });
 
     it('should reject on timeout', async () => {
-      const service = new EventBusService();
+      vi.useFakeTimers();
+      try {
+        const service = new EventBusService();
 
-      await expect(service.waitUntilOpen(50)).rejects.toThrow(/EventBus open timeout/);
+        const assertion = expect(service.waitUntilOpen(50)).rejects.toThrow(
+          /EventBus open timeout/
+        );
+        await vi.advanceTimersByTimeAsync(50);
+        await assertion;
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
