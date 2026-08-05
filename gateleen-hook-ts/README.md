@@ -107,12 +107,14 @@ const service = new HookService();
 Registers a hook listener.
 
 **Parameters:**
+
 - `def: HookDefinition` - Hook definition (path, methods, fetch option)
 - `callback: (payload: TPayload, params: CallbackParams) => void` - Handler function
 
 **Returns:** Promise resolving to a deregisterer handle
 
 **Example:**
+
 ```typescript
 const deregisterer = await new HookService().listen<MyData>(
   {
@@ -175,7 +177,8 @@ eventBusService.onClose(() => console.log('Disconnected'));
 interface HookDefinition {
   path: string;              // Resource path (e.g., '/api/users')
   methods: HttpMethods[];    // HTTP methods to trigger on
-  fetch: 'none' | 'single' | 'collection'; // Fetch current state on registration ('collection' fetches and dispatches each sub-resource)
+  fetch: 'none' | 'single' | 'collection'; // Fetch current state on registration
+                                            // ('collection' dispatches each sub-resource)
 }
 ```
 
@@ -204,6 +207,7 @@ The library uses a two-service architecture:
 2. **HookService** - Manages hook registrations with smart refresh and auto-reconnection
 
 Benefits:
+
 - Clean separation of concerns
 - Robust auto-recovery on network interruptions
 - Smart hook refresh (only refreshes hooks nearing expiry)
@@ -262,6 +266,7 @@ npm run build
 ```
 
 Outputs:
+
 - `dist/index.js` / `dist/index.cjs` - ESM + CJS build for bundler-based consumers
 - `dist/index.d.ts` - TypeScript declarations
 - `dist/gateleen-hook-ts.browser.global.js` - self-contained IIFE bundle (all dependencies
