@@ -13,11 +13,13 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.swisspush.gateleen.core.exception.GateleenExceptionFactory;
+import org.swisspush.gateleen.core.util.ExpiryCheckHandler;
 import org.swisspush.gateleen.core.util.RoleExtractor;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.core.validation.ValidationResult;
@@ -54,7 +56,7 @@ public class PackingHandlerTest {
         eventBus = Mockito.spy(vertx.eventBus());
         exceptionFactory = mock(GateleenExceptionFactory.class);
         validator = mock(PackingValidator.class);
-        packingHandler = new PackingHandler(vertx, queuePrefix, redisquesAddress, RoleExtractor.groupHeader, validator, exceptionFactory);
+        packingHandler = new PackingHandler(vertx, queuePrefix, redisquesAddress, RoleExtractor.groupHeader, validator, exceptionFactory, false);
 
         meterRegistry = new SimpleMeterRegistry();
         packingHandler.setMeterRegistry(meterRegistry);
@@ -378,6 +380,199 @@ public class PackingHandlerTest {
         async.awaitSuccess();
     }
 
+    @Test
+    public void testHandleDropsExpiredRequest(TestContext context) throws InterruptedException {
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "master"));
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(validator.validatePackingPayload(any())).thenReturn(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+
+        String expiredClientTimestamp = ExpiryCheckHandler.printDateTime(DateTime.now().minusHours(1));
+
+        Buffer data = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1\n" +
+                "      },\n" +
+                "      \"headers\": [[\"X-Client-Timestamp\", \"" + expiredClientTimestamp + "\"], [\"X-Expire-After\", \"1\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+
+        doAnswer(invocation -> {
+            Handler<Buffer> bodyHandler = invocation.getArgument(0);
+            bodyHandler.handle(data);
+            return request;
+        }).when(request).bodyHandler(any());
+
+        eventBus.consumer(redisquesAddress, message -> {
+            context.fail("Expired request should not have been enqueued");
+        });
+
+        boolean handled = packingHandler.handle(request);
+        context.assertTrue(handled);
+
+        verify(response, times(1)).setStatusCode(eq(StatusCode.ACCEPTED.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq(StatusCode.ACCEPTED.getStatusMessage()));
+        verify(validator, times(1)).validatePackingPayload(eq(data));
+
+        Thread.sleep(500);
+
+        assertSuccessMetricCounts(context, 0.0);
+        assertFailMetricCounts(context, 0.0);
+        assertDropMetricCounts(context, 1.0);
+    }
+
+    @Test
+    public void testHandleDropsExpiredRequestWithConfiguredStatus(TestContext context) throws InterruptedException {
+        PackingHandler customStatusPackingHandler = new PackingHandler(
+                vertx, queuePrefix, redisquesAddress, RoleExtractor.groupHeader, validator, exceptionFactory, false, StatusCode.REQUEST_TIMEOUT);
+        customStatusPackingHandler.setMeterRegistry(meterRegistry);
+
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "master"));
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(validator.validatePackingPayload(any())).thenReturn(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+
+        String expiredClientTimestamp = ExpiryCheckHandler.printDateTime(DateTime.now().minusHours(1));
+
+        Buffer data = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1\n" +
+                "      },\n" +
+                "      \"headers\": [[\"X-Client-Timestamp\", \"" + expiredClientTimestamp + "\"], [\"X-Expire-After\", \"1\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+
+        doAnswer(invocation -> {
+            Handler<Buffer> bodyHandler = invocation.getArgument(0);
+            bodyHandler.handle(data);
+            return request;
+        }).when(request).bodyHandler(any());
+
+        eventBus.consumer(redisquesAddress, message -> context.fail("Expired request should not have been enqueued"));
+
+        boolean handled = customStatusPackingHandler.handle(request);
+        context.assertTrue(handled);
+
+        verify(response, times(1)).setStatusCode(eq(StatusCode.REQUEST_TIMEOUT.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq(StatusCode.REQUEST_TIMEOUT.getStatusMessage()));
+        verify(validator, times(1)).validatePackingPayload(eq(data));
+
+        Thread.sleep(500);
+
+        assertSuccessMetricCounts(context, 0.0);
+        assertFailMetricCounts(context, 0.0);
+        assertDropMetricCounts(context, 1.0);
+    }
+
+    @Test
+    public void testHandleEnqueuesExpiredRequestByDefault(TestContext context) {
+        Async async = context.async(1);
+        SimpleMeterRegistry defaultMeterRegistry = new SimpleMeterRegistry();
+        PackingHandler defaultPackingHandler = new PackingHandler(vertx, queuePrefix, redisquesAddress, RoleExtractor.groupHeader, validator, exceptionFactory);
+        defaultPackingHandler.setMeterRegistry(defaultMeterRegistry);
+
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "master"));
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(validator.validatePackingPayload(any())).thenReturn(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+
+        String expiredClientTimestamp = ExpiryCheckHandler.printDateTime(DateTime.now().minusHours(1));
+
+        Buffer data = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/some/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1\n" +
+                "      },\n" +
+                "      \"headers\": [[\"X-Client-Timestamp\", \"" + expiredClientTimestamp + "\"], [\"X-Expire-After\", \"1\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+
+        doAnswer(invocation -> {
+            Handler<Buffer> bodyHandler = invocation.getArgument(0);
+            bodyHandler.handle(data);
+            return request;
+        }).when(request).bodyHandler(any());
+
+        eventBus.consumer(redisquesAddress, message -> {
+            async.countDown();
+            message.reply(new JsonObject().put(STATUS, OK));
+        });
+
+        boolean handled = defaultPackingHandler.handle(request);
+        context.assertTrue(handled);
+
+        async.awaitSuccess();
+    }
+
+    @Test
+    public void testHandleDropsOnlyExpiredRequestsInMultiple(TestContext context) throws InterruptedException {
+        Async async = context.async(1);
+        when(request.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap().add(PACK_HEADER, "true").add("x-rp-grp", "master"));
+        when(request.method()).thenReturn(HttpMethod.PUT);
+        when(validator.validatePackingPayload(any())).thenReturn(new ValidationResult(ValidationStatus.VALIDATED_POSITIV));
+
+        String expiredClientTimestamp = ExpiryCheckHandler.printDateTime(DateTime.now().minusHours(1));
+
+        Buffer data = Buffer.buffer("{\n" +
+                "  \"requests\": [\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/expired/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 1\n" +
+                "      },\n" +
+                "      \"headers\": [[\"X-Client-Timestamp\", \"" + expiredClientTimestamp + "\"], [\"X-Expire-After\", \"1\"]]\n" +
+                "    },\n" +
+                "    {\n" +
+                "      \"uri\": \"/playground/valid/url\",\n" +
+                "      \"method\": \"PUT\",\n" +
+                "      \"payload\": {\n" +
+                "        \"key\": 2\n" +
+                "      },\n" +
+                "      \"headers\": [[\"x-bar\", \"foo\"]]\n" +
+                "    }\n" +
+                "  ]\n" +
+                "}");
+
+        doAnswer(invocation -> {
+            Handler<Buffer> bodyHandler = invocation.getArgument(0);
+            bodyHandler.handle(data);
+            return request;
+        }).when(request).bodyHandler(any());
+
+        eventBus.consumer(redisquesAddress, message -> {
+            async.countDown();
+            context.assertEquals("/playground/valid/url",
+                    new JsonObject(((JsonObject) message.body()).getString(MESSAGE)).getString("uri"));
+            message.reply(new JsonObject().put(STATUS, OK));
+        });
+
+        boolean handled = packingHandler.handle(request);
+        context.assertTrue(handled);
+
+        verify(response, times(1)).setStatusCode(eq(StatusCode.OK.getStatusCode()));
+        verify(response, times(1)).setStatusMessage(eq(StatusCode.OK.getStatusMessage()));
+        verify(validator, times(1)).validatePackingPayload(eq(data));
+
+        async.awaitSuccess();
+        Thread.sleep(500);
+
+        assertSuccessMetricCounts(context, 1.0);
+        assertFailMetricCounts(context, 0.0);
+        assertDropMetricCounts(context, 1.0);
+    }
+
     private void assertSuccessMetricCounts(TestContext context, double expectedCount) {
         Counter counter = meterRegistry.get(PackingHandler.PACKING_REQUESTS_SUCCESS_COUNTER).counter();
         context.assertEquals(expectedCount, counter.count(), "Counter for success packed requests should have been incremented by " + expectedCount);
@@ -386,5 +581,10 @@ public class PackingHandlerTest {
     private void assertFailMetricCounts(TestContext context, double expectedCount) {
         Counter counter = meterRegistry.get(PackingHandler.PACKING_REQUESTS_FAIL_COUNTER).counter();
         context.assertEquals(expectedCount, counter.count(), "Counter for failed packed requests should have been incremented by " + expectedCount);
+    }
+
+    private void assertDropMetricCounts(TestContext context, double expectedCount) {
+        Counter counter = meterRegistry.get(PackingHandler.PACKING_REQUESTS_DROP_COUNTER).counter();
+        context.assertEquals(expectedCount, counter.count(), "Counter for dropped packed requests should have been incremented by " + expectedCount);
     }
 }

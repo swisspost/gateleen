@@ -24,6 +24,7 @@ import java.util.Optional;
  */
 public final class ExpiryCheckHandler {
     public static final String SERVER_TIMESTAMP_HEADER = "X-Server-Timestamp";
+    public static final String CLIENT_TIMESTAMP_HEADER = "X-Client-Timestamp";
     public static final String EXPIRE_AFTER_HEADER = "X-Expire-After";
     public static final String QUEUE_EXPIRE_AFTER_HEADER = "x-queue-expire-after";
 
