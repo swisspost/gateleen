@@ -1,6 +1,7 @@
 import EventBus, { type MessageHandler } from 'vertx3-eventbus-client';
 import { EventBusService } from './event-bus-service.js';
 import { CallbackParams, HookDefinition, HookDeregisterer, HttpMethods } from './types.js';
+import { HookMessage } from './hook-message.js';
 
 /**
  * Manages Gateleen HTTP hook registrations and routes incoming events
@@ -13,6 +14,9 @@ export class HookService {
   private static readonly HOOK_EXPIRATION_AFTER_MINUTES = 1;
   private static readonly HOOK_REFRESH_CHECK_INTERVAL_MS = 20_000;
   private static readonly HOOK_REFRESH_LEEWAY_MS = 15_000;
+  // Max time (seconds) a triggered notification may sit in the transient queue
+  // before being dropped.
+  private static readonly NOTIFICATION_QUEUE_EXPIRE_AFTER_SECONDS = 10;
 
   private readonly eventBusService: EventBusService;
   private readonly eventBus: EventBus;
@@ -57,20 +61,9 @@ export class HookService {
 
     await this.eventBusService.waitUntilOpen();
 
-    const handler: MessageHandler<TPayload> = (err, message) => {
-      if (err) {
-        console.error(`EventBus handler failed for hook ${id}:`, err);
-        return;
-      }
-
-      const resourcePath = HookService.getHeaderValue(message.body.headers, 'resource_path') ?? message.body.uri;
-      callback(message.body.payload, {
-        uri: resourcePath,
-        headers: message.body.headers,
-        method: message.body.method,
-        channelId: id,
-      });
-    };
+    const dispatch = HookService.createDispatcher<TPayload>(id, callback);
+    const pendingEvents = def.fetch !== 'none' ? new PendingEventBuffer<TPayload>() : undefined;
+    const handler = this.createMessageHandler(id, dispatch, pendingEvents);
     const managedRegistration = this.createRegistration<TPayload>(id, handler, def, address);
 
     this.registrations.set(id, managedRegistration);
@@ -85,7 +78,11 @@ export class HookService {
     }
 
     if (def.fetch !== 'none') {
-      await this.listenFetch<TPayload>(def, handler, id);
+      try {
+        await this.listenFetch<TPayload>(def, dispatch, id);
+      } finally {
+        pendingEvents?.drain().forEach(dispatch);
+      }
     }
 
     return {
@@ -95,10 +92,64 @@ export class HookService {
     };
   }
 
-  private async listenFetch<TPayload>(def: HookDefinition, handler: MessageHandler<TPayload>, id: string) {
+  /**
+   * Builds the function that maps a raw EventBus message to a callback
+   * invocation, resolving the concrete resource path from the `resource_path`
+   * header when present (relevant for events triggered on a hooked
+   * collection).
+   */
+  private static createDispatcher<TPayload>(
+    id: string,
+    callback: (payload: TPayload, params?: CallbackParams) => void,
+  ): (message: HookMessage<TPayload>) => void {
+    return (message) => {
+      const resourcePath = HookService.getHeaderValue(message.body.headers, 'resource_path') ?? message.body.uri;
+      callback(message.body.payload, {
+        uri: resourcePath,
+        headers: message.body.headers,
+        method: message.body.method,
+        channelId: id,
+      });
+    };
+  }
+
+  /**
+   * Builds the EventBus message handler for this hook. A delivery error (the
+   * server rejected/failed to deliver a message for this channel) is treated
+   * as fatal for the whole hook — logged, and the hook is deregistered — since
+   * the `vertx3-eventbus-client` `MessageHandler` contract has no way to
+   * propagate the failure to a caller awaiting a result. Otherwise, messages
+   * received while `pendingEvents` is buffering are queued instead of being
+   * dispatched immediately.
+   */
+  private createMessageHandler<TPayload>(
+    id: string,
+    dispatch: (message: HookMessage<TPayload>) => void,
+    pendingEvents: PendingEventBuffer<TPayload> | undefined,
+  ): MessageHandler<TPayload> {
+    return (err, message) => {
+      if (err) {
+        console.error(`EventBus delivery failed for hook ${id}, deregistering:`, err);
+        this.deregister(id);
+        return;
+      }
+
+      if (pendingEvents?.offer(message)) {
+        return;
+      }
+
+      dispatch(message);
+    };
+  }
+
+  private async listenFetch<TPayload>(
+    def: HookDefinition,
+    dispatch: (message: HookMessage<TPayload>) => void,
+    id: string,
+  ) {
     try {
       if (def.fetch === 'collection') {
-        await this.fetchCollectionAndDispatch<TPayload>(def.path, handler);
+        await this.fetchCollectionAndDispatch<TPayload>(def.path, dispatch);
         return;
       }
 
@@ -107,7 +158,7 @@ export class HookService {
         return; //404
       }
 
-      handler(null, {
+      dispatch({
         body: {
           payload: initial,
           uri: def.path,
@@ -159,8 +210,8 @@ export class HookService {
   /**
    * Extracts the application context (e.g. protocol/host + first path segment)
    * from a hooked resource path, so the hook destination can be routed to the
-   * same backend context as the hooked resource itself. Mirrors the legacy
-   * gateleen-hook-js behavior: `/eagle/vehicle/trailer/v1/status` -> `/eagle`.
+   * same backend context as the hooked resource itself:
+   * `/eagle/vehicle/trailer/v1/status` -> `/eagle`.
    */
   private static extractContext(path: string): string {
     const match = /^(https?:\/\/[^/]+)?\/[^/]+/.exec(path);
@@ -170,9 +221,12 @@ export class HookService {
   /**
    * Fetches the current state of a hooked collection resource (using
    * `?expand=1` to inline sub-resources) and invokes the handler once per
-   * contained item, mirroring gateleen-hook-js's collection "fetch" behavior.
+   * contained item.
    */
-  private async fetchCollectionAndDispatch<TPayload>(path: string, handler: MessageHandler<TPayload>): Promise<void> {
+  private async fetchCollectionAndDispatch<TPayload>(
+    path: string,
+    dispatch: (message: HookMessage<TPayload>) => void,
+  ): Promise<void> {
     const collectionPath = path.replace(/\/$/, '');
     const collectionName = collectionPath.split('/').pop() ?? '';
     const data = await this.fetch<Record<string, Record<string, TPayload>>>(`${collectionPath}/?expand=1`);
@@ -182,7 +236,7 @@ export class HookService {
     const entries = data[collectionName] ?? {};
 
     for (const [key, value] of Object.entries(entries)) {
-      handler(null, {
+      dispatch({
         body: {
           payload: value,
           uri: `${collectionPath}/${key}`,
@@ -300,8 +354,7 @@ export class HookService {
     // Strip any trailing slash before building the hook URL — the caller may
     // pass a path with a trailing slash, but the server-side hook registration
     // must not have a doubled slash before "/_hooks/...", which would break
-    // hook matching (mirrors gateleen-hook-js, which strips the trailing
-    // slash from the path before registering).
+    // hook matching.
     const normalizedPath = registration.definition.path.replace(/\/$/, '');
     const hookUrl = `${normalizedPath}/_hooks/listeners/http/${registration.id}`;
     const context = HookService.extractContext(normalizedPath);
@@ -315,7 +368,7 @@ export class HookService {
     const dto: RegisterHookDto = {
       methods: registration.definition.methods,
       destination: hookDestination,
-      expireAfter: HookService.HOOK_EXPIRATION_AFTER_MINUTES,
+      expireAfter: HookService.NOTIFICATION_QUEUE_EXPIRE_AFTER_SECONDS,
       headers: [
         {
           header: 'x-queue-mode',
@@ -329,6 +382,14 @@ export class HookService {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        // Controls how long the hook registration itself is kept alive on the
+        // server before it auto-expires (independent of the `expireAfter` body
+        // field above, which only governs queued notification lifetime). Without
+        // this header, the server falls back to a 1h default; keeping it in
+        // sync with our local refresh assumption ensures a crashed/unclean
+        // client's hook is cleaned up promptly instead of lingering for up to
+        // an hour.
+        'x-expire-after': String(HookService.HOOK_EXPIRATION_AFTER_MINUTES * 60),
       },
       body: JSON.stringify(dto),
     });
@@ -443,4 +504,39 @@ interface ManagedRegistration {
   disposed: boolean;
   handlerBound: boolean;
   inFlightRegistration?: Promise<void>;
+}
+
+/**
+/**
+ * Buffers messages until `drain()` is called, then releases them for
+ * caller-controlled, in-order delivery. Used to hold live EventBus messages
+ * that arrive while a hook's initial "fetch" state is still being retrieved,
+ * so they can be delivered only once that initial state has been dispatched.
+ */
+class PendingEventBuffer<TPayload> {
+  private queue: HookMessage<TPayload>[] | null = [];
+
+  /**
+   * Buffers the message if still buffering.
+   *
+   * @returns `true` if the message was buffered (the caller must not dispatch
+   * it itself), `false` once `drain()` has already been called.
+   */
+  offer(message: HookMessage<TPayload>): boolean {
+    if (!this.queue) {
+      return false;
+    }
+
+    this.queue.push(message);
+    return true;
+  }
+
+  /**
+   * Stops buffering and returns any messages accumulated so far.
+   */
+  drain(): HookMessage<TPayload>[] {
+    const queued = this.queue ?? [];
+    this.queue = null;
+    return queued;
+  }
 }
