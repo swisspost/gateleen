@@ -90,7 +90,6 @@
     // Uses its own root (separate from the hookjs demo's /tests/hooktest/) so the two demos
     // don't share/contaminate the same Redis-backed collection between test runs.
     var HOOK_TEST_URL = '/playground/server/tests/hooktest-ts/';
-    var HttpMethods = GateleenHookTs.HttpMethods;
     var hookService = new GateleenHookTs.HookService();
 
     var eventId = 1,
@@ -118,10 +117,11 @@
     function install(path, fetch) {
         var id = handlerId++;
         var fullPath = HOOK_TEST_URL + path;
+        var isCollection = /\/$/.test(fullPath);
         hookService.listen({
             path: fullPath,
-            methods: [HttpMethods.PUT, HttpMethods.POST],
-            fetch: !!fetch
+            methods: ['PUT', 'POST'],
+            fetch: fetch ? (isCollection ? 'collection' : 'single') : 'none'
         }, function (payload, params) {
             var resource = /\/$/.test(fullPath) ? params.uri.split('/').pop() : '';
             var info = 'Listener ' + id + ' received:' + (resource.length > 0 ? '[' + resource + '] ' : '');
@@ -137,8 +137,8 @@
         var fullPath = HOOK_TEST_URL + path;
         hookService.listen({
             path: fullPath,
-            methods: [HttpMethods.PUT, HttpMethods.POST],
-            fetch: false,
+            methods: ['PUT', 'POST'],
+            fetch: 'none',
             filter: filter
         }, function (payload) {
             pushMessage({info: 'Listener ' + id + ' received:', text: (payload && payload.text) || ''});

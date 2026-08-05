@@ -84,7 +84,7 @@ export class HookService {
       throw err;
     }
 
-    if (def.fetch) {
+    if (def.fetch !== 'none') {
       await this.listenFetch<TPayload>(def, handler, id);
     }
 
@@ -97,7 +97,7 @@ export class HookService {
 
   private async listenFetch<TPayload>(def: HookDefinition, handler: MessageHandler<TPayload>, id: string) {
     try {
-      if (HookService.isCollectionPath(def.path)) {
+      if (def.fetch === 'collection') {
         await this.fetchCollectionAndDispatch<TPayload>(def.path, handler);
         return;
       }
@@ -112,7 +112,7 @@ export class HookService {
           payload: initial,
           uri: def.path,
           headers: [],
-          method: HttpMethods.PUT,
+          method: 'PUT',
         },
       });
     } catch (err) {
@@ -168,15 +168,6 @@ export class HookService {
   }
 
   /**
-   * A hooked path ending in "/" designates a collection (mirrors gateleen-hook-js
-   * semantics), where each contained sub-resource should trigger its own callback
-   * invocation rather than delivering the whole collection as a single payload.
-   */
-  private static isCollectionPath(path: string): boolean {
-    return /\/$/.test(path);
-  }
-
-  /**
    * Fetches the current state of a hooked collection resource (using
    * `?expand=1` to inline sub-resources) and invokes the handler once per
    * contained item, mirroring gateleen-hook-js's collection "fetch" behavior.
@@ -196,7 +187,7 @@ export class HookService {
           payload: value,
           uri: `${collectionPath}/${key}`,
           headers: [],
-          method: HttpMethods.PUT,
+          method: 'PUT',
         },
       });
     }
@@ -306,11 +297,11 @@ export class HookService {
    * @returns Unix timestamp in milliseconds when the hook is expected to expire.
    */
   private async registerRemote(registration: Registration): Promise<number> {
-    // Strip any trailing slash before building the hook URL — a path ending in
-    // "/" designates a collection hook (see isCollectionPath), but the actual
-    // server-side hook registration must not have a doubled slash before
-    // "/_hooks/...", which would break hook matching (mirrors gateleen-hook-js,
-    // which strips the trailing slash from the path before registering).
+    // Strip any trailing slash before building the hook URL — the caller may
+    // pass a path with a trailing slash, but the server-side hook registration
+    // must not have a doubled slash before "/_hooks/...", which would break
+    // hook matching (mirrors gateleen-hook-js, which strips the trailing
+    // slash from the path before registering).
     const normalizedPath = registration.definition.path.replace(/\/$/, '');
     const hookUrl = `${normalizedPath}/_hooks/listeners/http/${registration.id}`;
     const context = HookService.extractContext(normalizedPath);

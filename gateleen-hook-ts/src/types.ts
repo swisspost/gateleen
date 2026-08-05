@@ -1,11 +1,7 @@
 /**
  * HTTP methods supported for hook registration.
  */
-export enum HttpMethods {
-  PUT = 'PUT',
-  POST = 'POST',
-  DELETE = 'DELETE',
-}
+export type HttpMethods = 'PUT' | 'POST' | 'DELETE';
 
 /**
  * Defines which backend resource should trigger hook callbacks.
@@ -24,7 +20,7 @@ export interface HookDefinition {
   /**
    * If true, fetch current state of the resource on registration
    */
-  fetch: boolean;
+  fetch: 'none' | 'single' | 'collection';
 
   /**
    * Optional regular expression used by Gateleen to restrict which

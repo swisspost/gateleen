@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { HookService } from './hook-service.js';
 import { EventBusService } from './event-bus-service.js';
-import { HookDefinition, HttpMethods } from './types.js';
+import { HookDefinition } from './types.js';
 import { createOkResponse } from './test-helpers.js';
 
 describe('HookService', () => {
@@ -24,8 +24,8 @@ describe('HookService', () => {
 
   const def: HookDefinition = {
     path: '/api/test',
-    methods: [HttpMethods.PUT],
-    fetch: false,
+    methods: ['PUT'],
+    fetch: 'none',
   };
 
   async function simulateOpenEventBusConnection() {
@@ -81,8 +81,8 @@ describe('HookService', () => {
       await service.listen(
         {
           path: BASE_URL,
-          methods: [HttpMethods.PUT],
-          fetch: false,
+          methods: ['PUT'],
+          fetch: 'none',
           filter: BASE_URL + '([^/]+)/message',
         },
         vi.fn(),
@@ -107,8 +107,8 @@ describe('HookService', () => {
 
       vi.mocked(global.fetch).mockResolvedValue(createOkResponse());
 
-      await service.listen({ path: '/api/test-one', methods: [HttpMethods.PUT], fetch: false }, vi.fn());
-      await service.listen({ path: '/api/test-two', methods: [HttpMethods.PUT], fetch: false }, vi.fn());
+      await service.listen({ path: '/api/test-one', methods: ['PUT'], fetch: 'none' }, vi.fn());
+      await service.listen({ path: '/api/test-two', methods: ['PUT'], fetch: 'none' }, vi.fn());
 
       service.dispose();
 

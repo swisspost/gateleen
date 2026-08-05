@@ -46,7 +46,7 @@ export class GateleenHookService extends HookService implements OnDestroy {
 ```typescript
 
 import { Injectable, signal } from '@angular/core';
-import { HookService, HttpMethods } from 'gateleen-hook-ts';
+import { HookService } from 'gateleen-hook-ts';
 
 @Service()
 export class UserService {
@@ -55,7 +55,7 @@ export class UserService {
 
   setupHook() {
     void this.hooks.listen<UserData>(
-      { path: '/api/users', methods: [HttpMethods.PUT], fetch: true },
+      { path: '/api/users', methods: ['PUT'], fetch: 'single' },
       (user, params) => {
         this.lastUser.set(user);
       }
@@ -67,14 +67,14 @@ export class UserService {
 ### WebComponent
 
 ```typescript
-import { HookService, HttpMethods } from 'gateleen-hook-ts';
+import { HookService } from 'gateleen-hook-ts';
 
 class UserList extends HTMLElement {
   private readonly hooks = new HookService();
 
   connectedCallback() {
     void this.hooks.listen<UserData>(
-      { path: '/api/users', methods: [HttpMethods.PUT], fetch: true },
+      { path: '/api/users', methods: ['PUT'], fetch: 'single' },
       (user, params) => {
         console.log('User updated:', user);
         this.updateDisplay(user);
@@ -117,8 +117,8 @@ Registers a hook listener.
 const deregisterer = await new HookService().listen<MyData>(
   {
     path: '/api/data',
-    methods: [HttpMethods.PUT, HttpMethods.POST],
-    fetch: true
+    methods: ['PUT', 'POST'],
+    fetch: 'single'
   },
   (payload, params) => {
     console.log('Payload:', payload);
@@ -175,7 +175,7 @@ eventBusService.onClose(() => console.log('Disconnected'));
 interface HookDefinition {
   path: string;              // Resource path (e.g., '/api/users')
   methods: HttpMethods[];    // HTTP methods to trigger on
-  fetch?: boolean;           // Fetch current state on registration
+  fetch: 'none' | 'single' | 'collection'; // Fetch current state on registration ('collection' fetches and dispatches each sub-resource)
 }
 ```
 
@@ -193,11 +193,7 @@ interface CallbackParams {
 ### `HttpMethods`
 
 ```typescript
-enum HttpMethods {
-  PUT = 'PUT',
-  POST = 'POST',
-  DELETE = 'DELETE'
-}
+type HttpMethods = 'PUT' | 'POST' | 'DELETE';
 ```
 
 ## Architecture
