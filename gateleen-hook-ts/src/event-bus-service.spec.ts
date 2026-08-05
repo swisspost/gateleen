@@ -36,9 +36,7 @@ describe('EventBusService', () => {
       try {
         const service = new EventBusService();
 
-        const assertion = expect(service.waitUntilOpen(50)).rejects.toThrow(
-          /EventBus open timeout/
-        );
+        const assertion = expect(service.waitUntilOpen(50)).rejects.toThrow(/EventBus open timeout/);
         await vi.advanceTimersByTimeAsync(50);
         await assertion;
       } finally {
