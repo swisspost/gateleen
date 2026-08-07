@@ -25,7 +25,7 @@ describe('EventBusService', () => {
   describe('waitUntilOpen', () => {
     it('should resolve immediately if already open', async () => {
       const service = new EventBusService();
-      service.getEventBus().onopen?.();
+      await triggerOpen(service);
 
       const result = await service.waitUntilOpen(100);
       expect(result).toBeUndefined();
@@ -36,7 +36,7 @@ describe('EventBusService', () => {
       try {
         const service = new EventBusService();
 
-        const assertion = expect(service.waitUntilOpen(50)).rejects.toThrow("EventBus open timeout after 50ms");
+        const assertion = expect(service.waitUntilOpen(50)).rejects.toThrow('EventBus open timeout after 50ms');
         await vi.advanceTimersByTimeAsync(50);
         await assertion;
       } finally {
@@ -51,35 +51,43 @@ describe('EventBusService', () => {
       const listener = vi.fn();
       const unsubscribe = service.onOpen(listener);
 
-      service.getEventBus().onopen?.();
-
-      await Promise.resolve();
+      await triggerOpen(service);
       expect(listener).toHaveBeenCalled();
       unsubscribe();
     });
 
-    it('should unsubscribe when cleanup function is called', () => {
+    it('should unsubscribe when cleanup function is called', async () => {
       const service = new EventBusService();
       const listener = vi.fn();
       const unsubscribe = service.onOpen(listener);
 
       unsubscribe();
 
-      service.getEventBus().onopen?.();
+      await triggerOpen(service);
 
       expect(listener).not.toHaveBeenCalled();
     });
   });
 
   describe('onClose', () => {
-    it('should call listener when EventBus closes', () => {
+    it('should call listener when EventBus closes', async () => {
       const service = new EventBusService();
       const listener = vi.fn();
       service.onClose(listener);
 
-      service.getEventBus().onclose?.();
+      await triggerClose(service);
 
       expect(listener).toHaveBeenCalled();
     });
   });
 });
+
+async function triggerOpen(service: EventBusService): Promise<void> {
+  (service.getEventBus() as unknown as { triggerOpen(): void }).triggerOpen();
+  await Promise.resolve(); // flush the mock's async onopen dispatch, mirroring real SockJS timing
+}
+
+async function triggerClose(service: EventBusService): Promise<void> {
+  (service.getEventBus() as unknown as { triggerClose(): void }).triggerClose();
+  await Promise.resolve(); // flush the mock's async onclose dispatch, mirroring real SockJS timing
+}

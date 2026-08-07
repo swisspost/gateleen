@@ -10,16 +10,17 @@ describe('HookService', () => {
     global.fetch = vi.fn() as typeof fetch;
   });
 
-  function openEventBus(service: EventBusService): void {
+  async function openEventBus(service: EventBusService): Promise<void> {
     const eventBus = service.getEventBus() as {
       readyState?: number;
       state?: string;
-      onopen?: (() => void) | null;
+      triggerOpen?: () => void;
     };
 
     eventBus.readyState = 1;
     eventBus.state = 'OPEN';
-    eventBus.onopen?.();
+    eventBus.triggerOpen?.();
+    await Promise.resolve(); // mock fires onopen asynchronously (like real SockJS), so flush before continuing
   }
 
   const def: HookDefinition = {
@@ -30,7 +31,7 @@ describe('HookService', () => {
 
   async function simulateOpenEventBusConnection() {
     const eventBusService = new EventBusService();
-    openEventBus(eventBusService);
+    await openEventBus(eventBusService);
     const service = new HookService(eventBusService);
     const callback = vi.fn();
 
@@ -50,7 +51,7 @@ describe('HookService', () => {
 
     it('should accept generic type parameter', async () => {
       const eventBusService = new EventBusService();
-      openEventBus(eventBusService);
+      await openEventBus(eventBusService);
       const service = new HookService(eventBusService);
 
       interface TestData {
@@ -72,7 +73,7 @@ describe('HookService', () => {
 
     it('should include filter in the remote hook registration payload when provided', async () => {
       const eventBusService = new EventBusService();
-      openEventBus(eventBusService);
+      await openEventBus(eventBusService);
       const service = new HookService(eventBusService);
 
       vi.mocked(global.fetch).mockResolvedValue(createOkResponse());
@@ -100,7 +101,7 @@ describe('HookService', () => {
 
     it('should set the x-expire-after header and the notification queue expireAfter body field on registration', async () => {
       const eventBusService = new EventBusService();
-      openEventBus(eventBusService);
+      await openEventBus(eventBusService);
       const service = new HookService(eventBusService);
 
       vi.mocked(global.fetch).mockResolvedValue(createOkResponse());
@@ -123,7 +124,7 @@ describe('HookService', () => {
 
     it('should deliver the initial fetched state before any live events received while fetching', async () => {
       const eventBusService = new EventBusService();
-      openEventBus(eventBusService);
+      await openEventBus(eventBusService);
       const service = new HookService(eventBusService);
 
       let resolveGet!: (response: Response) => void;
@@ -175,7 +176,7 @@ describe('HookService', () => {
   describe('dispose', () => {
     it('should deregister all active hooks', async () => {
       const eventBusService = new EventBusService();
-      openEventBus(eventBusService);
+      await openEventBus(eventBusService);
       const service = new HookService(eventBusService);
 
       vi.mocked(global.fetch).mockResolvedValue(createOkResponse());
