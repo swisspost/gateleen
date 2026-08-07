@@ -41,7 +41,8 @@ cd C:\work\gateleen
 # 2) Build & start the playground (needs network the first time, for maven-shade-plugin deps).
 & $mvn "-Dmaven.repo.local=$m2" -pl gateleen-playground -am install -DskipTests
 Start-Process -FilePath java -WorkingDirectory gateleen-playground\target -ArgumentList "-jar","playground.jar" `
-  -RedirectStandardOutput "$env:TEMP\playground-out.log" -RedirectStandardError "$env:TEMP\playground-err.log" -PassThru |
+  -RedirectStandardOutput "$env:TEMP\playground-out.log" `
+  -RedirectStandardError "$env:TEMP\playground-err.log" -PassThru |
   ForEach-Object { $_.Id } | Out-File "$env:TEMP\playground.pid"
 # -> http://localhost:7012/playground returning 404 confirms it's up (storage is empty until step 3).
 
