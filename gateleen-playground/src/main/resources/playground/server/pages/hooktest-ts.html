@@ -84,13 +84,12 @@
 <!-- Placed after the markup above so getElementById('hookjs messages') below finds the
      <ul> element; the browser parses/creates DOM nodes top-to-bottom as it encounters them. -->
 <script>
-    // The socket must be opened against the same application context as the hooked resource.
-    window.GATELEEN_SOCKET_PATH = '/playground/server/event/v1/sock';
-
     // Uses its own root (separate from the hookjs demo's /tests/hooktest/) so the two demos
     // don't share/contaminate the same Redis-backed collection between test runs.
     var HOOK_TEST_URL = '/playground/server/tests/hooktest-ts/';
-    var hookService = new GateleenHookTs.HookService();
+    // The socket must be opened against the same application context as the hooked resource.
+    var eventBusService = new GateleenHookTs.EventBusService('/playground/server/event/v1/sock');
+    var hookService = new GateleenHookTs.HookService(eventBusService);
 
     var eventId = 1,
         handlerId = 1,

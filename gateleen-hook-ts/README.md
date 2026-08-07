@@ -322,13 +322,13 @@ Benefits:
 
 ### Socket Path
 
-By default, the EventBus connects to `/server/event/v1/sock`. To override:
+By default, the EventBus connects to `/server/event/v1/sock`. To override, pass the path
+to the `EventBusService` constructor and inject it into `HookService`:
 
 ```typescript
-globalThis.GATELEEN_SOCKET_PATH = '/custom/event/socket';
+const eventBusService = new EventBusService('/custom/event/socket');
+const hookService = new HookService(eventBusService);
 ```
-
-Create the service before using it.
 
 ## Error Handling
 
@@ -346,15 +346,7 @@ try {
 
 ### Connection Timeout
 
-If EventBus takes longer than timeout to open, promise rejects:
-
-```typescript
-try {
-  await eventBusService.waitUntilOpen(3000); // 3 second timeout
-} catch (err) {
-  console.error('EventBus connection timeout');
-}
-```
+If EventBus takes longer than timeout to open, promise rejects.
 
 ## Performance
 
