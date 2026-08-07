@@ -153,7 +153,7 @@ export class HookService {
         return;
       }
 
-      const initial = await this.fetch<TPayload>(def.path);
+      const initial = await this.fetchJson<TPayload>(def.path);
       if (initial === null) {
         return; //404
       }
@@ -229,7 +229,7 @@ export class HookService {
   ): Promise<void> {
     const collectionPath = path.replace(/\/$/, '');
     const collectionName = collectionPath.split('/').pop() ?? '';
-    const data = await this.fetch<Record<string, Record<string, TPayload>>>(`${collectionPath}/?expand=1`);
+    const data = await this.fetchJson<Record<string, Record<string, TPayload>>>(`${collectionPath}/?expand=1`);
     if (data === null) {
       return; //404
     }
@@ -470,7 +470,7 @@ export class HookService {
     }
   }
 
-  private async fetch<T>(url: string): Promise<T | null> {
+  private async fetchJson<T>(url: string): Promise<T | null> {
     const response = await fetch(url);
     if (response.status === 404) {
       return null;
