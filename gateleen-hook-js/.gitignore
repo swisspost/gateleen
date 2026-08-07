@@ -1,4 +1,4 @@
 node/
 node_modules/
-# Ignore package-lock.json to avoid corporate artefactory issues.
+# Ignore package-lock.json to avoid corporate artifactory issues.
 package-lock.json
