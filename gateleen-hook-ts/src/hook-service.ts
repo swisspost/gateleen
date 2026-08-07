@@ -507,7 +507,6 @@ interface ManagedRegistration {
 }
 
 /**
-/**
  * Buffers messages until `drain()` is called, then releases them for
  * caller-controlled, in-order delivery. Used to hold live EventBus messages
  * that arrive while a hook's initial "fetch" state is still being retrieved,
