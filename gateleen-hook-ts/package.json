@@ -29,7 +29,7 @@
     "format:fix": "prettier --write \"*.json\" \"src/**/*.{ts,html,css,scss,json}\""
   },
   "dependencies": {
-    "vertx3-eventbus-client": "^3.9.4"
+    "vertx3-eventbus-client": "3.9.4"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
