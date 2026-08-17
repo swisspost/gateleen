@@ -19,6 +19,12 @@
 
     <properties>
         <npmrcFile>.npmrc</npmrcFile>
+        <!-- Points to the npm userconfig file passed to `npm install`. Defaults to the
+             tracked ${npmrcFile} in this module, but can be overridden (e.g. in your
+             ~/.m2/settings.xml `property-overrides` profile) with an absolute path to a
+             local, untracked npmrc file that adds an internal registry mirror, without
+             having to modify any file that is checked into this repository. -->
+        <npmUserConfig>${basedir}/${npmrcFile}</npmUserConfig>
     </properties>
     <build>
         <plugins>
@@ -97,7 +103,7 @@
                             <goal>npm</goal>
                         </goals>
                         <configuration>
-                            <arguments>--userconfig ${basedir}/${npmrcFile} install</arguments>
+                            <arguments>--userconfig ${npmUserConfig} install</arguments>
                         </configuration>
                     </execution>
                     <execution>
