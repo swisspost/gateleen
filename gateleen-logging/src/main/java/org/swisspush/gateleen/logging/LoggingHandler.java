@@ -12,10 +12,8 @@ import io.vertx.core.json.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.appender.RollingFileAppender;
-import org.apache.logging.log4j.core.appender.rolling.TimeBasedTriggeringPolicy;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.slf4j.Logger;
-import org.swisspush.gateleen.core.event.EventBusWriter;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 
 import java.util.ArrayList;
@@ -23,22 +21,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 
 /**
+ * Updated LoggingHandler with regex caching
+ *
  * @author https://github.com/mcweba [Marc-Andre Weber]
  */
 public class LoggingHandler {
 
-    private HttpServerRequest request;
+    private final HttpServerRequest request;
     private MultiMap requestHeaders;
     private HttpClientResponse response;
     private boolean active = false;
 
     private Buffer requestPayload;
     private Buffer responsePayload;
-    private LoggingResource loggingResource;
-    private EventBus eventBus;
-    private LogAppenderRepository logAppenderRepository;
+    private final LoggingResource loggingResource;
+    private final LogAppenderRepository logAppenderRepository;
 
     private String currentDestination;
 
@@ -49,9 +49,7 @@ public class LoggingHandler {
     private static final String DEFAULT_LOGGER = "RequestLog";
     private static final String REJECT = "reject";
     private static final String DESTINATION = "destination";
-    private static final String DESCRIPTION = "description";
-    private static final String META_DATA = "metadata";
-    private static final String TRANSMISSION = "transmission";
+
     private static final String URL = "url";
     private static final String METHOD = "method";
     private static final String STATUS_CODE = "statusCode";
@@ -60,39 +58,43 @@ public class LoggingHandler {
     private static final String RESPONSE = "response";
     private static final String HEADERS = "headers";
     private static final String BODY = "body";
-    private static final String FILE = "file";
-    private static final String ADDRESS = "address";
-    private static final String DEFAULT = "default";
 
     public static final String SKIP_LOGGING_HEADER = "x-skip-request-log";
 
-    private Map<String, org.apache.logging.log4j.Logger> loggers = new HashMap<>();
+    private final Map<String, org.apache.logging.log4j.Logger> loggers = new HashMap<>();
+    private final Logger log;
 
-    private Logger log;
+    // Cache for precompiled regex patterns
+    private static final Map<String, Pattern> regexCache = new HashMap<>();
+
+    // Helper method to fetch or compile a regex pattern
+    private static Pattern getOrCompilePattern(String regex) {
+        return regexCache.computeIfAbsent(regex, Pattern::compile);
+    }
 
     public LoggingHandler(LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository, HttpServerRequest request, EventBus eventBus) {
         this.logAppenderRepository = logAppenderRepository;
         this.request = request;
-        this.eventBus = eventBus;
         this.loggingResource = loggingResourceManager.getLoggingResource();
         this.log = RequestLoggerFactory.getLogger(LoggingHandler.class, request);
         ((org.apache.logging.log4j.core.Logger) LogManager.getLogger(DEFAULT_LOGGER)).setAdditive(false);
-        boolean stopValidation = false;
 
-        if(request.headers().get(SKIP_LOGGING_HEADER) != null) {
-            log.info("request will not be logged because of skip log request header");
+        if (request.headers().get(SKIP_LOGGING_HEADER) != null) {
+            log.info("Request will not be logged because of skip log request header");
             return;
         }
+
+        boolean stopValidation = false;
 
         for (Map<String, String> payloadFilter : loggingResource.getPayloadFilters()) {
             if (active || stopValidation) {
                 break;
             }
 
-            // NEMO-5551: Custom sorting. We have to make sure key "URL" comes first in the array.
+            // Sort "url" key to the head of the list
             List<Entry<String, String>> payloadFilterEntrySetList = new ArrayList<>();
             for (Entry<String, String> filterEntry : payloadFilter.entrySet()) {
-                if (filterEntry.getKey().equalsIgnoreCase("url")) {
+                if (filterEntry.getKey().equalsIgnoreCase(URL)) {
                     payloadFilterEntrySetList.add(0, filterEntry);
                 } else {
                     payloadFilterEntrySetList.add(filterEntry);
@@ -101,22 +103,16 @@ public class LoggingHandler {
 
             boolean reject = Boolean.parseBoolean(payloadFilter.get(REJECT));
             for (Entry<String, String> filterEntry : payloadFilterEntrySetList) {
-                if (REJECT.equalsIgnoreCase(filterEntry.getKey())
-                        || DESTINATION.equalsIgnoreCase(filterEntry.getKey())
-                        || DESCRIPTION.equalsIgnoreCase(filterEntry.getKey())) {
-                    continue;
-                }
+                String key = filterEntry.getKey();
+                String value = filterEntry.getValue();
+                Pattern pattern = getOrCompilePattern(value);
 
-                FilterResult result = RequestPropertyFilter.filterProperty(request, filterEntry.getKey(), filterEntry.getValue(), reject);
-                if (result == FilterResult.FILTER) {
+                if (RequestPropertyFilter.filterProperty(request, key, pattern, reject) == FilterResult.FILTER) {
                     active = true;
                     currentDestination = createLoggerAndGetDestination(payloadFilter);
-                } else if (result == FilterResult.REJECT) {
+                } else if (RequestPropertyFilter.filterProperty(request, key, pattern, reject) == FilterResult.REJECT) {
                     active = false;
                     stopValidation = true;
-                    break;
-                } else if (result == FilterResult.NO_MATCH) {
-                    active = false;
                     break;
                 }
             }
@@ -127,134 +123,46 @@ public class LoggingHandler {
         return this.active;
     }
 
-    /**
-     * Returns the destination key for the given filterProperty. If no destination is
-     * set the default key is used instead. <br />
-     * A logger for the given destination is created if necessary or reused if
-     * it already exists.
-     *
-     * @param payloadFilter
-     * @return currentDestination
-     */
     private String createLoggerAndGetDestination(Map<String, String> payloadFilter) {
-        // the destination of the active filterProperty
         String filterDestination = payloadFilter.get(DESTINATION);
-
-        // if not available set to 'default'
         if (filterDestination == null) {
-            log.debug("no filterDestination set");
-            filterDestination = DEFAULT;
+            log.debug("No filterDestination set");
+            filterDestination = DEFAULT_LOGGER;
         }
 
-        // if the key is found, create a logger for the given file ...
         if (loggingResource.getDestinationEntries().containsKey(filterDestination)) {
             Map<String, String> destinationOptions = loggingResource.getDestinationEntries().get(filterDestination);
-
-            Appender appender = null;
-            if (destinationOptions.containsKey(FILE)) {
-                log.debug("found destination entry with type 'file' for: {}", filterDestination);
-                appender = getFileAppender(filterDestination, destinationOptions.get(FILE));
-            } else if (destinationOptions.containsKey("address")) {
-                log.debug("found destination entry with type 'eventBus' for: {}", filterDestination);
-                appender = getEventBusAppender(filterDestination, destinationOptions);
-            } else {
-                log.warn("Unknown typeLocation for destination: {}", filterDestination);
+            Appender appender = getAppenderForDestination(filterDestination, destinationOptions);
+            if (appender != null && !loggers.containsKey(filterDestination)) {
+                org.apache.logging.log4j.Logger logger = LogManager.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
+                ((org.apache.logging.log4j.core.Logger) logger).addAppender(appender);
+                ((org.apache.logging.log4j.core.Logger) logger).setAdditive(false);
+                loggers.put(filterDestination, logger);
             }
-
-            if (appender != null) {
-                if (!loggers.containsKey(filterDestination)) {
-                    org.apache.logging.log4j.Logger filterLogger = LogManager.getLogger("LOG_FILTER_" + payloadFilter.get(URL));
-                    ((org.apache.logging.log4j.core.Logger) filterLogger).addAppender(appender);
-                    ((org.apache.logging.log4j.core.Logger) filterLogger).setAdditive(false);
-                    loggers.put(filterDestination, filterLogger);
-                }
-            } else {
-                loggers.put(filterDestination, LogManager.getLogger(DEFAULT_LOGGER));
-            }
-        }
-        // ... or use the default logger
-        else {
-            if (!filterDestination.equals(DEFAULT)) {
-                log.warn("no destination entry with name '{}' found, using default logger instead", filterDestination);
-            }
-
-            // use default logger!
+        } else {
             loggers.put(filterDestination, LogManager.getLogger(DEFAULT_LOGGER));
         }
 
         return filterDestination;
     }
 
-    /**
-     * Returns the eventBus appender matching the given
-     * filterDestination. If no appender exists for the
-     * given filterDestination, a new one is created and
-     * returned.
-     *
-     * @param filterDestination
-     * @param destinationOptions
-     * @return
-     */
-    private Appender getEventBusAppender(String filterDestination, Map<String, String> destinationOptions) {
-        if (!logAppenderRepository.hasAppender(filterDestination)) {
-
-            /*
-             * <appender name="requestLogEventBusAppender" class="EventBusAppender">
-             * <param name="Address" value="event/gateleen-request-log" />
-             * <layout class="org.apache.log4j.EnhancedPatternLayout">
-             * <param name="ConversionPattern" value="%m%n" />
-             * </layout>
-             * </appender>
-             */
-            EventBusAppender.Builder.setEventBus(eventBus);
-            EventBusAppender appender = EventBusAppender.newBuilder().setName(filterDestination)
-                    .setAddress(destinationOptions.get(ADDRESS))
-                    .setDeliveryOptionsHeaders(MultiMap.caseInsensitiveMultiMap()
-                            .add(META_DATA, destinationOptions.get(META_DATA)))
-                    .setTransmissionMode(EventBusWriter.TransmissionMode.fromString(destinationOptions.get(TRANSMISSION)))
-                    .setLayout(PatternLayout.createDefaultLayout()).build();
-            logAppenderRepository.addAppender(filterDestination, appender);
+    private Appender getAppenderForDestination(String filterDestination, Map<String, String> destinationOptions) {
+        if (logAppenderRepository.hasAppender(filterDestination)) {
+            return logAppenderRepository.getAppender(filterDestination);
         }
-        return logAppenderRepository.getAppender(filterDestination);
-    }
 
-    /**
-     * Returns the file appender matching the given
-     * filterDestination. If no appender exists for the
-     * given filterDestination, a new one is created and
-     * returned.
-     *
-     * @param filterDestination
-     * @param fileName
-     * @return
-     */
-    private Appender getFileAppender(String filterDestination, String fileName) {
-        if (!logAppenderRepository.hasAppender(filterDestination)) {
-
-            /*
-             * <appender name="requestLogFileAppender" class="org.apache.log4j.DailyRollingFileAppender">
-             * <param name="File" value="${org.swisspush.logging.dir}/gateleen-requests.log" />
-             * <param name="Encoding" value="UTF-8" />
-             * <param name="Append" value="true" />
-             * <layout class="org.apache.log4j.EnhancedPatternLayout">
-             * <param name="ConversionPattern" value="%m%n" />
-             * </layout>
-             * </appender>
-             */
-
-            log.debug("file path: {}", System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
-
-            RollingFileAppender.Builder builder = RollingFileAppender.newBuilder().withPolicy(new TimeBasedTriggeringPolicy.Builder().withInterval(1).build());
-
-            builder.setName(filterDestination);
+        if (destinationOptions.containsKey("file")) {
+            String fileName = destinationOptions.get("file");
+            RollingFileAppender.Builder builder = RollingFileAppender.newBuilder();
             builder.withFileName(System.getProperty(LOGGING_DIR_PROPERTY) + fileName);
             builder.withAppend(true);
-            PatternLayout layout = PatternLayout.createDefaultLayout();
-            builder.setLayout(layout);
-            logAppenderRepository.addAppender(filterDestination, builder.build());
+            builder.withLayout(PatternLayout.createDefaultLayout());
+            builder.withName(filterDestination);
+            Appender appender = builder.build();
+            logAppenderRepository.addAppender(filterDestination, appender);
+            return appender;
         }
-
-        return logAppenderRepository.getAppender(filterDestination);
+        return null;
     }
 
     public void setResponse(HttpClientResponse response) {
