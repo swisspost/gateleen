@@ -182,14 +182,14 @@ To change the expiration time of a listener, just pass a _X-Expire-After_ header
  
 #### Add a listener
 ```json
-PUT http://myserver:7012/gateleen/everything/_hooks/listeners/http/myexample
+PUT http://myserver:7012/gateleen/from/services/_hooks/listeners/http/myexample
 {
     "methods": [
         "PUT"
     ],
     "destination": "/gateleen/to/services",
-    "forcedTargetPath": "/my/data",
-    "filter": "/gateleen/from/services/[^/]+/my/data",
+    "forcedTargetPath": "/orders/all/data",
+    "filter": "/gateleen/from/services/orders/[^/]+/data",
     "headers": [
         { "header":"X-Expire-After", "value":"3600", "mode":"complete"}
     ],
@@ -197,21 +197,40 @@ PUT http://myserver:7012/gateleen/everything/_hooks/listeners/http/myexample
 }
 ```
 
-With `forcedTargetPath`, a matching request such as
-`/gateleen/from/services/orders/my/data/item-123` matches the listener filter.
-Without `forcedTargetPath`, the complete suffix
-`/orders/my/data` is forwarded, resulting in
-`/gateleen/to/services/orders/my/data`. With
-`forcedTargetPath: "/my/data"`, the suffix is replaced and the forwarded path
-becomes `/gateleen/to/services/my/data`. The value is appended to
-`destination`, so it should be a destination-relative path, not a complete
-URL.
+The listener is registered on `/gateleen/from/services`, so normally the path
+suffix following that segment is appended to `destination`. Given these three
+matching requests:
+
+```
+/gateleen/from/services/orders/123/data
+/gateleen/from/services/orders/456/data
+/gateleen/from/services/orders/789/data
+```
+
+Without `forcedTargetPath` each suffix is kept, so every request is forwarded to
+a different target:
+
+```
+/gateleen/to/services/orders/123/data
+/gateleen/to/services/orders/456/data
+/gateleen/to/services/orders/789/data
+```
+
+With `forcedTargetPath: "/orders/all/data"` the derived suffix is replaced, so all
+three requests are forwarded to the very same target:
+
+```
+/gateleen/to/services/orders/all/data
+```
+
+The value is appended to `destination`, so it should be a destination-relative
+path, not a complete URL.
 
 ![forcedTargetPath behavior](docs/forcedTargetPath.svg)
 
 #### Remove a listener
 ```json
-DELETE http://myserver:7012/gateleen/everything/_hooks/listeners/http/myexample
+DELETE http://myserver:7012/gateleen/from/services/_hooks/listeners/http/myexample
 ```
 
 #### QueueingStrategy
