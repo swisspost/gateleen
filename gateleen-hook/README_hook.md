@@ -173,6 +173,7 @@ A request to `http://myserver:7012/gateleen/proxy/api/sub/path` will be forwarde
 | filter            | no  | This property allows you to refine the requests with a regular expression, which you want to receive for the given destination. |
 | type              | no  | Default: before <br> This property allows you to set, if the request to a listener will be sent before or after the original request was performed.<br /> <br /> The valid settings are: <br /> after => request will be forwarded to listener after the original request was performed <br /><br />before => (default) request will be forwarded to a listener before the original request was performed <br /> <br /> This can be useful if you want to use your listeners with the delegate feature and expect a request to be already executed as soon as you execute a delegate. |  
 | fullUrl           | no  | Default: false <br> <br /> Defines whether the hook forwards using the full initial url or only the appendix <br/><br/> Example: <br/><br/> hooked url = http://a/b/c <br/> request.uri() = http://a/b/c/d/e.x <br/> url appendix = /d/e.x |
+| forcedTargetPath   | no  | Listener only. Overrides the path derived from the incoming request when forwarding to the listener. The value is appended to `destination`, takes precedence over `fullUrl` and the normal URL suffix, and should be a destination-relative path. |
 | queueingStrategy  | no  | Default: DefaultQueueingStrategy <br> <br /> Configures the 'queueing' behaviour of the HookHandler. See chapter _QueueingStrategy_ for detailed information. |
                                                  
 > <font color="orange"><b>Attention:</b> </font>A listener has a default expiration time of **30 seconds**. After this time the listener will expire and be removed from the storage, as well as the HookHandler.<br />
@@ -186,14 +187,27 @@ PUT http://myserver:7012/gateleen/everything/_hooks/listeners/http/myexample
     "methods": [
         "PUT"
     ],
-    "destination": "/gateleen/example/thePosition",
-    "filter": "/gateleen/everything/.*/position.*",
+    "destination": "/gateleen/to/services",
+    "forcedTargetPath": "/my/data",
+    "filter": "/gateleen/from/services/[^/]+/my/data",
     "headers": [
         { "header":"X-Expire-After", "value":"3600", "mode":"complete"}
     ],
     "headersFilter": "x-foo: (A|B)"
 }
 ```
+
+With `forcedTargetPath`, a matching request such as
+`/gateleen/from/services/orders/my/data/item-123` matches the listener filter.
+Without `forcedTargetPath`, the complete suffix
+`/orders/my/data` is forwarded, resulting in
+`/gateleen/to/services/orders/my/data`. With
+`forcedTargetPath: "/my/data"`, the suffix is replaced and the forwarded path
+becomes `/gateleen/to/services/my/data`. The value is appended to
+`destination`, so it should be a destination-relative path, not a complete
+URL.
+
+![forcedTargetPath behavior](docs/forcedTargetPath.svg)
 
 #### Remove a listener
 ```json

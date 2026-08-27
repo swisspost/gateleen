@@ -113,6 +113,7 @@ public class HookHandler implements LoggableResource {
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
+    public static final String FORCED_TARGET_PATH = "forcedTargetPath";
     public static final String DISCARD_PAYLOAD = "discardPayload";
     public static final String HOOK_TRIGGER_TYPE = "type";
     public static final String LISTABLE = "listable";
@@ -877,6 +878,10 @@ public class HookHandler implements LoggableResource {
                 path = request.uri().replace(listener.getMonitoredUrl(), "");
             }
 
+            if (StringUtils.isNotEmptyTrimmed(listener.getHook().getForcedTargetPath())) {
+                path = listener.getHook().getForcedTargetPath();
+            }
+
             String targetUri;
 
             // internal
@@ -1513,6 +1518,7 @@ public class HookHandler implements LoggableResource {
         }
 
         hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
+        hook.setForcedTargetPath(jsonHook.getString(FORCED_TARGET_PATH));
         hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(jsonHook));
 
         // for internal use we don't need a forwarder

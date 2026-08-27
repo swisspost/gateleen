@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620" role="img" aria-labelledby="title desc">
+  <title id="title">How forceTargetPath works</title>
+  <desc id="desc">The incoming request path suffix is replaced by forceTargetPath before the listener request is forwarded.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,3 L0,6 Z" fill="#2563eb"/>
+    </marker>
+    <style>
+      .title { font: 700 28px Arial, sans-serif; fill: #172033; }
+      .heading { font: 700 18px Arial, sans-serif; fill: #172033; }
+      .text { font: 16px Arial, sans-serif; fill: #334155; }
+      .code { font: 16px Consolas, monospace; fill: #0f172a; }
+      .small { font: 14px Arial, sans-serif; fill: #475569; }
+      .box { fill: #f8fafc; stroke: #94a3b8; stroke-width: 2; rx: 12; }
+      .override { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 12; }
+      .arrow { stroke: #2563eb; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #64748b; stroke-width: 2; stroke-dasharray: 8 7; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1100" height="620" fill="#ffffff"/>
+  <text x="550" y="48" text-anchor="middle" class="title">forceTargetPath overrides the forwarded listener path</text>
+
+  <rect x="55" y="95" width="990" height="125" class="box"/>
+  <text x="80" y="130" class="heading">1. Incoming request</text>
+  <text x="80" y="166" class="code">/gateleen/from/services/orders/my/data</text>
+  <text x="80" y="197" class="small">Listener filter: /gateleen/from/services/[^/]+/my/data</text>
+
+  <path d="M550 220 L550 270" class="arrow"/>
+  <text x="568" y="251" class="small">normally derives suffix</text>
+
+  <rect x="55" y="270" width="465" height="145" class="box"/>
+  <text x="80" y="306" class="heading">Without forceTargetPath</text>
+  <text x="80" y="345" class="text">Destination:</text>
+  <text x="80" y="375" class="code">/gateleen/to/services</text>
+  <text x="80" y="400" class="code">+ /orders/my/data</text>
+
+  <rect x="580" y="270" width="465" height="145" class="override"/>
+  <text x="605" y="306" class="heading">With forceTargetPath</text>
+  <text x="605" y="345" class="text">Configuration:</text>
+  <text x="605" y="375" class="code">forceTargetPath:</text>
+  <text x="605" y="400" class="code">/my/data</text>
+
+  <path d="M288 415 L288 480" class="dash"/>
+  <path d="M813 415 L813 480" class="arrow"/>
+
+  <rect x="55" y="480" width="465" height="90" class="box"/>
+  <text x="80" y="515" class="heading">Forwarded listener request</text>
+  <text x="80" y="548" class="code">/gateleen/to/services/orders/my/data</text>
+
+  <rect x="580" y="480" width="465" height="90" class="override"/>
+  <text x="605" y="515" class="heading">Forwarded listener request</text>
+  <text x="605" y="548" class="code">/gateleen/to/services/my/data</text>
+</svg>
