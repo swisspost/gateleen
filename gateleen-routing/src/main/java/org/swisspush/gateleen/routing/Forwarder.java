@@ -662,13 +662,17 @@ public class Forwarder extends AbstractForwarder {
         if (ctx.profileHeaderMap != null && !ctx.profileHeaderMap.isEmpty()) {
             HttpHeaderUtil.mergeHeaders(ctx.dnRsp.headers(), MultiMap.caseInsensitiveMultiMap().addAll(ctx.profileHeaderMap), ctx.targetUri);
         }
-        // if we receive a chunked transfer then we also use chunked
-        // otherwise, upstream must have sent a Content-Length - or no body at all (e.g. for "304 not modified" responses)
-        if (ctx.dnRsp.headers().contains(HttpHeaders.TRANSFER_ENCODING, "chunked", true)) {
-            ctx.dnRsp.setChunked(true);
-        }
+        // Do not forward transfer framing. Enable chunked encoding only if the upstream
+        // response actually yields payload bytes; otherwise Vert.x would emit an empty
+        // chunked response.
+        boolean upstreamResponseIsChunked = ctx.dnRsp.headers()
+                .contains(HttpHeaders.TRANSFER_ENCODING, "chunked", true);
+        ctx.dnRsp.headers().remove(HttpHeaders.TRANSFER_ENCODING);
 
-        final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(ctx.dnRsp, ctx.loggingHandler, false);
+        final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(
+                new ConditionalChunkedResponseWriteStream(ctx.dnRsp, upstreamResponseIsChunked),
+                ctx.loggingHandler,
+                false);
         final Pump pump = Pump.pump(ctx.upRes, loggingWriteStream);
         try {
             ctx.upRes.endHandler(nothing -> onUpstreamResponseEnd(nothing, ctx));
@@ -994,4 +998,3 @@ public class Forwarder extends AbstractForwarder {
     }
 
 }
-
