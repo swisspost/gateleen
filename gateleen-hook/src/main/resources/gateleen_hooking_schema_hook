@@ -68,6 +68,11 @@
 		"fullUrl": {
 			"type": "boolean"
 		},
+		"forcedTargetPath": {
+			"description": "Only used for listener hooks. Overrides the request path used when forwarding the listener request.",
+			"type": "string",
+			"pattern": "^/[^?#]*$"
+		},
 		"queueingStrategy": {
 			"type": "object",
 			"properties": {

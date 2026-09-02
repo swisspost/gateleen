@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700" role="img" aria-labelledby="title desc">
+  <title id="title">How forcedTargetPath works</title>
+  <desc id="desc">The incoming request path suffix is replaced by forcedTargetPath before the listener request is forwarded, so several requests collapse onto the same target.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,3 L0,6 Z" fill="#2563eb"/>
+    </marker>
+    <style>
+      .title { font: 700 28px Arial, sans-serif; fill: #172033; }
+      .heading { font: 700 18px Arial, sans-serif; fill: #172033; }
+      .text { font: 16px Arial, sans-serif; fill: #334155; }
+      .code { font: 16px Consolas, monospace; fill: #0f172a; }
+      .small { font: 14px Arial, sans-serif; fill: #475569; }
+      .box { fill: #f8fafc; stroke: #94a3b8; stroke-width: 2; rx: 12; }
+      .override { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 12; }
+      .arrow { stroke: #2563eb; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #64748b; stroke-width: 2; stroke-dasharray: 8 7; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1100" height="700" fill="#ffffff"/>
+  <text x="550" y="48" text-anchor="middle" class="title">forcedTargetPath overrides the forwarded listener path</text>
+
+  <rect x="55" y="95" width="990" height="175" class="box"/>
+  <text x="80" y="130" class="heading">1. Incoming requests</text>
+  <text x="80" y="163" class="code">/gateleen/from/services/orders/123/data</text>
+  <text x="80" y="187" class="code">/gateleen/from/services/orders/456/data</text>
+  <text x="80" y="211" class="code">/gateleen/from/services/orders/789/data</text>
+  <text x="80" y="242" class="small">Listener filter: /gateleen/from/services/orders/[^/]+/data</text>
+
+  <path d="M550 270 L550 320" class="arrow"/>
+  <text x="568" y="301" class="small">normally derives suffix</text>
+
+  <rect x="55" y="320" width="465" height="145" class="box"/>
+  <text x="80" y="356" class="heading">Without forcedTargetPath</text>
+  <text x="80" y="395" class="text">Destination:</text>
+  <text x="80" y="425" class="code">/gateleen/to/services</text>
+  <text x="80" y="450" class="code">+ /orders/&lt;id&gt;/data</text>
+
+  <rect x="580" y="320" width="465" height="145" class="override"/>
+  <text x="605" y="356" class="heading">With forcedTargetPath</text>
+  <text x="605" y="395" class="text">Configuration:</text>
+  <text x="605" y="425" class="code">forcedTargetPath:</text>
+  <text x="605" y="450" class="code">/orders/all/data</text>
+
+  <path d="M288 465 L288 530" class="dash"/>
+  <path d="M813 465 L813 530" class="arrow"/>
+
+  <rect x="55" y="530" width="465" height="140" class="box"/>
+  <text x="80" y="565" class="heading">Three different targets</text>
+  <text x="80" y="598" class="code">/gateleen/to/services/orders/123/data</text>
+  <text x="80" y="622" class="code">/gateleen/to/services/orders/456/data</text>
+  <text x="80" y="646" class="code">/gateleen/to/services/orders/789/data</text>
+
+  <rect x="580" y="530" width="465" height="140" class="override"/>
+  <text x="605" y="565" class="heading">One single target</text>
+  <text x="605" y="598" class="code">/gateleen/to/services/orders/all/data</text>
+  <text x="605" y="640" class="small">all three requests collapse onto the same path</text>
+</svg>
