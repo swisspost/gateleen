@@ -28,6 +28,7 @@ import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -139,15 +140,19 @@ public class ForwarderChunkedResponseTest {
 
     private int startBackend(TestContext ctx, Handler<HttpServerResponse> responder) {
         Async backendReady = ctx.async();
-        int[] port = new int[1];
+        // AtomicInteger (rather than a plain int[]) makes the cross-thread handoff explicit:
+        // the value is written on the event-loop thread inside the listen() callback and read
+        // on the test thread only after backendReady.awaitSuccess() below returns, i.e. only
+        // after backendReady.complete() - and therefore the write - has already happened.
+        AtomicInteger port = new AtomicInteger(-1);
         backend = vertx.createHttpServer();
         backend.requestHandler(req -> responder.handle(req.response()));
         backend.listen(0, ctx.asyncAssertSuccess(server -> {
-            port[0] = server.actualPort();
+            port.set(server.actualPort());
             backendReady.complete();
         }));
         backendReady.awaitSuccess(5000);
-        return port[0];
+        return port.get();
     }
 
     private Forwarder forwarderFor(int port) {

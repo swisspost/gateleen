@@ -558,7 +558,7 @@ public class Forwarder extends AbstractForwarder {
             // But still it's allowed - so they 'could' have one. So using http-method to decide "chunked or not" is also not a sustainable solution.
             //
             // --> we need to wrap the client-Request to catch up the first (body)-buffer and "setChucked(true)" in advance and just-in-time.
-            AutomaticChunkedTransfer cReqWrapped = new AutomaticChunkedTransfer(vertx, ctx.upReq, "findme_oi8hju30895jh3itj");
+            AutomaticChunkedRequestTransfer cReqWrapped = new AutomaticChunkedRequestTransfer(vertx, ctx.upReq, "findme_oi8hju30895jh3itj");
 
             ctx.dnReq.exceptionHandler(t -> {
                 ctx.log.info("Exception during forwarding - closing (forwarding) client connection", t);
@@ -658,19 +658,19 @@ public class Forwarder extends AbstractForwarder {
         // Add received headers to original request but remove headers that should not get forwarded.
         MultiMap headersToForward = ctx.upRes.headers();
         headersToForward = removeNonForwardHeaders(headersToForward);
+        // Do not forward transfer framing. Enable chunked encoding only if the upstream
+        // response actually yields payload bytes; otherwise Vert.x would emit an empty
+        // chunked response.
+        boolean upstreamResponseIsChunked = headersToForward.contains(HttpHeaders.TRANSFER_ENCODING, "chunked", true);
         HttpHeaderUtil.mergeHeaders(ctx.dnRsp.headers(), headersToForward, ctx.targetUri);
         if (ctx.profileHeaderMap != null && !ctx.profileHeaderMap.isEmpty()) {
             HttpHeaderUtil.mergeHeaders(ctx.dnRsp.headers(), MultiMap.caseInsensitiveMultiMap().addAll(ctx.profileHeaderMap), ctx.targetUri);
         }
-        // Do not forward transfer framing. Enable chunked encoding only if the upstream
-        // response actually yields payload bytes; otherwise Vert.x would emit an empty
-        // chunked response.
-        boolean upstreamResponseIsChunked = ctx.dnRsp.headers()
-                .contains(HttpHeaders.TRANSFER_ENCODING, "chunked", true);
+        // remove transfer-encoding from downstream response headers if existed, because we will handle it ourselves (see LoggingWriteStream)
         ctx.dnRsp.headers().remove(HttpHeaders.TRANSFER_ENCODING);
 
         final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(
-                new ConditionalChunkedResponseWriteStream(ctx.dnRsp, upstreamResponseIsChunked),
+                new AutomaticChunkedResponseTransfer(ctx.dnRsp, upstreamResponseIsChunked, "findme_ohv8oh3q9ohj3q"),
                 ctx.loggingHandler,
                 false);
         final Pump pump = Pump.pump(ctx.upRes, loggingWriteStream);

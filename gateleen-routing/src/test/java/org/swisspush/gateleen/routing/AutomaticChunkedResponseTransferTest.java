@@ -11,13 +11,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ConditionalChunkedResponseWriteStreamTest {
+public class AutomaticChunkedResponseTransferTest {
 
     @Test
     public void enablesChunkedTransferOnlyForNonEmptyPayload() {
         HttpServerResponse response = mock(HttpServerResponse.class);
         when(response.write(any(Buffer.class))).thenReturn(Future.succeededFuture());
-        ConditionalChunkedResponseWriteStream stream = new ConditionalChunkedResponseWriteStream(response, true);
+        AutomaticChunkedResponseTransfer stream = new AutomaticChunkedResponseTransfer(response, true, "test-dbg-hint-1");
 
         stream.write(Buffer.buffer());
 
@@ -32,7 +32,7 @@ public class ConditionalChunkedResponseWriteStreamTest {
     public void doesNotEnableChunkedTransferForNonChunkedResponse() {
         HttpServerResponse response = mock(HttpServerResponse.class);
         when(response.write(any(Buffer.class))).thenReturn(Future.succeededFuture());
-        ConditionalChunkedResponseWriteStream stream = new ConditionalChunkedResponseWriteStream(response, false);
+        AutomaticChunkedResponseTransfer stream = new AutomaticChunkedResponseTransfer(response, false, "test-dbg-hint-2");
 
         stream.write(Buffer.buffer("response body"));
 
