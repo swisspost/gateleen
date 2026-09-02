@@ -172,6 +172,43 @@ public class HookHandlerTest {
     }
 
     @Test
+    public void testListenerEnqueueWithForcedTargetPath(TestContext context) throws InterruptedException {
+        // listener config with an internal destination and a forcedTargetPath which collapses every
+        // matching request onto the very same target
+        JsonObject listenerConfig = buildListenerConfig(null, "x99");
+        listenerConfig.getJsonObject("hook").put("fullUrl", false);
+        listenerConfig.getJsonObject("hook").put("forcedTargetPath", "/orders/all/data");
+
+        // trigger listener update via event bus
+        setListenerStorageEntryAndTriggerUpdate(listenerConfig);
+
+        // wait a moment to let the listener be registered
+        Thread.sleep(1000);
+
+        // make a change to the hooked resource
+        String uri = "/playground/server/tests/hooktest/abc123";
+        String originalPayload = "{\"key\":123}";
+        PUTRequest putRequest = new PUTRequest(uri, originalPayload);
+        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
+
+        when(routingContext.request()).thenReturn(putRequest);
+
+        hookHandler.handle(routingContext);
+
+        String expectedTargetUri = "/playground/server/push/v1/devices/x99/orders/all/data";
+        // resource_path must still reflect the origin resource (monitoredUrl + derived suffix),
+        // not the forcedTargetPath used for targetUri
+        String expectedResourcePath = uri;
+
+        // targetUri must use the forcedTargetPath, but resource_path must still reflect the origin resource
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req ->
+                HttpMethod.PUT == req.getMethod()
+                        && req.getUri().equals(expectedTargetUri)
+                        && expectedResourcePath.equals(req.getHeaders().get("resource_path"))
+        ), anyString(), any(Handler.class));
+    }
+
+    @Test
     public void testListenerEnqueueWithDefaultQueueingStrategyBecauseOfInvalidConfiguration(TestContext context) throws InterruptedException {
         // trigger listener update via event bus
         setListenerStorageEntryAndTriggerUpdate(buildListenerConfig(new JsonObject().put("type", "discardPayloadXXX"), "x99")); // invalid 'queueingStrategy' configuration results in a DefaultQueueingStrategy

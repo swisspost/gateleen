@@ -1,0 +1,13 @@
+# This module is checked by Prettier with endOfLine=lf. Force LF for its
+# source/text files so `npm run format:check` doesn't fail on Windows
+# checkouts where core.autocrlf=true would otherwise convert to CRLF.
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.md text eol=lf

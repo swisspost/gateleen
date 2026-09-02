@@ -877,29 +877,38 @@ public class HookHandler implements LoggableResource {
             if (!listener.getHook().isFullUrl()) {
                 path = request.uri().replace(listener.getMonitoredUrl(), "");
             }
+            // the derived path always identifies the origin resource - keep it for the
+            // resource_path header, independent of any forcedTargetPath override below
+            String resourcePath = path;
 
+            String targetPath = path;
             if (StringUtils.isNotEmptyTrimmed(listener.getHook().getForcedTargetPath())) {
-                path = listener.getHook().getForcedTargetPath();
+                targetPath = listener.getHook().getForcedTargetPath();
             }
 
             String targetUri;
 
             // internal
             if (listener.getHook().getDestination().startsWith("/")) {
-                targetUri = listener.getListener() + path;
+                targetUri = listener.getListener() + targetPath;
                 log.debug(" > internal target: {}", targetUri);
             }
             // external
             else {
-                targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
+                targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + targetPath;
                 log.debug(" > external target: {}", targetUri);
+                if (StringUtils.isNotEmptyTrimmed(listener.getHook().getForcedTargetPath()) && listener.getHook().isFullUrl()) {
+                    log.warn("Listener {} has both forcedTargetPath and fullUrl=true configured with an external " +
+                            "destination. forcedTargetPath will be silently discarded by the Forwarder in this " +
+                            "case, only fullUrl applies.", listener.getListenerId());
+                }
             }
 
             // Create a new multimap, copied from the original request,
             // so that the original request is not overridden with the new values.
             HeadersMultiMap queueHeaders = new HeadersMultiMap();
             queueHeaders.addAll(request.headers());
-            queueHeaders.add(RESOURCE_PATH, listener.getMonitoredUrl() + path);
+            queueHeaders.add(RESOURCE_PATH, listener.getMonitoredUrl() + resourcePath);
 
             // Apply the header manipulation chain - errors (unresolvable references) will just be WARN logged - but we still enqueue
             final HeaderFunctions.EvalScope evalScope = listener.getHook().getHeaderFunction().apply(queueHeaders);
@@ -1701,6 +1710,11 @@ public class HookHandler implements LoggableResource {
 
         hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
         hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(storageObject));
+
+        if (StringUtils.isNotEmptyTrimmed(jsonHook.getString(FORCED_TARGET_PATH))) {
+            log.warn("Route {} has forcedTargetPath configured, but forcedTargetPath is only supported for " +
+                    "listener hooks and will be ignored for route hooks.", routedUrl);
+        }
 
         // Configure connection pool size
         Integer originalPoolSize = jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME);
