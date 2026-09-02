@@ -7,14 +7,10 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.streams.WriteStream;
-import org.slf4j.Logger;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static io.vertx.core.Future.succeededFuture;
-import static org.slf4j.LoggerFactory.getLogger;
 
 
 /**
@@ -37,33 +33,33 @@ import static org.slf4j.LoggerFactory.getLogger;
  * to ensure correct state before data is being written to the decorated
  * request.
  */
-public class AutomaticChunkedTransfer implements WriteStream<Buffer> {
+public class AutomaticChunkedRequestTransfer extends AbstractChunkedTransfer<HttpClientRequest> {
 
-    private static final Logger log = getLogger(AutomaticChunkedTransfer.class);
     private final Vertx vertx;
-    private final HttpClientRequest delegate;
-    private final String dbgHint;
     private final AtomicBoolean firstBuffer = new AtomicBoolean(true);
-    private Handler<Throwable> exceptionHandler;
 
-    AutomaticChunkedTransfer(Vertx vertx, HttpClientRequest delegate, String dbgHint) {
+    AutomaticChunkedRequestTransfer(Vertx vertx, HttpClientRequest delegate, String dbgHint) {
+        super(delegate, dbgHint);
         assert vertx != null : "vertx != null";
-        assert delegate != null : "delegate != null";
-        assert !isNullOrEmpty(dbgHint) : "An empty dbgHint is worth NOTHING!";
         this.vertx = vertx;
-        this.delegate = delegate;
-        this.dbgHint = dbgHint;
+    }
+
+    @Override
+    protected void setDelegateChunked() {
+        // avoid multiple calls due to a 'syncronized' block in HttpClient's implementation
+        delegate.setChunked(true);
+    }
+
+    @Override
+    protected boolean isDelegateChunked() {
+        return delegate.isChunked();
     }
 
     private void write_(Buffer data, Handler<AsyncResult<Void>> handler) {
         /* only now we know for sure that there IS a body. */
         Future.<Void>succeededFuture().<Void>compose((Void nil) -> {
             if (firstBuffer.getAndSet(false)) {
-                // avoid multiple calls due to a 'syncronized' block in HttpClient's implementation
-                delegate.setChunked(true);
-                if (!delegate.isChunked()) log.debug(
-                        "WTF?!? setChunked(true), but isChunked() still returns 'false': {}",
-                        delegate.getClass());
+                enableChunkedTransfer();
             }
             // Delegate
             return delegate.write(data);
@@ -87,41 +83,6 @@ public class AutomaticChunkedTransfer implements WriteStream<Buffer> {
             log.trace("end failed: {} {}", delegate.getMethod(), delegate.getURI(), ex);
             publishError(ex, handler);
         });
-    }
-
-    private <T> void publishError(Throwable exOrig, Handler<AsyncResult<T>> regularHandler) {
-        assert exOrig != null : "exOrig != null";
-        Throwable handler1Failure = null, handler2Failure = null;
-        var exOrigAsFuture = Future.<T>failedFuture(exOrig);
-        /* first give the WRITE handler a chance to do its job. */
-        try {
-            if (regularHandler != null) {
-                regularHandler.handle(exOrigAsFuture);
-                return; /* error successfully handled. Done. */
-            }
-        } catch (RuntimeException ex2) {
-            handler1Failure = ex2; /* what a bad handler... */
-        }
-        /* then try the generic handler. */
-        try {
-            if (exceptionHandler != null) {
-                exceptionHandler.handle(exOrig);
-                return; /* error successfully handled. We're done. */
-            }
-        } catch (RuntimeException ex2) {
-            handler2Failure = ex2; /* what a bad handler... */
-        }
-        /* No handler was able to handle the exception (either there was no
-         * handler or it failed). So log it here as a last resort. */
-        log.error("{}: {}", dbgHint, exOrig.getMessage(), log.isDebugEnabled() ? exOrig : null);
-        /* Well... Some handlers seem unable to do their job. So also log why
-         * they failed to handle the exception. */
-        if (handler1Failure != null) {
-            log.debug("{}: {}", handler1Failure.getMessage(), exceptionHandler.getClass(), handler1Failure);
-        }
-        if (handler2Failure != null) {
-            log.debug("{}: {}", handler2Failure.getMessage(), exceptionHandler.getClass(), handler2Failure);
-        }
     }
 
     @Override
@@ -162,31 +123,6 @@ public class AutomaticChunkedTransfer implements WriteStream<Buffer> {
         var p = Promise.<Void>promise();
         end_(null, p);
         p.future().onComplete(handler);
-    }
-
-    @Override
-    public WriteStream<Buffer> exceptionHandler(Handler<Throwable> handler) {
-        delegate.exceptionHandler(handler);
-        /* keep a ref for ourself, as we may stumble over errors too. */
-        this.exceptionHandler = handler;
-        return this;
-    }
-
-    @Override
-    public WriteStream<Buffer> setWriteQueueMaxSize(int maxSize) {
-        delegate.setWriteQueueMaxSize(maxSize);
-        return this;
-    }
-
-    @Override
-    public boolean writeQueueFull() {
-        return delegate.writeQueueFull();
-    }
-
-    @Override
-    public WriteStream<Buffer> drainHandler(Handler<Void> handler) {
-        delegate.drainHandler(handler);
-        return this;
     }
 
 }
