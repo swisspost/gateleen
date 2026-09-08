@@ -165,47 +165,10 @@ public class HookHandlerTest {
         // verify that enqueue has been called WITH the payload
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req -> {
             return HttpMethod.PUT == req.getMethod()
-                    && req.getUri().contains(uri)
+                    && req.getUri().equals("/playground/server/push/v1/devices/x99")
                     && Integer.valueOf(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
                     && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
         }), anyString(), any(Handler.class));
-    }
-
-    @Test
-    public void testListenerEnqueueWithForcedTargetPath(TestContext context) throws InterruptedException {
-        // listener config with an internal destination and a forcedTargetPath which collapses every
-        // matching request onto the very same target
-        JsonObject listenerConfig = buildListenerConfig(null, "x99");
-        listenerConfig.getJsonObject("hook").put("fullUrl", false);
-        listenerConfig.getJsonObject("hook").put("forcedTargetPath", "/orders/all/data");
-
-        // trigger listener update via event bus
-        setListenerStorageEntryAndTriggerUpdate(listenerConfig);
-
-        // wait a moment to let the listener be registered
-        Thread.sleep(1000);
-
-        // make a change to the hooked resource
-        String uri = "/playground/server/tests/hooktest/abc123";
-        String originalPayload = "{\"key\":123}";
-        PUTRequest putRequest = new PUTRequest(uri, originalPayload);
-        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
-
-        when(routingContext.request()).thenReturn(putRequest);
-
-        hookHandler.handle(routingContext);
-
-        String expectedTargetUri = "/playground/server/push/v1/devices/x99/orders/all/data";
-        // resource_path must still reflect the origin resource (monitoredUrl + derived suffix),
-        // not the forcedTargetPath used for targetUri
-        String expectedResourcePath = uri;
-
-        // targetUri must use the forcedTargetPath, but resource_path must still reflect the origin resource
-        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req ->
-                HttpMethod.PUT == req.getMethod()
-                        && req.getUri().equals(expectedTargetUri)
-                        && expectedResourcePath.equals(req.getHeaders().get("resource_path"))
-        ), anyString(), any(Handler.class));
     }
 
     @Test
@@ -228,7 +191,7 @@ public class HookHandlerTest {
         // verify that enqueue has been called WITH the payload
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req -> {
             return HttpMethod.PUT == req.getMethod()
-                    && req.getUri().contains(uri)
+                    && req.getUri().equals("/playground/server/push/v1/devices/x99")
                     && Integer.valueOf(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
                     && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
         }), anyString(), any(Handler.class));
@@ -253,7 +216,7 @@ public class HookHandlerTest {
         // verify that enqueue has been called WITHOUT the payload but with 'Content-Length : 0' header
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req -> {
             return HttpMethod.PUT == req.getMethod()
-                    && req.getUri().contains(uri)
+                    && req.getUri().equals("/playground/server/push/v1/devices/x99")
                     && Integer.valueOf(0).equals(getInteger(req.getHeaders(), CONTENT_LENGTH))
                     && Arrays.equals(req.getPayload(), new byte[0]); // should not be original payload anymore
         }), anyString(), any(Handler.class));
@@ -265,7 +228,7 @@ public class HookHandlerTest {
         // verify that enqueue has been called WITHOUT the payload and WITHOUT 'Content-Length' header
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req -> {
             return HttpMethod.PUT == req.getMethod()
-                    && req.getUri().contains(uri)
+                    && req.getUri().equals("/playground/server/push/v1/devices/x99")
                     && !containsHeader(req.getHeaders(), CONTENT_LENGTH)
                     && Arrays.equals(req.getPayload(), new byte[0]); // should not be original payload anymore
         }), anyString(), any(Handler.class));
@@ -317,7 +280,7 @@ public class HookHandlerTest {
         when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
-        String targetUri = "/playground/server/push/v1/devices/" + deviceId + "/playground/server/tests/hooktest/abc123";
+        String targetUri = "/playground/server/push/v1/devices/" + deviceId;
         Mockito.verify(reducedPropagationManager, Mockito.timeout(2000).times(1))
                 .processIncomingRequest(eq(HttpMethod.PUT), eq(targetUri), any(MultiMap.class), eq(Buffer.buffer(originalPayload)), eq(queue), eq(interval), any(Handler.class));
     }
@@ -342,7 +305,7 @@ public class HookHandlerTest {
         // verify that enqueue has been called WITH the payload
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req -> {
             return HttpMethod.PUT == req.getMethod()
-                    && req.getUri().contains(uri)
+                    && req.getUri().equals("/playground/server/push/v1/devices/x99")
                     && Integer.valueOf(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
                     && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
         }), anyString(), any(Handler.class));
@@ -369,7 +332,7 @@ public class HookHandlerTest {
         // verify that enqueue has been called WITH the payload
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req -> {
             return HttpMethod.PUT == req.getMethod()
-                    && req.getUri().contains(uri)
+                    && req.getUri().equals("/playground/server/push/v1/devices/x99")
                     && Integer.valueOf(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
                     && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
         }), anyString(), any(Handler.class));

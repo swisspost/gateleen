@@ -172,8 +172,7 @@ A request to `http://myserver:7012/gateleen/proxy/api/sub/path` will be forwarde
 | headersFilter     | no  | A regular expression to define which requests headers must be present for the listener to be used. Each request header entry is validated in the format `<KEY>: <VALUE>`, so you are able to filter for request header names and values.|
 | filter            | no  | This property allows you to refine the requests with a regular expression, which you want to receive for the given destination. |
 | type              | no  | Default: before <br> This property allows you to set, if the request to a listener will be sent before or after the original request was performed.<br /> <br /> The valid settings are: <br /> after => request will be forwarded to listener after the original request was performed <br /><br />before => (default) request will be forwarded to a listener before the original request was performed <br /> <br /> This can be useful if you want to use your listeners with the delegate feature and expect a request to be already executed as soon as you execute a delegate. |  
-| fullUrl           | no  | Default: false <br> <br /> Defines whether the hook forwards using the full initial url or only the appendix <br/><br/> Example: <br/><br/> hooked url = http://a/b/c <br/> request.uri() = http://a/b/c/d/e.x <br/> url appendix = /d/e.x |
-| forcedTargetPath   | no  | Listener only. Overrides the path derived from the incoming request when forwarding to the listener. The value must start with `/` and is appended to `destination`, replacing the normal URL suffix. For **internal** destinations (starting with `/`) this takes precedence over `fullUrl`. For **external** destinations combined with `fullUrl: true`, `forcedTargetPath` is silently discarded by the forwarder - avoid combining these two options with an external destination. |
+| fullUrl           | no  | Default: false <br><br> When `false`, the path suffix after the hooked resource is appended to the destination URL. When `true`, requests are forwarded to the exact destination URL without appending any path suffix. |
 | queueingStrategy  | no  | Default: DefaultQueueingStrategy <br> <br /> Configures the 'queueing' behaviour of the HookHandler. See chapter _QueueingStrategy_ for detailed information. |
                                                  
 > <font color="orange"><b>Attention:</b> </font>A listener has a default expiration time of **30 seconds**. After this time the listener will expire and be removed from the storage, as well as the HookHandler.<br />
@@ -188,7 +187,7 @@ PUT http://myserver:7012/gateleen/from/services/_hooks/listeners/http/myexample
         "PUT"
     ],
     "destination": "/gateleen/to/services",
-    "forcedTargetPath": "/orders/all/data",
+    "fullUrl": true,
     "filter": "/gateleen/from/services/orders/[^/]+/data",
     "headers": [
         { "header":"X-Expire-After", "value":"3600", "mode":"complete"}
@@ -197,9 +196,8 @@ PUT http://myserver:7012/gateleen/from/services/_hooks/listeners/http/myexample
 }
 ```
 
-The listener is registered on `/gateleen/from/services`, so normally the path
-suffix following that segment is appended to `destination`. Given these three
-matching requests:
+The listener is registered on `/gateleen/from/services`. Given these matching
+requests:
 
 ```
 /gateleen/from/services/orders/123/data
@@ -207,8 +205,8 @@ matching requests:
 /gateleen/from/services/orders/789/data
 ```
 
-Without `forcedTargetPath` each suffix is kept, so every request is forwarded to
-a different target:
+With the default `fullUrl: false`, each suffix is kept, so every request is
+forwarded to a different target:
 
 ```
 /gateleen/to/services/orders/123/data
@@ -216,17 +214,14 @@ a different target:
 /gateleen/to/services/orders/789/data
 ```
 
-With `forcedTargetPath: "/orders/all/data"` the derived suffix is replaced, so all
-three requests are forwarded to the very same target:
+With `fullUrl: true`, all requests are forwarded to the exact configured
+destination:
 
 ```
-/gateleen/to/services/orders/all/data
+/gateleen/to/services
 ```
 
-The value is appended to `destination`, so it should be a destination-relative
-path, not a complete URL.
-
-![forcedTargetPath behavior](docs/forcedTargetPath.svg)
+![fullUrl behavior](docs/fullUrl.svg)
 
 #### Remove a listener
 ```json

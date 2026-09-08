@@ -41,7 +41,6 @@ public class HttpHook {
     private Integer maxWaitQueueSize = null;
     private ProxyOptions proxyOptions = null;
     private Integer timeout = null;
-    private String forcedTargetPath;
     /**
      * Creates a new hook.
      *
@@ -71,23 +70,6 @@ public class HttpHook {
      */
     public void setDestination(String destination) {
         this.destination = destination;
-    }
-
-    /**
-     * Force target path of the hook.
-     * @return forcedTargetPath
-     */
-    public String getForcedTargetPath() {
-        return forcedTargetPath;
-    }
-
-    /**
-     * Sets the force target path of the hook.
-     *
-     * @param forcedTargetPath forcedTargetPath
-     */
-    public void setForcedTargetPath(String forcedTargetPath) {
-        this.forcedTargetPath = forcedTargetPath;
     }
 
     /**

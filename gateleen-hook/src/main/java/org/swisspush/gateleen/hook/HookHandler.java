@@ -113,7 +113,6 @@ public class HookHandler implements LoggableResource {
     public static final String QUEUE_EXPIRE_AFTER = "queueExpireAfter";
     public static final String STATIC_HEADERS = "staticHeaders";
     public static final String FULL_URL = "fullUrl";
-    public static final String FORCED_TARGET_PATH = "forcedTargetPath";
     public static final String DISCARD_PAYLOAD = "discardPayload";
     public static final String HOOK_TRIGGER_TYPE = "type";
     public static final String LISTABLE = "listable";
@@ -874,33 +873,28 @@ public class HookHandler implements LoggableResource {
              * => url suffix = /d/e.x
              */
             String path = request.uri();
+            String targetUri;
+            // Preserve the original request path for the resource_path header.
+            String resourcePath = path;
             if (!listener.getHook().isFullUrl()) {
                 path = request.uri().replace(listener.getMonitoredUrl(), "");
-            }
-            // the derived path always identifies the origin resource - keep it for the
-            // resource_path header, independent of any forcedTargetPath override below
-            String resourcePath = path;
+                // internal
+                if (listener.getHook().getDestination().startsWith("/")) {
+                    targetUri = listener.getListener() + path;
+                    log.debug(" > internal target: {}", targetUri);
+                }
+                // external
+                else {
+                    targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
+                    log.debug(" > external target: {}", targetUri);
+                }
 
-            String targetPath = path;
-            if (StringUtils.isNotEmptyTrimmed(listener.getHook().getForcedTargetPath())) {
-                targetPath = listener.getHook().getForcedTargetPath();
-            }
-
-            String targetUri;
-
-            // internal
-            if (listener.getHook().getDestination().startsWith("/")) {
-                targetUri = listener.getListener() + targetPath;
-                log.debug(" > internal target: {}", targetUri);
-            }
-            // external
-            else {
-                targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + targetPath;
-                log.debug(" > external target: {}", targetUri);
-                if (StringUtils.isNotEmptyTrimmed(listener.getHook().getForcedTargetPath()) && listener.getHook().isFullUrl()) {
-                    log.warn("Listener {} has both forcedTargetPath and fullUrl=true configured with an external " +
-                            "destination. forcedTargetPath will be silently discarded by the Forwarder in this " +
-                            "case, only fullUrl applies.", listener.getListenerId());
+            }   else {
+                if (listener.getHook().getDestination().startsWith("/")) {
+                    targetUri = listener.getHook().getDestination();
+                } else {
+                    log.error("Listener {} is configured with full url, but destination is not starting with '/'. This is not supported. Listener will be ignored.", listener.getListenerId());
+                    continue;
                 }
             }
 
@@ -1527,7 +1521,6 @@ public class HookHandler implements LoggableResource {
         }
 
         hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
-        hook.setForcedTargetPath(jsonHook.getString(FORCED_TARGET_PATH));
         hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(jsonHook));
 
         // for internal use we don't need a forwarder
@@ -1710,11 +1703,6 @@ public class HookHandler implements LoggableResource {
 
         hook.setFullUrl(jsonHook.getBoolean(FULL_URL, false));
         hook.setQueueingStrategy(QueueingStrategyFactory.buildQueueStrategy(storageObject));
-
-        if (StringUtils.isNotEmptyTrimmed(jsonHook.getString(FORCED_TARGET_PATH))) {
-            log.warn("Route {} has forcedTargetPath configured, but forcedTargetPath is only supported for " +
-                    "listener hooks and will be ignored for route hooks.", routedUrl);
-        }
 
         // Configure connection pool size
         Integer originalPoolSize = jsonHook.getInteger(HttpHook.CONNECTION_POOL_SIZE_PROPERTY_NAME);

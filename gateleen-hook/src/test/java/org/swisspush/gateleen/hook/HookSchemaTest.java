@@ -36,7 +36,6 @@ public class HookSchemaTest {
                 "  'queueExpireAfter':30," +
                 "  'type':'after'," +
                 "  'fullUrl':true," +
-                "  'forcedTargetPath':'/orders/all/data'," +
                 "  'queueingStrategy':{'type':'reducedPropagation','intervalMs':1000}," +
                 "  'collection':false," +
                 "  'listable':true," +
@@ -47,18 +46,6 @@ public class HookSchemaTest {
         Set<ValidationMessage> valMsgs = schema.validate(json);
         dumpValidationMessages(valMsgs);
         Assert.assertEquals("No validation messages", 0, valMsgs.size());
-    }
-
-    @Test
-    public void invalidForcedTargetPathWithoutLeadingSlash() {
-        JsonNode json = parse("{" +
-                "  'destination':'/go/somewhere'," +
-                "  'forcedTargetPath':'orders/all/data'" +
-                "}");
-
-        Set<ValidationMessage> valMsgs = schema.validate(json);
-        dumpValidationMessages(valMsgs);
-        Assert.assertEquals("One validation message", 1, valMsgs.size());
     }
 
     @Test
