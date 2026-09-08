@@ -166,9 +166,36 @@ public class HookHandlerTest {
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req -> {
             return HttpMethod.PUT == req.getMethod()
                     && req.getUri().equals("/playground/server/push/v1/devices/x99")
+                    && uri.equals(req.getHeaders().get("resource_path"))
                     && Integer.valueOf(99).equals(getInteger(req.getHeaders(), CONTENT_LENGTH)) // Content-Length header should not have changed
                     && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes()); // payload should not have changed
         }), anyString(), any(Handler.class));
+    }
+
+    @Test
+    public void testExternalListenerEnqueueWithFullUrl(TestContext context) throws InterruptedException {
+        String deviceId = "x99";
+        JsonObject listenerConfig = buildListenerConfig(null, deviceId);
+        listenerConfig.getJsonObject("hook").put("destination", "https://external.example/api");
+        setListenerStorageEntryAndTriggerUpdate(listenerConfig);
+
+        Thread.sleep(1000);
+
+        String uri = "/playground/server/tests/hooktest/abc123";
+        String originalPayload = "{\"key\":123}";
+        PUTRequest putRequest = new PUTRequest(uri, originalPayload);
+        putRequest.addHeader(CONTENT_LENGTH.getName(), "99");
+
+        when(routingContext.request()).thenReturn(putRequest);
+        hookHandler.handle(routingContext);
+
+        String targetUri = HOOK_ROOT_URI + "listeners/http/push/" + deviceId + uri;
+        Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req ->
+                HttpMethod.PUT == req.getMethod()
+                        && req.getUri().equals(targetUri)
+                        && uri.equals(req.getHeaders().get("resource_path"))
+                        && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes())
+        ), anyString(), any(Handler.class));
     }
 
     @Test

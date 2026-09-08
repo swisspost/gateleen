@@ -872,37 +872,26 @@ public class HookHandler implements LoggableResource {
              * => request.uri() = http://a/b/c/d/e.x
              * => url suffix = /d/e.x
              */
-            String path = request.uri();
-            String targetUri;
-            // Preserve the original request path for the resource_path header.
-            String resourcePath = path;
+            String resourcePath = request.uri();
+            String path = resourcePath;
             if (!listener.getHook().isFullUrl()) {
                 path = request.uri().replace(listener.getMonitoredUrl(), "");
-                // internal
-                if (listener.getHook().getDestination().startsWith("/")) {
-                    targetUri = listener.getListener() + path;
-                    log.debug(" > internal target: {}", targetUri);
-                }
-                // external
-                else {
-                    targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
-                    log.debug(" > external target: {}", targetUri);
-                }
+            }
 
-            }   else {
-                if (listener.getHook().getDestination().startsWith("/")) {
-                    targetUri = listener.getHook().getDestination();
-                } else {
-                    log.error("Listener {} is configured with full url, but destination is not starting with '/'. This is not supported. Listener will be ignored.", listener.getListenerId());
-                    continue;
-                }
+            String targetUri;
+            if (listener.getHook().getDestination().startsWith("/")) {
+                targetUri = listener.getHook().isFullUrl() ? listener.getHook().getDestination() : listener.getListener() + path;
+                log.debug(" > internal target: {}", targetUri);
+            } else {
+                targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
+                log.debug(" > external target: {}", targetUri);
             }
 
             // Create a new multimap, copied from the original request,
             // so that the original request is not overridden with the new values.
             HeadersMultiMap queueHeaders = new HeadersMultiMap();
             queueHeaders.addAll(request.headers());
-            queueHeaders.add(RESOURCE_PATH, listener.getMonitoredUrl() + resourcePath);
+            queueHeaders.add(RESOURCE_PATH, resourcePath);
 
             // Apply the header manipulation chain - errors (unresolvable references) will just be WARN logged - but we still enqueue
             final HeaderFunctions.EvalScope evalScope = listener.getHook().getHeaderFunction().apply(queueHeaders);
