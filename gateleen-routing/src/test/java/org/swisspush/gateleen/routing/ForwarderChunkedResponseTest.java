@@ -28,7 +28,6 @@ import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -71,12 +70,12 @@ public class ForwarderChunkedResponseTest {
      */
     @Test
     public void testChunkedUpstreamResponseWithoutBody_downstreamIsNotChunked(TestContext ctx) {
-        int port = startBackend(ctx, response -> response.setChunked(true).end());
-
         Async async = ctx.async();
         CapturingResponse dnRsp = new CapturingResponse(async);
 
-        forwarderFor(port).handle(routingContextFor(dnRsp));
+        startBackend(response -> response.setChunked(true).end())
+                .onSuccess(port -> forwarderFor(port).handle(routingContextFor(dnRsp)))
+                .onFailure(ctx::fail);
 
         async.awaitSuccess(5000);
 
@@ -94,16 +93,15 @@ public class ForwarderChunkedResponseTest {
      */
     @Test
     public void testChunkedUpstreamResponseWithBody_downstreamIsChunked(TestContext ctx) {
-        int port = startBackend(ctx, response -> {
-            response.setChunked(true);
-            response.write("hello ");
-            response.end("world");
-        });
-
         Async async = ctx.async();
         CapturingResponse dnRsp = new CapturingResponse(async);
 
-        forwarderFor(port).handle(routingContextFor(dnRsp));
+        startBackend(response -> {
+            response.setChunked(true);
+            response.write("hello ");
+            response.end("world");
+        }).onSuccess(port -> forwarderFor(port).handle(routingContextFor(dnRsp)))
+                .onFailure(ctx::fail);
 
         async.awaitSuccess(5000);
 
@@ -119,12 +117,12 @@ public class ForwarderChunkedResponseTest {
      */
     @Test
     public void testContentLengthUpstreamResponse_downstreamIsNotChunked(TestContext ctx) {
-        int port = startBackend(ctx, response -> response.end("hello world"));
-
         Async async = ctx.async();
         CapturingResponse dnRsp = new CapturingResponse(async);
 
-        forwarderFor(port).handle(routingContextFor(dnRsp));
+        startBackend(response -> response.end("hello world"))
+                .onSuccess(port -> forwarderFor(port).handle(routingContextFor(dnRsp)))
+                .onFailure(ctx::fail);
 
         async.awaitSuccess(5000);
 
@@ -138,21 +136,10 @@ public class ForwarderChunkedResponseTest {
     // Helpers
     // -------------------------------------------------------------------------
 
-    private int startBackend(TestContext ctx, Handler<HttpServerResponse> responder) {
-        Async backendReady = ctx.async();
-        // AtomicInteger (rather than a plain int[]) makes the cross-thread handoff explicit:
-        // the value is written on the event-loop thread inside the listen() callback and read
-        // on the test thread only after backendReady.awaitSuccess() below returns, i.e. only
-        // after backendReady.complete() - and therefore the write - has already happened.
-        AtomicInteger port = new AtomicInteger(-1);
+    private Future<Integer> startBackend(Handler<HttpServerResponse> responder) {
         backend = vertx.createHttpServer();
         backend.requestHandler(req -> responder.handle(req.response()));
-        backend.listen(0, ctx.asyncAssertSuccess(server -> {
-            port.set(server.actualPort());
-            backendReady.complete();
-        }));
-        backendReady.awaitSuccess(5000);
-        return port.get();
+        return backend.listen(0).map(HttpServer::actualPort);
     }
 
     private Forwarder forwarderFor(int port) {

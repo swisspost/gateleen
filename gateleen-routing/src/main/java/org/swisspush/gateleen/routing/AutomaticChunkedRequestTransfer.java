@@ -46,7 +46,6 @@ public class AutomaticChunkedRequestTransfer extends AbstractChunkedTransfer<Htt
 
     @Override
     protected void setDelegateChunked() {
-        // avoid multiple calls due to a 'syncronized' block in HttpClient's implementation
         delegate.setChunked(true);
     }
 
@@ -58,6 +57,7 @@ public class AutomaticChunkedRequestTransfer extends AbstractChunkedTransfer<Htt
     private void write_(Buffer data, Handler<AsyncResult<Void>> handler) {
         /* only now we know for sure that there IS a body. */
         Future.<Void>succeededFuture().<Void>compose((Void nil) -> {
+            // setChunked() synchronizes internally, so call it only for the first buffer.
             if (firstBuffer.getAndSet(false)) {
                 enableChunkedTransfer();
             }
