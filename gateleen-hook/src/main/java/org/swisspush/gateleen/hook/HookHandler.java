@@ -879,8 +879,11 @@ public class HookHandler implements LoggableResource {
             }
 
             String targetUri;
-            if (listener.getHook().getDestination().startsWith("/")) {
-                targetUri = listener.getHook().isFullUrl() ? listener.getHook().getDestination() : listener.getListener() + path;
+            if (listener.getHook().isFullUrl()) {
+                targetUri = listener.getHook().getDestination();
+                log.debug(" > full url target: {}", targetUri);
+            } else if (listener.getHook().getDestination().startsWith("/")) {
+                targetUri = listener.getListener() + path;
                 log.debug(" > internal target: {}", targetUri);
             } else {
                 targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;

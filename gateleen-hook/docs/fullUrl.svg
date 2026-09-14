@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700" role="img" aria-labelledby="title desc">
-  <title id="title">How fullUrl controls listener forwarding</title>
-  <desc id="desc">With fullUrl disabled, incoming request path suffixes are appended to the listener destination. With fullUrl enabled, every request is forwarded to the configured destination exactly.</desc>
+  <title id="title">How fullUrl controls route and listener forwarding</title>
+  <desc id="desc">With fullUrl disabled, incoming request path suffixes are appended to the route or listener destination. With fullUrl enabled, every request is forwarded to the configured destination exactly. The behavior is identical for routes and listeners.</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L10,3 L0,6 Z" fill="#2563eb"/>
@@ -19,7 +19,7 @@
   </defs>
 
   <rect width="1100" height="700" fill="#ffffff"/>
-  <text x="550" y="48" text-anchor="middle" class="title">fullUrl controls the forwarded listener path</text>
+  <text x="550" y="48" text-anchor="middle" class="title">fullUrl controls the forwarded path (routes &amp; listeners)</text>
 
   <rect x="55" y="95" width="990" height="175" class="box"/>
   <text x="80" y="130" class="heading">1. Incoming requests</text>

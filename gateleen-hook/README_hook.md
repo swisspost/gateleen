@@ -223,6 +223,9 @@ destination:
 
 ![fullUrl behavior](docs/fullUrl.svg)
 
+> <font color="skyblue"><b>Information:</b> </font>The `fullUrl` behavior shown above works the same way for routes (see [Route with fullUrl](#route-with-fullurl)).
+
+
 #### Remove a listener
 ```json
 DELETE http://myserver:7012/gateleen/from/services/_hooks/listeners/http/myexample

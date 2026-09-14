@@ -176,7 +176,8 @@ public class HookHandlerTest {
     public void testExternalListenerEnqueueWithFullUrl(TestContext context) throws InterruptedException {
         String deviceId = "x99";
         JsonObject listenerConfig = buildListenerConfig(null, deviceId);
-        listenerConfig.getJsonObject("hook").put("destination", "https://external.example/api");
+        String destination = "https://external.example/api";
+        listenerConfig.getJsonObject("hook").put("destination", destination);
         setListenerStorageEntryAndTriggerUpdate(listenerConfig);
 
         Thread.sleep(1000);
@@ -189,10 +190,11 @@ public class HookHandlerTest {
         when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
-        String targetUri = HOOK_ROOT_URI + "listeners/http/push/" + deviceId + uri;
+        // with fullUrl=true, the exact destination is used as the enqueue target,
+        // regardless of whether the destination is internal or an absolute external URL.
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req ->
                 HttpMethod.PUT == req.getMethod()
-                        && req.getUri().equals(targetUri)
+                        && req.getUri().equals(destination)
                         && uri.equals(req.getHeaders().get("resource_path"))
                         && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes())
         ), anyString(), any(Handler.class));
