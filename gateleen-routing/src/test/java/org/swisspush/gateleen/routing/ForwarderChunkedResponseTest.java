@@ -16,6 +16,7 @@ import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import org.junit.After;
 import org.junit.Before;
@@ -27,7 +28,11 @@ import org.swisspush.gateleen.core.storage.MockResourceStorage;
 import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.GZIPOutputStream;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -132,9 +137,55 @@ public class ForwarderChunkedResponseTest {
                 "Payload must be forwarded unchanged");
     }
 
+    @Test
+    public void testChainedTransferEncodingIsRejectedInsteadOfDroppingFraming(TestContext ctx) throws IOException {
+        Async async = ctx.async();
+        Buffer gzipBody = gzip("hello");
+        io.vertx.core.net.NetServer rawBackend = vertx.createNetServer();
+        rawBackend.connectHandler(socket -> socket.handler(request -> {
+            Buffer response = Buffer.buffer("HTTP/1.1 200 OK\r\n" +
+                    "Transfer-Encoding: gzip, chunked\r\n" +
+                    "Connection: close\r\n" +
+                    "\r\n");
+            response.appendString(Integer.toHexString(gzipBody.length()));
+            response.appendString("\r\n");
+            response.appendBuffer(gzipBody);
+            response.appendString("\r\n0\r\n\r\n");
+            socket.write(response);
+        }));
+
+        rawBackend.listen(0).onSuccess(origin -> {
+            Router router = Router.router(vertx);
+            router.route().handler(forwarderFor(origin.actualPort()));
+            vertx.createHttpServer().requestHandler(router).listen(0).onSuccess(gateway ->
+                    vertx.createHttpClient()
+                            .request(HttpMethod.GET, gateway.actualPort(), "localhost", REQUEST_URI)
+                            .compose(request -> request.send())
+                            .compose(response -> {
+                                ctx.assertEquals(502, response.statusCode(),
+                                        "Unsupported transfer codings must produce a gateway error");
+                                return response.body();
+                            })
+                            .onComplete(ctx.asyncAssertSuccess(body -> async.complete()))
+            ).onFailure(ctx::fail);
+        }).onFailure(ctx::fail);
+
+        async.awaitSuccess(3000);
+    }
+
+
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private static Buffer gzip(String body) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(output)) {
+            gzip.write(body.getBytes(StandardCharsets.UTF_8));
+        }
+        return Buffer.buffer(output.toByteArray());
+    }
 
     private Future<Integer> startBackend(Handler<HttpServerResponse> responder) {
         backend = vertx.createHttpServer();

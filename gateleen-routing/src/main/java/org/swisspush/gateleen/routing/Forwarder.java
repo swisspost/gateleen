@@ -38,6 +38,7 @@ import org.swisspush.gateleen.routing.auth.AuthHeader;
 import org.swisspush.gateleen.routing.auth.AuthStrategy;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.lang.Long.parseLong;
@@ -658,10 +660,21 @@ public class Forwarder extends AbstractForwarder {
         // Add received headers to original request but remove headers that should not get forwarded.
         MultiMap headersToForward = ctx.upRes.headers();
         headersToForward = removeNonForwardHeaders(headersToForward);
+        List<String> transferEncodings = headersToForward.getAll(HttpHeaders.TRANSFER_ENCODING).stream()
+                .flatMap(value -> Arrays.stream(value.split(",", -1)))
+                .map(String::trim)
+                .collect(Collectors.toList());
+        boolean upstreamResponseIsChunked = transferEncodings.size() == 1
+                && "chunked".equalsIgnoreCase(transferEncodings.get(0));
+        if (!transferEncodings.isEmpty() && !upstreamResponseIsChunked) {
+            ctx.log.warn("Unsupported transfer encoding from '{}': {}", ctx.targetUri, transferEncodings);
+            ctx.upRes.resume();
+            respondError(ctx.dnReq, BAD_GATEWAY);
+            return;
+        }
         // Do not forward transfer framing. Enable chunked encoding only if the upstream
         // response actually yields payload bytes; otherwise Vert.x would emit an empty
         // chunked response.
-        boolean upstreamResponseIsChunked = headersToForward.contains(HttpHeaders.TRANSFER_ENCODING, "chunked", true);
         HttpHeaderUtil.mergeHeaders(ctx.dnRsp.headers(), headersToForward, ctx.targetUri);
         if (ctx.profileHeaderMap != null && !ctx.profileHeaderMap.isEmpty()) {
             HttpHeaderUtil.mergeHeaders(ctx.dnRsp.headers(), MultiMap.caseInsensitiveMultiMap().addAll(ctx.profileHeaderMap), ctx.targetUri);
