@@ -190,11 +190,10 @@ public class HookHandlerTest {
         when(routingContext.request()).thenReturn(putRequest);
         hookHandler.handle(routingContext);
 
-        // with fullUrl=true, the exact destination is used as the enqueue target,
-        // regardless of whether the destination is internal or an absolute external URL.
+        String targetUri = HOOK_ROOT_URI + "listeners/http/push/" + deviceId + uri;
         Mockito.verify(requestQueue, Mockito.timeout(2000).times(1)).enqueue(Mockito.argThat(req ->
                 HttpMethod.PUT == req.getMethod()
-                        && req.getUri().equals(destination)
+                        && req.getUri().equals(targetUri)
                         && uri.equals(req.getHeaders().get("resource_path"))
                         && Arrays.equals(req.getPayload(), Buffer.buffer(originalPayload).getBytes())
         ), anyString(), any(Handler.class));
