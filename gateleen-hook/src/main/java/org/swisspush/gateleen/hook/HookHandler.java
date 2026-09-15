@@ -872,20 +872,17 @@ public class HookHandler implements LoggableResource {
              * => request.uri() = http://a/b/c/d/e.x
              * => url suffix = /d/e.x
              */
-            String path = request.uri();
+            String resourcePath = request.uri();
+            String path = resourcePath;
             if (!listener.getHook().isFullUrl()) {
                 path = request.uri().replace(listener.getMonitoredUrl(), "");
             }
 
             String targetUri;
-
-            // internal
             if (listener.getHook().getDestination().startsWith("/")) {
-                targetUri = listener.getListener() + path;
+                targetUri = listener.getHook().isFullUrl() ? listener.getHook().getDestination() : listener.getListener() + path;
                 log.debug(" > internal target: {}", targetUri);
-            }
-            // external
-            else {
+            } else {
                 targetUri = hookRootUri + LISTENER_HOOK_TARGET_PATH + listener.getListener() + path;
                 log.debug(" > external target: {}", targetUri);
             }
@@ -894,7 +891,7 @@ public class HookHandler implements LoggableResource {
             // so that the original request is not overridden with the new values.
             HeadersMultiMap queueHeaders = new HeadersMultiMap();
             queueHeaders.addAll(request.headers());
-            queueHeaders.add(RESOURCE_PATH, listener.getMonitoredUrl() + path);
+            queueHeaders.add(RESOURCE_PATH, resourcePath);
 
             // Apply the header manipulation chain - errors (unresolvable references) will just be WARN logged - but we still enqueue
             final HeaderFunctions.EvalScope evalScope = listener.getHook().getHeaderFunction().apply(queueHeaders);

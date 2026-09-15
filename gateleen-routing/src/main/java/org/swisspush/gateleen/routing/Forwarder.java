@@ -38,6 +38,7 @@ import org.swisspush.gateleen.routing.auth.AuthHeader;
 import org.swisspush.gateleen.routing.auth.AuthStrategy;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.lang.Long.parseLong;
@@ -558,7 +560,7 @@ public class Forwarder extends AbstractForwarder {
             // But still it's allowed - so they 'could' have one. So using http-method to decide "chunked or not" is also not a sustainable solution.
             //
             // --> we need to wrap the client-Request to catch up the first (body)-buffer and "setChucked(true)" in advance and just-in-time.
-            AutomaticChunkedTransfer cReqWrapped = new AutomaticChunkedTransfer(vertx, ctx.upReq, "findme_oi8hju30895jh3itj");
+            AutomaticChunkedRequestTransfer cReqWrapped = new AutomaticChunkedRequestTransfer(vertx, ctx.upReq, "findme_oi8hju30895jh3itj");
 
             ctx.dnReq.exceptionHandler(t -> {
                 ctx.log.info("Exception during forwarding - closing (forwarding) client connection", t);
@@ -658,17 +660,32 @@ public class Forwarder extends AbstractForwarder {
         // Add received headers to original request but remove headers that should not get forwarded.
         MultiMap headersToForward = ctx.upRes.headers();
         headersToForward = removeNonForwardHeaders(headersToForward);
+        List<String> transferEncodings = headersToForward.getAll(HttpHeaders.TRANSFER_ENCODING).stream()
+                .flatMap(value -> Arrays.stream(value.split(",", -1)))
+                .map(String::trim)
+                .collect(Collectors.toList());
+        boolean upstreamResponseIsChunked = transferEncodings.size() == 1
+                && "chunked".equalsIgnoreCase(transferEncodings.get(0));
+        if (!transferEncodings.isEmpty() && !upstreamResponseIsChunked) {
+            ctx.log.warn("Unsupported transfer encoding from '{}': {}", ctx.targetUri, transferEncodings);
+            ctx.upRes.resume();
+            respondError(ctx.dnReq, BAD_GATEWAY);
+            return;
+        }
+        // Do not forward transfer framing. Enable chunked encoding only if the upstream
+        // response actually yields payload bytes; otherwise Vert.x would emit an empty
+        // chunked response.
         HttpHeaderUtil.mergeHeaders(ctx.dnRsp.headers(), headersToForward, ctx.targetUri);
         if (ctx.profileHeaderMap != null && !ctx.profileHeaderMap.isEmpty()) {
             HttpHeaderUtil.mergeHeaders(ctx.dnRsp.headers(), MultiMap.caseInsensitiveMultiMap().addAll(ctx.profileHeaderMap), ctx.targetUri);
         }
-        // if we receive a chunked transfer then we also use chunked
-        // otherwise, upstream must have sent a Content-Length - or no body at all (e.g. for "304 not modified" responses)
-        if (ctx.dnRsp.headers().contains(HttpHeaders.TRANSFER_ENCODING, "chunked", true)) {
-            ctx.dnRsp.setChunked(true);
-        }
+        // remove transfer-encoding from downstream response headers if existed, because we will handle it ourselves (see LoggingWriteStream)
+        ctx.dnRsp.headers().remove(HttpHeaders.TRANSFER_ENCODING);
 
-        final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(ctx.dnRsp, ctx.loggingHandler, false);
+        final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(
+                new AutomaticChunkedResponseTransfer(ctx.dnRsp, upstreamResponseIsChunked, "findme_ohv8oh3q9ohj3q"),
+                ctx.loggingHandler,
+                false);
         final Pump pump = Pump.pump(ctx.upRes, loggingWriteStream);
         try {
             ctx.upRes.endHandler(nothing -> onUpstreamResponseEnd(nothing, ctx));
@@ -994,4 +1011,3 @@ public class Forwarder extends AbstractForwarder {
     }
 
 }
-

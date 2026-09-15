@@ -339,4 +339,5 @@ public class HttpHook {
      * @param proxyOptions the custom proxy options to set
      */
     public void setProxyOptions(ProxyOptions proxyOptions) { this.proxyOptions = proxyOptions; }
+
 }

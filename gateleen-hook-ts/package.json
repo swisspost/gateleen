@@ -1,0 +1,43 @@
+{
+  "name": "gateleen-hook-ts",
+  "version": "2.1.54-SNAPSHOT",
+  "description": "Framework-agnostic TypeScript client for Gateleen webhooks",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "nmpi": "npm i",
+    "build": "npm run format:check && tsup",
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules",
+    "npm-link-for-local-use": "npm link",
+    "format:check": "prettier --check \"*.json\" \"src/**/*.{ts,html,css,scss,json}\"",
+    "format:fix": "prettier --write \"*.json\" \"src/**/*.{ts,html,css,scss,json}\""
+  },
+  "dependencies": {
+    "vertx3-eventbus-client": "3.9.4"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.0",
+    "@vitest/coverage-v8": "4.1.0",
+    "@vitest/ui": "4.1.0",
+    "tsup": "8.3.5",
+    "typescript": "5.6.3",
+    "vitest": "4.1.0",
+    "prettier": "3.9.6"
+  }
+}

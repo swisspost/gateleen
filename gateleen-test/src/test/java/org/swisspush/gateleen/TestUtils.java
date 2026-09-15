@@ -408,6 +408,26 @@ public class TestUtils {
     public static void registerListener(final String requestUrl, final String target, String[] methods, String filter,
                                         Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type,
                                         String headersFilter, String queueHeader) {
+        registerListener(requestUrl, target, methods, filter, queueExpireTime, staticHeaders, type, headersFilter, queueHeader, null);
+    }
+
+    /**
+     * Registers a listener with an explicit fullUrl setting.
+     *
+     * @param requestUrl
+     * @param target
+     * @param methods
+     * @param filter
+     * @param queueExpireTime
+     * @param staticHeaders
+     * @param type
+     * @param headersFilter
+     * @param queueHeader
+     * @param fullUrl whether the listener target should omit the request path suffix
+     */
+    public static void registerListener(final String requestUrl, final String target, String[] methods, String filter,
+                                        Integer queueExpireTime, Map<String, String> staticHeaders, HookTriggerType type,
+                                        String headersFilter, String queueHeader, Boolean fullUrl) {
         JsonObject route = new JsonObject();
         route.put("destination", target);
 
@@ -437,6 +457,9 @@ public class TestUtils {
                 staticHeadersObj.put(entry.getKey(), entry.getValue());
             }
             route.put("staticHeaders", staticHeadersObj);
+        }
+        if (fullUrl != null) {
+            route.put(HookHandler.FULL_URL, fullUrl);
         }
 
         with().body(route.encode()).put(requestUrl).then().assertThat().statusCode(200);

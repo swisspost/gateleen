@@ -6,7 +6,7 @@
 
     <groupId>org.swisspush.gateleen</groupId>
     <artifactId>gateleen</artifactId>
-    <version>2.1.55-SNAPSHOT</version>
+    <version>2.1.56-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>gateleen</name>
     <description>Middleware library based on Vert.x to build advanced JSON/REST communication servers</description>
@@ -110,6 +110,7 @@
                 <module>gateleen-scheduler</module>
                 <module>gateleen-hook</module>
                 <module>gateleen-hook-js</module>
+                <module>gateleen-hook-ts</module>
                 <module>gateleen-qos</module>
                 <module>gateleen-player</module>
                 <module>gateleen-runconfig</module>
@@ -159,6 +160,7 @@
                 <module>gateleen-expansion</module>
                 <module>gateleen-hook</module>
                 <module>gateleen-hook-js</module>
+                <module>gateleen-hook-ts</module>
                 <module>gateleen-logging</module>
                 <module>gateleen-merge</module>
                 <module>gateleen-monitoring</module>
