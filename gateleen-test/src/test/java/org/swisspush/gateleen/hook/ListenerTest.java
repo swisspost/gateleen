@@ -162,6 +162,51 @@ public class ListenerTest extends AbstractTest {
         async.complete();
     }
 
+    @Test
+    public void testRequestForwardingForOneListenerWithFullUrlTrue(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String subresource = "fullUrlTrueListener";
+        String listenerName = "fullUrlTrueListener";
+        String registerUrl = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/1";
+        String target = targetUrlBase + "/" + listenerName;
+        String requestUrl = requestUrlBase + "/" + subresource + "/deep/nested/path";
+        String body = "{ \"name\" : \"fullUrl true listener\"}";
+
+        TestUtils.registerListener(registerUrl, target, new String[]{"PUT"}, null, null, null, null, null, null, true);
+        checkPUTStatusCode(requestUrl, body, 200);
+        checkGETBodyWithAwait(requestUrl, body);
+        checkGETBodyWithAwait(target, body);
+
+        TestUtils.unregisterListener(registerUrl);
+        async.complete();
+    }
+
+    @Test
+    public void testRequestForwardingForOneListenerWithFullUrlFalse(TestContext context) {
+        Async async = context.async();
+        delete();
+        initRoutingRules();
+
+        String subresource = "fullUrlFalseListener";
+        String listenerName = "fullUrlFalseListener";
+        String registerUrl = requestUrlBase + "/" + subresource + TestUtils.getHookListenersUrlSuffix() + listenerName + "/1";
+        String target = targetUrlBase + "/" + listenerName;
+        String requestUrl = requestUrlBase + "/" + subresource + "/deep/nested/path";
+        String targetWithSuffix = target + "/deep/nested/path";
+        String body = "{ \"name\" : \"fullUrl false listener\"}";
+
+        TestUtils.registerListener(registerUrl, target, new String[]{"PUT"}, null, null, null, null, null, null, false);
+        checkPUTStatusCode(requestUrl, body, 200);
+        checkGETBodyWithAwait(requestUrl, body);
+        checkGETBodyWithAwait(targetWithSuffix, body);
+
+        TestUtils.unregisterListener(registerUrl);
+        async.complete();
+    }
+
     /**
      * Test for two listener monitoring the same resource. <br />
      * eg. register / unregister: http://localhost:7012/gateleen/server/listenertest/fwTwoListener/_hooks/listeners/firstListener/1 <br />
