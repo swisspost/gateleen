@@ -65,6 +65,7 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     private final RedisByNameProvider redisProvider;
 
     private final boolean rejectLimitOffsetRequests;
+    private final boolean useClusterSafeMget;
 
     List<Pair<Pattern, Rule>> storageRules = new ArrayList<>();
 
@@ -80,12 +81,24 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
     }
 
     public DeltaHandler(Vertx vertx, RedisByNameProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
+                         LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
+                         boolean rejectLimitOffsetRequests) {
+        this(vertx, redisProvider, httpClient, ruleProvider, loggingResourceManager, logAppenderRepository,
+                rejectLimitOffsetRequests, true);
+    }
+
+    /**
+     * @param useClusterSafeMget whether multi-key delta lookups must be split by Redis Cluster hash slot.
+     *                            Set to {@code false} for standalone Redis to issue one native {@code MGET}.
+     */
+    public DeltaHandler(Vertx vertx, RedisByNameProvider redisProvider, HttpClient httpClient, RuleProvider ruleProvider,
                         LoggingResourceManager loggingResourceManager, LogAppenderRepository logAppenderRepository,
-                        boolean rejectLimitOffsetRequests) {
+                        boolean rejectLimitOffsetRequests, boolean useClusterSafeMget) {
         this.vertx = vertx;
         this.redisProvider = redisProvider;
         this.httpClient = httpClient;
         this.rejectLimitOffsetRequests = rejectLimitOffsetRequests;
+        this.useClusterSafeMget = useClusterSafeMget;
 
         this.loggingResourceManager = loggingResourceManager;
         this.logAppenderRepository = logAppenderRepository;
@@ -425,9 +438,18 @@ public class DeltaHandler implements RuleProvider.RuleChangesObserver {
                                List<String> deltaResourceKeys,
                                long updateIdNumber,
                                LoggingHandler loggingHandler,
-                               @Nullable String storageName) {
+                                @Nullable String storageName) {
         redisProvider.redis(storageName).onSuccess(redisAPI -> {
-            ClusterSafeMget.clusterSafeMget(redisAPI, deltaResourceKeys).onSuccess(mgetValues -> {
+            (useClusterSafeMget
+                    ? ClusterSafeMget.clusterSafeMget(redisAPI, deltaResourceKeys)
+                    : redisAPI.mget(deltaResourceKeys).map(response -> {
+                        List<Response> values = new ArrayList<>(response.size());
+                        for (int i = 0; i < response.size(); i++) {
+                            values.add(response.get(i));
+                        }
+                        return values;
+                    }))
+                    .onSuccess(mgetValues -> {
                 DeltaResourcesContainer deltaResourcesContainer = getDeltaResourceNames(subResourceNames,
                         mgetValues, updateIdNumber);
 
