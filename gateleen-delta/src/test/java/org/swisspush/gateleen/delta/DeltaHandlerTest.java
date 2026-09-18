@@ -687,13 +687,14 @@ public class DeltaHandlerTest {
 
     @Test
     public void testHandleCollectionGetUsesClusterSafeMget(TestContext context) {
-        // Stub the 1-arg Future-returning mget that ClusterSafeMget calls internally.
-        // Both items return null (not found in Redis) → both are newer than delta=0 → included.
-        Response slotResponse = mock(Response.class);
-        when(slotResponse.size()).thenReturn(2);
-        when(slotResponse.get(0)).thenReturn(null);
-        when(slotResponse.get(1)).thenReturn(null);
-        when(redisAPI.mget(any(List.class))).thenReturn(Future.succeededFuture(slotResponse));
+        // These keys map to different slots, so the default cluster-safe path must issue two MGETs.
+        Response firstSlotResponse = mock(Response.class);
+        when(firstSlotResponse.get(0)).thenReturn(null);
+        Response secondSlotResponse = mock(Response.class);
+        when(secondSlotResponse.get(0)).thenReturn(null);
+        when(redisAPI.mget(any(List.class)))
+                .thenReturn(Future.succeededFuture(firstSlotResponse))
+                .thenReturn(Future.succeededFuture(secondSlotResponse));
 
         HttpServerRequest getRequest = mock(HttpServerRequest.class);
         HttpServerResponse getResponse = mock(HttpServerResponse.class);
@@ -711,18 +712,67 @@ public class DeltaHandlerTest {
                 getRequest,
                 "col",
                 List.of("item1/", "item2/"),
-                List.of("delta:resources:gateleen:col:item1/", "delta:resources:gateleen:col:item2/"),
+                List.of("foo", "bar"),
                 0L,
                 loggingHandler,
                 null);
 
-        // ClusterSafeMget must have used the 1-arg Future-returning mget
-        verify(redisAPI, atLeastOnce()).mget(any(List.class));
+        verify(redisAPI, times(2)).mget(any(List.class));
         // The 2-arg callback-style mget must NOT be called
         verify(redisAPI, never()).mget(any(List.class), any());
         // Response must carry x-delta header and a body containing both items
         verify(getResponse).putHeader(eq("x-delta"), eq("0"));
         verify(getResponse).end(contains("item1"));
+    }
+
+    @Test
+    public void testHandleCollectionGetCanUseNativeMget(TestContext context) {
+        Response response = mock(Response.class);
+        when(response.size()).thenReturn(2);
+        when(response.get(0)).thenReturn(null);
+        when(response.get(1)).thenReturn(null);
+        when(redisAPI.mget(any(List.class))).thenReturn(Future.succeededFuture(response));
+
+        HttpServerRequest getRequest = mock(HttpServerRequest.class);
+        HttpServerResponse getResponse = mock(HttpServerResponse.class);
+        when(getRequest.response()).thenReturn(getResponse);
+        when(getResponse.headers()).thenReturn(new HeadersMultiMap());
+        when(getResponse.putHeader(anyString(), anyString())).thenReturn(getResponse);
+        when(getResponse.end(anyString())).thenReturn(Future.succeededFuture());
+
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider,
+                loggingResourceManager, logAppenderRepository, false, false);
+
+        List<String> keys = List.of("delta:resources:gateleen:col:item1/", "delta:resources:gateleen:col:item2/");
+        deltaHandler.handleMgetAndRespond(getRequest, "col", List.of("item1/", "item2/"), keys,
+                0L, mock(LoggingHandler.class), null);
+
+        verify(redisAPI).mget(eq(keys));
+        verify(getResponse).putHeader(eq("x-delta"), eq("0"));
+        verify(getResponse).end(contains("item1"));
+    }
+
+    @Test
+    public void testHandleCollectionGetWithNativeMgetFailureReturns500(TestContext context) {
+        List<String> keys = List.of("delta:resources:gateleen:col:item1/", "delta:resources:gateleen:col:item2/");
+        when(redisAPI.mget(eq(keys))).thenReturn(Future.failedFuture("mget failed"));
+
+        HttpServerRequest getRequest = mock(HttpServerRequest.class);
+        HttpServerResponse getResponse = mock(HttpServerResponse.class);
+        when(getRequest.response()).thenReturn(getResponse);
+        when(getResponse.setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode())).thenReturn(getResponse);
+        when(getResponse.setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage())).thenReturn(getResponse);
+        when(getResponse.end("error reading delta information")).thenReturn(Future.succeededFuture());
+
+        DeltaHandler deltaHandler = new DeltaHandler(vertx, redisProvider, null, ruleProvider,
+                loggingResourceManager, logAppenderRepository, false, false);
+        deltaHandler.handleMgetAndRespond(getRequest, "col", List.of("item1/", "item2/"), keys,
+                0L, mock(LoggingHandler.class), null);
+
+        verify(redisAPI).mget(keys);
+        verify(getResponse).setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+        verify(getResponse).setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+        verify(getResponse).end("error reading delta information");
     }
 
     // -------------------------------------------------------------------------

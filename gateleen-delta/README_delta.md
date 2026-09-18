@@ -66,6 +66,11 @@ The following diagram shows the usage of the delta feature having some Backend p
 | 3 | Client 1 retrieves all resources which are newer than it's last returned delta=3. The returned delta value is 7 |
 | 4 | Client 2 retrieves all resources which are newer than it's last returned delta=5. The returned delta value is 7 |
 
+## Redis Cluster configuration
+By default, `DeltaHandler` uses `ClusterSafeMget` for delta metadata lookups. This splits a multi-key lookup by Redis Cluster hash slot, which is required by Redis Cluster and AWS MemoryDB.
+
+For standalone Redis, construct `DeltaHandler` with `useClusterSafeMget` set to `false` using the eight-argument constructor. Delta lookups then use a single native Redis `MGET`, avoiding the per-slot request overhead. Do not disable this option when the configured Redis service is a cluster.
+
 ## Delta requests handled by the backend
 The delta feature can be implemented by backends themselves. To pass those requests directly to the backend without storing the \<update_id\> in gateleen, the following request header can be provided:
 > x-delta-backend: true
