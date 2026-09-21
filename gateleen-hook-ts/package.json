@@ -28,10 +28,8 @@
     "format:check": "prettier --check \"*.json\" \"src/**/*.{ts,html,css,scss,json}\"",
     "format:fix": "prettier --write \"*.json\" \"src/**/*.{ts,html,css,scss,json}\""
   },
-  "dependencies": {
-    "vertx3-eventbus-client": "3.9.4"
-  },
   "devDependencies": {
+    "vertx3-eventbus-client": "3.9.4",
     "@types/node": "26.0.0",
     "@vitest/coverage-v8": "4.1.0",
     "@vitest/ui": "4.1.0",

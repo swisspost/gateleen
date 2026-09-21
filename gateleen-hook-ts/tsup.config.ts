@@ -3,8 +3,21 @@ import { defineConfig } from 'tsup';
 export default defineConfig([
   {
     // Library build consumed by bundler-based applications (npm package).
+    //
+    // vertx3-eventbus-client (and its sockjs-client dependency) are inlined
+    // (noExternal) rather than left as external imports. That package is
+    // CommonJS-only with no ESM entry point, which trips up strict ESM
+    // consumers (e.g. Angular's esbuild-based builder reports "is not ESM").
+    // Bundling it here means consuming apps never import it directly from
+    // node_modules, so the warning/error disappears and it no longer needs
+    // to be installed as a runtime dependency by consumers.
     entry: ['src/index.ts'],
     format: ['esm', 'cjs'],
+    noExternal: ['vertx3-eventbus-client', 'sockjs-client'],
+    // Ensure esbuild honors dependencies' package.json "browser" field
+    // remappings (see browser bundle config below for details).
+    platform: 'browser',
+    define: { global: 'globalThis' },
     dts: true,
     clean: true
   },
