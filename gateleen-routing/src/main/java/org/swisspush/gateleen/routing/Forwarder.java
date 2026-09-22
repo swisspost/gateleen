@@ -102,9 +102,15 @@ public class Forwarder extends AbstractForwarder {
      * A value of {@code 1} (the default) disables retrying and preserves the historical behaviour.
      * Values below {@code 1} or non-numeric values are ignored and fall back to {@code 1}.
      * <p>
-     * The value is resolved once per {@link Forwarder} instance (in the constructor via
-     * {@link #resolveMaxForwardAttempts()}); it is "global" in the sense that every forwarder reads
-     * the very same JVM-wide system property.
+     * <b>Startup-only configuration.</b> This property is intended to be set as a JVM system property
+     * <em>before</em> Gateleen is started and to remain unchanged for the lifetime of the process.
+     * Each {@link Forwarder} snapshots the value in its constructor (via
+     * {@link #resolveMaxForwardAttempts()}), and forwarders are created at different points in time
+     * (at startup, when routing rules change, and when route hooks are (re)registered). Changing the
+     * property at runtime is therefore <em>not supported</em>: existing forwarders keep the value they
+     * captured at construction, so a runtime change would only affect forwarders built afterwards and
+     * could leave a single running instance applying inconsistent retry budgets. Set it once at
+     * startup and treat it as immutable thereafter.
      * <p>
      * Retries only happen for idempotent request methods (see {@link #isIdempotent(HttpMethod)})
      * whose body is already buffered in memory, because a streamed request body cannot be replayed.
@@ -112,14 +118,15 @@ public class Forwarder extends AbstractForwarder {
     public static final String MAX_FORWARD_ATTEMPTS_PROPERTY = "org.swisspush.gateleen.routing.forwarder.maxForwardAttempts";
 
     /**
-     * Reads and validates the globally configured maximum number of forwarding attempts from the
+     * Reads and validates the startup-configured maximum number of forwarding attempts from the
      * system property {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}.
      * <p>
      * This is resolved per {@link Forwarder} instance (from the constructor) rather than once in a
      * {@code static} initializer. Doing it per instance keeps the value trivially testable — a test
-     * can simply set/clear the system property before building a forwarder — while still being
-     * effectively global, since forwarders are created only at startup / routing-config time and all
-     * read the identical property.
+     * can simply set/clear the system property before building a forwarder. Because the property is
+     * defined as startup-only configuration (see {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}) that is not
+     * changed at runtime, every forwarder built during a given process reads the identical value, so
+     * per-instance resolution is equivalent to a single global snapshot in practice.
      * <p>
      * Robustness rules (this method never throws, so a misconfiguration can never break routing):
      * <ul>
@@ -149,7 +156,7 @@ public class Forwarder extends AbstractForwarder {
         return attempts;
     }
 
-    /** Per-instance snapshot of {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}; see {@link #resolveMaxForwardAttempts()}. */
+    /** Startup-only snapshot of {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}; see {@link #resolveMaxForwardAttempts()}. */
     private final int maxForwardAttempts = resolveMaxForwardAttempts();
 
     private Timer forwardTimer;
