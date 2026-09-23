@@ -54,6 +54,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.lang.Long.parseLong;
 import static org.swisspush.gateleen.core.util.HttpHeaderUtil.removeNonForwardHeaders;
 import static org.swisspush.gateleen.core.util.StatusCode.BAD_GATEWAY;
@@ -158,6 +159,16 @@ public class Forwarder extends AbstractForwarder {
 
     /** Startup-only snapshot of {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}; see {@link #resolveMaxForwardAttempts()}. */
     private final int maxForwardAttempts = resolveMaxForwardAttempts();
+
+    /**
+     * Minimum time (in milliseconds) that must still be left of the request-wide deadline (see
+     * {@link #handleRequest}) for a retry to be worth starting. Retrying with only a tiny sliver of
+     * budget left would arm a near-zero pool-wait / idle timeout that is almost guaranteed to expire
+     * immediately, burning a forwarding attempt for no useful work (and possibly flipping the client
+     * status from 502 to 504). If less than this remains we stop retrying and let the current failure
+     * be reported instead.
+     */
+    private static final long MIN_RETRY_BUDGET_MS = 50L;
 
     private Timer forwardTimer;
     private MeterRegistry meterRegistry;
@@ -496,6 +507,19 @@ public class Forwarder extends AbstractForwarder {
                 req, log, targetUri, startTime, timerSample, profileHeaderMap, loggingHandler,
                 afterHandler, timeout, timeoutMs, uniqueId, authHeader.orElse(null), bodyData);
 
+        /*
+         * Establish a single request-wide deadline that bounds the retry span of the forwarded
+         * request. The FIRST attempt still runs on the full configured timeout (see
+         * perAttemptTimeoutMs), so the common no-retry case is unchanged; each RETRY is limited to the
+         * time still left until this deadline. That way a retry budget of N can no longer stretch a
+         * request to ~N * timeout: retries only fill the remaining budget instead of each starting a
+         * fresh full timeout. When no timeout is configured (timeoutMs <= 0) the deadline stays
+         * disabled (0) and the previous unbounded behaviour is preserved.
+         */
+        if (timeoutMs > 0) {
+            ctx.deadlineNanos = System.nanoTime() + MILLISECONDS.toNanos(timeoutMs);
+        }
+
         sendToTarget(ctx);
     }
 
@@ -542,8 +566,17 @@ public class Forwarder extends AbstractForwarder {
          * hence it can never race with the guard of the current attempt.
          */
         final AtomicBoolean responded = new AtomicBoolean(false);
+        /*
+         * Per-attempt timeout for the pool-wait guard. The FIRST attempt keeps the full configured
+         * timeout, so the common no-retry case behaves exactly as before (pool-wait and idle each get
+         * their own full window). Only RETRIES are constrained to the time still left of the
+         * request-wide deadline (see handleRequest), which is what prevents N attempts from adding up
+         * to ~N * timeout. When no timeout is configured (timeoutMs <= 0) the "no timeout" semantics
+         * are preserved.
+         */
+        final long attemptTimeoutMs = perAttemptTimeoutMs(ctx);
         final long poolWaitTimerId = ctx.timeoutMs > 0
-                ? vertx.setTimer(ctx.timeoutMs, id -> {
+                ? vertx.setTimer(attemptTimeoutMs, id -> {
                     if (responded.compareAndSet(false, true)) {
                         ctx.log.warn("Timeout waiting for pool connection to {}:{}{}", rule.getHost(), port, ctx.targetUri);
                         error("Timeout waiting for connection pool", ctx.dnReq, ctx.targetUri);
@@ -606,7 +639,60 @@ public class Forwarder extends AbstractForwarder {
         return ctx.attempt < maxForwardAttempts
                 && ctx.bodyData != null
                 && isIdempotent(ctx.dnReq.method())
-                && !ctx.dnReq.response().headWritten();
+                && !ctx.dnReq.response().headWritten()
+                && hasRetryBudget(ctx);
+    }
+
+    /**
+     * Per-attempt timeout (in milliseconds) applied to both the pool-wait guard timer and the
+     * upstream {@code idleTimeout}.
+     * <ul>
+     *   <li><b>First attempt</b> ({@code attempt <= 1}): the full configured {@code timeoutMs} is
+     *       used, so the common no-retry case is unchanged and each phase (pool-wait, idle) keeps its
+     *       own full window exactly as before retries existed.</li>
+     *   <li><b>Retries</b> ({@code attempt > 1}): the time still left until the request-wide deadline
+     *       is used, so all attempts together stay bounded instead of granting a fresh full timeout
+     *       per attempt.</li>
+     * </ul>
+     * When no timeout is configured ({@code timeoutMs <= 0}) this simply returns {@code timeoutMs},
+     * preserving the "no timeout" semantics (a value of {@code 0} disables the timer / idleTimeout).
+     */
+    private static long perAttemptTimeoutMs(RequestCtx ctx) {
+        if (ctx.attempt <= 1) {
+            return ctx.timeoutMs;
+        }
+        return remainingTimeoutMs(ctx);
+    }
+
+    /**
+     * Remaining time (in milliseconds) until the request-wide deadline established in
+     * {@link #handleRequest}, clamped to a minimum of {@code 1} ms so a permitted attempt never
+     * requests an unbounded ({@code 0}) timeout. When no deadline is configured
+     * ({@code deadlineNanos == 0}, i.e. {@code timeoutMs <= 0}) the original {@code timeoutMs} is
+     * returned unchanged.
+     */
+    private static long remainingTimeoutMs(RequestCtx ctx) {
+        if (ctx.deadlineNanos == 0) {
+            return ctx.timeoutMs;
+        }
+        long remainingMs = NANOSECONDS.toMillis(ctx.deadlineNanos - System.nanoTime());
+        return Math.max(1, remainingMs);
+    }
+
+    /**
+     * Tells whether enough of the request-wide deadline (see {@link #handleRequest}) is still left to
+     * make another attempt worthwhile, i.e. at least {@link #MIN_RETRY_BUDGET_MS}. Always
+     * {@code true} when no timeout is configured ({@code deadlineNanos == 0}), so retries stay
+     * unbounded in time exactly as before in that case. Using a small floor (rather than "any time
+     * left at all") avoids launching a doomed near-zero-timeout retry that would waste a forwarding
+     * attempt.
+     */
+    private static boolean hasRetryBudget(RequestCtx ctx) {
+        if (ctx.deadlineNanos == 0) {
+            return true;
+        }
+        long remainingMs = NANOSECONDS.toMillis(ctx.deadlineNanos - System.nanoTime());
+        return remainingMs >= MIN_RETRY_BUDGET_MS;
     }
 
     /**
@@ -691,7 +777,7 @@ public class Forwarder extends AbstractForwarder {
             onUpstreamResponseNoThrow(ev.result(), ctx, "findme_3q908hjq98t");
         });
 
-        ctx.upReq.idleTimeout(ctx.timeoutMs);
+        ctx.upReq.idleTimeout(perAttemptTimeoutMs(ctx));
 
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
         MultiMap headersToForward = ctx.dnReq.headers();
@@ -1166,6 +1252,15 @@ public class Forwarder extends AbstractForwarder {
          * of a retried request.
          */
         private int attempt = 1;
+
+        /**
+         * Absolute deadline, expressed on the {@link System#nanoTime()} clock, by which the whole
+         * forwarded request (initial attempt plus any retries) must be finished. Set once in
+         * {@link Forwarder#handleRequest} when a timeout is configured and never changed afterwards,
+         * so it bounds the total request lifetime rather than each individual attempt. A value of
+         * {@code 0} means "no timeout configured" and disables all deadline-based logic.
+         */
+        private long deadlineNanos = 0;
 
         private RequestCtx(
                 HttpServerRequest dnReq,

@@ -247,9 +247,87 @@ public class ForwarderRetryTest {
         ctx.assertEquals(StatusCode.BAD_GATEWAY.getStatusCode(), status, "Expected 502 after the single attempt failed");
     }
 
+    /**
+     * Budget = 3 against a backend that accepts the connection but never answers, so every attempt can
+     * only be ended by the upstream idle timeout. This is the scenario the request-wide deadline is
+     * meant to bound: without it, each of the 3 attempts would arm its own full {@code timeout} idle
+     * timer, so the caller could wait up to ~3 &times; {@code timeout}. With the shared deadline the
+     * whole forwarding (all attempts together) must complete within roughly a single {@code timeout}.
+     *
+     * <p>We assert on the elapsed wall-clock time rather than only on the attempt count: the final
+     * response must arrive within one end-to-end budget, not one budget per attempt.
+     */
+    /**
+     * Budget = 3 against a backend whose first attempt fails fast (connection reset) so a retry is
+     * actually triggered, and whose subsequent attempts hang forever, so each retry can only be ended
+     * by the upstream idle timeout. This is the scenario the request-wide deadline is meant to bound:
+     * without it, the retry would arm its own <em>full</em> {@code timeout} idle timer on top of the
+     * first attempt, so the caller could wait up to ~N &times; {@code timeout}. With the shared
+     * deadline the retry may only consume the time left of the single budget, so the whole forwarding
+     * completes within roughly one {@code timeout}.
+     *
+     * <p>We assert on the elapsed wall-clock time rather than only on the attempt count: the final
+     * response must arrive within one end-to-end budget, not one budget per attempt. We also assert
+     * that a retry really happened, so the timing bound is exercised on a genuine retry path.
+     */
+    @Test
+    public void testRetriesShareSingleTimeoutBudget(TestContext ctx) {
+        System.setProperty(Forwarder.MAX_FORWARD_ATTEMPTS_PROPERTY, "3");
+        final int timeoutMs = 1000;
+        AtomicInteger hits = new AtomicInteger();
+        // Fail the first attempt instantly, then hang every following attempt until its idle timeout.
+        int backendPort = startFailFastThenHangingBackend(ctx, hits, 1);
+
+        Rule rule = buildRule(backendPort);
+        rule.setTimeout(timeoutMs);
+        HttpClient httpClient = vertx.createHttpClient(rule.buildHttpClientOptions());
+        Forwarder forwarder = buildForwarder(rule, httpClient);
+
+        Async done = ctx.async();
+        CapturingResponse response = new CapturingResponse(done);
+        RoutingContext routingContext = buildRoutingContext(HttpMethod.GET, response);
+
+        long startMs = System.currentTimeMillis();
+        forwarder.handle(routingContext, Buffer.buffer("payload"), null);
+        done.awaitSuccess(AWAIT_MS);
+        long elapsedMs = System.currentTimeMillis() - startMs;
+
+        ctx.assertTrue(hits.get() >= 2, "Expected at least one retry to be triggered, but backend saw " + hits.get() + " attempt(s)");
+        ctx.assertTrue(elapsedMs < 2L * timeoutMs,
+                "All retries must share a single timeout budget: elapsed=" + elapsedMs
+                        + "ms must stay well under the per-attempt worst case of " + (3L * timeoutMs) + "ms");
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Starts a backend that counts every request it receives. For the first {@code failFastTimes}
+     * requests it closes the TCP connection immediately (which the forwarder observes as an upstream
+     * response failure and, for an idempotent buffered request, retries). Every request after that is
+     * left hanging with no response, so the forwarding attempt can only be terminated by the upstream
+     * idle timeout.
+     *
+     * @return the actual listen port.
+     */
+    private int startFailFastThenHangingBackend(TestContext ctx, AtomicInteger hitCounter, int failFastTimes) {
+        Async ready = ctx.async();
+        int[] port = new int[1];
+        backend = vertx.createHttpServer();
+        backend.requestHandler(req -> {
+            int attemptNr = hitCounter.incrementAndGet();
+            if (attemptNr <= failFastTimes) {
+                req.connection().close();
+            } // else: deliberately never respond, forcing the idle timeout to end this attempt
+        });
+        backend.listen(0, ctx.asyncAssertSuccess(server -> {
+            port[0] = server.actualPort();
+            ready.complete();
+        }));
+        ready.awaitSuccess(AWAIT_MS);
+        return port[0];
+    }
 
     /**
      * Starts a backend that counts every request it receives. For the first {@code failTimes}
