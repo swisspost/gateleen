@@ -15,6 +15,7 @@ import io.vertx.core.http.HttpClientRequest;
 import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
@@ -53,6 +54,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.lang.Long.parseLong;
 import static org.swisspush.gateleen.core.util.HttpHeaderUtil.removeNonForwardHeaders;
 import static org.swisspush.gateleen.core.util.StatusCode.BAD_GATEWAY;
@@ -92,6 +94,82 @@ public class Forwarder extends AbstractForwarder {
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
     private static AtomicInteger nextErrorId = new AtomicInteger();
+
+    /**
+     * System property to globally configure the maximum number of forwarding attempts (the initial
+     * try plus any retries) that a {@link Forwarder} performs when the upstream target fails to
+     * deliver a response.
+     * <p>
+     * A value of {@code 1} (the default) disables retrying and preserves the historical behaviour.
+     * Values below {@code 1} or non-numeric values are ignored and fall back to {@code 1}.
+     * <p>
+     * <b>Startup-only configuration.</b> This property is intended to be set as a JVM system property
+     * <em>before</em> Gateleen is started and to remain unchanged for the lifetime of the process.
+     * Each {@link Forwarder} snapshots the value in its constructor (via
+     * {@link #resolveMaxForwardAttempts()}), and forwarders are created at different points in time
+     * (at startup, when routing rules change, and when route hooks are (re)registered). Changing the
+     * property at runtime is therefore <em>not supported</em>: existing forwarders keep the value they
+     * captured at construction, so a runtime change would only affect forwarders built afterwards and
+     * could leave a single running instance applying inconsistent retry budgets. Set it once at
+     * startup and treat it as immutable thereafter.
+     * <p>
+     * Retries only happen for idempotent request methods (see {@link #isIdempotent(HttpMethod)})
+     * whose body is already buffered in memory, because a streamed request body cannot be replayed.
+     */
+    public static final String MAX_FORWARD_ATTEMPTS_PROPERTY = "org.swisspush.gateleen.routing.forwarder.maxForwardAttempts";
+
+    /**
+     * Reads and validates the startup-configured maximum number of forwarding attempts from the
+     * system property {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}.
+     * <p>
+     * This is resolved per {@link Forwarder} instance (from the constructor) rather than once in a
+     * {@code static} initializer. Doing it per instance keeps the value trivially testable — a test
+     * can simply set/clear the system property before building a forwarder. Because the property is
+     * defined as startup-only configuration (see {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}) that is not
+     * changed at runtime, every forwarder built during a given process reads the identical value, so
+     * per-instance resolution is equivalent to a single global snapshot in practice.
+     * <p>
+     * Robustness rules (this method never throws, so a misconfiguration can never break routing):
+     * <ul>
+     *   <li>Absent property           &rarr; default of {@code 1} (retrying disabled, legacy behaviour).</li>
+     *   <li>Blank / non-numeric value &rarr; log a warning and fall back to {@code 1}.</li>
+     *   <li>Numeric but {@code < 1}    &rarr; log a warning and clamp to {@code 1} (you always perform
+     *       at least one try, so a budget below one is meaningless).</li>
+     * </ul>
+     *
+     * @return the sanitized attempt budget, always {@code >= 1}.
+     */
+    static int resolveMaxForwardAttempts() {
+        int attempts = 1;
+        String prop = System.getProperty(MAX_FORWARD_ATTEMPTS_PROPERTY);
+        if (prop != null) {
+            try {
+                attempts = Integer.parseInt(prop.trim());
+                if (attempts < 1) {
+                    LOG.warn("Ignoring invalid {}=\"{}\" (must be >= 1), using 1 instead", MAX_FORWARD_ATTEMPTS_PROPERTY, prop);
+                    attempts = 1;
+                }
+            } catch (NumberFormatException e) {
+                LOG.warn("Ignoring non-numeric {}=\"{}\", using 1 instead", MAX_FORWARD_ATTEMPTS_PROPERTY, prop);
+                attempts = 1;
+            }
+        }
+        return attempts;
+    }
+
+    /** Startup-only snapshot of {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}; see {@link #resolveMaxForwardAttempts()}. */
+    private final int maxForwardAttempts = resolveMaxForwardAttempts();
+
+    /**
+     * Minimum time (in milliseconds) that must still be left of the request-wide deadline (see
+     * {@link #handleRequest}) for a retry to be worth starting. Retrying with only a tiny sliver of
+     * budget left would arm a near-zero pool-wait / idle timeout that is almost guaranteed to expire
+     * immediately, burning a forwarding attempt for no useful work (and possibly flipping the client
+     * status from 502 to 504). If less than this remains we stop retrying and let the current failure
+     * be reported instead.
+     */
+    private static final long MIN_RETRY_BUDGET_MS = 50L;
+
     private Timer forwardTimer;
     private MeterRegistry meterRegistry;
 
@@ -430,20 +508,75 @@ public class Forwarder extends AbstractForwarder {
                 afterHandler, timeout, timeoutMs, uniqueId, authHeader.orElse(null), bodyData);
 
         /*
+         * Establish a single request-wide deadline that bounds the whole forwarded request,
+         * including pool-wait and upstream idle across every attempt. Each attempt (the first one
+         * included) is armed with the time still left until this deadline (see remainingTimeoutMs),
+         * so a retry budget of N can no longer stretch a request to ~N * timeout: the configured
+         * timeout bounds the request as a whole instead of each phase/attempt getting a fresh full
+         * window. When no timeout is configured (timeoutMs <= 0) the deadline stays disabled (0) and
+         * the previous unbounded behaviour is preserved.
+         */
+        if (timeoutMs > 0) {
+            ctx.deadlineNanos = System.nanoTime() + MILLISECONDS.toNanos(timeoutMs);
+        }
+
+        sendToTarget(ctx);
+    }
+
+    /**
+     * Initiates (or, on a retry, re-initiates) the request to the upstream target described by
+     * {@code ctx}. This includes arming the pool-wait guard timer and calling {@code client.request()}.
+     * <p>
+     * <b>Why this is a separate, re-callable method.</b> The forwarding flow used to inline this block
+     * inside {@link #handleRequest}. It was extracted so that the exact same "open a connection and
+     * fire the request" sequence can be executed again for a retry, without having to rebuild the
+     * {@link RequestCtx}, re-parse headers, restart metric tracking or re-run authentication. Each
+     * invocation starts a <em>fresh</em> upstream attempt: a new pool-wait guard timer, a new
+     * {@code client.request(...)} call and (later, in {@link #onNewRequestComplete}) a brand-new
+     * {@link HttpClientRequest} assigned to {@code ctx.upReq}.
+     * <p>
+     * <b>State that is intentionally shared across attempts</b> (because it lives on {@code ctx}):
+     * the downstream request/response, the buffered {@code bodyData} that gets replayed, the logging
+     * handler, the metric sample and the {@code attempt} counter. Everything that is specific to a
+     * single attempt (the {@code responded} guard, the timer id, the upstream request object) is
+     * created locally here or reassigned per attempt, so two attempts never interfere with each other.
+     * <p>
+     * <b>Important:</b> a retry is only ever triggered from a state where the downstream response has
+     * not been written yet (guaranteed by {@link #mayRetry}), so re-entering this method cannot
+     * corrupt a partially delivered client response.
+     *
+     * @param ctx the per-request context; the same instance is reused across retries.
+     */
+    private void sendToTarget(RequestCtx ctx) {
+        /*
          * Arm a pool-wait guard timer BEFORE calling client.request().
          * If the connection pool is exhausted, client.request() will queue this request
          * internally and never invoke the callback until a slot is freed. Without this
          * guard, queued requests have no timeout of their own and can hang indefinitely.
          *
-         * The timer fires after the same timeout configured for the rule / x-timeout header.
-         * If it fires first it responds with 504 and abandons the pool-queue entry.
-         * If client.request() fires first it cancels the timer and proceeds normally.
+         * The timer fires after the time still left until the request-wide deadline (see
+         * remainingTimeoutMs). If it fires first it responds with 504 and abandons the pool-queue
+         * entry. If client.request() fires first it cancels the timer and proceeds normally.
          *
          * When timeoutMs <= 0 the timer is skipped (no timeout configured).
+         *
+         * NOTE ON RETRIES: `responded` and `poolWaitTimerId` are declared locally, so every
+         * call to sendToTarget() gets its own independent guard/timer pair. A timer armed for a
+         * previous (failed) attempt has already fired or been cancelled by the time we get here,
+         * hence it can never race with the guard of the current attempt.
          */
         final AtomicBoolean responded = new AtomicBoolean(false);
-        final long poolWaitTimerId = timeoutMs > 0
-                ? vertx.setTimer(timeoutMs, id -> {
+        /*
+         * Timeout for the pool-wait guard. Pool waiting consumes the request-wide deadline (see
+         * handleRequest) on EVERY attempt, including the first, so we always arm the guard with the
+         * time still left until that deadline. This prevents N attempts from adding up to
+         * ~N * timeout and keeps the whole forwarded request bounded by a single configured timeout
+         * window. When no timeout is configured (timeoutMs <= 0) the "no timeout" semantics are
+         * preserved (remainingTimeoutMs returns the unchanged timeoutMs).
+         */
+        final long attemptTimeoutMs = remainingTimeoutMs(ctx);
+        final long poolWaitTimerId = ctx.timeoutMs > 0
+                ? vertx.setTimer(attemptTimeoutMs, id -> {
                     if (responded.compareAndSet(false, true)) {
                         ctx.log.warn("Timeout waiting for pool connection to {}:{}{}", rule.getHost(), port, ctx.targetUri);
                         error("Timeout waiting for connection pool", ctx.dnReq, ctx.targetUri);
@@ -454,7 +587,7 @@ public class Forwarder extends AbstractForwarder {
                 : -1;
 
         /* initiate request to target server */
-        client.request(req.method(), port, rule.getHost(), ctx.targetUri, ev -> {
+        client.request(ctx.dnReq.method(), port, rule.getHost(), ctx.targetUri, ev -> {
             if (!responded.compareAndSet(false, true)) {
                 /* pool-wait timer already fired and responded with 504 — abandon the
                  * connection we just obtained so it is returned cleanly to the pool */
@@ -464,13 +597,104 @@ public class Forwarder extends AbstractForwarder {
             vertx.cancelTimer(poolWaitTimerId);
             if (ev.failed()) {
                 ctx.log.warn("Problem to request {}: {}", ctx.targetUri, ev.cause());
-                tryRespondWithServiceUnavailable(ctx.dnReq.response(), log, "findme_48hj349lgnt8j");
+                tryRespondWithServiceUnavailable(ctx.dnReq.response(), ctx.log, "findme_48hj349lgnt8j");
                 handleForwardDurationMetrics(ctx.timerSample);
                 ctx.dnReq.resume();
                 return;
             }
             onNewRequestCompleteNoThrow(ev, ctx);
         });
+    }
+
+    /**
+     * Decides whether the current, failed upstream response is allowed to be retried.
+     * <p>
+     * Retrying an HTTP request that failed while we were waiting for the response is delicate,
+     * because the target server may already have received and (partially or fully) processed the
+     * request before the connection broke. We therefore only retry when <b>all four</b> of the
+     * following conditions are satisfied; if any one is false we give up and let the caller respond
+     * with {@code 502 Bad Gateway}:
+     * <ol>
+     *   <li><b>Attempt budget left</b> ({@code ctx.attempt < maxForwardAttempts}). {@code attempt}
+     *       is 1-based and counts the tries already started, so with the default budget of {@code 1}
+     *       this is immediately {@code false} and retrying stays completely disabled.</li>
+     *   <li><b>Buffered body</b> ({@code ctx.bodyData != null}). When the body was streamed straight
+     *       from the incoming request via a {@code Pump}, that stream has already been consumed and
+     *       <em>cannot</em> be read a second time. Only a body we hold fully in memory can be replayed
+     *       onto a fresh upstream connection.</li>
+     *   <li><b>Idempotent method</b> ({@link #isIdempotent(HttpMethod)}). Replaying e.g. a
+     *       {@code POST} could cause the target to perform the same side effect twice. Idempotent
+     *       methods are, by definition, safe to send more than once.</li>
+     *   <li><b>Downstream response untouched</b> ({@code !headWritten()}). If we had already begun
+     *       streaming a response back to the calling client we could no longer cleanly "start over";
+     *       at the point this is evaluated (the upstream <em>response</em> failed) nothing has been
+     *       written downstream yet, and this check defends against any future code change that might
+     *       violate that assumption.</li>
+     * </ol>
+     *
+     * @param ctx the per-request context (carries the attempt counter and the buffered body).
+     * @return {@code true} if another forwarding attempt may safely be started.
+     */
+    private boolean mayRetry(RequestCtx ctx) {
+        return ctx.attempt < maxForwardAttempts
+                && ctx.bodyData != null
+                && isIdempotent(ctx.dnReq.method())
+                && !ctx.dnReq.response().headWritten()
+                && hasRetryBudget(ctx);
+    }
+
+    /**
+     * Remaining time (in milliseconds) until the request-wide deadline established in
+     * {@link #handleRequest}, clamped to a minimum of {@code 1} ms so a permitted attempt never
+     * requests an unbounded ({@code 0}) timeout. When no deadline is configured
+     * ({@code deadlineNanos == 0}, i.e. {@code timeoutMs <= 0}) the original {@code timeoutMs} is
+     * returned unchanged.
+     */
+    private static long remainingTimeoutMs(RequestCtx ctx) {
+        if (ctx.deadlineNanos == 0) {
+            return ctx.timeoutMs;
+        }
+        long remainingMs = NANOSECONDS.toMillis(ctx.deadlineNanos - System.nanoTime());
+        return Math.max(1, remainingMs);
+    }
+
+    /**
+     * Tells whether enough of the request-wide deadline (see {@link #handleRequest}) is still left to
+     * make another attempt worthwhile, i.e. at least {@link #MIN_RETRY_BUDGET_MS}. Always
+     * {@code true} when no timeout is configured ({@code deadlineNanos == 0}), so retries stay
+     * unbounded in time exactly as before in that case. Using a small floor (rather than "any time
+     * left at all") avoids launching a doomed near-zero-timeout retry that would waste a forwarding
+     * attempt.
+     */
+    private static boolean hasRetryBudget(RequestCtx ctx) {
+        if (ctx.deadlineNanos == 0) {
+            return true;
+        }
+        long remainingMs = NANOSECONDS.toMillis(ctx.deadlineNanos - System.nanoTime());
+        return remainingMs >= MIN_RETRY_BUDGET_MS;
+    }
+
+    /**
+     * Tells whether the given HTTP method is <em>idempotent</em> in the sense of
+     * <a href="https://datatracker.ietf.org/doc/html/rfc7231#section-4.2.2">RFC 7231 §4.2.2</a>,
+     * i.e. sending the identical request N&gt;1 times has the same effect on the server as sending it
+     * once. Such methods are the only ones we are willing to replay automatically.
+     * <p>
+     * {@code GET}, {@code HEAD}, {@code PUT}, {@code DELETE}, {@code OPTIONS} and {@code TRACE} are
+     * idempotent and therefore retryable. Deliberately excluded are {@code POST}, {@code PATCH} and
+     * {@code CONNECT}: they are not idempotent, so an automatic retry could duplicate a side effect
+     * (a second resource creation, a second partial update, etc.).
+     *
+     * @param method the request method to classify.
+     * @return {@code true} if {@code method} is idempotent and hence safe to retry.
+     */
+    private static boolean isIdempotent(HttpMethod method) {
+        return HttpMethod.GET.equals(method)
+                || HttpMethod.HEAD.equals(method)
+                || HttpMethod.PUT.equals(method)
+                || HttpMethod.DELETE.equals(method)
+                || HttpMethod.OPTIONS.equals(method)
+                || HttpMethod.TRACE.equals(method);
     }
 
     private void onNewRequestCompleteNoThrow(AsyncResult<HttpClientRequest> ev, RequestCtx ctx) {
@@ -506,13 +730,38 @@ public class Forwarder extends AbstractForwarder {
                 ctx.log.warn("Bad upstream response: {}://{}{} {}",
                         rule.getScheme(), target, ctx.targetUri, ev.cause().getMessage(),
                         ctx.log.isDebugEnabled() ? ev.cause() : null);
+                /*
+                 * The upstream failed to deliver a usable response (connection dropped, reset,
+                 * timed out while waiting for the response head, ...). Before surrendering with a
+                 * 502 we ask mayRetry() whether another attempt is safe and permitted (idempotent
+                 * method, buffered/replayable body, attempt budget left, nothing sent downstream
+                 * yet). See mayRetry() for the full reasoning behind each condition.
+                 *
+                 * If a retry is allowed we bump the 1-based attempt counter and re-enter
+                 * sendToTarget(ctx), which opens a brand-new upstream connection and replays the
+                 * buffered request. We MUST return here so we do not also send the 502 below for
+                 * this (now superseded) attempt; the fresh attempt owns the outcome from now on.
+                 */
+                if (mayRetry(ctx)) {
+                    ctx.attempt++;
+                    ctx.log.info("Retrying request (attempt {} of {}) to {}://{}{} after upstream failure",
+                            ctx.attempt, maxForwardAttempts, rule.getScheme(), target, ctx.targetUri);
+                    sendToTarget(ctx);
+                    return;
+                }
+                /* No (further) retry allowed -> report the upstream failure to the client. */
                 tryRespondWithBadGateway(ctx.dnReq.response(), ctx.log, "findme_49ot58h0inrnu3985h");
                 return;
             }
             onUpstreamResponseNoThrow(ev.result(), ctx, "findme_3q908hjq98t");
         });
 
-        ctx.upReq.idleTimeout(ctx.timeoutMs);
+        /*
+         * Bound the upstream idle wait by the time still left until the request-wide deadline.
+         * Pool acquisition may already have consumed most of that budget, so we recompute the
+         * remaining time here rather than granting a fresh full window per attempt.
+         */
+        ctx.upReq.idleTimeout(remainingTimeoutMs(ctx));
 
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
         MultiMap headersToForward = ctx.dnReq.headers();
@@ -978,6 +1227,24 @@ public class Forwarder extends AbstractForwarder {
         private final String uniqueId;
         private final AuthHeader authHeader;
         private final Buffer bodyData;
+        /**
+         * Number of forwarding attempts already started for this request, 1-based: it is {@code 1}
+         * for the very first try and is incremented by one immediately before each retry is launched.
+         * It is compared against {@code Forwarder.maxForwardAttempts} in {@link Forwarder#mayRetry}
+         * to enforce the global attempt budget. Kept on the context (rather than as a local) precisely
+         * so that its value survives across the successive {@link Forwarder#sendToTarget} invocations
+         * of a retried request.
+         */
+        private int attempt = 1;
+
+        /**
+         * Absolute deadline, expressed on the {@link System#nanoTime()} clock, by which the whole
+         * forwarded request (initial attempt plus any retries) must be finished. Set once in
+         * {@link Forwarder#handleRequest} when a timeout is configured and never changed afterwards,
+         * so it bounds the total request lifetime rather than each individual attempt. A value of
+         * {@code 0} means "no timeout configured" and disables all deadline-based logic.
+         */
+        private long deadlineNanos = 0;
 
         private RequestCtx(
                 HttpServerRequest dnReq,
