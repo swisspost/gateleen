@@ -224,6 +224,118 @@ public class ForwarderConnectionCloseTest {
         );
     }
 
+    /**
+     * Regression test for the request-wide deadline fix.
+     *
+     * <p>The route has a single pool connection and a configured timeout of 1000 ms.
+     * Request #1 occupies that sole connection and the backend releases it only near the
+     * end of the configured timeout window (after ~700 ms). Request #2 is queued the whole
+     * time and only acquires a connection once request #1's slot is freed, to a backend that
+     * then never responds.
+     *
+     * <p>Because the pool wait already consumed most of the request-wide deadline, the
+     * upstream {@code idleTimeout} armed for request #2 must use the <em>remaining</em> budget
+     * (~300 ms), so request #2's final downstream response arrives within approximately one
+     * configured timeout window (~1000 ms after it was dispatched).
+     *
+     * <p>Before the fix, request #2 was granted a fresh full idle window after acquiring the
+     * connection, so its response only arrived after roughly the pool-wait span (~700 ms) plus
+     * a full idle window (~1000 ms) ≈ 1700 ms. The 1400 ms assertion window therefore fails
+     * without the fix and passes with it.
+     */
+    @Test
+    public void testPoolWaitConsumesRequestWideDeadline_req2RespondsWithinOneTimeoutWindow(TestContext ctx) {
+        final int timeoutMs = 1000;
+        final long holdMs = 700; // backend releases req1's connection near the end of the timeout window
+
+        // Backend: the FIRST connection receives a response after holdMs (freeing the sole pool
+        // slot); every later connection is drained but never answered, so req2 relies on its
+        // upstream idleTimeout to be released.
+        Async backendReady = ctx.async();
+        AtomicInteger connectionCount = new AtomicInteger(0);
+        io.vertx.core.net.NetServer backend = vertx.createNetServer();
+        backend.connectHandler(socket -> {
+            socket.handler(buf -> { /* drain incoming request bytes */ });
+            if (connectionCount.incrementAndGet() == 1) {
+                vertx.setTimer(holdMs, id -> {
+                    // Send a complete HTTP/1.1 response (Content-Length: 0 fully delimits it) and
+                    // leave the socket open: with keepAlive=false the client closes the connection
+                    // itself once the response is read, freeing the sole pool slot for req2. Closing
+                    // the socket here instead would race the client's read and surface as a 500.
+                    socket.write("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                });
+            }
+        });
+        int[] backendPort = new int[1];
+        backend.listen(0, ctx.asyncAssertSuccess(s -> {
+            backendPort[0] = s.actualPort();
+            backendReady.complete();
+        }));
+        backendReady.awaitSuccess(2000);
+
+        Rule rule = buildRule(backendPort[0], timeoutMs);
+        HttpClient httpClient = vertx.createHttpClient(rule.buildHttpClientOptions());
+        Forwarder forwarder = buildForwarder(rule, httpClient);
+
+        // Request #1 acquires the sole pool connection.
+        java.util.concurrent.CountDownLatch req1Latch = new java.util.concurrent.CountDownLatch(1);
+        AtomicInteger capturedStatus1 = new AtomicInteger(-1);
+        forwarder.handle(buildRoutingContext(buildCapturingResponse(req1Latch, capturedStatus1)));
+
+        // Let req1 claim the single pool slot before dispatching req2.
+        try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+        // Request #2 must wait in the pool queue until req1's connection is released at ~holdMs.
+        java.util.concurrent.CountDownLatch req2Latch = new java.util.concurrent.CountDownLatch(1);
+        AtomicInteger capturedStatus2 = new AtomicInteger(-1);
+        long req2DispatchedAt = System.currentTimeMillis();
+        forwarder.handle(buildRoutingContext(buildCapturingResponse(req2Latch, capturedStatus2)));
+
+        final boolean req1Done;
+        final boolean req2Done;
+        try {
+            req2Done = req2Latch.await(3000, java.util.concurrent.TimeUnit.MILLISECONDS);
+            req1Done = req1Latch.await(3000, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            ctx.fail("Test interrupted");
+            return;
+        }
+        long req2ElapsedMs = System.currentTimeMillis() - req2DispatchedAt;
+
+        ctx.assertTrue(req2Done, "Request #2 should have completed within 3000 ms");
+
+        // req1 held the sole pool slot until the backend answered; once it completes the connection
+        // is released so req2 can acquire it. We only assert that req1 finished (slot released) — its
+        // exact status is irrelevant here and is not 200 in this harness: the streaming success path
+        // touches DummyHttpServerResponse methods that FastFailHttpServerResponse leaves unimplemented,
+        // so req1 deterministically ends as 500. That harness artifact does not affect req2's timing,
+        // which is what this test verifies.
+        ctx.assertTrue(req1Done,
+                "Request #1 should have completed within 3000 ms so its pool slot is released, got status: "
+                        + capturedStatus1.get());
+
+        // req2 acquired a connection (pool-wait timer was cancelled) but the backend never
+        // answered, so the upstream idleTimeout on the remaining budget fires -> 502.
+        ctx.assertEquals(
+                StatusCode.BAD_GATEWAY.getStatusCode(),
+                capturedStatus2.get(),
+                "Expected 502 Bad Gateway for request #2 (upstream idleTimeout on remaining budget), got: "
+                        + capturedStatus2.get()
+        );
+
+        // The whole request must stay within ~one configured timeout window. Without the fix the
+        // idleTimeout would restart a full 1000 ms window after the ~700 ms pool wait (≈1700 ms).
+        ctx.assertTrue(
+                req2ElapsedMs < 1400,
+                "Request #2 should complete within ~one configured timeout window (1400 ms), but took "
+                        + req2ElapsedMs + " ms. A pool-wait span plus a fresh idle window indicates the "
+                        + "request-wide deadline is not being applied on every attempt."
+        );
+
+        backend.close();
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

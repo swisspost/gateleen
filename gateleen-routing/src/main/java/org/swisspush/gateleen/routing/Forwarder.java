@@ -508,13 +508,13 @@ public class Forwarder extends AbstractForwarder {
                 afterHandler, timeout, timeoutMs, uniqueId, authHeader.orElse(null), bodyData);
 
         /*
-         * Establish a single request-wide deadline that bounds the retry span of the forwarded
-         * request. The FIRST attempt still runs on the full configured timeout (see
-         * perAttemptTimeoutMs), so the common no-retry case is unchanged; each RETRY is limited to the
-         * time still left until this deadline. That way a retry budget of N can no longer stretch a
-         * request to ~N * timeout: retries only fill the remaining budget instead of each starting a
-         * fresh full timeout. When no timeout is configured (timeoutMs <= 0) the deadline stays
-         * disabled (0) and the previous unbounded behaviour is preserved.
+         * Establish a single request-wide deadline that bounds the whole forwarded request,
+         * including pool-wait and upstream idle across every attempt. Each attempt (the first one
+         * included) is armed with the time still left until this deadline (see remainingTimeoutMs),
+         * so a retry budget of N can no longer stretch a request to ~N * timeout: the configured
+         * timeout bounds the request as a whole instead of each phase/attempt getting a fresh full
+         * window. When no timeout is configured (timeoutMs <= 0) the deadline stays disabled (0) and
+         * the previous unbounded behaviour is preserved.
          */
         if (timeoutMs > 0) {
             ctx.deadlineNanos = System.nanoTime() + MILLISECONDS.toNanos(timeoutMs);
@@ -554,9 +554,9 @@ public class Forwarder extends AbstractForwarder {
          * internally and never invoke the callback until a slot is freed. Without this
          * guard, queued requests have no timeout of their own and can hang indefinitely.
          *
-         * The timer fires after the same timeout configured for the rule / x-timeout header.
-         * If it fires first it responds with 504 and abandons the pool-queue entry.
-         * If client.request() fires first it cancels the timer and proceeds normally.
+         * The timer fires after the time still left until the request-wide deadline (see
+         * remainingTimeoutMs). If it fires first it responds with 504 and abandons the pool-queue
+         * entry. If client.request() fires first it cancels the timer and proceeds normally.
          *
          * When timeoutMs <= 0 the timer is skipped (no timeout configured).
          *
@@ -567,14 +567,14 @@ public class Forwarder extends AbstractForwarder {
          */
         final AtomicBoolean responded = new AtomicBoolean(false);
         /*
-         * Per-attempt timeout for the pool-wait guard. The FIRST attempt keeps the full configured
-         * timeout, so the common no-retry case behaves exactly as before (pool-wait and idle each get
-         * their own full window). Only RETRIES are constrained to the time still left of the
-         * request-wide deadline (see handleRequest), which is what prevents N attempts from adding up
-         * to ~N * timeout. When no timeout is configured (timeoutMs <= 0) the "no timeout" semantics
-         * are preserved.
+         * Timeout for the pool-wait guard. Pool waiting consumes the request-wide deadline (see
+         * handleRequest) on EVERY attempt, including the first, so we always arm the guard with the
+         * time still left until that deadline. This prevents N attempts from adding up to
+         * ~N * timeout and keeps the whole forwarded request bounded by a single configured timeout
+         * window. When no timeout is configured (timeoutMs <= 0) the "no timeout" semantics are
+         * preserved (remainingTimeoutMs returns the unchanged timeoutMs).
          */
-        final long attemptTimeoutMs = perAttemptTimeoutMs(ctx);
+        final long attemptTimeoutMs = remainingTimeoutMs(ctx);
         final long poolWaitTimerId = ctx.timeoutMs > 0
                 ? vertx.setTimer(attemptTimeoutMs, id -> {
                     if (responded.compareAndSet(false, true)) {
@@ -641,27 +641,6 @@ public class Forwarder extends AbstractForwarder {
                 && isIdempotent(ctx.dnReq.method())
                 && !ctx.dnReq.response().headWritten()
                 && hasRetryBudget(ctx);
-    }
-
-    /**
-     * Per-attempt timeout (in milliseconds) applied to both the pool-wait guard timer and the
-     * upstream {@code idleTimeout}.
-     * <ul>
-     *   <li><b>First attempt</b> ({@code attempt <= 1}): the full configured {@code timeoutMs} is
-     *       used, so the common no-retry case is unchanged and each phase (pool-wait, idle) keeps its
-     *       own full window exactly as before retries existed.</li>
-     *   <li><b>Retries</b> ({@code attempt > 1}): the time still left until the request-wide deadline
-     *       is used, so all attempts together stay bounded instead of granting a fresh full timeout
-     *       per attempt.</li>
-     * </ul>
-     * When no timeout is configured ({@code timeoutMs <= 0}) this simply returns {@code timeoutMs},
-     * preserving the "no timeout" semantics (a value of {@code 0} disables the timer / idleTimeout).
-     */
-    private static long perAttemptTimeoutMs(RequestCtx ctx) {
-        if (ctx.attempt <= 1) {
-            return ctx.timeoutMs;
-        }
-        return remainingTimeoutMs(ctx);
     }
 
     /**
@@ -777,7 +756,12 @@ public class Forwarder extends AbstractForwarder {
             onUpstreamResponseNoThrow(ev.result(), ctx, "findme_3q908hjq98t");
         });
 
-        ctx.upReq.idleTimeout(perAttemptTimeoutMs(ctx));
+        /*
+         * Bound the upstream idle wait by the time still left until the request-wide deadline.
+         * Pool acquisition may already have consumed most of that budget, so we recompute the
+         * remaining time here rather than granting a fresh full window per attempt.
+         */
+        ctx.upReq.idleTimeout(remainingTimeoutMs(ctx));
 
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
         MultiMap headersToForward = ctx.dnReq.headers();
