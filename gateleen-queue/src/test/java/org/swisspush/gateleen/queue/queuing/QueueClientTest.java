@@ -270,6 +270,24 @@ public class QueueClientTest {
     }
 
     @Test
+    public void testLockedEnqueueSucceedsWithoutMonitoringHandler(TestContext context){
+        Async async = context.async();
+        queueClient = new QueueClient(vertx, null);
+
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message -> {
+            validateMessage(context, message, QueueOperation.lockedEnqueue, "myQueue", "LockRequester");
+            message.reply(new JsonObject().put(STATUS, OK));
+        });
+
+        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        queueClient.lockedEnqueue(request, "myQueue", "LockRequester", success -> {
+            context.assertTrue(success);
+            Mockito.verifyNoInteractions(monitoringHandler);
+            async.complete();
+        });
+    }
+
+    @Test
     public void testLockedEnqueueNotUpdatingMonitoringHandlerOnRedisquesFail(TestContext context){
         Async async = context.async();
 
@@ -290,6 +308,22 @@ public class QueueClientTest {
 
         // since redisques answered with a 'failure', the monitoringHandler should not be called
         Mockito.verifyNoInteractions(monitoringHandler);
+    }
+
+    @Test
+    public void testLockedEnqueueEventBusFailureReportsFailure(TestContext context){
+        Async async = context.async();
+        final String errorMsg = "RedisQues unavailable";
+
+        vertx.eventBus().localConsumer(Address.redisquesAddress(), (Handler<Message<JsonObject>>) message ->
+                message.fail(0, errorMsg));
+
+        HttpRequest request = new HttpRequest(HttpMethod.PUT, "/targetUri", MultiMap.caseInsensitiveMultiMap(), Buffer.buffer("{\"key\":\"value\"}").getBytes());
+        queueClient.lockedEnqueue(request, "myQueue", "LockRequester", success -> {
+            context.assertFalse(success);
+            Mockito.verifyNoInteractions(monitoringHandler);
+            async.complete();
+        });
     }
 
     @Test
