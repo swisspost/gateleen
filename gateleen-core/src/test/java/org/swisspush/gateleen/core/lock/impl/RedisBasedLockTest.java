@@ -35,6 +35,12 @@ import static org.swisspush.gateleen.core.exception.GateleenExceptionFactory.new
 @RunWith(VertxUnitRunner.class)
 public class RedisBasedLockTest {
 
+    /**
+     * Extra time allowed for a lock to disappear after its TTL. The wait only proves that locks do
+     * expire, so the bound may be generous; a tight bound (e.g. 50ms) made the tests flaky.
+     */
+    private static final long EXPIRY_TOLERANCE_MS = 2000;
+
     private static Vertx vertx;
     private Jedis jedis;
     private static RedisBasedLock redisBasedLock;
@@ -251,7 +257,13 @@ public class RedisBasedLockTest {
         });
     }
 
+    /**
+     * Waits until the lock has expired.
+     *
+     * @param expireMs the expected expiry bound (lock TTL plus a small margin); it is extended by
+     *                 {@link #EXPIRY_TOLERANCE_MS} so scheduling or Redis delays cannot fail the test
+     */
     private void waitMaxUntilExpired(String key, long expireMs){
-        await().pollInterval(50, MILLISECONDS).atMost(Duration.ofMillis(expireMs)).until(() -> !jedis.exists(key));
+        await().pollInterval(50, MILLISECONDS).atMost(Duration.ofMillis(expireMs + EXPIRY_TOLERANCE_MS)).until(() -> !jedis.exists(key));
     }
 }

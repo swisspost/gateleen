@@ -1,6 +1,7 @@
 package org.swisspush.gateleen.routing;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -18,6 +19,7 @@ import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.http.HttpVersion;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.streams.Pump;
 import io.vertx.ext.web.RoutingContext;
@@ -43,6 +45,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -69,11 +72,33 @@ import static org.swisspush.gateleen.core.util.StatusCode.SERVICE_UNAVAILABLE;
  */
 public class Forwarder extends AbstractForwarder {
 
+    public static final String FORWARDED_REQUESTS_METRIC_NAME = "gateleen_forwarded_requests";
+    public static final String FORWARDED_RETRIES_METRIC_NAME = "gateleen_forwarded_retries";
+    public static final String FORWARDED_FAILURES_METRIC_NAME = "gateleen_forwarded_failures";
+    public static final String FORWARDED_REQUESTS_METRIC_DESCRIPTION = "Number of forwarded requests";
+    public static final String FORWARDED_RETRIES_METRIC_DESCRIPTION = "Number of additional forwarded request attempts";
+    public static final String FORWARDED_FAILURES_METRIC_DESCRIPTION =
+            "Number of forwarded requests finally failing with a backend status >= 500 (before status translation) "
+                    + "or a Gateleen error status >= 500 (no usable backend response)";
+    /** Tag value used when a rule lacks the information for a tag. */
+    static final String UNKNOWN_TAG_VALUE = "unknown";
+    /** Tag holding the routing rule's URL pattern, e.g. {@code /server/queuing/(.*)}. */
+    public static final String FORWARDER_METRIC_TAG_RULE = "rule";
+    /**
+     * Tag holding the configured target: {@code host:port} (or host wildcard) for URL rules,
+     * the target path template for local ({@code path}) rules.
+     */
+    public static final String FORWARDER_METRIC_TAG_TARGET = "target";
+
     private final String userProfilePath;
     private final HttpClient client;
     private final Pattern urlPattern;
-    private String target;
-    private int port;
+    /**
+     * Static rule target, used for metric tags and {@link #applyHeaderFunctions(Logger, MultiMap)}.
+     * Requests resolve host/port wildcards into their own {@link RequestCtx} instead, because
+     * concurrent requests (and their retries) must never observe each other's backend.
+     */
+    private final String target;
     private final Rule rule;
     private final LoggingResourceManager loggingResourceManager;
     private final LogAppenderRepository logAppenderRepository;
@@ -96,69 +121,11 @@ public class Forwarder extends AbstractForwarder {
     private static AtomicInteger nextErrorId = new AtomicInteger();
 
     /**
-     * System property to globally configure the maximum number of forwarding attempts (the initial
-     * try plus any retries) that a {@link Forwarder} performs when the upstream target fails to
-     * deliver a response.
-     * <p>
-     * A value of {@code 1} (the default) disables retrying and preserves the historical behaviour.
-     * Values below {@code 1} or non-numeric values are ignored and fall back to {@code 1}.
-     * <p>
-     * <b>Startup-only configuration.</b> This property is intended to be set as a JVM system property
-     * <em>before</em> Gateleen is started and to remain unchanged for the lifetime of the process.
-     * Each {@link Forwarder} snapshots the value in its constructor (via
-     * {@link #resolveMaxForwardAttempts()}), and forwarders are created at different points in time
-     * (at startup, when routing rules change, and when route hooks are (re)registered). Changing the
-     * property at runtime is therefore <em>not supported</em>: existing forwarders keep the value they
-     * captured at construction, so a runtime change would only affect forwarders built afterwards and
-     * could leave a single running instance applying inconsistent retry budgets. Set it once at
-     * startup and treat it as immutable thereafter.
-     * <p>
-     * Retries only happen for idempotent request methods (see {@link #isIdempotent(HttpMethod)})
-     * whose body is already buffered in memory, because a streamed request body cannot be replayed.
+     * Retry settings snapshotted at construction. Local rules never retry themselves: they only
+     * re-enter this Gateleen instance, where the rule handling the rewritten path applies its own
+     * policy. Retrying on both hops would multiply the attempts (e.g. 3 x 3 = 9 per request).
      */
-    public static final String MAX_FORWARD_ATTEMPTS_PROPERTY = "org.swisspush.gateleen.routing.forwarder.maxForwardAttempts";
-
-    /**
-     * Reads and validates the startup-configured maximum number of forwarding attempts from the
-     * system property {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}.
-     * <p>
-     * This is resolved per {@link Forwarder} instance (from the constructor) rather than once in a
-     * {@code static} initializer. Doing it per instance keeps the value trivially testable — a test
-     * can simply set/clear the system property before building a forwarder. Because the property is
-     * defined as startup-only configuration (see {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}) that is not
-     * changed at runtime, every forwarder built during a given process reads the identical value, so
-     * per-instance resolution is equivalent to a single global snapshot in practice.
-     * <p>
-     * Robustness rules (this method never throws, so a misconfiguration can never break routing):
-     * <ul>
-     *   <li>Absent property           &rarr; default of {@code 1} (retrying disabled, legacy behaviour).</li>
-     *   <li>Blank / non-numeric value &rarr; log a warning and fall back to {@code 1}.</li>
-     *   <li>Numeric but {@code < 1}    &rarr; log a warning and clamp to {@code 1} (you always perform
-     *       at least one try, so a budget below one is meaningless).</li>
-     * </ul>
-     *
-     * @return the sanitized attempt budget, always {@code >= 1}.
-     */
-    static int resolveMaxForwardAttempts() {
-        int attempts = 1;
-        String prop = System.getProperty(MAX_FORWARD_ATTEMPTS_PROPERTY);
-        if (prop != null) {
-            try {
-                attempts = Integer.parseInt(prop.trim());
-                if (attempts < 1) {
-                    LOG.warn("Ignoring invalid {}=\"{}\" (must be >= 1), using 1 instead", MAX_FORWARD_ATTEMPTS_PROPERTY, prop);
-                    attempts = 1;
-                }
-            } catch (NumberFormatException e) {
-                LOG.warn("Ignoring non-numeric {}=\"{}\", using 1 instead", MAX_FORWARD_ATTEMPTS_PROPERTY, prop);
-                attempts = 1;
-            }
-        }
-        return attempts;
-    }
-
-    /** Startup-only snapshot of {@link #MAX_FORWARD_ATTEMPTS_PROPERTY}; see {@link #resolveMaxForwardAttempts()}. */
-    private final int maxForwardAttempts = resolveMaxForwardAttempts();
+    private final ForwarderRetryPolicy retryPolicy;
 
     /**
      * Minimum time (in milliseconds) that must still be left of the request-wide deadline (see
@@ -171,6 +138,8 @@ public class Forwarder extends AbstractForwarder {
     private static final long MIN_RETRY_BUDGET_MS = 50L;
 
     private Timer forwardTimer;
+    /** Outcome counters, {@code null} without registry or after {@link #shutdown()}. */
+    private volatile ForwarderOutcomeCounters outcomeCounters;
     private MeterRegistry meterRegistry;
 
     /**
@@ -213,6 +182,9 @@ public class Forwarder extends AbstractForwarder {
         this.vertx = vertx;
         this.client = client;
         this.rule = rule;
+        this.retryPolicy = isLocalRule()
+                ? ForwarderRetryPolicy.disabled()
+                : ForwarderRetryPolicy.fromSystemProperties();
         this.loggingResourceManager = loggingResourceManager;
         this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;
@@ -288,16 +260,18 @@ public class Forwarder extends AbstractForwarder {
 
     /**
      * Sets the MeterRegistry for this Forwarder.
-     * If the provided MeterRegistry is not null, it initializes the forwardCounter
-     * with the appropriate metric name, description, and tags.
+     * If the provided MeterRegistry is not null, it initializes the forward timer and acquires the
+     * outcome counters ({@link ForwarderOutcomeCounters}) with the appropriate metric names,
+     * descriptions and tags. Outcome counters acquired by a previous call are released first.
      *
-     * @param meterRegistry the MeterRegistry to set
+     * @param meterRegistry the MeterRegistry to set, or {@code null} to disable the metrics
      *
      * @deprecated Use Forwarder.{@link Forwarder#newForwarder()}.withMeterRegistry(...).
      */
     @Override
     public void setMeterRegistry(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
+        ForwarderOutcomeCounters previous = outcomeCounters;
         if (meterRegistry != null) {
             forwardTimer = Timer.builder(FORWARDS_METRIC_NAME)
                     .description(FORWARDS_METRIC_DESCRIPTION)
@@ -305,11 +279,68 @@ public class Forwarder extends AbstractForwarder {
                     .tag(FORWARDER_METRIC_TAG_METRICNAME, metricNameTag)
                     .tag(FORWARDER_METRIC_TAG_TYPE, getRequestTarget(target))
                     .register(meterRegistry);
+            // Acquire before releasing, so re-setting the same registry never drops the meters.
+            outcomeCounters = ForwarderOutcomeCounters.acquire(meterRegistry, outcomeTags());
+        } else {
+            outcomeCounters = null;
+        }
+        if (previous != null) {
+            previous.release();
         }
     }
 
+    /**
+     * Builds the tags of the outcome counters. They are bounded by the number of existing
+     * forwarders (routing rules and hook routes), never by request URLs.
+     *
+     * @return the {@code metricName}, {@code rule} and {@code target} tags
+     */
+    private Tags outcomeTags() {
+        return Tags.of(
+                FORWARDER_METRIC_TAG_METRICNAME, metricNameTag,
+                FORWARDER_METRIC_TAG_RULE, Objects.toString(rule.getUrlPattern(), UNKNOWN_TAG_VALUE),
+                FORWARDER_METRIC_TAG_TARGET, configuredTarget());
+    }
+
+    /**
+     * Tells whether this forwarder handles a local rule ({@code path} routing rule or hook route
+     * with a path destination), which re-enters this Gateleen instance through the self client
+     * instead of calling a backend. Local rules never retry and pass the retry headers on.
+     *
+     * @return {@code true} if the rule's scheme is {@code local}
+     */
+    private boolean isLocalRule() {
+        return "local".equals(rule.getScheme());
+    }
+
+    /**
+     * Describes the configured (not the per-request resolved) target of the rule for the
+     * {@code target} tag.
+     *
+     * @return the target path template for local rules, otherwise {@code host:port} where host and
+     * port may be the configured wildcards; missing parts are {@value #UNKNOWN_TAG_VALUE}
+     */
+    private String configuredTarget() {
+        if (isLocalRule()) {
+            return Objects.toString(rule.getPath(), UNKNOWN_TAG_VALUE);
+        }
+        String host = rule.getHost() != null ? rule.getHost() : rule.getHostWildcard();
+        String port = rule.getPortWildcard() != null ? rule.getPortWildcard() : String.valueOf(rule.getPort());
+        return Objects.toString(host, UNKNOWN_TAG_VALUE) + ":" + port;
+    }
+
+    /**
+     * Stops publishing metrics for this forwarder: drops the timer reference and releases the
+     * outcome counters, which removes them from the registry unless another forwarder with the
+     * same tags still uses them. Requests still in flight are no longer counted.
+     */
     public void shutdown() {
         forwardTimer = null; // remove this reference from Forwarder
+        ForwarderOutcomeCounters counters = outcomeCounters;
+        outcomeCounters = null;
+        if (counters != null) {
+            counters.release();
+        }
     }
 
     private Map<String, String> createProfileHeaderValues(JsonObject profile, Logger log) {
@@ -346,9 +377,18 @@ public class Forwarder extends AbstractForwarder {
      * request was consumed, and you can't read the body of the
      * request again.
      *
-     * @param ctx      - the original request context
-     * @param bodyData - a buffer with the body data, null if the request
-     *                 was not yet consumed
+     * <p>
+     * If {@code bodyData} is {@code null}, the method is idempotent, the effective retry policy
+     * (static configuration and {@code x-route-retry-*} headers, capped by the ceiling) permits at
+     * least one retry and the declared body size is within
+     * {@link ForwarderRetryPolicy#MAX_RETRY_BODY_BYTES_PROPERTY}, the body is buffered first so it
+     * can be replayed; otherwise it is streamed (and therefore not retried).
+     *
+     * @param ctx          - the original request context
+     * @param bodyData     - a buffer with the body data, null if the request
+     *                     was not yet consumed
+     * @param afterHandler - optional handler called after a successful (2xx) backend response was
+     *                     forwarded completely; may be {@code null}
      */
     public void handle(final RoutingContext ctx, final Buffer bodyData, @Nullable final Handler<Void> afterHandler) {
         HttpServerRequest req = ctx.request();
@@ -358,6 +398,90 @@ public class Forwarder extends AbstractForwarder {
             ctx.next();
             return;
         }
+        // Only a buffered body can be replayed. Buffer it solely when a retry is actually
+        // possible and the body is small enough; all other requests keep streaming their body.
+        if (bodyData == null && isIdempotent(req.method()) && retryPolicy.permitsRetries(req.headers())) {
+            if (mayBufferBody(req)) {
+                bufferBodyAndForward(ctx, afterHandler, log);
+                return;
+            }
+            log.debug("Body of {} {} is too large or of unknown length to be buffered; streaming it without retries",
+                    req.method(), req.uri());
+        }
+        forward(ctx, bodyData, afterHandler, log);
+    }
+
+    /**
+     * Decides from the declared length whether the body of a not yet consumed request may be
+     * buffered for replay (see {@link ForwarderRetryPolicy#MAX_RETRY_BODY_BYTES_PROPERTY}). An
+     * already ended request and an HTTP/1.x request without {@code Content-Length} and
+     * {@code Transfer-Encoding} have no body. Bodies of unknown length (chunked, or HTTP/2 without
+     * {@code Content-Length}) and invalid lengths are never buffered.
+     *
+     * @param req the incoming request
+     * @return {@code true} if the body may be buffered in memory
+     */
+    private boolean mayBufferBody(HttpServerRequest req) {
+        if (req.isEnded()) {
+            return true;
+        }
+        MultiMap headers = req.headers();
+        if (headers.contains(HttpHeaders.TRANSFER_ENCODING)) {
+            return false;
+        }
+        String contentLength = headers.get(HttpHeaders.CONTENT_LENGTH);
+        if (contentLength == null) {
+            return req.version() != HttpVersion.HTTP_2;
+        }
+        try {
+            return retryPolicy.mayBufferBody(Long.parseLong(contentLength.trim()));
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Reads the complete body of a not yet consumed request into memory and then forwards it via
+     * {@link #forward}, so that the buffered body can be replayed on retries. An already ended
+     * request is forwarded with an empty buffer. If the body cannot be read, the client receives
+     * {@code 400 Bad Request} and nothing is forwarded.
+     *
+     * @param ctx          the routing context of the incoming request
+     * @param afterHandler optional handler called after a successful (2xx) forwarded response; may be {@code null}
+     * @param log          the request-scoped logger
+     */
+    private void bufferBodyAndForward(final RoutingContext ctx, @Nullable final Handler<Void> afterHandler, final Logger log) {
+        HttpServerRequest req = ctx.request();
+        if (req.isEnded()) {
+            // Nothing left to read (e.g. a bodyless GET); the streaming path would send no body either.
+            forward(ctx, Buffer.buffer(), afterHandler, log);
+            return;
+        }
+        req.body().onComplete(event -> {
+            if (event.failed()) {
+                log.warn("Failed to read request body of {} for retryable forwarding: {}", req.uri(), event.cause().getMessage());
+                respondError(req, StatusCode.BAD_REQUEST);
+                return;
+            }
+            forward(ctx, event.result(), afterHandler, log);
+        });
+        // Earlier handlers may have paused the request; the body can only be collected while it flows.
+        req.resume();
+    }
+
+    /**
+     * Resolves the upstream target of this request (host/port wildcards evaluated once, so all
+     * retries of this request use the same backend), authenticates, loads the optional profile
+     * headers and then hands the request over to {@link #handleRequest}. Wildcard resolution
+     * failures are answered with an error response directly.
+     *
+     * @param ctx          the routing context of the incoming request
+     * @param bodyData     the buffered request body, or {@code null} to stream the body of the request
+     * @param afterHandler optional handler called after a successful (2xx) forwarded response; may be {@code null}
+     * @param log          the request-scoped logger
+     */
+    private void forward(final RoutingContext ctx, final Buffer bodyData, @Nullable final Handler<Void> afterHandler, final Logger log) {
+        HttpServerRequest req = ctx.request();
         String host = null;
         if (rule.hasHostWildcard()) {
             try {
@@ -377,6 +501,7 @@ public class Forwarder extends AbstractForwarder {
             host = rule.getHost();
         }
 
+        int port;
         if (rule.hasPortWildcard()) {
             String dynamicPortStr = null;
             try {
@@ -395,7 +520,8 @@ public class Forwarder extends AbstractForwarder {
         } else {
             port = rule.getPort();
         }
-        target = host + ":" + port;
+        final UpstreamTarget upstream = new UpstreamTarget(host, port);
+        final String target = upstream.target;
 
         if (monitoringHandler != null) {
             monitoringHandler.updateRequestsMeter(target, req.uri());
@@ -427,10 +553,10 @@ public class Forwarder extends AbstractForwarder {
                     } else {
                         log.debug("No profile information found in local storage for user '{}'", userId);
                     }
-                    handleRequest(req, bodyData, targetUri, log, profileHeaderMap, authHeader, afterHandler);
+                    handleRequest(req, bodyData, upstream, targetUri, log, profileHeaderMap, authHeader, afterHandler);
                 });
             } else {
-                handleRequest(req, bodyData, targetUri, log, null, authHeader, afterHandler);
+                handleRequest(req, bodyData, upstream, targetUri, log, null, authHeader, afterHandler);
             }
         });
     }
@@ -439,6 +565,146 @@ public class Forwarder extends AbstractForwarder {
         if (timerSample != null && forwardTimer != null) {
             timerSample.stop(forwardTimer);
         }
+    }
+
+    /**
+     * Stops the request metrics ({@link MonitoringHandler}, the {@code gateleen_forwarded_seconds}
+     * timer and the outcome counters) exactly once per request, no matter how many attempts or
+     * terminal paths call it.
+     *
+     * @param ctx         the per-request context holding the metric start values
+     * @param finalStatus status known at completion: the backend status (before translation) once
+     *                    a usable backend response was accepted, otherwise the error status Gateleen
+     *                    answers with; {@code >= 500} counts as a failure
+     */
+    private void completeRequestMetrics(RequestCtx ctx, int finalStatus) {
+        if (ctx.metricsCompleted.compareAndSet(false, true)) {
+            ForwarderOutcomeCounters counters = outcomeCounters;
+            if (counters != null) {
+                counters.record(ctx.attempt - 1, finalStatus >= 500);
+            }
+            if (monitoringHandler != null) {
+                monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), ctx.startTime, ctx.dnReq.uri());
+            }
+            handleForwardDurationMetrics(ctx.timerSample);
+        }
+    }
+
+    /**
+     * Marks the request as finished exactly once: cancels the request-wide deadline and pool-wait
+     * timers and completes the request metrics. Every terminal path must call this <em>before</em>
+     * writing the response, and only the caller that gets {@code true} may write it.
+     *
+     * @param ctx         the per-request context
+     * @param finalStatus status used for the outcome metrics if not yet completed
+     * @return {@code true} if this call finished the request, {@code false} if it was already finished
+     */
+    private boolean finishRequest(RequestCtx ctx, int finalStatus) {
+        if (!ctx.finished.compareAndSet(false, true)) {
+            return false;
+        }
+        vertx.cancelTimer(ctx.deadlineTimerId);
+        vertx.cancelTimer(ctx.poolWaitTimerId);
+        completeRequestMetrics(ctx, finalStatus);
+        return true;
+    }
+
+    /**
+     * Like {@link #finishRequest(RequestCtx, int)}, and additionally logs the final outcome if the
+     * request was retried (see {@link #logRetryOutcome}).
+     *
+     * @param ctx     the per-request context
+     * @param status  HTTP status of the final outcome (upstream status if a response was received).
+     * @param failure reason why the request failed, or {@code null} if a response was delivered completely.
+     * @return {@code true} if this call finished the request, {@code false} if it was already finished
+     */
+    private boolean finishRequest(RequestCtx ctx, int status, @Nullable String failure) {
+        if (!finishRequest(ctx, status)) {
+            return false;
+        }
+        logRetryOutcome(ctx, status, failure);
+        return true;
+    }
+
+    /**
+     * Logs a summary for a request that was retried at least once: INFO if the final attempt
+     * delivered a non-error response ({@code < 400}), ERROR otherwise. Requests without retries
+     * are not logged here; their existing logging is unchanged.
+     *
+     * @param ctx     the per-request context (provides method, target URL and attempt count)
+     * @param status  HTTP status of the final outcome
+     * @param failure reason why the request failed, or {@code null} if a response was delivered completely
+     * @return {@code true} if a summary was logged.
+     */
+    private boolean logRetryOutcome(RequestCtx ctx, int status, @Nullable String failure) {
+        long retries = ctx.attempt - 1;
+        if (retries <= 0) {
+            return false;
+        }
+        String url = rule.getScheme() + "://" + ctx.upstream.target + ctx.targetUri;
+        if (failure == null && status < 400) {
+            ctx.log.info("Request {} {} succeeded after {} retries with HTTP {}{}",
+                    ctx.dnReq.method(), url, retries, status, clientStatusNote(ctx, status, failure));
+        } else {
+            ctx.log.error("Request {} {} failed after {} retries with HTTP {}{}{}",
+                    ctx.dnReq.method(), url, retries, status, clientStatusNote(ctx, status, failure),
+                    failure == null ? "" : ": " + failure);
+        }
+        return true;
+    }
+
+    /**
+     * Builds a note for the retry summary if the client receives a different status than the
+     * backend's final one (e.g. because of a status code translation).
+     *
+     * @param ctx     the per-request context
+     * @param status  the backend status reported in the summary
+     * @param failure the failure reason, or {@code null} if the response was delivered completely
+     * @return {@code " (client received HTTP <code>)"} or an empty string.
+     */
+    private String clientStatusNote(RequestCtx ctx, int status, @Nullable String failure) {
+        if (failure != null || ctx.dnRsp == null || ctx.dnRsp.getStatusCode() == status) {
+            return "";
+        }
+        return " (client received HTTP " + ctx.dnRsp.getStatusCode() + ")";
+    }
+
+    /**
+     * Called when the request-wide deadline of a retry-enabled request expires, or when too little
+     * of it is left for another attempt. Finishes the request (if not already finished), logs the
+     * outcome and answers with {@code 504} if no upstream request was obtained yet, {@code 502}
+     * otherwise; a partially streamed response is closed instead (and the received response is
+     * logged, as the upstream reset prevents its regular end handling). The current upstream
+     * request is reset.
+     *
+     * @param ctx    the per-request context
+     * @param reason the reason used in the log entries
+     */
+    private void expireRequest(RequestCtx ctx, String reason) {
+        HttpServerResponse response = ctx.dnReq.response();
+        boolean responseStarted = isResponseStarted(ctx);
+        int status = responseStarted ? response.getStatusCode()
+                : (ctx.upReq == null ? StatusCode.TIMEOUT : BAD_GATEWAY).getStatusCode();
+        if (!finishRequest(ctx, status)) {
+            return;
+        }
+        ctx.log.warn("{} for {}", reason, ctx.targetUri);
+        if (!logRetryOutcome(ctx, status, reason)) {
+            error(reason, ctx);
+        }
+        if (ctx.upRes != null) {
+            logResponseOnce(ctx);
+        }
+        if (responseStarted) {
+            // A partially streamed response cannot be replaced with an HTTP error.
+            response.close();
+        } else {
+            respondError(ctx.dnReq, ctx.upReq == null ? StatusCode.TIMEOUT : BAD_GATEWAY);
+        }
+        if (ctx.upReq != null) {
+            ctx.upReq.reset(0);
+        }
+        ctx.dnReq.resume();
     }
 
     /**
@@ -458,13 +724,27 @@ public class Forwarder extends AbstractForwarder {
     }
 
     /**
-     * Execute the HeaderFunctions chain and apply the configured rules headers therefore
+     * Execute the HeaderFunctions chain and apply the configured rules headers therefore.
+     * Uses the target configured in the rule at construction time.
      *
      * @param log     The logger to be used
      * @param headers The headers which must be updated according the current forwarders rule
      * @return null if everything is properly done or a error message if something went wrong.
      */
     String applyHeaderFunctions(final Logger log, MultiMap headers) {
+        return applyHeaderFunctions(log, headers, target);
+    }
+
+    /**
+     * Executes the HeaderFunctions chain of the rule and forces the {@code Host} header to the
+     * given target unless the rule itself changed it.
+     *
+     * @param log     the logger to be used
+     * @param headers the headers to update according to the rule
+     * @param target  the upstream {@code host:port} resolved for this request, used as default Host header
+     * @return {@code null} if everything was applied, otherwise the error message of the header functions
+     */
+    private String applyHeaderFunctions(final Logger log, MultiMap headers, String target) {
         final String hostHeaderBefore = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
         final HeaderFunctions.EvalScope evalScope = rule.getHeaderFunction().apply(headers);
         final String hostHeaderAfter = HttpHeaderUtil.getHeaderValue(headers, HOST_HEADER);
@@ -490,12 +770,31 @@ public class Forwarder extends AbstractForwarder {
         return evalScope.getErrorMessage();
     }
 
-    private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final String targetUri,
+    /**
+     * Builds the {@link RequestCtx} for a request (logging handler, metrics, timeout), arms the
+     * request-wide deadline when the request is retry-enabled (buffered body, idempotent method,
+     * effective policy permits retries and a positive timeout) and starts the first attempt via
+     * {@link #sendToTarget}.
+     *
+     * @param req              the incoming request
+     * @param bodyData         the buffered request body, or {@code null} if the body is streamed
+     * @param upstream         the upstream target resolved once for this request
+     * @param targetUri        the URI to request on the upstream target
+     * @param log              the request-scoped logger
+     * @param profileHeaderMap profile values to send as headers, may be {@code null}
+     * @param authHeader       optional authentication header for the upstream request
+     * @param afterHandler     optional handler called after a successful (2xx) forwarded response; may be {@code null}
+     */
+    private void handleRequest(final HttpServerRequest req, final Buffer bodyData, final UpstreamTarget upstream, final String targetUri,
                                final Logger log, final Map<String, String> profileHeaderMap,
                                Optional<AuthHeader> authHeader, @Nullable final Handler<Void> afterHandler
     ) {
         /* collect stuff we need */
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, req, vertx.eventBus());
+        // Capture the original payload once; the same logging handler survives all retry attempts.
+        if (bodyData != null) {
+            loggingHandler.appendRequestPayload(bodyData);
+        }
         String timeout = req.headers().get("x-timeout");
         String uniqueId = req.headers().get("x-rp-unique_id");
         Timer.Sample timerSample = (meterRegistry == null) ? null : Timer.start(meterRegistry);
@@ -504,20 +803,15 @@ public class Forwarder extends AbstractForwarder {
         final long timeoutMs = timeout != null ? parseLong(timeout) : rule.getTimeout();
         /* bundle it into a handy context */
         RequestCtx ctx = new RequestCtx(
-                req, log, targetUri, startTime, timerSample, profileHeaderMap, loggingHandler,
+                req, log, upstream, targetUri, startTime, timerSample, profileHeaderMap, loggingHandler,
                 afterHandler, timeout, timeoutMs, uniqueId, authHeader.orElse(null), bodyData);
 
-        /*
-         * Establish a single request-wide deadline that bounds the whole forwarded request,
-         * including pool-wait and upstream idle across every attempt. Each attempt (the first one
-         * included) is armed with the time still left until this deadline (see remainingTimeoutMs),
-         * so a retry budget of N can no longer stretch a request to ~N * timeout: the configured
-         * timeout bounds the request as a whole instead of each phase/attempt getting a fresh full
-         * window. When no timeout is configured (timeoutMs <= 0) the deadline stays disabled (0) and
-         * the previous unbounded behaviour is preserved.
-         */
-        if (timeoutMs > 0) {
+        // Preserve per-phase pool/idle timeouts for requests that cannot retry. Replayable requests
+        // with an effective retry policy instead share a hard deadline, including response bodies.
+        if (timeoutMs > 0 && bodyData != null && isIdempotent(req.method())
+                && retryPolicy.permitsRetries(req.headers())) {
             ctx.deadlineNanos = System.nanoTime() + MILLISECONDS.toNanos(timeoutMs);
+            ctx.deadlineTimerId = vertx.setTimer(timeoutMs, id -> expireRequest(ctx, "Request-wide retry timeout"));
         }
 
         sendToTarget(ctx);
@@ -536,10 +830,11 @@ public class Forwarder extends AbstractForwarder {
      * {@link HttpClientRequest} assigned to {@code ctx.upReq}.
      * <p>
      * <b>State that is intentionally shared across attempts</b> (because it lives on {@code ctx}):
-     * the downstream request/response, the buffered {@code bodyData} that gets replayed, the logging
-     * handler, the metric sample and the {@code attempt} counter. Everything that is specific to a
-     * single attempt (the {@code responded} guard, the timer id, the upstream request object) is
-     * created locally here or reassigned per attempt, so two attempts never interfere with each other.
+     * the downstream request/response, the resolved upstream host/port, the buffered
+     * {@code bodyData} that gets replayed, the logging handler, the metric sample and the
+     * {@code attempt} counter. Per-attempt state (the {@code responded} guard, the upstream
+     * request object and {@code ctx.poolWaitTimerId}) is created or reassigned here, and callbacks
+     * of superseded attempts are ignored, so two attempts never interfere with each other.
      * <p>
      * <b>Important:</b> a retry is only ever triggered from a state where the downstream response has
      * not been written yet (guaranteed by {@link #mayRetry}), so re-entering this method cannot
@@ -548,57 +843,68 @@ public class Forwarder extends AbstractForwarder {
      * @param ctx the per-request context; the same instance is reused across retries.
      */
     private void sendToTarget(RequestCtx ctx) {
+        if (ctx.finished.get()) {
+            return;
+        }
+        ctx.upReq = null;
         /*
          * Arm a pool-wait guard timer BEFORE calling client.request().
          * If the connection pool is exhausted, client.request() will queue this request
          * internally and never invoke the callback until a slot is freed. Without this
          * guard, queued requests have no timeout of their own and can hang indefinitely.
          *
-         * The timer fires after the time still left until the request-wide deadline (see
-         * remainingTimeoutMs). If it fires first it responds with 504 and abandons the pool-queue
-         * entry. If client.request() fires first it cancels the timer and proceeds normally.
+         * The timer fires after remainingTimeoutMs(ctx): the time left until the request-wide
+         * deadline for retry-enabled requests, otherwise the full per-phase timeout. If it fires
+         * first it finishes the request with 504 and abandons the pool-queue entry. If
+         * client.request() fires first it cancels the timer and proceeds normally.
          *
          * When timeoutMs <= 0 the timer is skipped (no timeout configured).
          *
-         * NOTE ON RETRIES: `responded` and `poolWaitTimerId` are declared locally, so every
-         * call to sendToTarget() gets its own independent guard/timer pair. A timer armed for a
-         * previous (failed) attempt has already fired or been cancelled by the time we get here,
-         * hence it can never race with the guard of the current attempt.
+         * NOTE ON RETRIES: `responded` is local, so every call to sendToTarget() gets its own
+         * guard. ctx.poolWaitTimerId is overwritten per attempt; the timer of a previous (failed)
+         * attempt has already fired or been cancelled by then, and finishRequest() cancels the
+         * current one.
          */
         final AtomicBoolean responded = new AtomicBoolean(false);
-        /*
-         * Timeout for the pool-wait guard. Pool waiting consumes the request-wide deadline (see
-         * handleRequest) on EVERY attempt, including the first, so we always arm the guard with the
-         * time still left until that deadline. This prevents N attempts from adding up to
-         * ~N * timeout and keeps the whole forwarded request bounded by a single configured timeout
-         * window. When no timeout is configured (timeoutMs <= 0) the "no timeout" semantics are
-         * preserved (remainingTimeoutMs returns the unchanged timeoutMs).
-         */
+        // Retry-enabled requests spend their shared budget here; other requests retain a full
+        // pool-wait timeout followed by a separate upstream idle timeout.
         final long attemptTimeoutMs = remainingTimeoutMs(ctx);
         final long poolWaitTimerId = ctx.timeoutMs > 0
                 ? vertx.setTimer(attemptTimeoutMs, id -> {
-                    if (responded.compareAndSet(false, true)) {
-                        ctx.log.warn("Timeout waiting for pool connection to {}:{}{}", rule.getHost(), port, ctx.targetUri);
-                        error("Timeout waiting for connection pool", ctx.dnReq, ctx.targetUri);
+                    if (responded.compareAndSet(false, true) && finishRequest(ctx, StatusCode.TIMEOUT.getStatusCode())) {
+                        ctx.log.warn("Timeout waiting for pool connection to {}{}", ctx.upstream.target, ctx.targetUri);
+                        if (!logRetryOutcome(ctx, StatusCode.TIMEOUT.getStatusCode(), "Timeout waiting for connection pool")) {
+                            error("Timeout waiting for connection pool", ctx);
+                        }
                         respondError(ctx.dnReq, StatusCode.TIMEOUT);
-                        handleForwardDurationMetrics(ctx.timerSample);
                     }
                 })
                 : -1;
+        ctx.poolWaitTimerId = poolWaitTimerId;
 
         /* initiate request to target server */
-        client.request(ctx.dnReq.method(), port, rule.getHost(), ctx.targetUri, ev -> {
-            if (!responded.compareAndSet(false, true)) {
-                /* pool-wait timer already fired and responded with 504 — abandon the
-                 * connection we just obtained so it is returned cleanly to the pool */
+        client.request(ctx.dnReq.method(), ctx.upstream.port, ctx.upstream.host, ctx.targetUri, ev -> {
+            if (ctx.finished.get() || !responded.compareAndSet(false, true)) {
+                /* The request already finished (pool-wait 504, request-wide deadline or another
+                 * terminal path) — abandon the connection we just obtained so it is returned
+                 * cleanly to the pool */
                 if (ev.succeeded()) ev.result().reset(0);
                 return;
             }
             vertx.cancelTimer(poolWaitTimerId);
             if (ev.failed()) {
                 ctx.log.warn("Problem to request {}: {}", ctx.targetUri, ev.cause());
+                // No connection was established (refused, DNS, connect timeout), so the backend
+                // cannot have received the request: treat it as an upstream failure.
+                if (mayRetry(ctx, retryPolicy.maxAttemptsForUpstreamFailure(ctx.dnReq.headers(), ctx.log))) {
+                    ctx.attempt++;
+                    ctx.log.info("Retrying request (attempt {}) to {}://{}{} after connection failure",
+                            ctx.attempt, rule.getScheme(), ctx.upstream.target, ctx.targetUri);
+                    sendToTarget(ctx);
+                    return;
+                }
+                finishRequest(ctx, SERVICE_UNAVAILABLE.getStatusCode(), "Problem to request: " + ev.cause());
                 tryRespondWithServiceUnavailable(ctx.dnReq.response(), ctx.log, "findme_48hj349lgnt8j");
-                handleForwardDurationMetrics(ctx.timerSample);
                 ctx.dnReq.resume();
                 return;
             }
@@ -607,48 +913,73 @@ public class Forwarder extends AbstractForwarder {
     }
 
     /**
-     * Decides whether the current, failed upstream response is allowed to be retried.
+     * Decides whether an HTTP error response or upstream response failure may be retried.
      * <p>
      * Retrying an HTTP request that failed while we were waiting for the response is delicate,
      * because the target server may already have received and (partially or fully) processed the
-     * request before the connection broke. We therefore only retry when <b>all four</b> of the
-     * following conditions are satisfied; if any one is false we give up and let the caller respond
-     * with {@code 502 Bad Gateway}:
+     * request before the connection broke. We therefore only retry when <b>all</b> of the
+     * following conditions are satisfied; otherwise the caller returns the backend response or
+     * reports the upstream failure as {@code 502 Bad Gateway}:
      * <ol>
-     *   <li><b>Attempt budget left</b> ({@code ctx.attempt < maxForwardAttempts}). {@code attempt}
-     *       is 1-based and counts the tries already started, so with the default budget of {@code 1}
-     *       this is immediately {@code false} and retrying stays completely disabled.</li>
+     *   <li><b>Attempt budget left</b> (request headers override the static status policy, which
+     *       is capped by the server-controlled retry ceiling). {@code attempt} is 1-based and counts
+     *       the tries already started. Without a matching policy the default budget of {@code 1}
+     *       disables retrying, and HTTP error responses are not retried.</li>
      *   <li><b>Buffered body</b> ({@code ctx.bodyData != null}). When the body was streamed straight
      *       from the incoming request via a {@code Pump}, that stream has already been consumed and
      *       <em>cannot</em> be read a second time. Only a body we hold fully in memory can be replayed
-     *       onto a fresh upstream connection.</li>
+     *       onto a fresh upstream connection. {@link #handle(RoutingContext, Buffer, Handler)}
+     *       buffers the body itself when the request is idempotent and a retry policy applies.</li>
      *   <li><b>Idempotent method</b> ({@link #isIdempotent(HttpMethod)}). Replaying e.g. a
      *       {@code POST} could cause the target to perform the same side effect twice. Idempotent
      *       methods are, by definition, safe to send more than once.</li>
-     *   <li><b>Downstream response untouched</b> ({@code !headWritten()}). If we had already begun
+     *   <li><b>Downstream response untouched</b> ({@link #isResponseStarted}). If we had already begun
      *       streaming a response back to the calling client we could no longer cleanly "start over";
      *       at the point this is evaluated (the upstream <em>response</em> failed) nothing has been
      *       written downstream yet, and this check defends against any future code change that might
      *       violate that assumption.</li>
      * </ol>
+     * Additionally, the request must not be finished yet (e.g. by the request-wide deadline or a
+     * downstream disconnect), and the request-wide deadline must still leave at least
+     * {@link #MIN_RETRY_BUDGET_MS} for another attempt.
      *
      * @param ctx the per-request context (carries the attempt counter and the buffered body).
+     * @param maxAttempts total attempts permitted by the retry policy, including the initial attempt.
      * @return {@code true} if another forwarding attempt may safely be started.
      */
-    private boolean mayRetry(RequestCtx ctx) {
-        return ctx.attempt < maxForwardAttempts
+    private boolean mayRetry(RequestCtx ctx, long maxAttempts) {
+        return ctx.attempt < maxAttempts
+                && !ctx.finished.get()
                 && ctx.bodyData != null
                 && isIdempotent(ctx.dnReq.method())
-                && !ctx.dnReq.response().headWritten()
+                && !isResponseStarted(ctx)
                 && hasRetryBudget(ctx);
+    }
+
+    /**
+     * Tells whether the client response has already started, i.e. it can no longer be replaced
+     * with an error response but only be aborted. Besides {@code headWritten()} this considers
+     * {@link RequestCtx#responseStarted}, because the in-memory response used for
+     * Gateleen-internal requests (local rules, queues, hooks, schedulers) reports
+     * {@code headWritten()} only once it is ended; writing an error then would append the error
+     * text to the partially streamed body and complete it as if it succeeded.
+     *
+     * @param ctx the per-request context
+     * @return {@code true} if streaming the response to the client has begun
+     */
+    private static boolean isResponseStarted(RequestCtx ctx) {
+        return ctx.responseStarted || ctx.dnReq.response().headWritten();
     }
 
     /**
      * Remaining time (in milliseconds) until the request-wide deadline established in
      * {@link #handleRequest}, clamped to a minimum of {@code 1} ms so a permitted attempt never
      * requests an unbounded ({@code 0}) timeout. When no deadline is configured
-     * ({@code deadlineNanos == 0}, i.e. {@code timeoutMs <= 0}) the original {@code timeoutMs} is
+     * ({@code deadlineNanos == 0}) the original per-phase {@code timeoutMs} is
      * returned unchanged.
+     *
+     * @param ctx the per-request context holding the deadline and the configured timeout
+     * @return the timeout in milliseconds to use for the next pool-wait or idle phase
      */
     private static long remainingTimeoutMs(RequestCtx ctx) {
         if (ctx.deadlineNanos == 0) {
@@ -661,10 +992,13 @@ public class Forwarder extends AbstractForwarder {
     /**
      * Tells whether enough of the request-wide deadline (see {@link #handleRequest}) is still left to
      * make another attempt worthwhile, i.e. at least {@link #MIN_RETRY_BUDGET_MS}. Always
-     * {@code true} when no timeout is configured ({@code deadlineNanos == 0}), so retries stay
-     * unbounded in time exactly as before in that case. Using a small floor (rather than "any time
+     * {@code true} when no shared deadline is armed ({@code deadlineNanos == 0}, i.e. no timeout
+     * configured); the number of attempts is still capped by the retry policy. Using a small floor (rather than "any time
      * left at all") avoids launching a doomed near-zero-timeout retry that would waste a forwarding
      * attempt.
+     *
+     * @param ctx the per-request context holding the deadline
+     * @return {@code true} if another attempt fits into the remaining request-wide deadline
      */
     private static boolean hasRetryBudget(RequestCtx ctx) {
         if (ctx.deadlineNanos == 0) {
@@ -708,7 +1042,9 @@ public class Forwarder extends AbstractForwarder {
             String dbgHint = "findme_qh398338h9ut";
             ctx.log.warn("{}: {}: {}, {} -fwd-> {}", dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(),
                     ctx.targetUri, ctx.log.isDebugEnabled() ? ex : null);
-            tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, dbgHint);
+            if (finishRequest(ctx, INTERNAL_SERVER_ERROR.getStatusCode(), dbgHint + ": " + ex.getMessage())) {
+                tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, dbgHint);
+            }
         }
     }
 
@@ -716,7 +1052,7 @@ public class Forwarder extends AbstractForwarder {
         ctx.dnReq.resume();
         if (event.failed()) {
             ctx.log.warn("Problem to request {}: {}", ctx.targetUri, event.cause());
-            handleForwardDurationMetrics(ctx.timerSample);
+            finishRequest(ctx, SERVICE_UNAVAILABLE.getStatusCode(), "Problem to request: " + event.cause());
             final HttpServerResponse response = ctx.dnReq.response();
             response.setStatusCode(StatusCode.SERVICE_UNAVAILABLE.getStatusCode());
             response.setStatusMessage(StatusCode.SERVICE_UNAVAILABLE.getStatusMessage());
@@ -724,11 +1060,55 @@ public class Forwarder extends AbstractForwarder {
             return;
         }
         ctx.upReq = event.result();
-        ctx.upReq.exceptionHandler(ex -> onUpstreamError(ex, ctx.dnReq, ctx.upReq::getURI));
+        HttpClientRequest upstreamRequest = ctx.upReq;
+        /*
+         * Request exceptions (e.g. a failed body upload) used to be logged at WARN plus an ERROR
+         * entry. Whether this attempt is retried is decided by the response future, which may run
+         * before or after this exception handler; so record the exception and log it once the
+         * attempt has definitely failed without a retry.
+         */
+        final AtomicReference<Throwable> requestFailure = new AtomicReference<>();
+        final AtomicBoolean attemptFailedFinally = new AtomicBoolean();
+        final AtomicBoolean requestFailureLogged = new AtomicBoolean();
+        final Runnable logRequestFailure = () -> {
+            Throwable failure = requestFailure.get();
+            if (failure != null && attemptFailedFinally.get() && requestFailureLogged.compareAndSet(false, true)) {
+                logUpstreamRequestFailure(ctx, failure);
+            }
+        };
+        upstreamRequest.exceptionHandler(ex -> {
+            if (ctx.upRes == null) {
+                requestFailure.compareAndSet(null, ex);
+                logRequestFailure.run();
+            }
+            if (!ctx.finished.get() && ctx.upReq == upstreamRequest) {
+                // Before a response, the response future (or drain handler) owns retry/error
+                // handling. Do not write a competing 502 from the request exception callback.
+                if (ctx.upRes == null) {
+                    ctx.log.debug("Upstream request failed for {}", ctx.targetUri, ex);
+                } else if (finishRequest(ctx, ctx.upRes.statusCode(), "Upstream request failed: " + ex.getMessage())) {
+                    logUpstreamRequestFailure(ctx, ex);
+                    if (ctx.dnReq.response().ended() || isResponseStarted(ctx)) {
+                        ctx.log.info("{}: Response already written. Not sure about the state. Closing server connection for stability reason",
+                                ctx.targetUri);
+                        ctx.dnReq.response().close();
+                    } else {
+                        respondError(ctx.dnReq, ex instanceof TimeoutException ? StatusCode.TIMEOUT : SERVICE_UNAVAILABLE);
+                    }
+                    upstreamRequest.reset(0);
+                }
+            }
+        });
         ctx.upReq.response(ev -> {
+            if (ctx.finished.get() || ctx.upReq != upstreamRequest) {
+                if (ev.succeeded()) {
+                    ev.result().resume();
+                }
+                return;
+            }
             if (ev.failed()) {
                 ctx.log.warn("Bad upstream response: {}://{}{} {}",
-                        rule.getScheme(), target, ctx.targetUri, ev.cause().getMessage(),
+                        rule.getScheme(), ctx.upstream.target, ctx.targetUri, ev.cause().getMessage(),
                         ctx.log.isDebugEnabled() ? ev.cause() : null);
                 /*
                  * The upstream failed to deliver a usable response (connection dropped, reset,
@@ -742,32 +1122,43 @@ public class Forwarder extends AbstractForwarder {
                  * buffered request. We MUST return here so we do not also send the 502 below for
                  * this (now superseded) attempt; the fresh attempt owns the outcome from now on.
                  */
-                if (mayRetry(ctx)) {
+                if (mayRetry(ctx, retryPolicy.maxAttemptsForUpstreamFailure(ctx.dnReq.headers(), ctx.log))) {
                     ctx.attempt++;
-                    ctx.log.info("Retrying request (attempt {} of {}) to {}://{}{} after upstream failure",
-                            ctx.attempt, maxForwardAttempts, rule.getScheme(), target, ctx.targetUri);
+                    ctx.log.info("Retrying request (attempt {}) to {}://{}{} after upstream failure",
+                            ctx.attempt, rule.getScheme(), ctx.upstream.target, ctx.targetUri);
                     sendToTarget(ctx);
                     return;
                 }
-                /* No (further) retry allowed -> report the upstream failure to the client. */
-                tryRespondWithBadGateway(ctx.dnReq.response(), ctx.log, "findme_49ot58h0inrnu3985h");
+                /* No (further) retry allowed -> report the upstream failure to the client.
+                 * Finish first so metrics are complete before the response becomes observable. */
+                if (finishRequest(ctx, BAD_GATEWAY.getStatusCode(), "Bad upstream response: " + ev.cause().getMessage())) {
+                    attemptFailedFinally.set(true);
+                    logRequestFailure.run();
+                    tryRespondWithBadGateway(ctx.dnReq.response(), ctx.log, "findme_49ot58h0inrnu3985h");
+                }
                 return;
             }
             onUpstreamResponseNoThrow(ev.result(), ctx, "findme_3q908hjq98t");
         });
 
-        /*
-         * Bound the upstream idle wait by the time still left until the request-wide deadline.
-         * Pool acquisition may already have consumed most of that budget, so we recompute the
-         * remaining time here rather than granting a fresh full window per attempt.
-         */
-        ctx.upReq.idleTimeout(remainingTimeoutMs(ctx));
+        // Retry-enabled requests use their remaining deadline; ordinary requests get a fresh
+        // idle window after pool acquisition, preserving the original per-phase behaviour.
+        // A non-positive timeout disables the deadline; Vert.x requires a positive idle timeout.
+        if (ctx.timeoutMs > 0) {
+            ctx.upReq.idleTimeout(remainingTimeoutMs(ctx));
+        }
 
         // per https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.10
         MultiMap headersToForward = ctx.dnReq.headers();
         headersToForward = removeNonForwardHeaders(headersToForward);
         HttpHeaderUtil.mergeHeaders(ctx.upReq.headers(), headersToForward, ctx.targetUri);
-        if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(target)) {
+        // Retry instructions apply to the hop that retries. Local rules do not retry, so they pass
+        // the headers on to the rule handling the rewritten path; other hops consume them so
+        // chained Gateleen instances cannot multiply the attempts beyond each instance's ceiling.
+        if (!isLocalRule()) {
+            ForwarderRetryPolicy.removeRetryHeaders(ctx.upReq.headers());
+        }
+        if (!ResponseStatusCodeLogUtil.isRequestToExternalTarget(ctx.upstream.target)) {
             ctx.upReq.headers().set(SELF_REQUEST_HEADER, "true");
         }
 
@@ -778,17 +1169,17 @@ public class Forwarder extends AbstractForwarder {
 
         if (ctx.authHeader != null) ctx.upReq.headers().set(ctx.authHeader.key(), ctx.authHeader.value());
 
-        final String errorMessage = applyHeaderFunctions(ctx.log, ctx.upReq.headers());
+        final String errorMessage = applyHeaderFunctions(ctx.log, ctx.upReq.headers(), ctx.upstream.target);
         if (errorMessage != null) {
             ctx.log.warn("Problem invoking Header functions: {}", errorMessage);
+            finishRequest(ctx, StatusCode.BAD_REQUEST.getStatusCode(), "Problem invoking Header functions: " + errorMessage);
             final HttpServerResponse response = ctx.dnReq.response();
             response.setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
             response.setStatusMessage(StatusCode.BAD_REQUEST.getStatusMessage());
             response.end(errorMessage);
+            upstreamRequest.reset(0);
             return;
         }
-
-        installExceptionHandler(ctx.dnReq, ctx.targetUri, ctx.startTime, ctx.timerSample, ctx.upReq);
 
         /*
          * If no bodyData is available
@@ -835,7 +1226,6 @@ public class Forwarder extends AbstractForwarder {
                 pump.start();
             }
         } else {
-            ctx.loggingHandler.appendRequestPayload(ctx.bodyData);
             // we already have the body complete in-memory - so we can use Content-Length header and avoid chunked transfer
             ctx.upReq.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(ctx.bodyData.length()));
             ctx.upReq.send(ctx.bodyData);
@@ -855,17 +1245,50 @@ public class Forwarder extends AbstractForwarder {
             ctx.log.warn("findme_bnte4jsfdgj: {}: {}: {}, {} -fwd-> {}",
                     dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(), ctx.targetUri,
                     ctx.log.isDebugEnabled() ? ex : null);
-            tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, dbgHint);
+            if (finishRequest(ctx, INTERNAL_SERVER_ERROR.getStatusCode(), dbgHint + ": " + ex.getMessage())) {
+                tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, dbgHint);
+            }
         }
     }
 
     private void onUpstreamResponse(HttpClientResponse rsp, RequestCtx ctx) {
-        ctx.dnRsp = ctx.dnReq.response();
-        if (monitoringHandler != null) {
-            monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), ctx.startTime, ctx.dnReq.uri());
+        long maxAttempts = rsp.statusCode() >= 400 && rsp.statusCode() < 600
+                ? retryPolicy.maxAttemptsForResponse(ctx.dnReq.headers(), rsp.statusCode(), ctx.log) : 1;
+        if (rsp.statusCode() >= 400 && rsp.statusCode() < 600 && mayRetry(ctx, maxAttempts)) {
+            // Drain the rejected response before reusing the connection; never expose it downstream.
+            AtomicBoolean completed = new AtomicBoolean();
+            Handler<Void> retry = ignored -> {
+                if (completed.compareAndSet(false, true)) {
+                    if (ctx.finished.get()) {
+                        return;
+                    }
+                    // Draining may have consumed the remaining budget after the response head.
+                    if (!mayRetry(ctx, maxAttempts)) {
+                        expireRequest(ctx, "Insufficient retry budget after draining HTTP " + rsp.statusCode());
+                        return;
+                    }
+                    ctx.attempt++;
+                    ctx.log.info("Retrying request (attempt {}) to {}://{}{} after HTTP {}",
+                            ctx.attempt, rule.getScheme(), ctx.upstream.target, ctx.targetUri, rsp.statusCode());
+                    sendToTarget(ctx);
+                }
+            };
+            rsp.exceptionHandler(ex -> {
+                if (completed.compareAndSet(false, true)
+                        && finishRequest(ctx, BAD_GATEWAY.getStatusCode(), "Failed to drain retryable HTTP " + rsp.statusCode() + " response: " + ex.getMessage())) {
+                    ctx.log.warn("Failed to drain retryable upstream response for {}", ctx.targetUri, ex);
+                    tryRespondWithBadGateway(ctx.dnReq.response(), ctx.log, "Failed to drain retryable response");
+                }
+            });
+            rsp.endHandler(retry);
+            rsp.handler(this::doNothing);
+            if (isConnCloseHdrSet(rsp)) {
+                shutdownSinkNoThrow(ctx.upReq);
+            }
+            rsp.resume();
+            return;
         }
-
-        handleForwardDurationMetrics(ctx.timerSample);
+        ctx.dnRsp = ctx.dnReq.response();
 
         ctx.upRes = rsp;
         ctx.upRes.exceptionHandler(ex -> onUpstreamError(ex, ctx.dnReq, () -> ctx.upRes.request().getURI()));
@@ -918,6 +1341,7 @@ public class Forwarder extends AbstractForwarder {
         if (!transferEncodings.isEmpty() && !upstreamResponseIsChunked) {
             ctx.log.warn("Unsupported transfer encoding from '{}': {}", ctx.targetUri, transferEncodings);
             ctx.upRes.resume();
+            finishRequest(ctx, BAD_GATEWAY.getStatusCode(), "Unsupported transfer encoding " + transferEncodings);
             respondError(ctx.dnReq, BAD_GATEWAY);
             return;
         }
@@ -940,9 +1364,14 @@ public class Forwarder extends AbstractForwarder {
             ctx.upRes.endHandler(nothing -> onUpstreamResponseEnd(nothing, ctx));
         } catch (IllegalStateException ex) {
             ctx.log.warn("cRes.endHandler() failed", ex);
+            finishRequest(ctx, INTERNAL_SERVER_ERROR.getStatusCode(), "cRes.endHandler() failed: " + ex.getMessage());
             respondError(ctx.dnReq, INTERNAL_SERVER_ERROR);
             return;
         }
+        // The backend response is accepted and will be streamed: complete the metrics now with the
+        // backend status. Rejections above complete them with Gateleen's error status instead.
+        completeRequestMetrics(ctx, ctx.upRes.statusCode());
+        ctx.responseStarted = true;
         pump.start();
 
         Consumer<String> unpump = (String dbgHint2) -> {
@@ -962,17 +1391,29 @@ public class Forwarder extends AbstractForwarder {
         };
 
         ctx.upRes.exceptionHandler(exception -> {
+            if (!finishRequest(ctx, ctx.upRes.statusCode(), "Failed to read upstream response: " + exception.getMessage())) {
+                return;
+            }
             LOG.warn("Failed to read upstream response for '{} {}'", ctx.dnReq.method(), ctx.targetUri, exception);
             unpump.accept("findme_nbroih3to9hj");
-            error("Problem with backend: " + exception.getMessage(), ctx.dnReq, ctx.targetUri);
-            respondError(ctx.dnReq, INTERNAL_SERVER_ERROR);
+            error("Problem with backend: " + exception.getMessage(), ctx);
+            if (isResponseStarted(ctx)) {
+                ctx.dnReq.response().close();
+            } else {
+                respondError(ctx.dnReq, INTERNAL_SERVER_ERROR);
+            }
         });
 
         HttpConnection connection = ctx.dnReq.connection();
         if (connection != null) {
             /* TODO WARN: there are some impls, which JUST IGNORE our handler
              *      registration, aka they break the promised API contract! */
-            connection.closeHandler((Void v) -> unpump.accept("findme_boiuhjoq3uh98r"));
+            connection.closeHandler((Void v) -> {
+                // Set before finishing, so a concurrently completing response end sees it.
+                ctx.finishedByClientClose = !ctx.finished.get();
+                finishRequest(ctx, ctx.upRes.statusCode(), "Client connection closed before the response was completed");
+                unpump.accept("findme_boiuhjoq3uh98r");
+            });
         } else {
             ctx.log.warn("TODO No way to call 'unpump.run()' in the right moment. As there seems"
                     + " to be no event we could register a handler for. Gateleen wishes you"
@@ -980,7 +1421,24 @@ public class Forwarder extends AbstractForwarder {
         }
     }
 
+    /**
+     * Called when the upstream response was received completely. Logs the response (exactly once,
+     * also if the request was already finished by a client disconnect) and, if this call finishes
+     * the request, ends the downstream response. The after handler is called for a 2xx response,
+     * also when the client disconnected mid-response (the backend did process the request; this
+     * matches the behaviour before retries existed), but not after a request-wide deadline expiry.
+     *
+     * @param nothing1 unused
+     * @param ctx      the per-request context
+     */
     private void onUpstreamResponseEnd(Void nothing1, RequestCtx ctx) {
+        logResponseOnce(ctx);
+        if (!finishRequest(ctx, ctx.upRes.statusCode(), null)) {
+            if (ctx.finishedByClientClose && is2xx(ctx.upRes.statusCode())) {
+                callAfterHanderIfExists(ctx);
+            }
+            return;
+        }
         try {
             ctx.dnRsp.end();
             // if everything is fine, we call the after handler
@@ -991,7 +1449,18 @@ public class Forwarder extends AbstractForwarder {
         } catch (IllegalStateException ex) {
             ctx.log.debug("findme_q3985hjg3: ignore because maybe already closed: {}", ctx.dnReq.path(), ex);
         }
-        vertx.runOnContext(nothing2 -> ctx.loggingHandler.log());
+    }
+
+    /**
+     * Schedules {@link LoggingHandler#log()} for the received response exactly once per request,
+     * whichever terminal path (regular end or deadline expiry) gets there first.
+     *
+     * @param ctx the per-request context holding the logging handler
+     */
+    private void logResponseOnce(RequestCtx ctx) {
+        if (ctx.responseLogged.compareAndSet(false, true)) {
+            vertx.runOnContext(nothing -> ctx.loggingHandler.log());
+        }
     }
 
     private void onUpstreamError(Throwable exOrig, HttpServerRequest dwnstrmReq, Supplier<String> getUpstreamRequestUri) {
@@ -1160,37 +1629,42 @@ public class Forwarder extends AbstractForwarder {
         }
     }
 
-    private void installExceptionHandler(final HttpServerRequest req, final String targetUri, final Long startTime, @Nullable Timer.Sample timerSample, HttpClientRequest cReq) {
-        cReq.exceptionHandler(exception -> {
-            if (monitoringHandler != null && startTime != null) {
-                monitoringHandler.stopRequestMetricTracking(rule.getMetricName(), startTime, req.uri());
-            }
-
-            handleForwardDurationMetrics(timerSample);
-
-            if (exception instanceof TimeoutException) {
-                error("Timeout", req, targetUri);
-                respondError(req, StatusCode.TIMEOUT);
-            } else {
-                if (exception instanceof ConnectTimeoutException) {
-                    // Don't log stacktrace in case connection timeout
-                    LOG.warn("Failed to '{} {}'", req.method(), targetUri);
-                } else {
-                    LOG.warn("Failed to '{} {}'", req.method(), targetUri, exception);
-                }
-                error(exception.getMessage(), req, targetUri);
-                if (req.response().ended() || req.response().headWritten()) {
-                    LOG.info("{}: Response already written. Not sure about the state. Closing server connection for stability reason", targetUri);
-                    req.response().close();
-                    return;
-                }
-                respondError(req, StatusCode.SERVICE_UNAVAILABLE);
-            }
-        });
+    /**
+     * Logs an ERROR for this request, prefixed with the upstream URL it was forwarded to.
+     *
+     * @param message the error description
+     * @param ctx     the per-request context (provides the resolved upstream target and URI)
+     */
+    private void error(String message, RequestCtx ctx) {
+        RequestLoggerFactory.getLogger(Forwarder.class, ctx.dnReq)
+                .error(rule.getScheme() + "://" + ctx.upstream.target + ctx.targetUri + " " + message);
     }
 
-    private void error(String message, HttpServerRequest request, String uri) {
-        RequestLoggerFactory.getLogger(Forwarder.class, request).error(rule.getScheme() + "://" + target + uri + " " + message);
+    /**
+     * Logs a failed upstream request the way it was logged before retries existed: a WARN
+     * {@code Failed to '<method> <uri>'} (without stack trace for connect timeouts) plus an ERROR
+     * entry, or only an ERROR {@code Timeout} for a {@link TimeoutException}. The ERROR entry is
+     * skipped for retried requests, because the retry summary already logged one.
+     *
+     * @param ctx the per-request context
+     * @param ex  the exception the upstream request failed with
+     */
+    private void logUpstreamRequestFailure(RequestCtx ctx, Throwable ex) {
+        boolean errorEntry = ctx.attempt <= 1;
+        if (ex instanceof TimeoutException) {
+            if (errorEntry) {
+                error("Timeout", ctx);
+            }
+            return;
+        }
+        if (ex instanceof ConnectTimeoutException) {
+            ctx.log.warn("Failed to '{} {}'", ctx.dnReq.method(), ctx.targetUri);
+        } else {
+            ctx.log.warn("Failed to '{} {}'", ctx.dnReq.method(), ctx.targetUri, ex);
+        }
+        if (errorEntry) {
+            error(ex.getMessage(), ctx);
+        }
     }
 
     private void callAfterHanderIfExists(RequestCtx ctx) {
@@ -1207,6 +1681,14 @@ public class Forwarder extends AbstractForwarder {
     private void doNothing(Object o) {/* Guess why this is empty. */}
 
     private static class RequestCtx {
+        private final AtomicBoolean metricsCompleted = new AtomicBoolean();
+        private final AtomicBoolean finished = new AtomicBoolean();
+        /** Guards {@link LoggingHandler#log()} so a received response is logged exactly once. */
+        private final AtomicBoolean responseLogged = new AtomicBoolean();
+        /** Set when the client closed the connection before the request was otherwise finished. */
+        private volatile boolean finishedByClientClose = false;
+        private long deadlineTimerId = -1;
+        private long poolWaitTimerId = -1;
         /** downstream request (aka the incoming request made by some other client) */
         private final HttpServerRequest dnReq;
         /** downstream response (aka response intended for a client which did call us) */
@@ -1216,6 +1698,8 @@ public class Forwarder extends AbstractForwarder {
         /** upstream response (aka the response from our external server we've called) */
         private HttpClientResponse upRes;
         private final Logger log;
+        /** Backend resolved once per request (host/port wildcards), reused by every retry. */
+        private final UpstreamTarget upstream;
         private final String targetUri;
         private final Long startTime;
         private final Timer.Sample timerSample;
@@ -1230,25 +1714,35 @@ public class Forwarder extends AbstractForwarder {
         /**
          * Number of forwarding attempts already started for this request, 1-based: it is {@code 1}
          * for the very first try and is incremented by one immediately before each retry is launched.
-         * It is compared against {@code Forwarder.maxForwardAttempts} in {@link Forwarder#mayRetry}
-         * to enforce the global attempt budget. Kept on the context (rather than as a local) precisely
+         * It is compared against the selected, ceiling-capped retry policy in {@link Forwarder#mayRetry}.
+         * Kept on the context (rather than as a local) precisely
          * so that its value survives across the successive {@link Forwarder#sendToTarget} invocations
          * of a retried request.
          */
-        private int attempt = 1;
+        private long attempt = 1;
 
         /**
          * Absolute deadline, expressed on the {@link System#nanoTime()} clock, by which the whole
          * forwarded request (initial attempt plus any retries) must be finished. Set once in
-         * {@link Forwarder#handleRequest} when a timeout is configured and never changed afterwards,
+         * {@link Forwarder#handleRequest} when retries and a timeout are enabled, never changed afterwards,
          * so it bounds the total request lifetime rather than each individual attempt. A value of
-         * {@code 0} means "no timeout configured" and disables all deadline-based logic.
+         * {@code 0} disables the shared deadline; ordinary per-phase idle/pool timeouts still apply.
          */
         private long deadlineNanos = 0;
+
+        /**
+         * Set right before the accepted upstream response starts streaming into {@link #dnRsp}.
+         * From then on the client response can no longer be replaced with an error, even if the
+         * downstream implementation does not report it via {@code headWritten()} yet (the
+         * in-memory response of Gateleen-internal requests does so only once it is ended).
+         * Only accessed on the request's event loop.
+         */
+        private boolean responseStarted;
 
         private RequestCtx(
                 HttpServerRequest dnReq,
                 Logger log,
+                UpstreamTarget upstream,
                 String targetUri,
                 Long startTime,
                 Timer.Sample timerSample,
@@ -1263,6 +1757,7 @@ public class Forwarder extends AbstractForwarder {
         ) {
             this.dnReq = dnReq;
             this.log = log;
+            this.upstream = upstream;
             this.targetUri = targetUri;
             this.startTime = startTime;
             this.timerSample = timerSample;
@@ -1274,6 +1769,27 @@ public class Forwarder extends AbstractForwarder {
             this.uniqueId = uniqueId;
             this.authHeader = authHeader;
             this.bodyData = bodyData;
+        }
+    }
+
+    /**
+     * Upstream backend resolved once per request (including host/port wildcards). Kept per request
+     * instead of in Forwarder fields so concurrent requests cannot change the target of a retry.
+     */
+    private static final class UpstreamTarget {
+        private final String host;
+        private final int port;
+        /** {@code host:port}, as used for logging, metrics and the default Host header. */
+        private final String target;
+
+        /**
+         * @param host the upstream host
+         * @param port the upstream port
+         */
+        private UpstreamTarget(String host, int port) {
+            this.host = host;
+            this.port = port;
+            this.target = host + ":" + port;
         }
     }
 
