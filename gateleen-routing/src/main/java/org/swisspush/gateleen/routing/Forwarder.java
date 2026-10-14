@@ -184,7 +184,7 @@ public class Forwarder extends AbstractForwarder {
         this.rule = rule;
         this.retryPolicy = isLocalRule()
                 ? ForwarderRetryPolicy.disabled()
-                : ForwarderRetryPolicy.fromSystemProperties();
+                : ForwarderRetryPolicy.fromSystemProperties(rule);
         this.loggingResourceManager = loggingResourceManager;
         this.logAppenderRepository = logAppenderRepository;
         this.monitoringHandler = monitoringHandler;

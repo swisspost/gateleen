@@ -29,6 +29,8 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     private boolean written = false;
     /** The response was closed after it was handed to the client but before it was ended. */
     private boolean aborted = false;
+    /** The abort was reported to the client's exception handler (at most once). */
+    private boolean abortDelivered = false;
     private Handler<Throwable> clientExceptionHandler;
     private Handler<AsyncResult<HttpClientResponse>> responseHandler;
     public HttpClientResponse clientResponse = new FastFaiHttpClientResponse() {
@@ -120,6 +122,10 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
         @Override
         public HttpClientResponse exceptionHandler(Handler<Throwable> handler) {
             clientExceptionHandler = handler;
+            if (aborted && !abortDelivered && handler != null) {
+                // Registered after the close: report the pending abort now, see close().
+                vertx.runOnContext(nothing -> deliverAbort(Integer.MAX_VALUE));
+            }
             return this;
         }
     };
@@ -322,6 +328,11 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
      * response is incomplete: it would either wait forever (local requests have no timeout) or,
      * if an error text were written afterwards, accept a truncated body as a complete response.
      * Closing an ended or not yet started response only marks it as closed.
+     * <p>
+     * The abort is kept as state and reported exactly once: immediately (on the next event-loop
+     * turn) if the client already registered an exception handler, otherwise as soon as it
+     * registers one, since a client commonly registers its handlers only after receiving the
+     * response.
      */
     @Override
     public void close() {
@@ -331,16 +342,32 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
         closed = true;
         if (bound && !written) {
             aborted = true;
-            // Runs after already queued body chunks were pumped to the client.
-            vertx.runOnContext(nothing -> {
-                Handler<Throwable> handler = clientExceptionHandler;
-                if (handler != null) {
-                    handler.handle(new HttpClosedException("Connection was closed"));
-                } else {
-                    logger.warn("Local response closed before it was completed, but the client registered no exception handler");
-                }
-            });
+            vertx.runOnContext(nothing -> deliverAbort(Integer.MAX_VALUE));
         }
+    }
+
+    /**
+     * Reports the abort of this response to the client's exception handler, unless it was already
+     * reported or no handler is registered yet (then the registration reports it). Chunks written
+     * before the close are delivered first: while the pump makes progress, the report is deferred
+     * to the next event-loop turn. A pump that stopped (e.g. because the data handler threw) does
+     * not delay the report forever.
+     *
+     * @param previousPendingChunks the number of queued chunks seen by the previous attempt, or
+     *                              {@link Integer#MAX_VALUE} on the first attempt
+     */
+    private void deliverAbort(int previousPendingChunks) {
+        Handler<Throwable> handler = clientExceptionHandler;
+        if (abortDelivered || handler == null) {
+            return;
+        }
+        int pending = pendingChunks();
+        if (pending > 0 && pending < previousPendingChunks) {
+            vertx.runOnContext(nothing -> deliverAbort(pending));
+            return;
+        }
+        abortDelivered = true;
+        handler.handle(new HttpClosedException("Connection was closed"));
     }
 
     @Override

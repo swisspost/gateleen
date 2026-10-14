@@ -12,7 +12,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import static org.swisspush.gateleen.core.util.StatusCode.BAD_GATEWAY;
 
@@ -51,6 +54,28 @@ public final class ForwarderRetryPolicy {
     public static final String MAX_RETRY_BODY_BYTES_PROPERTY =
             "org.swisspush.gateleen.routing.forwarder.maxRetryBodyBytes";
 
+    /**
+     * Startup-only regular expression excluding routing rules and hook routes from the static
+     * {@link #RETRIES_BY_STATUS_PROPERTY} policy, for example {@code .*houston.*} for backends whose
+     * failures are expected (e.g. over a mobile data link) and must not be multiplied by retries.
+     * It is matched case-insensitively against the whole URL pattern of the rule (e.g.
+     * {@code /eagle/houston/(.*)}) and against its whole target URL
+     * ({@code scheme://host:port/path}, e.g. {@code http://backend:7013/houston/$1}); either match
+     * excludes the rule. The target URL always contains the port, also when the rule's URL omits it
+     * ({@code 80} for http, {@code 443} for https).
+     * <p>
+     * Only the static policy is excluded: {@code x-route-retry-*} request headers still enable
+     * retries for an excluded rule, because a client then explicitly asks for them. They remain
+     * capped by {@link #MAX_RETRIES_PROPERTY}. Absent or blank means no exclusion; an invalid
+     * expression is logged once and excludes nothing.
+     * <p>
+     * Local rules (with a {@code path}) never retry themselves; the retries of a chain happen on the
+     * rule that finally calls the backend. Excluding only the local rule therefore does not exclude
+     * the chain: the expression must match that final rule.
+     */
+    public static final String RETRY_EXCLUDE_PATTERN_PROPERTY =
+            "org.swisspush.gateleen.routing.forwarder.retryExcludePattern";
+
     private static final int DEFAULT_MAX_RETRIES = 5;
     private static final long DEFAULT_MAX_RETRY_BODY_BYTES = 1024L * 1024L;
     /**
@@ -71,6 +96,29 @@ public final class ForwarderRetryPolicy {
     private static final String ROUTE_RETRY_HEADER_PREFIX = "x-route-retry-";
 
     private static final Logger LOG = LoggerFactory.getLogger(ForwarderRetryPolicy.class);
+
+    /**
+     * Last compiled {@link #RETRY_EXCLUDE_PATTERN_PROPERTY}, so that the expression is compiled, and
+     * an invalid one reported, once per property value instead of once per forwarder.
+     */
+    private static volatile CompiledExcludePattern compiledExcludePattern;
+
+    /** A {@link #RETRY_EXCLUDE_PATTERN_PROPERTY} value with its compiled form. */
+    private static final class CompiledExcludePattern {
+        /** The property value. */
+        private final String source;
+        /** The compiled expression, or {@code null} if the value is invalid. */
+        private final Pattern pattern;
+
+        /**
+         * @param source  the property value
+         * @param pattern the compiled expression, or {@code null} if the value is invalid
+         */
+        private CompiledExcludePattern(String source, Pattern pattern) {
+            this.source = source;
+            this.pattern = pattern;
+        }
+    }
 
     /**
      * Startup snapshot of ADDITIONAL retry counts keyed by exact error status (e.g. "503") or
@@ -106,6 +154,80 @@ public final class ForwarderRetryPolicy {
      */
     public static ForwarderRetryPolicy fromSystemProperties() {
         return new ForwarderRetryPolicy(resolveRetriesByStatus(), resolveMaxRetries(), resolveMaxRetryBodyBytes());
+    }
+
+    /**
+     * Like {@link #fromSystemProperties()}, but without the static {@link #RETRIES_BY_STATUS_PROPERTY}
+     * policy if the rule matches {@link #RETRY_EXCLUDE_PATTERN_PROPERTY}. Retry headers, the ceiling
+     * and the body limit apply to excluded rules as well.
+     *
+     * @param rule the rule of the forwarder; its URL pattern and target URL are matched
+     * @return a new immutable policy for this rule
+     */
+    public static ForwarderRetryPolicy fromSystemProperties(Rule rule) {
+        if (isExcluded(rule)) {
+            LOG.debug("Rule {} ({}) matches {}, static retries are disabled for it",
+                    rule.getUrlPattern(), targetUrl(rule), RETRY_EXCLUDE_PATTERN_PROPERTY);
+            return new ForwarderRetryPolicy(Map.of(), resolveMaxRetries(), resolveMaxRetryBodyBytes());
+        }
+        return fromSystemProperties();
+    }
+
+    /**
+     * Matches the rule against {@link #RETRY_EXCLUDE_PATTERN_PROPERTY}, see there.
+     *
+     * @param rule the rule to check
+     * @return {@code true} if the whole URL pattern or the whole target URL matches the expression;
+     * {@code false} if the property is absent, blank or invalid
+     */
+    static boolean isExcluded(Rule rule) {
+        Pattern pattern = resolveExcludePattern();
+        if (pattern == null) {
+            return false;
+        }
+        return (rule.getUrlPattern() != null && pattern.matcher(rule.getUrlPattern()).matches())
+                || pattern.matcher(targetUrl(rule)).matches();
+    }
+
+    /**
+     * Compiles {@link #RETRY_EXCLUDE_PATTERN_PROPERTY}, reusing the result while the property value
+     * is unchanged. An invalid value is logged when it is first seen (concurrent first calls may
+     * log it more than once).
+     *
+     * @return the case-insensitive expression, or {@code null} if the property is absent, blank or
+     * invalid
+     */
+    private static Pattern resolveExcludePattern() {
+        String property = System.getProperty(RETRY_EXCLUDE_PATTERN_PROPERTY);
+        if (property == null || property.isBlank()) {
+            return null;
+        }
+        CompiledExcludePattern cached = compiledExcludePattern;
+        if (cached != null && cached.source.equals(property)) {
+            return cached.pattern;
+        }
+        Pattern pattern = null;
+        try {
+            pattern = Pattern.compile(property, Pattern.CASE_INSENSITIVE);
+        } catch (PatternSyntaxException e) {
+            LOG.warn("Ignoring invalid {}=\"{}\" (must be a regular expression: {}), no rule is excluded from retries",
+                    RETRY_EXCLUDE_PATTERN_PROPERTY, property, e.getDescription());
+        }
+        compiledExcludePattern = new CompiledExcludePattern(property, pattern);
+        return pattern;
+    }
+
+    /**
+     * Describes the configured target of a rule for {@link #RETRY_EXCLUDE_PATTERN_PROPERTY}.
+     *
+     * @param rule the rule to describe
+     * @return {@code scheme://host:port/path}, where host and port may be the configured wildcards
+     * and the path may still contain group references such as {@code $1}
+     */
+    static String targetUrl(Rule rule) {
+        String host = rule.getHost() != null ? rule.getHost() : rule.getHostWildcard();
+        String port = rule.getPortWildcard() != null ? rule.getPortWildcard() : String.valueOf(rule.getPort());
+        return rule.getScheme() + "://" + host + ":" + port + Objects.toString(rule.getPath(), "");
     }
 
     /**

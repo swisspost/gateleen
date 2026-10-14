@@ -2,13 +2,26 @@ package org.swisspush.gateleen.routing;
 
 import com.google.common.collect.ImmutableMap;
 import io.vertx.core.MultiMap;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
+import org.swisspush.gateleen.core.util.ResourcesUtils;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -22,6 +35,7 @@ public class ForwarderRetryPolicyTest {
     private String previousStatuses;
     private String previousCeiling;
     private String previousBodyLimit;
+    private String previousExclude;
 
     /**
      * Saves the retry-related system properties and clears them so each policy test starts from the
@@ -35,6 +49,8 @@ public class ForwarderRetryPolicyTest {
         System.clearProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY);
         System.clearProperty(ForwarderRetryPolicy.MAX_RETRIES_PROPERTY);
         System.clearProperty(ForwarderRetryPolicy.MAX_RETRY_BODY_BYTES_PROPERTY);
+        previousExclude = System.getProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY);
+        System.clearProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY);
     }
 
     /**
@@ -46,6 +62,187 @@ public class ForwarderRetryPolicyTest {
         restoreProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, previousStatuses);
         restoreProperty(ForwarderRetryPolicy.MAX_RETRIES_PROPERTY, previousCeiling);
         restoreProperty(ForwarderRetryPolicy.MAX_RETRY_BODY_BYTES_PROPERTY, previousBodyLimit);
+        restoreProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, previousExclude);
+    }
+
+    /**
+     * Builds an HTTP rule like the Eagle Houston rules.
+     *
+     * @param urlPattern the URL pattern of the rule
+     * @return a rule targeting {@code http://backend:7013/houston/$1}
+     */
+    private static Rule houstonRule(String urlPattern) {
+        Rule rule = new Rule();
+        rule.setUrlPattern(urlPattern);
+        rule.setScheme("http");
+        rule.setHost("backend");
+        rule.setPort(7013);
+        rule.setPath("/houston/$1");
+        return rule;
+    }
+
+    /**
+     * Without the property, or with a blank one, no rule is excluded.
+     */
+    @Test
+    public void testIsExcluded_absentOrBlank_excludesNothing(TestContext ctx) {
+        ctx.assertFalse(ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/houston/(.*)")));
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, " ");
+        ctx.assertFalse(ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/houston/(.*)")));
+    }
+
+    /**
+     * The whole URL pattern or the whole target URL must match, case-insensitively.
+     */
+    @Test
+    public void testIsExcluded_matchesUrlPatternOrTargetUrl(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, ".*HOUSTON.*");
+        ctx.assertTrue(ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/houston/(.*)")), "URL pattern");
+        ctx.assertTrue(ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/services/osm/(.*)")), "target path");
+
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, "houston");
+        ctx.assertFalse(ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/houston/(.*)")),
+                "A partial match must not exclude");
+
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, "http://backend:7013/.*");
+        ctx.assertTrue(ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/other/(.*)")), "host and port");
+    }
+
+    /**
+     * Wildcard hosts and ports are described by their configured placeholders.
+     */
+    @Test
+    public void testTargetUrl_usesWildcards(TestContext ctx) {
+        Rule rule = houstonRule("/eagle/houston/(.*)");
+        ctx.assertEquals("http://backend:7013/houston/$1", ForwarderRetryPolicy.targetUrl(rule));
+        rule.setHost(null);
+        rule.setHostWildcard("${host}");
+        rule.setPortWildcard("${port}");
+        ctx.assertEquals("http://${host}:${port}/houston/$1", ForwarderRetryPolicy.targetUrl(rule));
+    }
+
+    /**
+     * An invalid expression excludes nothing, so the static policy still applies.
+     */
+    @Test
+    public void testIsExcluded_invalidPattern_excludesNothing(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, "{\"502\":2}");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, "(houston");
+        Rule rule = houstonRule("/eagle/houston/(.*)");
+        ctx.assertFalse(ForwarderRetryPolicy.isExcluded(rule));
+        ctx.assertEquals(3L, ForwarderRetryPolicy.fromSystemProperties(rule)
+                .maxAttemptsForResponse(MultiMap.caseInsensitiveMultiMap(), 502, null));
+    }
+
+    /**
+     * A rule parsed from a URL without a port gets the scheme's default port, which is part of the
+     * matched target URL: a pattern omitting the port does not match.
+     */
+    @Test
+    public void testIsExcluded_targetUrlContainsDefaultPort(TestContext ctx) throws Exception {
+        String rules = "{\"/eagle/a/(.*)\":{\"url\":\"http://backend/a/$1\"},"
+                + "\"/eagle/b/(.*)\":{\"url\":\"https://backend/b/$1\"}}";
+        List<Rule> parsed = new RuleFactory(new HashMap<>(),
+                ResourcesUtils.loadResource("gateleen_routing_schema_routing_rules", true))
+                .parseRules(Buffer.buffer(rules), Router.DEFAULT_ROUTER_MULTIPLIER);
+        ctx.assertEquals("http://backend:80/a/$1", ForwarderRetryPolicy.targetUrl(parsed.get(0)));
+        ctx.assertEquals("https://backend:443/b/$1", ForwarderRetryPolicy.targetUrl(parsed.get(1)));
+
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, "http://backend/.*");
+        ctx.assertFalse(ForwarderRetryPolicy.isExcluded(parsed.get(0)), "The port is always part of the target URL");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, "https?://backend:.*");
+        ctx.assertTrue(ForwarderRetryPolicy.isExcluded(parsed.get(0)));
+        ctx.assertTrue(ForwarderRetryPolicy.isExcluded(parsed.get(1)));
+    }
+
+    /**
+     * An invalid expression is reported once per property value as a single WARN line without a
+     * stack trace, however many rules are checked; a different invalid value is reported again,
+     * and a valid value set afterwards takes effect.
+     */
+    @Test
+    public void testIsExcluded_invalidPattern_warnsOncePerValue(TestContext ctx) {
+        // Unique values, because the compiled expression is cached per property value.
+        String invalid = "(warnOnce" + System.nanoTime();
+        String otherInvalid = "(warnOnceOther" + System.nanoTime();
+        List<LogEvent> events = captureRetryPolicyLogs(() -> {
+            System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, invalid);
+            ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/houston/(.*)"));
+            ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/other/(.*)"));
+            ForwarderRetryPolicy.fromSystemProperties(houstonRule("/eagle/third/(.*)"));
+            System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, otherInvalid);
+            ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/houston/(.*)"));
+            ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/houston/(.*)"));
+        });
+        ctx.assertEquals(2, events.size(), String.valueOf(events));
+        ctx.assertEquals(Level.WARN, events.get(0).getLevel());
+        ctx.assertTrue(events.get(0).getMessage().getFormattedMessage().contains(invalid));
+        ctx.assertNull(events.get(0).getThrown(), "No stack trace for a configuration error");
+        ctx.assertTrue(events.get(1).getMessage().getFormattedMessage().contains(otherInvalid));
+
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, ".*houston.*");
+        ctx.assertTrue(ForwarderRetryPolicy.isExcluded(houstonRule("/eagle/houston/(.*)")));
+    }
+
+    /**
+     * Runs an action while capturing the WARN and higher log events of {@link ForwarderRetryPolicy}.
+     *
+     * @param action the action to run
+     * @return the captured events
+     */
+    private static List<LogEvent> captureRetryPolicyLogs(Runnable action) {
+        List<LogEvent> events = new CopyOnWriteArrayList<>();
+        AbstractAppender appender = new AbstractAppender("retry-exclude", null,
+                PatternLayout.createDefaultLayout(), false, null) {
+            @Override
+            public void append(LogEvent event) {
+                if (event.getLevel().isMoreSpecificThan(Level.WARN)) {
+                    events.add(event.toImmutable());
+                }
+            }
+        };
+        appender.start();
+        org.apache.logging.log4j.core.Logger logger =
+                (org.apache.logging.log4j.core.Logger) LogManager.getLogger(ForwarderRetryPolicy.class);
+        Level previousLevel = logger.getLevel();
+        Configurator.setLevel(logger.getName(), Level.WARN);
+        logger.addAppender(appender);
+        try {
+            action.run();
+        } finally {
+            logger.removeAppender(appender);
+            Configurator.setLevel(logger.getName(), previousLevel);
+            appender.stop();
+        }
+        return new ArrayList<>(events);
+    }
+
+    /**
+     * An excluded rule ignores the static policy for responses and upstream failures, but request
+     * headers still enable retries within the ceiling.
+     */
+    @Test
+    public void testExcludedRule_onlyHeadersEnableRetries(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, "{\"502\":2,\"upstreamFailure\":2}");
+        System.setProperty(ForwarderRetryPolicy.MAX_RETRIES_PROPERTY, "5");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, ".*houston.*");
+        ForwarderRetryPolicy policy = ForwarderRetryPolicy.fromSystemProperties(houstonRule("/eagle/houston/(.*)"));
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        ctx.assertEquals(1L, policy.maxAttemptsForResponse(headers, 502, null));
+        ctx.assertEquals(1L, policy.maxAttemptsForUpstreamFailure(headers, null));
+        ctx.assertFalse(policy.permitsRetries(headers));
+
+        headers.set("x-route-retry-502", "20");
+        ctx.assertEquals(6L, policy.maxAttemptsForResponse(headers, 502, null), "Header capped by the ceiling");
+        ctx.assertEquals(6L, policy.maxAttemptsForUpstreamFailure(headers, null));
+        ctx.assertTrue(policy.permitsRetries(headers));
+
+        Rule otherRule = houstonRule("/eagle/other/(.*)");
+        otherRule.setHost("other");
+        otherRule.setPath("/other/$1");
+        ForwarderRetryPolicy other = ForwarderRetryPolicy.fromSystemProperties(otherRule);
+        ctx.assertEquals(3L, other.maxAttemptsForResponse(MultiMap.caseInsensitiveMultiMap(), 502, null),
+                "A rule not matching keeps the static policy");
     }
 
     /**

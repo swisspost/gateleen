@@ -88,6 +88,7 @@ public class ForwarderRetryTest {
     private String previousStatusPropertyValue;
     private String previousCeilingPropertyValue;
     private String previousBodyLimitPropertyValue;
+    private String previousExcludePropertyValue;
 
     /**
      * Creates a Vert.x instance and clears retry-related system properties after saving their
@@ -103,6 +104,8 @@ public class ForwarderRetryTest {
         System.clearProperty(ForwarderRetryPolicy.MAX_RETRIES_PROPERTY);
         previousBodyLimitPropertyValue = System.getProperty(ForwarderRetryPolicy.MAX_RETRY_BODY_BYTES_PROPERTY);
         System.clearProperty(ForwarderRetryPolicy.MAX_RETRY_BODY_BYTES_PROPERTY);
+        previousExcludePropertyValue = System.getProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY);
+        System.clearProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY);
     }
 
     /**
@@ -128,7 +131,143 @@ public class ForwarderRetryTest {
         } else {
             System.setProperty(ForwarderRetryPolicy.MAX_RETRY_BODY_BYTES_PROPERTY, previousBodyLimitPropertyValue);
         }
+        if (previousExcludePropertyValue == null) {
+            System.clearProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY);
+        } else {
+            System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, previousExcludePropertyValue);
+        }
         vertx.close(ctx.asyncAssertSuccess());
+    }
+
+    // -------------------------------------------------------------------------
+    // Retry exclusion (retryExcludePattern)
+    // -------------------------------------------------------------------------
+
+    /**
+     * A rule matching the exclusion by its URL pattern ignores the static 502 policy: a permanently
+     * failing backend is contacted once.
+     */
+    @Test
+    public void testExcludedRule_staticPolicyIgnored_contactedOnce(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, "{\"502\":2,\"upstreamFailure\":2}");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, ".*/TEST/.*");
+        AtomicInteger hits = new AtomicInteger();
+        int port = startStatusBackend(ctx, hits, 502);
+        CapturingResponse response = forwardAndAwaitResponse(ctx, port, HttpMethod.GET, Buffer.buffer("payload"),
+                MultiMap.caseInsensitiveMultiMap());
+        ctx.assertEquals(1, hits.get(), "The exclusion (matched case-insensitively) must disable the static retries");
+        ctx.assertEquals(502, response.status.get());
+    }
+
+    /**
+     * The exclusion also disables the static upstreamFailure policy.
+     */
+    @Test
+    public void testExcludedRule_upstreamFailureNotRetried(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, "{\"upstreamFailure\":2}");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, ".*/test/.*");
+        AtomicInteger hits = new AtomicInteger();
+        int backendPort = startCountingBackend(ctx, hits, Integer.MAX_VALUE);
+
+        int status = forwardBufferedGetAndAwaitStatus(ctx, backendPort);
+
+        ctx.assertEquals(1, hits.get());
+        ctx.assertEquals(StatusCode.BAD_GATEWAY.getStatusCode(), status);
+    }
+
+    /**
+     * A rule matching the exclusion by its target URL only is excluded as well.
+     */
+    @Test
+    public void testExcludedRule_matchedByTargetUrl(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, "{\"502\":2}");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, "http://localhost:\\d+/test/resource");
+        AtomicInteger hits = new AtomicInteger();
+        int port = startStatusBackend(ctx, hits, 502);
+        forwardAndAwaitResponse(ctx, port, HttpMethod.GET, Buffer.buffer("payload"), MultiMap.caseInsensitiveMultiMap());
+        ctx.assertEquals(1, hits.get());
+    }
+
+    /**
+     * Retry headers still apply to an excluded rule: the client explicitly asks for the retries.
+     */
+    @Test
+    public void testExcludedRule_retryHeaderStillApplies(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, "{\"502\":2}");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, ".*/test/.*");
+        AtomicInteger hits = new AtomicInteger();
+        int port = startStatusBackend(ctx, hits, 502);
+        CapturingResponse response = forwardAndAwaitResponse(ctx, port, HttpMethod.GET, Buffer.buffer("payload"),
+                MultiMap.caseInsensitiveMultiMap().set("x-route-retry-502", "3"));
+        ctx.assertEquals(4, hits.get());
+        ctx.assertEquals(502, response.status.get());
+    }
+
+    /**
+     * A rule not matching the exclusion keeps the static policy.
+     */
+    @Test
+    public void testNotExcludedRule_staticPolicyApplies(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, "{\"502\":2}");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, ".*houston.*");
+        AtomicInteger hits = new AtomicInteger();
+        int port = startStatusBackend(ctx, hits, 502);
+        forwardAndAwaitResponse(ctx, port, HttpMethod.GET, Buffer.buffer("payload"), MultiMap.caseInsensitiveMultiMap());
+        ctx.assertEquals(3, hits.get());
+    }
+
+    /**
+     * Excludes only the outer local rule of a local-to-url chain and asserts the inner rule, which
+     * calls the backend, still applies the static policy (3 attempts): the exclusion must match the
+     * final rule, as documented.
+     */
+    @Test
+    public void testExcludedLocalRule_doesNotExcludeInnerRuleOfChain(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, "{\"503\":2}");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, "/houston/.*");
+        AtomicInteger hits = new AtomicInteger();
+        int port = startStatusBackend(ctx, hits, 503);
+        CapturingResponse response = forwardThroughLocalChain(ctx, port, "/houston/(.*)", "/inner/(.*)");
+        ctx.assertEquals(503, response.status.get());
+        ctx.assertEquals(3, hits.get());
+    }
+
+    /**
+     * Excludes the inner url rule of a local-to-url chain and asserts the chain makes a single
+     * attempt.
+     */
+    @Test
+    public void testExcludedInnerRule_excludesChain(TestContext ctx) {
+        System.setProperty(ForwarderRetryPolicy.RETRIES_BY_STATUS_PROPERTY, "{\"503\":2}");
+        System.setProperty(ForwarderRetryPolicy.RETRY_EXCLUDE_PATTERN_PROPERTY, "/houston/.*");
+        AtomicInteger hits = new AtomicInteger();
+        int port = startStatusBackend(ctx, hits, 503);
+        CapturingResponse response = forwardThroughLocalChain(ctx, port, "/outer/(.*)", "/houston/(.*)");
+        ctx.assertEquals(503, response.status.get());
+        ctx.assertEquals(1, hits.get());
+    }
+
+    /**
+     * Forwards a GET through a local outer rule to an inner url rule targeting the backend, like a
+     * routing rule with a {@code path} that is routed again by a rule with a {@code url}.
+     *
+     * @param ctx             Vert.x unit context
+     * @param port            backend port
+     * @param outerUrlPattern URL pattern of the local outer rule
+     * @param innerUrlPattern URL pattern of the inner url rule
+     * @return the response seen by the client of the outer rule
+     */
+    private CapturingResponse forwardThroughLocalChain(TestContext ctx, int port, String outerUrlPattern,
+                                                       String innerUrlPattern) {
+        Rule innerRule = buildRule(port);
+        innerRule.setUrlPattern(innerUrlPattern);
+        Forwarder inner = buildForwarder(innerRule, vertx.createHttpClient(innerRule.buildHttpClientOptions()));
+        Rule outerRule = buildRule(port);
+        outerRule.setScheme("local");
+        outerRule.setUrlPattern(outerUrlPattern);
+        Forwarder outer = buildForwarder(outerRule, newSelfClient(inner));
+        return forwardAndAwaitResponse(ctx, outer, HttpMethod.GET, Buffer.buffer("payload"),
+                MultiMap.caseInsensitiveMultiMap());
     }
 
     // -------------------------------------------------------------------------

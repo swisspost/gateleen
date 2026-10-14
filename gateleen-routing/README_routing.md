@@ -59,6 +59,30 @@ whole policy is ignored. An ignored entry does not override a valid class settin
 Each forwarder snapshots both the policy and ceiling at construction;
 configure all retry properties before startup and do not change them at runtime.
 
+The startup-only JVM system property `org.swisspush.gateleen.routing.forwarder.retryExcludePattern`
+excludes rules from the static `retriesByStatus` policy, for example backends whose failures are
+expected and should not be multiplied by retries (such as a server behind a mobile data link):
+
+```
+-Dorg.swisspush.gateleen.routing.forwarder.retryExcludePattern=.*houston.*
+```
+
+The regular expression is matched case-insensitively against the **whole** URL pattern of the
+rule (for example `/eagle/houston/(.*)`) and against its **whole** target URL
+`scheme://host:port/path` (for example `http://backend:7013/houston/$1`, with configured wildcards
+and unresolved `$1` references); either match excludes the rule. The target URL always contains
+the port, also when the rule's `url` omits it (`80` for http, `443` for https), so
+`http://backend/.*` never matches; use `http://backend:.*` instead. This applies to routing rules
+and hook routes alike. For an excluded rule neither `upstreamFailure` nor any status pattern of
+`retriesByStatus` applies, but `x-route-retry-*` request headers still do (within `maxRetries`):
+a client sending them explicitly asks for retries. Absent or blank means nothing is excluded; an
+invalid expression is logged once (as a warning) and excludes nothing. Exclusions themselves are
+logged at DEBUG level of `ForwarderRetryPolicy`.
+
+Rules with a `path` never retry themselves; in a chain, the retries happen on the rule that finally
+calls the backend. Excluding only the rule with the `path` therefore does **not** exclude the
+chain: the expression must match that final rule (its URL pattern or its target URL).
+
 Clients can override this behaviour per request using `x-route-retry-<status>` or
 `x-route-retry-<status-class>` headers:
 
