@@ -619,6 +619,13 @@ public class ListenerTest extends AbstractTest {
         // add a routing
         TestUtils.registerRoute(requestUrl, target, methods);
 
+        /*
+         * The hook PUT returns before the route is activated (activation happens asynchronously via the
+         * event bus and a storage read). Wait until requests are routed to the still empty target (404)
+         * instead of the 503 rule, otherwise the following PUT races against the route activation.
+         */
+        checkGETStatusCodeWithAwait(routedResource, 404);
+
         checkPUTStatusCode(routedResource, body, 200);
         checkGETStatusCodeWithAwait(routedResource, 200);
         checkGETBodyWithAwait(routeTarget, body);
