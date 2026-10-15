@@ -43,13 +43,13 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Install, unit test
-        run: mvn install -Dmaven.javadoc.skip=true -PpublicRepos -B -V
+        run: mvn install -Dmaven.javadoc.skip=true -Dgpg.skip=true -PpublicRepos -B -V
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
 
       - name: Non UI integration tests
-        run: mvn install -PnonUiIntegrationTests
+        run: mvn install -Dgpg.skip=true -PnonUiIntegrationTests
 
       - name: UI integration tests
         run: |
@@ -60,21 +60,45 @@ jobs:
           java -jar gateleen-playground/target/playground.jar &> playground_logs.log &
           sleep 5s
           
-          mvn deploy -PuploadStaticFiles
-          mvn install -PuiIntegrationTests
+          mvn deploy -PuploadStaticFiles -Dgpg.skip=true
+          mvn install -Dgpg.skip=true -PuiIntegrationTests
 
       - name: Release to maven central
         if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen'
         run: |
+          set -euo pipefail
+
+          # install sdkman if needed (used by maybe-release.sh)
           curl -s https://get.sdkman.io | bash
           source "$HOME/.sdkman/bin/sdkman-init.sh"
-          
+
+          # prepare isolated GNUPGHOME so runner keyring isn't touched
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+
+          # import private key (from secret CI_GPG_PRIVATE_KEY)
+          echo "$CI_GPG_PRIVATE_KEY" | gpg --batch --import
+
+          # enable loopback pinentry for non-interactive signing
+          cat > "$GNUPGHOME/gpg-agent.conf" <<'EOF'
+allow-loopback-pinentry
+EOF
+
+          # reload gpg-agent
+          gpgconf --kill gpg-agent || true
+          sleep 1
+
+          # export passphrase for maven (masked by GitHub Actions)
+          export GPG_PASSPHRASE="$CI_GPG_PASSPHRASE"
+
           chmod +x ./maybe-release.sh
-          ./maybe-release.sh
+          # run release script and pass passphrase to maven so the maven-gpg-plugin can sign
+          ./maybe-release.sh -Dgpg.passphrase="$GPG_PASSPHRASE"
         env:
           CI_DEPLOY_USERNAME: ${{ secrets.CI_DEPLOY_USERNAME }}
           CI_DEPLOY_PASSWORD: ${{ secrets.CI_DEPLOY_PASSWORD }}
           CI_GPG_PASSPHRASE: ${{ secrets.CI_GPG_PASSPHRASE }}
+          CI_GPG_PRIVATE_KEY: ${{ secrets.CI_GPG_PRIVATE_KEY }}
 
       - name: After release
         run: bash <(curl -s https://codecov.io/bash)
