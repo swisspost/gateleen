@@ -5,6 +5,12 @@ name: Java CI with Maven
 
 on:
   workflow_dispatch:
+    inputs:
+      release_only:
+        description: 'Skip tests and release the current master version to Maven Central'
+        required: false
+        type: boolean
+        default: false
   push:
   pull_request:
     branches: [ "master", "develop" ]
@@ -30,11 +36,13 @@ jobs:
           gpg-passphrase: ${{ secrets.CI_GPG_PASSPHRASE }} # env variable for GPG private key passphrase
 
       - name: Start Redis
+        if: ${{ !inputs.release_only }}
         uses: supercharge/redis-github-action@1.4.0
         with:
           redis-version: 4
 
       - name: Install chromedriver
+        if: ${{ !inputs.release_only }}
         uses: nanasess/setup-chromedriver@v2
 
       - name: Set Git user
@@ -43,15 +51,19 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Install, unit test
+        if: ${{ !inputs.release_only }}
         run: mvn install -Dmaven.javadoc.skip=true -Dgpg.skip=true -PpublicRepos -B -V
 
       - name: Upload coverage reports to Codecov
+        if: ${{ !inputs.release_only }}
         uses: codecov/codecov-action@v3
 
       - name: Non UI integration tests
+        if: ${{ !inputs.release_only }}
         run: mvn install -Dgpg.skip=true -PnonUiIntegrationTests
 
       - name: UI integration tests
+        if: ${{ !inputs.release_only }}
         run: |
           export DISPLAY=:99
           chromedriver --url-base=/wd/hub &
@@ -81,6 +93,11 @@ jobs:
           source "$SDKMAN_DIR/bin/sdkman-init.sh"
           set -u
 
+          # maven-gpg-plugin uses Maven's SecDispatcher to read the passphrase.
+          # Provide an empty security settings file so its lookup does not fail.
+          mkdir -p "$HOME/.m2"
+          printf '%s\n' '<settingsSecurity/>' > "$HOME/.m2/settings-security.xml"
+
           # prepare isolated GNUPGHOME so runner keyring isn't touched
           export GNUPGHOME="$(mktemp -d)"
           chmod 700 "$GNUPGHOME"
@@ -99,8 +116,7 @@ jobs:
           export GPG_PASSPHRASE="$CI_GPG_PASSPHRASE"
 
           chmod +x ./maybe-release.sh
-          # run release script and force the maven-gpg-plugin to use the gpg binary
-          # pass the passphrase directly from the secret to avoid Maven SecDispatcher decryption
+          # Forward the passphrase to Maven. The release wrapper preserves these arguments.
           ./maybe-release.sh -Dgpg.useGpgCmd=true -Dgpg.passphrase="$CI_GPG_PASSPHRASE"
         env:
           CI_DEPLOY_USERNAME: ${{ secrets.CI_DEPLOY_USERNAME }}
@@ -109,4 +125,5 @@ jobs:
           CI_GPG_PRIVATE_KEY: ${{ secrets.CI_GPG_PRIVATE_KEY }}
 
       - name: After release
+        if: ${{ !inputs.release_only }}
         run: bash <(curl -s https://codecov.io/bash)
