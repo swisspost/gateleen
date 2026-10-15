@@ -5,7 +5,7 @@ git fetch
 git reset --hard
 
 # Run the release
-mvn -B -Prelease -PpublicRepos jgitflow:release-start jgitflow:release-finish -DskipTests=true
+mvn -B -Prelease -PpublicRepos jgitflow:release-start jgitflow:release-finish -DskipTests=true "$@"
 rc=$?
 if [ $rc -eq 0 ]
 then
