@@ -81,12 +81,6 @@ jobs:
           source "$SDKMAN_DIR/bin/sdkman-init.sh"
           set -u
 
-          # create a minimal maven security file to avoid SecDispatcher FileNotFound
-          mkdir -p "$HOME/.m2"
-          cat > "$HOME/.m2/settings-security.xml" <<'EOF'
-          <settingsSecurity/>
-          EOF
-
           # prepare isolated GNUPGHOME so runner keyring isn't touched
           export GNUPGHOME="$(mktemp -d)"
           chmod 700 "$GNUPGHOME"
@@ -105,8 +99,9 @@ jobs:
           export GPG_PASSPHRASE="$CI_GPG_PASSPHRASE"
 
           chmod +x ./maybe-release.sh
-          # run release script and pass passphrase to maven so the maven-gpg-plugin can sign
-          ./maybe-release.sh -Dgpg.passphrase="$GPG_PASSPHRASE"
+          # run release script and force the maven-gpg-plugin to use the gpg binary
+          # pass the passphrase directly from the secret to avoid Maven SecDispatcher decryption
+          ./maybe-release.sh -Dgpg.useGpgCmd=true -Dgpg.passphrase="$CI_GPG_PASSPHRASE"
         env:
           CI_DEPLOY_USERNAME: ${{ secrets.CI_DEPLOY_USERNAME }}
           CI_DEPLOY_PASSWORD: ${{ secrets.CI_DEPLOY_PASSWORD }}
