@@ -80,9 +80,7 @@ jobs:
           echo "$CI_GPG_PRIVATE_KEY" | gpg --batch --import
 
           # enable loopback pinentry for non-interactive signing
-          cat > "$GNUPGHOME/gpg-agent.conf" <<'EOF'
-allow-loopback-pinentry
-EOF
+          printf '%s\n' 'allow-loopback-pinentry' > "$GNUPGHOME/gpg-agent.conf"
 
           # reload gpg-agent
           gpgconf --kill gpg-agent || true
