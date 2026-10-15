@@ -76,7 +76,10 @@ jobs:
           export SDKMAN_CANDIDATES_API="${SDKMAN_CANDIDATES_API:-https://api.sdkman.io/2}"
           export SDKMAN_BROKER_API="${SDKMAN_BROKER_API:-https://broker.sdkman.io/1}"
           
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          # sdkman-init.sh is not safe with set -u
+          set +u
+          source "$SDKMAN_DIR/bin/sdkman-init.sh"
+          set -u
 
           # prepare isolated GNUPGHOME so runner keyring isn't touched
           export GNUPGHOME="$(mktemp -d)"
