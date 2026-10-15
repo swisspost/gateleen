@@ -43,13 +43,13 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Install, unit test
-        run: mvn install -Dmaven.javadoc.skip=true -PpublicRepos -B -V
+        run: mvn install -Dmaven.javadoc.skip=true -Dgpg.skip=true -PpublicRepos -B -V
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
 
       - name: Non UI integration tests
-        run: mvn install -PnonUiIntegrationTests
+        run: mvn install -Dgpg.skip=true -PnonUiIntegrationTests
 
       - name: UI integration tests
         run: |
@@ -60,8 +60,8 @@ jobs:
           java -jar gateleen-playground/target/playground.jar &> playground_logs.log &
           sleep 5s
           
-          mvn deploy -PuploadStaticFiles
-          mvn install -PuiIntegrationTests
+          mvn deploy -PuploadStaticFiles -Dgpg.skip=true
+          mvn install -Dgpg.skip=true -PuiIntegrationTests
 
       - name: Release to maven central
         if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen'
