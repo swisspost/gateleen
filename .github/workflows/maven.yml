@@ -70,6 +70,10 @@ jobs:
 
           # install sdkman if needed (used by maybe-release.sh)
           curl -s https://get.sdkman.io | bash
+
+          # ensure SDKMAN_CANDIDATES_API is defined so 'set -u' doesn't fail when sourcing
+          export SDKMAN_CANDIDATES_API="${SDKMAN_CANDIDATES_API:-https://api.sdkman.io/2}"
+          
           source "$HOME/.sdkman/bin/sdkman-init.sh"
 
           # prepare isolated GNUPGHOME so runner keyring isn't touched
