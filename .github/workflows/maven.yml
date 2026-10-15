@@ -71,7 +71,8 @@ jobs:
           # install sdkman if needed (used by maybe-release.sh)
           curl -s https://get.sdkman.io | bash
 
-          # ensure SDKMAN_CANDIDATES_API is defined so 'set -u' doesn't fail when sourcing
+          # ensure SDKMAN_DIR and related vars are defined so 'set -u' doesn't fail when sourcing
+          export SDKMAN_DIR="${SDKMAN_DIR:-$HOME/.sdkman}"
           export SDKMAN_CANDIDATES_API="${SDKMAN_CANDIDATES_API:-https://api.sdkman.io/2}"
           export SDKMAN_BROKER_API="${SDKMAN_BROKER_API:-https://broker.sdkman.io/1}"
           
