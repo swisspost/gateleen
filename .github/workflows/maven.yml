@@ -81,6 +81,12 @@ jobs:
           source "$SDKMAN_DIR/bin/sdkman-init.sh"
           set -u
 
+          # create a minimal maven security file to avoid SecDispatcher FileNotFound
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/settings-security.xml" <<'EOF'
+          <settingsSecurity/>
+          EOF
+
           # prepare isolated GNUPGHOME so runner keyring isn't touched
           export GNUPGHOME="$(mktemp -d)"
           chmod 700 "$GNUPGHOME"
