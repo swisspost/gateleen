@@ -112,9 +112,8 @@ public class QueueClient implements RequestQueue {
         vertx.eventBus().request(getRedisquesAddress(), buildLockedEnqueueOperation(queue,
                 queuedRequest.toJsonObject().put(QUEUE_TIMESTAMP, System.currentTimeMillis()).encode(), lockRequestedBy),
                 (Handler<AsyncResult<Message<JsonObject>>>) event -> {
-                    boolean succeed = false;
-                    if (OK.equals(event.result().body().getString(STATUS)) && monitoringHandler != null) {
-                        succeed = true;
+                    boolean succeed = event.succeeded() && OK.equals(event.result().body().getString(STATUS));
+                    if (succeed && monitoringHandler != null) {
                         monitoringHandler.updateLastUsedQueueSizeInformation(queue);
                         monitoringHandler.updateEnqueue();
                     }
