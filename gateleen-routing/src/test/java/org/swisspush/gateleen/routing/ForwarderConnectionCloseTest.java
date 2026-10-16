@@ -224,6 +224,160 @@ public class ForwarderConnectionCloseTest {
         );
     }
 
+    /**
+     * Regression test for the request-wide deadline fix.
+     *
+     * <p>The route has a single pool connection and a configured timeout of 1000 ms.
+     * Request #1 occupies that sole connection and the backend releases it only near the
+     * end of the configured timeout window (after ~700 ms). Request #2 is queued the whole
+     * time and only acquires a connection once request #1's slot is freed, to a backend that
+     * then never responds.
+     *
+     * <p>Request #2 is buffered and explicitly enables retries. Because the pool wait already
+     * consumed most of its request-wide deadline, the
+     * upstream {@code idleTimeout} armed for request #2 must use the <em>remaining</em> budget
+     * (~300 ms), so request #2's final downstream response arrives within approximately one
+     * configured timeout window (~1000 ms after it was dispatched).
+     *
+     * <p>Before the fix, request #2 was granted a fresh full idle window after acquiring the
+     * connection, so its response only arrived after roughly the pool-wait span (~700 ms) plus
+     * a full idle window (~1000 ms) ≈ 1700 ms. The 1500 ms assertion window therefore fails
+     * without the fix and passes with it.
+     */
+    @Test
+    public void testPoolWaitConsumesRequestWideDeadline_req2RespondsWithinOneTimeoutWindow(TestContext ctx) {
+        assertPoolWaitTimeout(ctx, true);
+    }
+
+    /**
+     * Counterpart of {@link #testPoolWaitConsumesRequestWideDeadline_req2RespondsWithinOneTimeoutWindow}
+     * with retries disabled ({@code x-route-retry-5xx: 0}): no request-wide deadline is armed, so
+     * request #2 keeps the original per-phase behaviour. Pool waiting does not reduce its idle
+     * timeout, which still gets a full window (~1000 ms) after the connection was acquired, so the
+     * 502 arrives after roughly pool wait plus a full idle window (1500–2900 ms).
+     */
+    @Test
+    public void testPoolWaitWithoutRetries_retainsSeparateIdleTimeout(TestContext ctx) {
+        assertPoolWaitTimeout(ctx, false);
+    }
+
+    /**
+     * Shared scenario for the pool-wait tests: a single-connection pool with a 1000 ms timeout,
+     * request #1 occupies the connection for ~700 ms and request #2 (buffered GET) is queued
+     * meanwhile and then hits a backend that never answers. Asserts that request #2 ends with
+     * 502, that both requests acquired a connection and that the timing matches the mode:
+     * one shared deadline when retries are enabled, separate pool-wait and idle timeouts otherwise.
+     *
+     * @param ctx           the Vert.x test context
+     * @param enableRetries {@code true} to send {@code x-route-retry-5xx: 2} with request #2
+     *                      (shared request-wide deadline), {@code false} to send {@code 0} (no retries)
+     */
+    private void assertPoolWaitTimeout(TestContext ctx, boolean enableRetries) {
+        final int timeoutMs = 1000;
+        final long holdMs = 700; // backend releases req1's connection near the end of the timeout window
+
+        // Backend: the FIRST connection receives a response after holdMs (freeing the sole pool
+        // slot); every later connection is drained but never answered.
+        Async backendReady = ctx.async();
+        java.util.concurrent.atomic.AtomicReference<Runnable> dispatchSecond = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicLong firstConnectionAt = new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicLong secondConnectionAt = new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicLong secondCompletedAt = new java.util.concurrent.atomic.AtomicLong();
+        AtomicInteger connectionCount = new AtomicInteger(0);
+        io.vertx.core.net.NetServer backend = vertx.createNetServer();
+        backend.connectHandler(socket -> {
+            socket.handler(buf -> { /* drain incoming request bytes */ });
+            if (connectionCount.incrementAndGet() == 1) {
+                firstConnectionAt.set(System.nanoTime());
+                vertx.setTimer(holdMs, id -> {
+                    // Send a complete HTTP/1.1 response (Content-Length: 0 fully delimits it) and
+                    // leave the socket open: with keepAlive=false the client closes the connection
+                    // itself once the response is read, freeing the sole pool slot for req2. Closing
+                    // the socket here instead would race the client's read and surface as a 500.
+                    socket.write("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                });
+                dispatchSecond.get().run();
+            } else {
+                secondConnectionAt.set(System.nanoTime());
+            }
+        });
+        int[] backendPort = new int[1];
+        backend.listen(0, ctx.asyncAssertSuccess(s -> {
+            backendPort[0] = s.actualPort();
+            backendReady.complete();
+        }));
+        backendReady.awaitSuccess(2000);
+
+        Rule rule = buildRule(backendPort[0], timeoutMs);
+        HttpClient httpClient = vertx.createHttpClient(rule.buildHttpClientOptions());
+        Forwarder forwarder = buildForwarder(rule, httpClient);
+
+        // Request #1 acquires the sole pool connection.
+        java.util.concurrent.CountDownLatch req1Latch = new java.util.concurrent.CountDownLatch(1);
+        AtomicInteger capturedStatus1 = new AtomicInteger(-1);
+        RoutingContext req1Context = buildRoutingContext(buildCapturingResponse(req1Latch, capturedStatus1));
+        // Prepare both requests before timing. Dispatch req2 on the event loop as soon as req1
+        // actually owns the sole connection, rather than relying on sleeps or main-thread wakeups.
+        java.util.concurrent.CountDownLatch req2Latch = new java.util.concurrent.CountDownLatch(1);
+        AtomicInteger capturedStatus2 = new AtomicInteger(-1);
+        DummyHttpServerResponse req2Response = buildCapturingResponse(req2Latch, capturedStatus2, secondCompletedAt);
+        RoutingContext req2Context = buildRoutingContext(req2Response,
+                MultiMap.caseInsensitiveMultiMap().set("x-route-retry-5xx", enableRetries ? "2" : "0"));
+        dispatchSecond.set(() -> forwarder.handle(req2Context, Buffer.buffer(), null));
+        forwarder.handle(req1Context);
+
+        final boolean req1Done;
+        final boolean req2Done;
+        try {
+            req2Done = req2Latch.await(3000, java.util.concurrent.TimeUnit.MILLISECONDS);
+            req1Done = req1Latch.await(3000, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            ctx.fail("Test interrupted");
+            return;
+        }
+        long req2ElapsedMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                secondCompletedAt.get() - firstConnectionAt.get());
+        long idleMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                secondCompletedAt.get() - secondConnectionAt.get());
+
+        ctx.assertTrue(req2Done, "Request #2 should have completed within 3000 ms");
+
+        // req1 held the sole pool slot until the backend answered; once it completes the connection
+        // is released so req2 can acquire it. We only assert that req1 finished (slot released) — its
+        // exact status is irrelevant here and is not 200 in this harness: the streaming success path
+        // touches DummyHttpServerResponse methods that FastFailHttpServerResponse leaves unimplemented,
+        // so req1 deterministically ends as 500. That harness artifact does not affect req2's timing,
+        // which is what this test verifies.
+        ctx.assertTrue(req1Done,
+                "Request #1 should have completed within 3000 ms so its pool slot is released, got status: "
+                        + capturedStatus1.get());
+
+        // req2 acquired a connection but the backend never answered. Either its shared deadline
+        // (with retries) or its independent idle timeout (without retries) returns 502.
+        ctx.assertEquals(
+                StatusCode.BAD_GATEWAY.getStatusCode(),
+                capturedStatus2.get(),
+                "Expected 502 Bad Gateway for request #2 after acquiring its connection, got: "
+                        + capturedStatus2.get()
+        );
+
+        // The whole request must stay within ~one configured timeout window. Without the fix the
+        // idleTimeout would restart a full 1000 ms window after the ~700 ms pool wait (≈1700 ms).
+        if (enableRetries) {
+            ctx.assertTrue(req2ElapsedMs < 1500,
+                    "Retry-enabled request must share one timeout across pool and response (~1700ms otherwise): " + req2ElapsedMs);
+            ctx.assertTrue(idleMs < 800, "Pool waiting must leave substantially less than a full idle window: " + idleMs);
+        } else {
+            ctx.assertTrue(req2ElapsedMs >= 1500 && req2ElapsedMs < 2900,
+                    "Without retries, pool waiting must not consume the separate 1000ms idle timeout: " + req2ElapsedMs);
+            ctx.assertTrue(idleMs >= 850, "The ordinary request must still receive a full idle window: " + idleMs);
+        }
+        ctx.assertEquals(2, connectionCount.get(), "Both requests must actually acquire a connection");
+
+        backend.close();
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -247,14 +401,29 @@ public class ForwarderConnectionCloseTest {
 
     /**
      * Builds a {@link RoutingContext} mock whose {@code request()} returns a
-     * {@link DummyHttpServerRequest} wrapping the given response.
+     * {@link DummyHttpServerRequest} wrapping the given response, without request headers.
+     *
+     * @param response the downstream response the forwarder writes to
+     * @return the routing context for a GET of {@code REQUEST_URI}
      */
     private RoutingContext buildRoutingContext(DummyHttpServerResponse response) {
+        return buildRoutingContext(response, new HeadersMultiMap());
+    }
+
+    /**
+     * Builds a {@link RoutingContext} mock for an already ended (bodyless) GET of {@code REQUEST_URI}
+     * with the given request headers, e.g. {@code x-route-retry-*} overrides.
+     *
+     * @param response the downstream response the forwarder writes to
+     * @param headers  the request headers seen by the forwarder
+     * @return the routing context
+     */
+    private RoutingContext buildRoutingContext(DummyHttpServerResponse response, MultiMap headers) {
         DummyHttpServerRequest fakeRequest = new DummyHttpServerRequest() {
             @Override public HttpMethod method()    { return HttpMethod.GET; }
             @Override public String uri()           { return REQUEST_URI; }
             @Override public String path()          { return REQUEST_URI; }
-            @Override public MultiMap headers()     { return new HeadersMultiMap(); }
+            @Override public MultiMap headers()     { return headers; }
             @Override public HttpServerResponse response() { return response; }
 
             // Tell Forwarder the body is already consumed — it calls upReq.send()
@@ -281,13 +450,33 @@ public class ForwarderConnectionCloseTest {
      * Builds a {@link DummyHttpServerResponse} that records the status code and
      * counts down the given {@link java.util.concurrent.CountDownLatch} when any
      * {@code end()} variant is called.
+     *
+     * @param latch          counted down when the response is ended
+     * @param capturedStatus receives the status code at the time the response is ended
+     * @return the capturing response
      */
     private DummyHttpServerResponse buildCapturingResponse(
             java.util.concurrent.CountDownLatch latch, AtomicInteger capturedStatus) {
+        return buildCapturingResponse(latch, capturedStatus, new java.util.concurrent.atomic.AtomicLong());
+    }
+
+    /**
+     * Like {@link #buildCapturingResponse(java.util.concurrent.CountDownLatch, AtomicInteger)}, but
+     * additionally records when the response was ended, for timing assertions.
+     *
+     * @param latch          counted down when the response is ended
+     * @param capturedStatus receives the status code at the time the response is ended
+     * @param completedAt    receives {@link System#nanoTime()} at the time the response is ended
+     * @return the capturing response
+     */
+    private DummyHttpServerResponse buildCapturingResponse(
+            java.util.concurrent.CountDownLatch latch, AtomicInteger capturedStatus,
+            java.util.concurrent.atomic.AtomicLong completedAt) {
         return new DummyHttpServerResponse() {
             @Override
             public Future<Void> end() {
                 capturedStatus.set(getStatusCode());
+                completedAt.set(System.nanoTime());
                 latch.countDown();
                 return Future.succeededFuture();
             }
@@ -295,6 +484,7 @@ public class ForwarderConnectionCloseTest {
             @Override
             public Future<Void> end(String chunk) {
                 capturedStatus.set(getStatusCode());
+                completedAt.set(System.nanoTime());
                 latch.countDown();
                 return Future.succeededFuture();
             }
@@ -302,6 +492,7 @@ public class ForwarderConnectionCloseTest {
             @Override
             public Future<Void> end(Buffer chunk) {
                 capturedStatus.set(getStatusCode());
+                completedAt.set(System.nanoTime());
                 latch.countDown();
                 return Future.succeededFuture();
             }

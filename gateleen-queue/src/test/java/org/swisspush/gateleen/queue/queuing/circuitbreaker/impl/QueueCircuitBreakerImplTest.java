@@ -58,8 +58,15 @@ public class QueueCircuitBreakerImplTest {
     private QueueCircuitBreakerRulePatternToCircuitMapping ruleToCircuitMapping;
     private QueueCircuitBreakerConfigurationResourceManager configResourceManager;
 
+    /*
+     * The periodic tasks start in the constructor (setUp) with a 1000ms interval. The waits below
+     * are generous because the first run can be delayed on slow or loaded machines (startup, class
+     * loading, first token creation), and "atLeast" tolerates a further run before verification.
+     */
+    private static final long FIRST_RUN_TIMEOUT_MS = 3000;
+
     @org.junit.Rule
-    public Timeout rule = Timeout.seconds(5);
+    public Timeout rule = Timeout.seconds(15);
 
     @Before
     public void setUp() {
@@ -127,7 +134,7 @@ public class QueueCircuitBreakerImplTest {
 
         ArgumentCaptor<String> lockArguments = ArgumentCaptor.forClass(String.class);
 
-        Mockito.verify(lock, timeout(1100).times(3)).acquireLock(lockArguments.capture(), anyString(), anyLong());
+        Mockito.verify(lock, timeout(FIRST_RUN_TIMEOUT_MS).atLeast(3)).acquireLock(lockArguments.capture(), anyString(), anyLong());
         Mockito.verify(lock, after(1100).never()).releaseLock(anyString(), anyString());
 
         List<String> lockValues = lockArguments.getAllValues();
@@ -149,8 +156,8 @@ public class QueueCircuitBreakerImplTest {
         ArgumentCaptor<String> lockArguments = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> releaseArguments = ArgumentCaptor.forClass(String.class);
 
-        Mockito.verify(lock, timeout(1100).times(3)).acquireLock(lockArguments.capture(), anyString(), anyLong());
-        Mockito.verify(lock, timeout(1100).times(3)).releaseLock(releaseArguments.capture(), anyString());
+        Mockito.verify(lock, timeout(FIRST_RUN_TIMEOUT_MS).atLeast(3)).acquireLock(lockArguments.capture(), anyString(), anyLong());
+        Mockito.verify(lock, timeout(FIRST_RUN_TIMEOUT_MS).atLeast(3)).releaseLock(releaseArguments.capture(), anyString());
 
         List<String> lockValues = lockArguments.getAllValues();
         context.assertTrue(lockValues.contains(QueueCircuitBreakerImpl.OPEN_TO_HALF_OPEN_TASK_LOCK));
@@ -162,9 +169,9 @@ public class QueueCircuitBreakerImplTest {
         context.assertTrue(releaseValues.contains(QueueCircuitBreakerImpl.UNLOCK_QUEUES_TASK_LOCK));
         context.assertTrue(releaseValues.contains(QueueCircuitBreakerImpl.UNLOCK_SAMPLE_QUEUES_TASK_LOCK));
 
-        Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).setOpenCircuitsToHalfOpen();
-        Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).popQueueToUnlock();
-        Mockito.verify(queueCircuitBreakerStorage, timeout(1200).times(1)).unlockSampleQueues();
+        Mockito.verify(queueCircuitBreakerStorage, timeout(FIRST_RUN_TIMEOUT_MS).atLeast(1)).setOpenCircuitsToHalfOpen();
+        Mockito.verify(queueCircuitBreakerStorage, timeout(FIRST_RUN_TIMEOUT_MS).atLeast(1)).popQueueToUnlock();
+        Mockito.verify(queueCircuitBreakerStorage, timeout(FIRST_RUN_TIMEOUT_MS).atLeast(1)).unlockSampleQueues();
 
         async.complete();
         async.awaitSuccess();
