@@ -76,9 +76,20 @@ jobs:
           mvn install -Dgpg.skip=true -PuiIntegrationTests
 
       - name: Release to maven central
-        if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen'
+        # add guards so the release only runs on master in the canonical repo and when the required secrets are present
+        if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen' && secrets.CI_DEPLOY_USERNAME != '' && secrets.CI_DEPLOY_PASSWORD != '' && secrets.CI_GPG_PRIVATE_KEY != '' && secrets.CI_GPG_PASSPHRASE != ''
         run: |
           set -euo pipefail
+
+          # runtime sanity checks to fail early with a clear message
+          if [ -z "${CI_DEPLOY_USERNAME:-}" ] || [ -z "${CI_DEPLOY_PASSWORD:-}" ]; then
+            echo "ERROR: OSSRH credentials are missing. Set CI_DEPLOY_USERNAME and CI_DEPLOY_PASSWORD in repository secrets."
+            exit 1
+          fi
+          if [ -z "${CI_GPG_PRIVATE_KEY:-}" ] || [ -z "${CI_GPG_PASSPHRASE:-}" ]; then
+            echo "ERROR: GPG signing secrets missing. Set CI_GPG_PRIVATE_KEY and CI_GPG_PASSPHRASE in repository secrets."
+            exit 1
+          fi
 
           # install sdkman if needed (used by maybe-release.sh)
           curl -s https://get.sdkman.io | bash
@@ -97,6 +108,20 @@ jobs:
           # Provide an empty security settings file so its lookup does not fail.
           mkdir -p "$HOME/.m2"
           printf '%s\n' '<settingsSecurity/>' > "$HOME/.m2/settings-security.xml"
+
+          # optional: ensure Maven settings contains server credentials (diagnostic/fallback)
+          # Uncomment the block below to explicitly write settings.xml for debugging
+          # cat > "$HOME/.m2/settings.xml" <<EOF
+          # <settings>
+          #   <servers>
+          #     <server>
+          #       <id>central</id>
+          #       <username>${CI_DEPLOY_USERNAME}</username>
+          #       <password>${CI_DEPLOY_PASSWORD}</password>
+          #     </server>
+          #   </servers>
+          # </settings>
+          # EOF
 
           # prepare isolated GNUPGHOME so runner keyring isn't touched
           export GNUPGHOME="$(mktemp -d)"
