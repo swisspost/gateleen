@@ -30,10 +30,14 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
           server-id: central
-          server-username: ${{ secrets.CI_DEPLOY_USERNAME }} # env variable for username in deploy
-          server-password: ${{ secrets.CI_DEPLOY_PASSWORD }} # env variable for token in deploy
+          server-username: CI_DEPLOY_USERNAME
+          server-password: CI_DEPLOY_PASSWORD
           gpg-private-key: ${{ secrets.CI_GPG_PRIVATE_KEY }} # Value of the GPG private key to import
-          gpg-passphrase: ${{ secrets.CI_GPG_PASSPHRASE }} # env variable for GPG private key passphrase
+          gpg-passphrase: CI_GPG_PASSPHRASE # env variable for GPG private key passphrase
+        env:
+          CI_DEPLOY_USERNAME: ${{ secrets.CI_DEPLOY_USERNAME }}
+          CI_DEPLOY_PASSWORD: ${{ secrets.CI_DEPLOY_PASSWORD }}
+          CI_GPG_PASSPHRASE: ${{ secrets.CI_GPG_PASSPHRASE }}
 
       - name: Start Redis
         if: ${{ !inputs.release_only }}
@@ -76,8 +80,8 @@ jobs:
           mvn install -Dgpg.skip=true -PuiIntegrationTests
 
       - name: Release to maven central
-        # add guards so the release only runs on master in the canonical repo and when the required secrets are present
-        if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen' && secrets.CI_DEPLOY_USERNAME != '' && secrets.CI_DEPLOY_PASSWORD != '' && secrets.CI_GPG_PRIVATE_KEY != '' && secrets.CI_GPG_PASSPHRASE != ''
+        # Secrets cannot be referenced in a step `if`; validate them at runtime below.
+        if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen'
         run: |
           set -euo pipefail
 
