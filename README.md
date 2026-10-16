@@ -111,7 +111,7 @@ mvn install -PnonUiIntegrationTests
 | [kafka](gateleen-kafka/README_kafka.md)                                  | Forward requests to Kafka topics  |
 
 ## Headers
-This is a list of the custom headers used by Gateleen
+This is a list of the custom headers used by Gateleen.
 
 | Header               | Description                              | Link to documentation |
 |:---------------------| :--------------------------------------- | :---------------------:|
