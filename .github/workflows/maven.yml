@@ -85,15 +85,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          # runtime sanity checks to fail early with a clear message
-          if [ -z "${CI_DEPLOY_USERNAME:-}" ] || [ -z "${CI_DEPLOY_PASSWORD:-}" ]; then
-            echo "ERROR: OSSRH credentials are missing. Set CI_DEPLOY_USERNAME and CI_DEPLOY_PASSWORD in repository secrets."
-            exit 1
-          fi
-          if [ -z "${CI_GPG_PRIVATE_KEY:-}" ] || [ -z "${CI_GPG_PASSPHRASE:-}" ]; then
-            echo "ERROR: GPG signing secrets missing. Set CI_GPG_PRIVATE_KEY and CI_GPG_PASSPHRASE in repository secrets."
-            exit 1
-          fi
+          # Confirm required secrets are available without exposing their values.
+          for name in CI_DEPLOY_USERNAME CI_DEPLOY_PASSWORD CI_GPG_PRIVATE_KEY CI_GPG_PASSPHRASE; do
+            if [ -n "${!name:-}" ]; then
+              echo "$name is present"
+            else
+              echo "::error::$name is missing or empty"
+              exit 1
+            fi
+          done
 
           # install sdkman if needed (used by maybe-release.sh)
           curl -s https://get.sdkman.io | bash
