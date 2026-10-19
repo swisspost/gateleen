@@ -96,6 +96,15 @@ public class BufferBridge {
         this.dataHandler = dataHandler;
     }
 
+    /**
+     * @return the number of written chunks still queued for a registered data handler, which
+     * {@link #pump()} delivers one per event-loop turn; {@code 0} while no data handler is
+     * registered, because nothing is pumped then
+     */
+    protected int pendingChunks() {
+        return dataHandler == null ? 0 : queue.size();
+    }
+
     public void setExceptionHandler(Handler<Throwable> exceptionHandler) {
         this.exceptionHandler = exceptionHandler;
     }

@@ -74,7 +74,9 @@ public class RouteTest extends AbstractTest {
         String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
 
         TestUtils.registerRoute(requestUrl, target, methods);
+        TestUtils.awaitRouteRegistered(requestUrl, target);
         TestUtils.unregisterRoute(requestUrl);
+        TestUtils.awaitRouteUnregistered(requestUrl, target);
 
         async.complete();
     }
@@ -138,6 +140,8 @@ public class RouteTest extends AbstractTest {
 
         // just for security reasons (unregister route)
         delete(requestUrl);
+        // a route left behind by another test is removed asynchronously, it must not serve the requests below
+        TestUtils.awaitRouteUnregistered(requestUrl, target);
 
         // -------
 
@@ -145,6 +149,8 @@ public class RouteTest extends AbstractTest {
         final String checkTarget = targetUrlBase + "/" + routeName + "/test";
 
         TestUtils.registerRoute(requestUrl, target, methods, null, true, false, null, "x-foo: (A|B)");
+        // the PUT below is not retried, so it must not race against the asynchronous route activation
+        TestUtils.awaitRouteRegistered(requestUrl, target);
 
         String body2 = "{ \"name\" : \"routePathTest\"}";
         given().headers(Headers.headers(new Header("x-foo", "A"))).body(body2).put(routedResource).then().assertThat().statusCode(200);
@@ -173,6 +179,8 @@ public class RouteTest extends AbstractTest {
 
         // just for security reasons (unregister route)
         delete(requestUrl);
+        // a route left behind by another test is removed asynchronously, it must not serve the requests below
+        TestUtils.awaitRouteUnregistered(requestUrl, target);
 
         // -------
 
@@ -180,6 +188,8 @@ public class RouteTest extends AbstractTest {
         final String checkTarget = targetUrlBase + "/" + routeName + "/test";
 
         TestUtils.registerRoute(requestUrl, target, methods);
+        // the PUT below is not retried, so it must not race against the asynchronous route activation
+        TestUtils.awaitRouteRegistered(requestUrl, target);
 
         String body2 = "{ \"name\" : \"routePathTest\"}";
         given().body(body2).put(routedResource).then().assertThat().statusCode(200);
@@ -212,6 +222,8 @@ public class RouteTest extends AbstractTest {
 
         // just for security reasons (unregister route)
         delete(requestUrl);
+        // a route left behind by another test is removed asynchronously, it must not serve the requests below
+        TestUtils.awaitRouteUnregistered(requestUrl, target);
 
         // -------
 
@@ -237,6 +249,8 @@ public class RouteTest extends AbstractTest {
          * -------
          */
         TestUtils.registerRoute(requestUrl, target, methods);
+        // the PUT below is not retried, so it must not race against the asynchronous route activation
+        TestUtils.awaitRouteRegistered(requestUrl, target);
 
         // -------
 
@@ -270,6 +284,8 @@ public class RouteTest extends AbstractTest {
          * -------
          */
         TestUtils.unregisterRoute(requestUrl);
+        // the PUT below must not reach the route which is removed asynchronously
+        TestUtils.awaitRouteUnregistered(requestUrl, target);
 
         // -------
 
@@ -314,6 +330,8 @@ public class RouteTest extends AbstractTest {
 
         // register route (without translateStatus)
         TestUtils.registerRoute(requestUrl, target, methods);
+        // without the route the resource is not found either, so make sure the 404 below comes through the route
+        TestUtils.awaitRouteRegistered(requestUrl, target);
 
         // since no translateStatus was defined, the resource should not be found and return a 404
         Awaitility.given().await().atMost(TWO_SECONDS).untilAsserted(() ->
@@ -359,11 +377,15 @@ public class RouteTest extends AbstractTest {
         String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
 
         delete(requestUrl);
+        // a route left behind by another test is removed asynchronously, it must not serve the requests below
+        TestUtils.awaitRouteUnregistered(requestUrl, target);
 
         final String routedResourceWithSuffix = requestUrlBase + "/" + subresource + "/deep/nested/path";
         final String expectedTargetWithSuffix = targetUrlBase + "/" + routeName + "/deep/nested/path";
 
         TestUtils.registerRoute(requestUrl, target, methods);
+        // the PUT below is not retried, so it must not race against the asynchronous route activation
+        TestUtils.awaitRouteRegistered(requestUrl, target);
 
         String body = "{ \"name\" : \"suffix test data\"}";
         given().body(body).put(routedResourceWithSuffix).then().assertThat().statusCode(200);
@@ -396,11 +418,15 @@ public class RouteTest extends AbstractTest {
         String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
 
         delete(requestUrl);
+        // a route left behind by another test is removed asynchronously, it must not serve the requests below
+        TestUtils.awaitRouteUnregistered(requestUrl, target);
 
         final String routedResourceWithToken = requestUrlBase + "/" + subresource + "/device-token-abc123";
         final String expectedTargetWithToken = targetUrlBase + "/" + routeName + "/device-token-abc123";
 
         TestUtils.registerRoute(requestUrl, target, methods);
+        // the PUT below is not retried, so it must not race against the asynchronous route activation
+        TestUtils.awaitRouteRegistered(requestUrl, target);
 
         String body = "{ \"message\" : \"push notification\"}";
         given().body(body).put(routedResourceWithToken).then().assertThat().statusCode(200);
@@ -435,6 +461,8 @@ public class RouteTest extends AbstractTest {
         String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
 
         delete(requestUrl);
+        // a route left behind by another test is removed asynchronously, it must not serve the requests below
+        TestUtils.awaitRouteUnregistered(requestUrl, target);
 
         String body = "{ \"name\" : \"fullUrl test data\"}";
         given().body(body).put(target).then().assertThat().statusCode(200);
@@ -474,11 +502,15 @@ public class RouteTest extends AbstractTest {
         String[] methods = new String[] { "GET", "PUT", "DELETE", "POST" };
 
         delete(requestUrl);
+        // a route left behind by another test is removed asynchronously, it must not serve the requests below
+        TestUtils.awaitRouteUnregistered(requestUrl, target);
 
         final String routedResourceWithSuffix = requestUrlBase + "/" + subresource + "/sub/path";
         final String expectedTargetWithSuffix = target + "/sub/path";
 
         TestUtils.registerRoute(requestUrl, target, methods, null, true, false, null, false);
+        // the PUT below is not retried, so it must not race against the asynchronous route activation
+        TestUtils.awaitRouteRegistered(requestUrl, target);
 
         String body = "{ \"name\" : \"fullUrl false test data\"}";
         given().body(body).put(routedResourceWithSuffix).then().assertThat().statusCode(200);

@@ -17,6 +17,7 @@ import org.swisspush.gateleen.core.util.StatusCode;
 public class LocalHttpServerResponse extends BufferBridge implements FastFailHttpServerResponse {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalHttpServerResponse.class);
+    private final Vertx vertx;
     private final GateleenExceptionFactory exceptionFactory;
     private int statusCode;
     private String statusMessage;
@@ -26,6 +27,11 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
     private boolean bound = false;
     private boolean closed = false;
     private boolean written = false;
+    /** The response was closed after it was handed to the client but before it was ended. */
+    private boolean aborted = false;
+    /** The abort was reported to the client's exception handler (at most once). */
+    private boolean abortDelivered = false;
+    private Handler<Throwable> clientExceptionHandler;
     private Handler<AsyncResult<HttpClientResponse>> responseHandler;
     public HttpClientResponse clientResponse = new FastFaiHttpClientResponse() {
         @Override
@@ -115,6 +121,11 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 
         @Override
         public HttpClientResponse exceptionHandler(Handler<Throwable> handler) {
+            clientExceptionHandler = handler;
+            if (aborted && !abortDelivered && handler != null) {
+                // Registered after the close: report the pending abort now, see close().
+                vertx.runOnContext(nothing -> deliverAbort(Integer.MAX_VALUE));
+            }
             return this;
         }
     };
@@ -122,6 +133,7 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 
     public LocalHttpServerResponse(Vertx vertx, GateleenExceptionFactory exceptionFactory) {
         super(vertx);
+        this.vertx = vertx;
         this.exceptionFactory = exceptionFactory;
         // Attach most simple possible exception handler to base.
         setExceptionHandler(thr -> logger.error("Processing of response failed.", thr));
@@ -220,6 +232,9 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 
     @Override
     public Future<Void> write(Buffer data) {
+        if (aborted) {
+            return Future.failedFuture(exceptionFactory.newIllegalStateException("Response is closed"));
+        }
         // emulate Vertx's HttpServerResponseImpl
         if (!chunked && !headers.contains(HttpHeaders.CONTENT_LENGTH)) {
             IllegalStateException ex = exceptionFactory.newIllegalStateException(""
@@ -280,6 +295,9 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 
     @Override
     public Future<Void> end(Buffer chunk) {
+        if (aborted) {
+            return Future.failedFuture(exceptionFactory.newIllegalStateException("Response is closed"));
+        }
         if (!bound) {
             // this is a call to 'end(...)' without calling any 'write(...)' before
             // in this case it is allows to _not_ setChunked(true) and _not_ set a content-length header.
@@ -294,16 +312,62 @@ public class LocalHttpServerResponse extends BufferBridge implements FastFailHtt
 
     @Override
     public Future<Void> end() {
+        if (aborted) {
+            return Future.failedFuture(exceptionFactory.newIllegalStateException("Response is closed"));
+        }
         written = true;
         ensureBound();
         return doEnd();
     }
 
+    /**
+     * Simulates closing the underlying connection. If the response was already handed to the
+     * client (status and headers delivered) but not ended yet, the client response fails with an
+     * {@link HttpClosedException}, like a real connection reset in the middle of a response, and
+     * all later writes/ends are rejected. Without this the client would never learn that the
+     * response is incomplete: it would either wait forever (local requests have no timeout) or,
+     * if an error text were written afterwards, accept a truncated body as a complete response.
+     * Closing an ended or not yet started response only marks it as closed.
+     * <p>
+     * The abort is kept as state and reported exactly once: immediately (on the next event-loop
+     * turn) if the client already registered an exception handler, otherwise as soon as it
+     * registers one, since a client commonly registers its handlers only after receiving the
+     * response.
+     */
     @Override
     public void close() {
-        // makes not really sense as we have no underlying TCP connection which can be closed
-        // nevertheless we simulate the behaviour of a 'real' HttpServerResponse
+        if (closed) {
+            return;
+        }
         closed = true;
+        if (bound && !written) {
+            aborted = true;
+            vertx.runOnContext(nothing -> deliverAbort(Integer.MAX_VALUE));
+        }
+    }
+
+    /**
+     * Reports the abort of this response to the client's exception handler, unless it was already
+     * reported or no handler is registered yet (then the registration reports it). Chunks written
+     * before the close are delivered first: while the pump makes progress, the report is deferred
+     * to the next event-loop turn. A pump that stopped (e.g. because the data handler threw) does
+     * not delay the report forever.
+     *
+     * @param previousPendingChunks the number of queued chunks seen by the previous attempt, or
+     *                              {@link Integer#MAX_VALUE} on the first attempt
+     */
+    private void deliverAbort(int previousPendingChunks) {
+        Handler<Throwable> handler = clientExceptionHandler;
+        if (abortDelivered || handler == null) {
+            return;
+        }
+        int pending = pendingChunks();
+        if (pending > 0 && pending < previousPendingChunks) {
+            vertx.runOnContext(nothing -> deliverAbort(pending));
+            return;
+        }
+        abortDelivered = true;
+        handler.handle(new HttpClosedException("Connection was closed"));
     }
 
     @Override
