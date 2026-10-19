@@ -422,6 +422,10 @@ public class TestMergeHandler extends AbstractTest {
         String route = from + TestUtils.getHookRouteUrlSuffix();
         String[] methods = new String[]{"GET", "PUT", "DELETE", "POST"};
         TestUtils.unregisterRoute(route);
+        // a route left behind by a previous run is removed asynchronously, it must not satisfy the await below
+        TestUtils.awaitRouteUnregistered(route, to);
         TestUtils.registerRoute(route, to, methods, null, collection, listable);
+        // the test data is PUT through the route right afterwards, so wait for the asynchronous route activation
+        TestUtils.awaitRouteRegistered(route, to);
     }
 }

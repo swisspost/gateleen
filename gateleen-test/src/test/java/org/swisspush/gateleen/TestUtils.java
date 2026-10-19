@@ -325,6 +325,57 @@ public class TestUtils {
         delete(request).then().assertThat().statusCode(200);
     }
 
+    /**
+     * Waits until the route registered at the given hook url is active in the HookHandler.
+     * <p>
+     * A route registration (PUT on {@code .../_hooks/route}) returns before the route is active: the HookHandler
+     * activates it asynchronously (event bus and storage read). Requests sent directly after
+     * {@link #registerRoute(String, String, String[])} can therefore still bypass the route. The in-memory route
+     * search ({@code GET .../hooks/v1/registrations/routes?q=<destination>}) reflects the active routes, so this
+     * method polls it until the route appears.
+     *
+     * @param hookRouteUrl the url the route was registered at (ending with {@link #getHookRouteUrlSuffix()}),
+     *                     absolute or relative to the server root
+     * @param destination  the destination of the registered route
+     */
+    public static void awaitRouteRegistered(final String hookRouteUrl, final String destination) {
+        await().atMost(FIVE_SECONDS).until(() -> isRouteActive(hookRouteUrl, destination), equalTo(true));
+    }
+
+    /**
+     * Waits until the route registered at the given hook url is no longer active in the HookHandler.
+     * <p>
+     * Counterpart of {@link #awaitRouteRegistered(String, String)}: an unregistration (DELETE on
+     * {@code .../_hooks/route}) returns before the route is removed from the HookHandler.
+     *
+     * @param hookRouteUrl the url the route was registered at (ending with {@link #getHookRouteUrlSuffix()}),
+     *                     absolute or relative to the server root
+     * @param destination  the destination of the unregistered route
+     */
+    public static void awaitRouteUnregistered(final String hookRouteUrl, final String destination) {
+        await().atMost(FIVE_SECONDS).until(() -> isRouteActive(hookRouteUrl, destination), equalTo(false));
+    }
+
+    /**
+     * Checks via the HookHandler route search whether a route with the given destination is active at the
+     * given hook url. The search lists the hook url of each matching route in storage notation
+     * ({@code /}, {@code .} and {@code :} replaced by {@code +}), with the server root prepended.
+     *
+     * @param hookRouteUrl the url the route was registered at, absolute or relative to the server root
+     * @param destination  the destination of the route
+     * @return {@code true} if such a route is currently active
+     */
+    private static boolean isRouteActive(final String hookRouteUrl, final String destination) {
+        String hookPath = hookRouteUrl.startsWith("http") ? java.net.URI.create(hookRouteUrl).getPath() : hookRouteUrl;
+        String storageKeySuffix = hookPath.replace("/", "+").replace(".", "+").replace(":", "+");
+        JsonArray routes = new JsonObject(given()
+                .queryParam("q", destination)
+                .get("http://localhost:" + AbstractTest.MAIN_PORT + AbstractTest.SERVER_ROOT + "/hooks/v1/registrations/routes")
+                .then().assertThat().statusCode(200)
+                .extract().body().asString()).getJsonArray("routes");
+        return routes.stream().anyMatch(route -> ((String) route).endsWith(storageKeySuffix));
+    }
+
 
     /**
      * Registers a listener.

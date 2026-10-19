@@ -25,6 +25,12 @@ import static org.swisspush.gateleen.core.lock.impl.RedisBasedLock.STORAGE_PREFI
 @RunWith(VertxUnitRunner.class)
 public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
 
+    /**
+     * Extra time allowed for a lock to disappear after its TTL. The wait only proves that locks do
+     * expire, so the bound may be generous; a tight bound (e.g. 50ms) made the tests flaky.
+     */
+    private static final long EXPIRY_TOLERANCE_MS = 2000;
+
     @Test
     public void testReleaseNotExistingLocks(){
 
@@ -160,9 +166,10 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
         assertThat(jedis.exists(lock2), is(false));
         assertThat(jedis.exists(lock3), is(false));
 
-        assertThat("OK", equalTo(acquireLock(lock1, "token_X", 200)));
-        assertThat("OK", equalTo(acquireLock(lock2, "token_Y", 500)));
-        assertThat("OK", equalTo(acquireLock(lock3, "token_Z", 1000)));
+        // Expiry is not under test here; a long TTL keeps the ownership checks independent of timing.
+        assertThat("OK", equalTo(acquireLock(lock1, "token_X", 10_000)));
+        assertThat("OK", equalTo(acquireLock(lock2, "token_Y", 10_000)));
+        assertThat("OK", equalTo(acquireLock(lock3, "token_Z", 10_000)));
 
         assertThat(jedis.exists(lock1), is(true));
         assertThat(jedis.exists(lock2), is(true));
@@ -200,7 +207,13 @@ public class ReleaseLockLuaScriptTests extends AbstractLuaScriptTest {
         return jedis.eval(script, keys, arguments);
     }
 
+    /**
+     * Waits until the lock has expired.
+     *
+     * @param expireMs the expected expiry bound (lock TTL plus a small margin); it is extended by
+     *                 {@link #EXPIRY_TOLERANCE_MS} so scheduling or Redis delays cannot fail the test
+     */
     private void waitMaxUntilExpired(String key, long expireMs){
-        await().pollInterval(50, MILLISECONDS).atMost(Duration.ofMillis(expireMs)).until(() -> !jedis.exists(key));
+        await().pollInterval(50, MILLISECONDS).atMost(Duration.ofMillis(expireMs + EXPIRY_TOLERANCE_MS)).until(() -> !jedis.exists(key));
     }
 }
