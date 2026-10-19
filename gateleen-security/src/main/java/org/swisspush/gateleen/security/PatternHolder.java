@@ -94,7 +94,8 @@ public class PatternHolder {
         String replacePattern = patternStr;
         for (String wildcard : wildcards) {
             if(headers.get(wildcard) != null){
-                replacePattern = replacePattern.replaceAll(Pattern.quote("<" + wildcard + ">"), headers.get(wildcard));
+                replacePattern = replacePattern.replaceAll(Pattern.quote("<" + wildcard + ">"),
+                        Matcher.quoteReplacement(Pattern.quote(headers.get(wildcard))));
             }
         }
         return replacePattern;
