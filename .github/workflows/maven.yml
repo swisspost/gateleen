@@ -11,20 +11,59 @@ on:
         required: false
         type: boolean
         default: false
+      existing_tag:
+        description: 'Publish an existing pushed v* tag as a GitHub release only (master in swisspost/gateleen); takes precedence over release_only'
+        required: false
+        type: string
+        default: ''
   push:
   pull_request:
     branches: [ "master", "develop" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build_maven:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0  # Fetch complete history
+      - name: Validate existing GitHub release tag
+        id: existing_tag
+        if: ${{ inputs.existing_tag != '' }}
+        env:
+          EXISTING_TAG: ${{ inputs.existing_tag }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" != "workflow_dispatch" ] || [ "$REF" != "refs/heads/master" ] || [ "$REPOSITORY" != "swisspost/gateleen" ]; then
+            echo "::error::Existing-tag publication is only allowed via workflow_dispatch on refs/heads/master in swisspost/gateleen"
+            exit 1
+          fi
+
+          if [[ "$EXISTING_TAG" != v* ]] || ! git check-ref-format "refs/tags/$EXISTING_TAG"; then
+            echo "::error::Existing tag must be a valid v* Git tag"
+            exit 1
+          fi
+
+          if ! git show-ref --verify --quiet "refs/tags/$EXISTING_TAG"; then
+            echo "::error::Tag $EXISTING_TAG does not exist in the checked-out repository"
+            exit 1
+          fi
+
+          echo "tag=$EXISTING_TAG" >> "$GITHUB_OUTPUT"
       - name: Set up JDK 11
+        if: ${{ inputs.existing_tag == '' }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
@@ -40,34 +79,35 @@ jobs:
           CI_GPG_PASSPHRASE: ${{ secrets.CI_GPG_PASSPHRASE }}
 
       - name: Start Redis
-        if: ${{ !inputs.release_only }}
+        if: ${{ !inputs.release_only && inputs.existing_tag == '' }}
         uses: supercharge/redis-github-action@1.4.0
         with:
           redis-version: 4
 
       - name: Install chromedriver
-        if: ${{ !inputs.release_only }}
+        if: ${{ !inputs.release_only && inputs.existing_tag == '' }}
         uses: nanasess/setup-chromedriver@v2
 
       - name: Set Git user
+        if: ${{ inputs.existing_tag == '' }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Install, unit test
-        if: ${{ !inputs.release_only }}
+        if: ${{ !inputs.release_only && inputs.existing_tag == '' }}
         run: mvn install -Dmaven.javadoc.skip=true -Dgpg.skip=true -PpublicRepos -B -V
 
       - name: Upload coverage reports to Codecov
-        if: ${{ !inputs.release_only }}
+        if: ${{ !inputs.release_only && inputs.existing_tag == '' }}
         uses: codecov/codecov-action@v3
 
       - name: Non UI integration tests
-        if: ${{ !inputs.release_only }}
+        if: ${{ !inputs.release_only && inputs.existing_tag == '' }}
         run: mvn install -Dgpg.skip=true -PnonUiIntegrationTests
 
       - name: UI integration tests
-        if: ${{ !inputs.release_only }}
+        if: ${{ !inputs.release_only && inputs.existing_tag == '' }}
         run: |
           export DISPLAY=:99
           chromedriver --url-base=/wd/hub &
@@ -80,8 +120,9 @@ jobs:
           mvn install -Dgpg.skip=true -PuiIntegrationTests
 
       - name: Release to maven central
+        id: maven_release
         # Secrets cannot be referenced in a step `if`; validate them at runtime below.
-        if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen'
+        if: github.ref_name == 'master' && github.event_name != 'pull_request' && github.repository == 'swisspost/gateleen' && inputs.existing_tag == ''
         run: |
           set -euo pipefail
 
@@ -145,14 +186,49 @@ jobs:
           export GPG_PASSPHRASE="$CI_GPG_PASSPHRASE"
 
           chmod +x ./maybe-release.sh
+          git fetch --tags
+          tags_before=$(mktemp "$RUNNER_TEMP/release-tags-before.XXXXXX")
+          tags_after=$(mktemp "$RUNNER_TEMP/release-tags-after.XXXXXX")
+          git tag --list 'v*' | LC_ALL=C sort > "$tags_before"
+
           # Forward the passphrase to Maven. The release wrapper preserves these arguments.
           ./maybe-release.sh -Dgpg.useGpgCmd=true -Dgpg.passphrase="$CI_GPG_PASSPHRASE"
+
+          git tag --list 'v*' | LC_ALL=C sort > "$tags_after"
+          mapfile -t new_tags < <(LC_ALL=C comm -13 "$tags_before" "$tags_after")
+          if [ "${#new_tags[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one newly-created v* release tag, found ${#new_tags[@]}"
+            exit 1
+          fi
+
+          echo "tag=${new_tags[0]}" >> "$GITHUB_OUTPUT"
         env:
           CI_DEPLOY_USERNAME: ${{ secrets.CI_DEPLOY_USERNAME }}
           CI_DEPLOY_PASSWORD: ${{ secrets.CI_DEPLOY_PASSWORD }}
           CI_GPG_PASSPHRASE: ${{ secrets.CI_GPG_PASSPHRASE }}
           CI_GPG_PRIVATE_KEY: ${{ secrets.CI_GPG_PRIVATE_KEY }}
 
+      - name: Publish GitHub release
+        if: ${{ steps.maven_release.outputs.tag != '' || steps.existing_tag.outputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.existing_tag.outputs.tag != '' && steps.existing_tag.outputs.tag || steps.maven_release.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "GitHub release for $RELEASE_TAG already exists; leaving it unchanged"
+            exit 0
+          fi
+
+          release_args=(release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --generate-notes)
+          if previous_tag=$(git describe --tags --abbrev=0 --match 'v*' "${RELEASE_TAG}^" 2>/dev/null); then
+            release_args+=(--notes-start-tag "$previous_tag")
+          fi
+
+          gh "${release_args[@]}"
+
       - name: After release
-        if: ${{ !inputs.release_only }}
+        if: ${{ !inputs.release_only && inputs.existing_tag == '' }}
         run: bash <(curl -s https://codecov.io/bash)
