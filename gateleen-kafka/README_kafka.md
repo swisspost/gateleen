@@ -36,6 +36,14 @@ bottom. The first topic name matching the provided topic is used.
 ```
 In the example above, a topic called `my.topic.abc` would use the first configuration entry. A topic called `some.other.topic` would use the second configuration entry.
 
+The entire configuration is rejected if parsing fails, including for malformed JSON or entry structure, unresolved placeholders (even when no properties map is configured), or an invalid topic regular expression. Topic entries are not skipped: doing so could allow a later catch-all pattern to route a topic differently than intended. The schema remains responsible for the normal required-property and value checks; the parser also rejects malformed entry values if they reach it.
+
+At startup, a parsing error causes handler initialization to fail and leaves it uninitialized. For an update, the invalid configuration is rejected before touching producers, so the complete previously active topic rules and initialization state remain unchanged. This runtime parsing does not mean that the HTTP PUT is rejected or that the stored resource is rolled back.
+
+An empty JSON object `{}` is a valid configuration: it closes all active producers and leaves the handler initialized with no topic rules.
+
+This differs from a producer-creation failure after successful parsing: the old producers have already been closed, and partially created replacements are also closed, leaving the handler uninitialized.
+
 #### Topic configuration values
 The following topic configuration values are required:
 

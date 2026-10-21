@@ -97,9 +97,14 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     }
 
     private Future<Void> initializeKafkaConfiguration(Buffer configuration) {
-        initialized = false;
-        final List<KafkaConfiguration> kafkaConfigurations = KafkaConfigurationParser.parse(configuration, properties);
+        final List<KafkaConfiguration> kafkaConfigurations;
+        try {
+            kafkaConfigurations = KafkaConfigurationParser.parse(configuration, properties);
+        } catch (IllegalArgumentException exception) {
+            return Future.failedFuture(exception);
+        }
 
+        initialized = false;
         return repository.closeAll().future().compose(event -> {
             Future<Void> additions = Future.succeededFuture();
             for (KafkaConfiguration kafkaConfiguration : kafkaConfigurations) {
@@ -110,6 +115,8 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
                     .compose(ignored -> Future.failedFuture(cause)));
         }).map(ignored -> {
             initialized = true;
+            log.info("Kafka configuration successfully initialized with {} producer(s)",
+                    kafkaConfigurations.size());
             return (Void) null;
         });
     }
