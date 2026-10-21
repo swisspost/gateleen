@@ -152,4 +152,17 @@ public class PatternHolderTest {
         context.assertFalse(pattern.matcher("/resources/userspecific/userXname/items/123456/foo").matches());
         context.assertFalse(pattern.matcher("/resources/userspecific/user.name/items/abcdef/foo").matches());
     }
+
+    @Test
+    public void testHeaderWildcardValueCannotReplaceLaterWildcard(TestContext context) {
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add("foo", "<bar>.*\\Qx");
+        headers.add("bar", "victim");
+
+        PatternHolder patternHolder = new PatternHolder("/private/<foo>/<bar>");
+        java.util.regex.Pattern pattern = patternHolder.getPattern(headers);
+
+        context.assertTrue(pattern.matcher("/private/<bar>.*\\Qx/victim").matches());
+        context.assertFalse(pattern.matcher("/private/\\QvictimEVILx/victim").matches());
+    }
 }
