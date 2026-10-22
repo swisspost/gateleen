@@ -2,7 +2,9 @@ package org.swisspush.gateleen.kafka;
 
 import io.vertx.core.Future;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -28,6 +30,7 @@ import org.swisspush.gateleen.core.validation.ValidationStatus;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
@@ -154,6 +157,130 @@ public class KafkaHandlerTest {
     }
 
     @Test
+    public void initializeRejectsInvalidTopicRegexWithoutTouchingRepository(TestContext context) {
+        storage.putMockData(configResourceUri, invalidPatternConfiguration());
+        Async async = context.async();
+
+        handler.initialize().onComplete(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause() instanceof IllegalArgumentException);
+            context.assertTrue(event.cause().getMessage().contains("["));
+            context.assertFalse(handler.isInitialized());
+            verifyNoInteractions(repository);
+            async.complete();
+        });
+    }
+
+    @Test
+    public void invalidRegexUpdateRetainsActiveProducersAndQueueRecovers(TestContext context) {
+        Async async = context.async();
+        handler.resourceChanged(configResourceUri, Buffer.buffer(twoTopicConfiguration()));
+
+        // initialize() with no registered resource is a completion barrier behind the queued change.
+        handler.initialize().onComplete(initialization -> {
+            context.assertTrue(initialization.succeeded());
+            context.assertTrue(handler.isInitialized());
+            var firstProducer = repository.findMatchingKafkaProducer("first");
+            var secondProducer = repository.findMatchingKafkaProducer("second");
+            context.assertTrue(firstProducer.isPresent());
+            context.assertTrue(secondProducer.isPresent());
+
+            Mockito.clearInvocations(repository);
+            handler.resourceChanged(configResourceUri, Buffer.buffer(invalidPatternConfiguration()));
+
+            handler.initialize().onComplete(rejectionBarrier -> {
+                context.assertTrue(rejectionBarrier.succeeded());
+                context.assertTrue(handler.isInitialized());
+                var firstProducerAfterReject = repository.findMatchingKafkaProducer("first");
+                var secondProducerAfterReject = repository.findMatchingKafkaProducer("second");
+                context.assertTrue(firstProducerAfterReject.isPresent());
+                context.assertTrue(secondProducerAfterReject.isPresent());
+                context.assertTrue(firstProducer.get().getLeft() == firstProducerAfterReject.get().getLeft());
+                context.assertTrue(secondProducer.get().getLeft() == secondProducerAfterReject.get().getLeft());
+                context.assertEquals(firstProducer.get().getRight(), firstProducerAfterReject.get().getRight());
+                context.assertEquals(secondProducer.get().getRight(), secondProducerAfterReject.get().getRight());
+                verify(repository, never()).closeAll();
+                verify(repository, never()).addKafkaProducer(any());
+
+                handler.resourceChanged(configResourceUri, Buffer.buffer(oneTopicConfiguration("replacement")));
+                handler.initialize().onComplete(recovery -> {
+                    context.assertTrue(recovery.succeeded());
+                    context.assertTrue(handler.isInitialized());
+                    context.assertTrue(repository.findMatchingKafkaProducer("replacement").isPresent());
+                    context.assertFalse(repository.findMatchingKafkaProducer("first").isPresent());
+                    verify(repository, times(1)).closeAll();
+                    verify(repository, times(1)).addKafkaProducer(any());
+                    async.complete();
+                });
+            });
+        });
+    }
+
+    @Test
+    public void wildcardAndMalformedUpdatesRetainActiveProducersAndQueueRecovers(TestContext context) {
+        Async async = context.async();
+        handler = KafkaHandler.builder()
+                .withVertx(vertxMock)
+                .withExceptionFactory(exceptionFactory)
+                .withConfigurationResourceManager(configurationResourceManager)
+                .withRepository(repository)
+                .withKafkaMessageSender(kafkaMessageSender)
+                .withConfigResourceUri(configResourceUri)
+                .withStreamingPath(streamingPath)
+                .withProperties(new HashMap<>())
+                .build();
+        handler.resourceChanged(configResourceUri, Buffer.buffer(twoTopicConfiguration()));
+
+        // initialize() with no registered resource is a completion barrier behind the queued change.
+        handler.initialize().onComplete(initialization -> {
+            context.assertTrue(initialization.succeeded());
+            context.assertTrue(handler.isInitialized());
+            var firstProducer = repository.findMatchingKafkaProducer("first");
+            var secondProducer = repository.findMatchingKafkaProducer("second");
+            context.assertTrue(firstProducer.isPresent());
+            context.assertTrue(secondProducer.isPresent());
+
+            Mockito.clearInvocations(repository);
+            handler.resourceChanged(configResourceUri, Buffer.buffer(CONFIG_WILDCARD_RESOURCE));
+            handler.initialize().onComplete(wildcardBarrier -> {
+                context.assertTrue(wildcardBarrier.succeeded());
+                assertActiveProducersUnchanged(context, firstProducer.get().getLeft(), secondProducer.get().getLeft());
+
+                handler.resourceChanged(configResourceUri, Buffer.buffer("not-json"));
+                handler.initialize().onComplete(malformedBarrier -> {
+                    context.assertTrue(malformedBarrier.succeeded());
+                    assertActiveProducersUnchanged(context, firstProducer.get().getLeft(), secondProducer.get().getLeft());
+                    verify(repository, never()).closeAll();
+                    verify(repository, never()).addKafkaProducer(any());
+
+                    handler.resourceChanged(configResourceUri, Buffer.buffer(oneTopicConfiguration("replacement")));
+                    handler.initialize().onComplete(recovery -> {
+                        context.assertTrue(recovery.succeeded());
+                        context.assertTrue(handler.isInitialized());
+                        context.assertTrue(repository.findMatchingKafkaProducer("replacement").isPresent());
+                        context.assertFalse(repository.findMatchingKafkaProducer("first").isPresent());
+                        verify(repository, times(1)).closeAll();
+                        verify(repository, times(1)).addKafkaProducer(any());
+                        async.complete();
+                    });
+                });
+            });
+        });
+    }
+
+    private void assertActiveProducersUnchanged(TestContext context, Object firstProducer, Object secondProducer) {
+        context.assertTrue(handler.isInitialized());
+        var firstAfterReject = repository.findMatchingKafkaProducer("first");
+        var secondAfterReject = repository.findMatchingKafkaProducer("second");
+        context.assertTrue(firstAfterReject.isPresent());
+        context.assertTrue(secondAfterReject.isPresent());
+        context.assertTrue(firstProducer == firstAfterReject.get().getLeft());
+        context.assertTrue(secondProducer == secondAfterReject.get().getLeft());
+        context.assertEquals("first", firstAfterReject.get().getRight().pattern());
+        context.assertEquals("second", secondAfterReject.get().getRight().pattern());
+    }
+
+    @Test
     public void initWithWildcardConfigResource(TestContext context) {
         Async async = context.async();
         Map<String, Object> props = new HashMap<>();
@@ -184,8 +311,12 @@ public class KafkaHandlerTest {
             }};
             verify(repository, atLeastOnce()).addKafkaProducer(eq(new KafkaConfiguration(Pattern.compile("my.properties.topic.*"), configs_1)));
             verifyNoInteractions(kafkaMessageSender);
-            context.assertTrue(handler.isInitialized());
-            async.complete();
+            vertx.setPeriodic(10, timerId -> {
+                if (handler.isInitialized()) {
+                    vertx.cancelTimer(timerId);
+                    async.complete();
+                }
+            });
         });
     }
 
@@ -208,9 +339,13 @@ public class KafkaHandlerTest {
         context.assertFalse(handler.isInitialized());
 
         handler.initialize().onComplete(event -> {
+            context.assertTrue(event.failed());
+            context.assertTrue(event.cause() instanceof IllegalArgumentException);
+            context.assertTrue(event.cause().getMessage().contains("placeholders"));
             verify(repository, never()).addKafkaProducer(any());
             verifyNoInteractions(kafkaMessageSender);
-            context.assertTrue(handler.isInitialized());
+            context.assertFalse(handler.isInitialized());
+            verifyNoInteractions(repository);
             async.complete();
         });
     }
@@ -258,6 +393,79 @@ public class KafkaHandlerTest {
         verifyNoInteractions(kafkaMessageSender);
         await().atMost(1, SECONDS).until(() -> handler.isInitialized(), equalTo(Boolean.TRUE));
         async.complete();
+    }
+
+    @Test
+    public void lifecycleOperationsWaitForPendingProducerCreation(TestContext context) {
+        Promise<Void> firstCreation = Promise.promise();
+        List<String> createdPatterns = new CopyOnWriteArrayList<>();
+        doAnswer(invocation -> {
+            KafkaConfiguration configuration = invocation.getArgument(0);
+            createdPatterns.add(configuration.getTopic().pattern());
+            return createdPatterns.size() == 1 ? firstCreation.future() : Future.succeededFuture();
+        }).when(repository).addKafkaProducer(any());
+
+        handler.resourceChanged(configResourceUri, Buffer.buffer(twoTopicConfiguration()));
+        await().atMost(1, SECONDS).until(() -> createdPatterns.size() == 1);
+        context.assertEquals(List.of("first"), createdPatterns);
+        context.assertFalse(handler.isInitialized());
+
+        handler.resourceChanged(configResourceUri, Buffer.buffer(oneTopicConfiguration("later")));
+        handler.resourceRemoved(configResourceUri);
+        context.assertEquals(1, createdPatterns.size());
+
+        firstCreation.complete();
+        await().atMost(1, SECONDS).until(() -> createdPatterns.size() == 3 && Mockito.mockingDetails(repository).getInvocations().stream()
+                .filter(invocation -> invocation.getMethod().getName().equals("closeAll")).count() >= 3);
+        context.assertEquals(List.of("first", "second", "later"), createdPatterns);
+        context.assertFalse(handler.isInitialized());
+    }
+
+    @Test
+    public void initializationFailureClosesPartialProducersAndQueueRecovers(TestContext context) {
+        List<String> attemptedPatterns = new CopyOnWriteArrayList<>();
+        RuntimeException creationFailure = new RuntimeException("producer creation failed");
+        doAnswer(invocation -> {
+            KafkaConfiguration configuration = invocation.getArgument(0);
+            attemptedPatterns.add(configuration.getTopic().pattern());
+            if (attemptedPatterns.size() == 2) {
+                return Future.failedFuture(creationFailure);
+            }
+            return Future.succeededFuture();
+        }).when(repository).addKafkaProducer(any());
+        storage.putMockData(configResourceUri, twoTopicConfiguration());
+
+        Async async = context.async();
+        handler.initialize().onComplete(event -> {
+            context.assertTrue(event.failed());
+            context.assertEquals(creationFailure, event.cause());
+            context.assertFalse(handler.isInitialized());
+            context.assertEquals(List.of("first", "second"), attemptedPatterns);
+            verify(repository, times(2)).closeAll();
+
+            handler.resourceChanged(configResourceUri, Buffer.buffer(oneTopicConfiguration("recovered")));
+            storage.putMockData(configResourceUri, oneTopicConfiguration("recovered"));
+            handler.initialize().onComplete(recovery -> {
+                context.assertTrue(recovery.succeeded());
+                context.assertTrue(handler.isInitialized());
+                context.assertEquals(4, attemptedPatterns.size());
+                context.assertEquals("recovered", attemptedPatterns.get(2));
+                async.complete();
+            });
+        });
+    }
+
+    private String twoTopicConfiguration() {
+        return "{\"first\":{\"key.serializer\":\"org.apache.kafka.common.serialization.StringSerializer\",\"value.serializer\":\"org.apache.kafka.common.serialization.StringSerializer\",\"bootstrap.servers\":\"localhost:9092\"},"
+                + "\"second\":{\"key.serializer\":\"org.apache.kafka.common.serialization.StringSerializer\",\"value.serializer\":\"org.apache.kafka.common.serialization.StringSerializer\",\"bootstrap.servers\":\"localhost:9093\"}}";
+    }
+
+    private String oneTopicConfiguration(String pattern) {
+        return "{\"" + pattern + "\":{\"key.serializer\":\"org.apache.kafka.common.serialization.StringSerializer\",\"value.serializer\":\"org.apache.kafka.common.serialization.StringSerializer\",\"bootstrap.servers\":\"localhost:9092\"}}";
+    }
+
+    private String invalidPatternConfiguration() {
+        return oneTopicConfiguration("[");
     }
 
     @Test
