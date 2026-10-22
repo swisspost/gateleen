@@ -90,13 +90,16 @@ public class PatternHolder {
     }
 
     private String replaceWildcards(String patternStr, MultiMap headers){
-        List<String> wildcards = wildcards(patternStr);
-        String replacePattern = patternStr;
-        for (String wildcard : wildcards) {
-            if(headers.get(wildcard) != null){
-                replacePattern = replacePattern.replaceAll(Pattern.quote("<" + wildcard + ">"), headers.get(wildcard));
-            }
+        Matcher matcher = WILDCARD_PATTERN.matcher(patternStr);
+        StringBuilder replacePattern = new StringBuilder();
+        while (matcher.find()) {
+            String headerValue = headers.get(matcher.group(1));
+            String replacement = headerValue == null
+                    ? matcher.group()
+                    : Pattern.quote(headerValue);
+            matcher.appendReplacement(replacePattern, Matcher.quoteReplacement(replacement));
         }
-        return replacePattern;
+        matcher.appendTail(replacePattern);
+        return replacePattern.toString();
     }
 }

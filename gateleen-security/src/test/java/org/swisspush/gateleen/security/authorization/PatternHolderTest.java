@@ -8,6 +8,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.swisspush.gateleen.security.PatternHolder;
 
+import java.util.regex.Pattern;
+
 /**
  * Tests for the {@link PatternHolder} class
  *
@@ -92,10 +94,10 @@ public class PatternHolderTest {
         headers.add("foo", "bar");
 
         String patternWithWildcard = "/gateleen/<foo>/resources/.*";
-        String patternWithReplacedWildcard = "/gateleen/bar/resources/.*";
         PatternHolder pH = new PatternHolder(patternWithWildcard);
         context.assertNotNull(pH.getPattern(headers));
-        context.assertEquals(patternWithReplacedWildcard, pH.getPattern(headers).pattern());
+        context.assertTrue(pH.getPattern(headers).matcher("/gateleen/bar/resources/item").matches());
+        context.assertFalse(pH.getPattern(headers).matcher("/gateleen/other/resources/item").matches());
     }
 
     @Test
@@ -104,10 +106,9 @@ public class PatternHolderTest {
         headers.add("foo", "bar");
 
         String patternWithSameWildcardTwice = "/gateleen/<foo>/resources/<foo>/.*";
-        String replacedSameWildcardTwice = "/gateleen/bar/resources/bar/.*";
-
         PatternHolder pH = new PatternHolder(patternWithSameWildcardTwice);
-        context.assertEquals(replacedSameWildcardTwice, pH.getPattern(headers).pattern());
+        context.assertTrue(pH.getPattern(headers).matcher("/gateleen/bar/resources/bar/item").matches());
+        context.assertFalse(pH.getPattern(headers).matcher("/gateleen/bar/resources/other/item").matches());
     }
 
     @Test
@@ -117,9 +118,51 @@ public class PatternHolderTest {
         headers.add("zzz", "yyy");
 
         String patternWithMultipleWildcards = "/gateleen/<foo>/resources/<zzz>/.*";
-        String replacedMultipleWildcards = "/gateleen/bar/resources/yyy/.*";
-
         PatternHolder pH = new PatternHolder(patternWithMultipleWildcards);
-        context.assertEquals(replacedMultipleWildcards, pH.getPattern(headers).pattern());
+        context.assertTrue(pH.getPattern(headers).matcher("/gateleen/bar/resources/yyy/item").matches());
+        context.assertFalse(pH.getPattern(headers).matcher("/gateleen/bar/resources/other/item").matches());
+    }
+
+    @Test
+    public void testWildcardHeaderValuesAreRegexLiterals(TestContext context) {
+        PatternHolder holder = new PatternHolder("/resources/userspecific/<x-user>/info");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+
+        for (String value : new String[]{".*", "x|.*|x", "user.name", "[user]", "$1", "${user}",
+                "user\\name", "user\\", "\\E.*\\Q"}) {
+            headers.set("x-user", value);
+            Pattern pattern = holder.getPattern(headers);
+            context.assertTrue(pattern.matcher("/resources/userspecific/" + value + "/info").matches(),
+                    "Header value must match literally: " + value);
+            context.assertFalse(pattern.matcher("/resources/userspecific/batman/info").matches(),
+                    "Header value must not match another user: " + value);
+            context.assertFalse(pattern.matcher("/some/totally/unrelated/secret").matches(),
+                    "Header value must not match an unrelated path: " + value);
+        }
+    }
+
+    @Test
+    public void testLiteralWildcardPreservesAclRegexGroups(TestContext context) {
+        PatternHolder holder = new PatternHolder("/resources/userspecific/<x-user>/items/([0-9]{6})/foo");
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.set("x-user", "user.name");
+
+        Pattern pattern = holder.getPattern(headers);
+        context.assertTrue(pattern.matcher("/resources/userspecific/user.name/items/123456/foo").matches());
+        context.assertFalse(pattern.matcher("/resources/userspecific/userXname/items/123456/foo").matches());
+        context.assertFalse(pattern.matcher("/resources/userspecific/user.name/items/abcdef/foo").matches());
+    }
+
+    @Test
+    public void testHeaderWildcardValueCannotReplaceLaterWildcard(TestContext context) {
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        headers.add("foo", "<bar>.*\\Qx");
+        headers.add("bar", "victim");
+
+        PatternHolder patternHolder = new PatternHolder("/private/<foo>/<bar>");
+        java.util.regex.Pattern pattern = patternHolder.getPattern(headers);
+
+        context.assertTrue(pattern.matcher("/private/<bar>.*\\Qx/victim").matches());
+        context.assertFalse(pattern.matcher("/private/\\QvictimEVILx/victim").matches());
     }
 }
