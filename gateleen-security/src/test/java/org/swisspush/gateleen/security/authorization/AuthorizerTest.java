@@ -447,6 +447,53 @@ public class AuthorizerTest {
         assertForbidden(response);
     }
 
+    @Test
+    public void userIsNotAuthorizedToReadResourcesOfOthersWithRegexWildcardHeader(TestContext context) {
+        headers.add("x-user", ".*");
+        headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET,
+                "/resources/userspecific/batman/info", headers, response);
+
+        authorizer.authorize(req).onComplete(context.asyncAssertSuccess(authorized -> {
+            context.assertFalse(authorized,
+                    "The x-user value .* must not match another user's resource as a regex");
+            assertForbidden(response);
+        }));
+    }
+
+    @Test
+    public void userIsNotAuthorizedToReadUnrelatedResources(TestContext context) {
+        headers.add("x-user", "robin");
+        headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET,
+                "/some/totally/unrelated/secret", headers, response);
+
+        authorizer.authorize(req).onComplete(context.asyncAssertSuccess(authorized -> {
+            context.assertFalse(authorized);
+            assertForbidden(response);
+        }));
+    }
+
+    @Test
+    public void userIsNotAuthorizedToReadUnrelatedResourcesWithRegexAlternationHeader(TestContext context) {
+        headers.add("x-user", "x|.*|x");
+        headers.add("x-rp-grp", "z-gateleen-user,z-gateleen-authenticated");
+
+        DummyHttpServerResponse response = Mockito.spy(new DummyHttpServerResponse());
+        AuthorizerRequest req = new AuthorizerRequest(HttpMethod.GET,
+                "/some/totally/unrelated/secret", headers, response);
+
+        authorizer.authorize(req).onComplete(context.asyncAssertSuccess(authorized -> {
+            context.assertFalse(authorized,
+                    "The x-user value x|.*|x must not introduce an alternative matching arbitrary paths");
+            assertForbidden(response);
+        }));
+    }
+
     private void assertForbidden(DummyHttpServerResponse response){
         Mockito.verify(response, timeout(1000).times(1)).setStatusCode(eq(StatusCode.FORBIDDEN.getStatusCode()));
         Mockito.verify(response, timeout(1000).times(1)).setStatusMessage(eq(StatusCode.FORBIDDEN.getStatusMessage()));
