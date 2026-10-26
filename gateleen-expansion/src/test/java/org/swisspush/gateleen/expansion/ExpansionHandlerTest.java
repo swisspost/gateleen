@@ -1,8 +1,14 @@
 package org.swisspush.gateleen.expansion;
 
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -206,6 +212,69 @@ public class ExpansionHandlerTest {
     }
 
     @Test
+    public void testIsStorageExpandRequestParameter(TestContext context) {
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+        MultiMap params = MultiMap.caseInsensitiveMultiMap();
+        params.set(ExpansionHandler.STORAGE_EXPAND_URL_PARAM, "true");
+        context.assertTrue(
+                expansionHandler.isStorageExpand(new Request(HttpMethod.GET, "/some/collection/", params)),
+                "storageExpand=true should enable storage expansion");
+
+        params.set(ExpansionHandler.STORAGE_EXPAND_URL_PARAM, "false");
+        context.assertFalse(
+                expansionHandler.isStorageExpand(new Request(HttpMethod.GET, "/some/collection/", params)),
+                "storageExpand=false should not enable storage expansion");
+
+        params.set(ExpansionHandler.STORAGE_EXPAND_URL_PARAM, "true");
+        params.set(EXPAND_PARAM, "2");
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        expansionHandler.handleExpansionRecursion(
+                new Request(HttpMethod.GET, "/some/collection/", params, response));
+        verify(response).end("Expand values higher than 1 are not supported for storageExpand requests");
+        verifyNoInteractions(httpClient);
+    }
+
+    @Test
+    public void testChildRequestFailureEndsExpansionWithInternalServerError(TestContext context) throws InterruptedException {
+        expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+        Buffer collection = Buffer.buffer("{\"collection\":[\"a\",\"b\"]}");
+        HttpClientResponse cRes = Mockito.mock(HttpClientResponse.class);
+        when(cRes.statusCode()).thenReturn(200);
+        when(cRes.statusMessage()).thenReturn("OK");
+        when(cRes.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+        doAnswer(inv -> {
+            ((Handler<Buffer>) inv.getArgument(0)).handle(collection);
+            return cRes;
+        }).when(cRes).bodyHandler(any());
+
+        HttpClientRequest cReq = Mockito.mock(HttpClientRequest.class);
+        when(cReq.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+        doAnswer(inv -> {
+            ((Handler<AsyncResult<HttpClientResponse>>) inv.getArgument(0)).handle(Future.succeededFuture(cRes));
+            return null;
+        }).when(cReq).send(any(Handler.class));
+
+        when(httpClient.request(eq(HttpMethod.GET), eq("/some/collection/"))).thenReturn(Future.succeededFuture(cReq));
+        when(httpClient.request(eq(HttpMethod.GET), eq("/some/collection/a")))
+                .thenThrow(new IllegalStateException("child request failed"));
+
+        HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+        when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+        MultiMap params = MultiMap.caseInsensitiveMultiMap();
+        params.set(EXPAND_PARAM, "1");
+
+        expansionHandler.handleExpansionRecursion(new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+        verify(response, timeout(5000)).setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+        verify(response, timeout(5000)).end("child request failed");
+        // leave time for already queued slices to run
+        Thread.sleep(300);
+        verify(httpClient, never()).request(HttpMethod.GET, "/some/collection/b");
+    }
+
+    @Test
     public void testIsCollection(TestContext context) {
         expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
         context.assertFalse(expansionHandler.isCollection("/some/collection/uri"));
@@ -302,6 +371,18 @@ public class ExpansionHandlerTest {
 
         @Override
         public MultiMap headers() { return MultiMap.caseInsensitiveMultiMap(); }
+
+        @Override
+        public String path() { return uri.split("\\?")[0]; }
+
+        @Override
+        public HttpServerRequest handler(Handler<Buffer> handler) { return this; }
+
+        @Override
+        public HttpServerRequest endHandler(Handler<Void> endHandler) {
+            endHandler.handle(null);
+            return this;
+        }
 
         @Override
         public HttpServerRequest pause() { return this; }
