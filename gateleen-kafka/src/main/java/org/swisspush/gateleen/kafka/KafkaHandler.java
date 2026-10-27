@@ -1,7 +1,6 @@
 package org.swisspush.gateleen.kafka;
 
 import io.vertx.core.Future;
-import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.function.Supplier;
 
 /**
  * Handler class for all Kafka related requests.
@@ -51,7 +51,8 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     private final KafkaProducerRecordBuilder kafkaProducerRecordBuilder;
     private final KafkaMessageValidator kafkaMessageValidator;
 
-    private boolean initialized = false;
+    private volatile boolean initialized = false;
+    private Future<Void> lifecycleQueue = Future.succeededFuture();
 
     public KafkaHandler(
         Vertx vertx,
@@ -81,16 +82,14 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     }
 
     public Future<Void> initialize() {
-        Promise<Void> promise = Promise.promise();
-        configurationResourceManager().getRegisteredResource(configResourceUri()).onComplete((event -> {
-            if (event.succeeded() && event.result().isPresent()) {
-                initializeKafkaConfiguration(event.result().get()).onComplete((event1 -> promise.complete()));
+        return enqueueLifecycle(() -> configurationResourceManager().getRegisteredResource(configResourceUri()).compose(event -> {
+            if (event.isPresent()) {
+                return initializeKafkaConfiguration(event.get());
             } else {
                 log.warn("No kafka configuration resource with uri '{}' found. Unable to setup kafka configuration correctly", configResourceUri());
-                promise.complete();
+                return Future.succeededFuture();
             }
         }));
-        return promise.future();
     }
 
     public boolean isInitialized() {
@@ -98,18 +97,28 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     }
 
     private Future<Void> initializeKafkaConfiguration(Buffer configuration) {
-        Promise<Void> promise = Promise.promise();
-        final List<KafkaConfiguration> kafkaConfigurations = KafkaConfigurationParser.parse(configuration, properties);
+        final List<KafkaConfiguration> kafkaConfigurations;
+        try {
+            kafkaConfigurations = KafkaConfigurationParser.parse(configuration, properties);
+        } catch (IllegalArgumentException exception) {
+            return Future.failedFuture(exception);
+        }
 
-        repository.closeAll().future().onComplete((event -> {
+        initialized = false;
+        return repository.closeAll().future().compose(event -> {
+            Future<Void> additions = Future.succeededFuture();
             for (KafkaConfiguration kafkaConfiguration : kafkaConfigurations) {
-                repository.addKafkaProducer(kafkaConfiguration);
+                additions = additions.compose(ignored -> repository.addKafkaProducer(kafkaConfiguration));
             }
+            return additions.recover(cause -> repository.closeAll().future()
+                    .recover(closeCause -> Future.succeededFuture())
+                    .compose(ignored -> Future.failedFuture(cause)));
+        }).map(ignored -> {
             initialized = true;
-            promise.complete();
-        }));
-
-        return promise.future();
+            log.info("Kafka configuration successfully initialized with {} producer(s)",
+                    kafkaConfigurations.size());
+            return (Void) null;
+        });
     }
 
     public boolean handle(final HttpServerRequest request) {
@@ -182,7 +191,8 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     public void resourceChanged(String resourceUri, Buffer resource) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
             log.info("Kafka configuration resource {} was updated. Going to initialize with new configuration", resourceUri);
-            initializeKafkaConfiguration(resource);
+            enqueueLifecycle(() -> initializeKafkaConfiguration(resource))
+                    .onFailure(cause -> log.error("Failed to initialize Kafka configuration from resource {}", resourceUri, cause));
         }
     }
 
@@ -190,8 +200,18 @@ public class KafkaHandler extends ConfigurationResourceConsumer {
     public void resourceRemoved(String resourceUri) {
         if (configResourceUri() != null && configResourceUri().equals(resourceUri)) {
             log.info("Kafka configuration resource {} was removed. Going to close all kafka producers", resourceUri);
-            repository.closeAll().future().onComplete(event -> initialized = false);
+            enqueueLifecycle(() -> {
+                initialized = false;
+                return repository.closeAll().future();
+            }).onFailure(cause -> log.error("Failed to close Kafka producers after resource {} was removed", resourceUri, cause));
         }
+    }
+
+    private synchronized Future<Void> enqueueLifecycle(Supplier<Future<Void>> operation) {
+        // Lifecycle calls can arrive from different contexts, so update the shared tail atomically.
+        Future<Void> queuedOperation = lifecycleQueue.compose(ignored -> operation.get());
+        lifecycleQueue = queuedOperation.recover(cause -> Future.succeededFuture());
+        return queuedOperation;
     }
 
     private Future<ValidationResult> maybeValidate(HttpServerRequest request, List<KafkaProducerRecord<String, String>> kafkaProducerRecords) {
