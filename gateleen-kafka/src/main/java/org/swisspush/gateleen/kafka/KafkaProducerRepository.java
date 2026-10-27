@@ -20,15 +20,25 @@ public class KafkaProducerRepository {
     private final Logger log = LoggerFactory.getLogger(KafkaProducerRepository.class);
     private final Vertx vertx;
     private final Map<Pattern, KafkaProducer<String, String>> kafkaProducers;
+    private final ProducerFactory producerFactory;
 
     public KafkaProducerRepository(Vertx vertx) {
+        this(vertx, (producerVertx, config) -> KafkaProducer.create(producerVertx, config));
+    }
+
+    KafkaProducerRepository(Vertx vertx, ProducerFactory producerFactory) {
         this.vertx = vertx;
+        this.producerFactory = producerFactory;
         this.kafkaProducers = new LinkedHashMap<>(); // a linked hash map is used to keep the insertion order
     }
 
-    void addKafkaProducer(KafkaConfiguration config) {
+    Future<Void> addKafkaProducer(KafkaConfiguration config) {
         log.info("About to add kafka producer from {}", config);
-        this.kafkaProducers.put(config.getTopic(), KafkaProducer.create(vertx, config.getConfigurations()));
+        return vertx.executeBlocking(() -> producerFactory.create(vertx, config.getConfigurations()))
+                .map(producer -> {
+                    kafkaProducers.put(config.getTopic(), producer);
+                    return (Void) null;
+                });
     }
 
     Optional<Pair<KafkaProducer<String, String>, Pattern>> findMatchingKafkaProducer(String topic) {
@@ -67,5 +77,10 @@ public class KafkaProducerRepository {
             promise.complete();
         });
         return promise;
+    }
+
+    @FunctionalInterface
+    interface ProducerFactory {
+        KafkaProducer<String, String> create(Vertx vertx, Map<String, String> configuration);
     }
 }

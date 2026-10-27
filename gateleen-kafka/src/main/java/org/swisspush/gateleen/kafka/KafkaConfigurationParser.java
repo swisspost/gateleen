@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,37 +31,63 @@ class KafkaConfigurationParser {
     /**
      * Parses the provided kafka topic configuration resource and returns a list of {@link KafkaConfiguration} objects.
      *
-     * When the configuration resource contains invalid regex patterns, a warning will be logged and the corresponding
-     * {@link KafkaConfiguration} object will not be included in the returned list.
+     * Parsing errors reject the entire configuration with an {@link IllegalArgumentException}; a partial list of
+     * topic configurations is never returned. An empty JSON object is a valid configuration with no topic entries.
      *
      * @param configurationResourceBuffer the resource to parse
      * @return a list of {@link KafkaConfiguration} objects
      */
     static List<KafkaConfiguration> parse(Buffer configurationResourceBuffer, Map<String, Object> properties) {
 
-        String replacedConfig;
-        JsonObject config;
-        List<KafkaConfiguration> configurations = new ArrayList<>();
-
+        final String source;
         try {
-            replacedConfig = StringUtils.replaceWildcardConfigs(configurationResourceBuffer.toString(UTF_8), properties);
-            config = new JsonObject(Buffer.buffer(replacedConfig));
-        } catch (Exception e) {
-            log.warn("Could not replace wildcards with environment properties for kafka configurations due to following reason: {}",
-                    e.getMessage());
-            return configurations;
+            source = configurationResourceBuffer.toString(UTF_8);
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Could not read Kafka configuration; rejecting entire Kafka configuration", e);
         }
 
+        final String replacedConfig;
+        try {
+            replacedConfig = StringUtils.replaceWildcardConfigs(source,
+                    properties == null ? Collections.emptyMap() : properties);
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Could not resolve Kafka configuration placeholders; rejecting entire Kafka configuration", e);
+        }
+
+        final JsonObject config;
+        try {
+            config = new JsonObject(Buffer.buffer(replacedConfig));
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Could not parse Kafka configuration as a JSON object; rejecting entire Kafka configuration", e);
+        }
+
+        List<KafkaConfiguration> configurations = new ArrayList<>();
         for (String topicPattern : config.fieldNames()) {
+            final Pattern pattern;
             try {
-                Pattern pattern = Pattern.compile(topicPattern);
-                final Map<String, String> additionalConfig = extractAdditionalConfig(config.getJsonObject(topicPattern));
-                setUniqueClientId(additionalConfig);
-                configurations.add(new KafkaConfiguration(pattern, additionalConfig));
-                log.info("Topic '{}' successfully parsed and added to kafka configuration list", topicPattern);
+                pattern = Pattern.compile(topicPattern);
             } catch (PatternSyntaxException patternException) {
-                log.warn("Topic '{}' is not a valid regex pattern. Discarding this kafka configuration", topicPattern);
+                throw new IllegalArgumentException("Invalid topic regex pattern '" + topicPattern + "'; rejecting entire Kafka configuration",
+                        patternException);
             }
+
+            Object topicValue = config.getValue(topicPattern);
+            if (!(topicValue instanceof JsonObject)) {
+                throw new IllegalArgumentException("Topic entry '" + topicPattern + "' must be a JSON object; rejecting entire Kafka configuration");
+            }
+
+            final Map<String, String> additionalConfig;
+            try {
+                additionalConfig = extractAdditionalConfig((JsonObject) topicValue, topicPattern);
+                setUniqueClientId(additionalConfig);
+            } catch (IllegalArgumentException e) {
+                throw e;
+            } catch (RuntimeException e) {
+                throw new IllegalArgumentException("Could not parse topic entry '" + topicPattern
+                        + "'; rejecting entire Kafka configuration", e);
+            }
+            configurations.add(new KafkaConfiguration(pattern, additionalConfig));
+            log.info("Topic '{}' successfully parsed and added to kafka configuration list", topicPattern);
         }
 
         return configurations;
@@ -79,11 +106,15 @@ class KafkaConfigurationParser {
         }
     }
 
-    private static Map<String, String> extractAdditionalConfig(JsonObject topicObject){
+    private static Map<String, String> extractAdditionalConfig(JsonObject topicObject, String topicPattern){
         Map<String, String> additionalConfigs = new HashMap<>();
         for (String configKey : topicObject.fieldNames()) {
-            String configValue = topicObject.getString(configKey);
-            additionalConfigs.put(configKey, configValue);
+            Object configValue = topicObject.getValue(configKey);
+            if (!(configValue instanceof String)) {
+                throw new IllegalArgumentException("Topic entry '" + topicPattern + "' property '" + configKey
+                        + "' must be a string; rejecting entire Kafka configuration");
+            }
+            additionalConfigs.put(configKey, (String) configValue);
         }
         return additionalConfigs;
     }
