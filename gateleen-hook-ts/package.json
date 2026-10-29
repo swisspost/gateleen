@@ -35,7 +35,7 @@
     "@vitest/ui": "4.1.0",
     "tsup": "8.3.5",
     "typescript": "5.6.3",
-    "vitest": "4.1.0",
+    "vitest": "4.1.11",
     "prettier": "3.9.6"
   }
 }
