@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.expansion.ExpansionHandler.EXPAND_PARAM;
@@ -360,6 +361,406 @@ public class ExpansionHandlerTest {
             verify(httpClient, timeout(2000)).request(
                     HttpMethod.POST, "/some/collection/group?storageExpand=true");
             verify(httpClient, never()).request(HttpMethod.GET, "/some/collection/group/item");
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    public void testAsynchronousChildRequestFailureStopsIssuingFurtherChildRequests(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Buffer collection = Buffer.buffer("{\"collection\":[\"a\",\"b\",\"c\"]}");
+            String failureMessage = "child request a failed";
+
+            when(httpClient.request(eq(HttpMethod.GET), anyString())).thenAnswer(invocation -> {
+                String uri = invocation.getArgument(1);
+                if ("/some/collection/a".equals(uri)) {
+                    return Future.failedFuture(failureMessage);
+                }
+                Buffer body = "/some/collection/".equals(uri) ? collection : Buffer.buffer("{}");
+                return Future.succeededFuture(successfulRequest(body));
+            });
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
+            verify(httpClient, never()).request(HttpMethod.GET, "/some/collection/b");
+            verify(httpClient, never()).request(HttpMethod.GET, "/some/collection/c");
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testChildFailureCompletesResponseWithoutWaitingForInFlightSiblings(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Buffer collection = Buffer.buffer("{\"collection\":[\"a\",\"b\"]}");
+            String failureMessage = "child request b failed";
+            AtomicReference<Handler<AsyncResult<HttpClientResponse>>> pendingSendOfA = new AtomicReference<>();
+
+            HttpClientRequest slowRequestA = Mockito.mock(HttpClientRequest.class);
+            when(slowRequestA.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+            doAnswer(inv -> {
+                pendingSendOfA.set(inv.getArgument(0));
+                return null;
+            }).when(slowRequestA).send(any(Handler.class));
+
+            when(httpClient.request(eq(HttpMethod.GET), anyString())).thenAnswer(invocation -> {
+                String uri = invocation.getArgument(1);
+                if ("/some/collection/a".equals(uri)) {
+                    return Future.succeededFuture(slowRequestA);
+                }
+                if ("/some/collection/b".equals(uri)) {
+                    return Future.failedFuture(failureMessage);
+                }
+                return Future.succeededFuture(successfulRequest(collection));
+            });
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            // child a is still in flight, the response must already be completed by the failure of b
+            verify(response, timeout(2000)).end(failureMessage);
+
+            // a late result of the in-flight sibling must not complete the response a second time
+            HttpClientResponse lateResponse = Mockito.mock(HttpClientResponse.class);
+            when(lateResponse.statusCode()).thenReturn(200);
+            when(lateResponse.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+            doAnswer(inv -> {
+                ((Handler<Buffer>) inv.getArgument(0)).handle(Buffer.buffer("{}"));
+                return lateResponse;
+            }).when(lateResponse).bodyHandler(any());
+            context.assertNotNull(pendingSendOfA.get(), "child a should have been sent");
+            pendingSendOfA.get().handle(Future.succeededFuture(lateResponse));
+
+            Thread.sleep(300);
+            verify(response, times(1)).end(anyString());
+            verify(response, never()).end();
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testStorageExpandSendFailureEndsExpansionWithInternalServerError(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Rule storageExpandRule = new Rule();
+            storageExpandRule.setUrlPattern("/some/collection/");
+            storageExpandRule.setStorageExpand(true);
+            expansionHandler.rulesChanged(new ArrayList<>(List.of(storageExpandRule)));
+
+            Buffer collection = Buffer.buffer("{\"collection\":[\"a\",\"b\"]}");
+            String failureMessage = "storage expand send failed";
+
+            HttpClientRequest failingSend = Mockito.mock(HttpClientRequest.class);
+            when(failingSend.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+            doAnswer(inv -> {
+                ((Handler<AsyncResult<HttpClientResponse>>) inv.getArgument(0))
+                        .handle(Future.failedFuture(failureMessage));
+                return null;
+            }).when(failingSend).send(any(Handler.class));
+
+            HttpClientRequest rootRequest = successfulRequest(collection);
+            when(httpClient.request(eq(HttpMethod.GET), anyString()))
+                    .thenReturn(Future.succeededFuture(rootRequest));
+            when(httpClient.request(eq(HttpMethod.POST), eq("/some/collection/?storageExpand=true")))
+                    .thenReturn(Future.succeededFuture(failingSend));
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
+            Thread.sleep(300);
+            verify(response, times(1)).end(anyString());
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    public void testNestedCollectionChildFailureStopsOtherBranches(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            String failureMessage = "nested child request failed";
+            when(httpClient.request(eq(HttpMethod.GET), anyString())).thenAnswer(invocation -> {
+                String uri = invocation.getArgument(1);
+                switch (uri) {
+                    case "/some/collection/":
+                        return Future.succeededFuture(successfulRequest(
+                                Buffer.buffer("{\"collection\":[\"group/\",\"other/\"]}")));
+                    case "/some/collection/group":
+                        return Future.succeededFuture(successfulRequest(
+                                Buffer.buffer("{\"group\":[\"a\",\"b\"]}")));
+                    case "/some/collection/group/a":
+                        return Future.failedFuture(failureMessage);
+                    default:
+                        return Future.succeededFuture(successfulRequest(Buffer.buffer("{}")));
+                }
+            });
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "2");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
+            Thread.sleep(300);
+            verify(httpClient, never()).request(HttpMethod.GET, "/some/collection/group/b");
+            verify(response, times(1)).end(anyString());
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testLateChildRequestFailureAfterSiblingsIssuedEndsExpansion(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Buffer collection = Buffer.buffer("{\"collection\":[\"a\",\"b\",\"c\"]}");
+            String failureMessage = "late child request failure";
+            CountDownLatch allChildrenIssued = new CountDownLatch(3);
+            Promise<HttpClientRequest> lateFailure = Promise.promise();
+
+            HttpClientRequest inFlight = Mockito.mock(HttpClientRequest.class);
+            when(inFlight.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            when(httpClient.request(eq(HttpMethod.GET), anyString())).thenAnswer(invocation -> {
+                String uri = invocation.getArgument(1);
+                if ("/some/collection/".equals(uri)) {
+                    return Future.succeededFuture(successfulRequest(collection));
+                }
+                allChildrenIssued.countDown();
+                if ("/some/collection/b".equals(uri)) {
+                    return lateFailure.future();
+                }
+                return Future.succeededFuture(inFlight);
+            });
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            context.assertTrue(allChildrenIssued.await(2, TimeUnit.SECONDS),
+                    "all children should be issued before the failure is delivered");
+            vertx.runOnContext(ignored -> lateFailure.fail(failureMessage));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testChildResponseBodyFailureEndsExpansionWithInternalServerError(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Buffer collection = Buffer.buffer("{\"collection\":[\"a\"]}");
+            String failureMessage = "child response body failed";
+            CountDownLatch childResponseReceived = new CountDownLatch(1);
+            AtomicReference<Handler<Throwable>> responseExceptionHandler = new AtomicReference<>();
+
+            HttpClientResponse brokenResponse = Mockito.mock(HttpClientResponse.class);
+            when(brokenResponse.statusCode()).thenReturn(200);
+            when(brokenResponse.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+            doAnswer(inv -> {
+                responseExceptionHandler.set(inv.getArgument(0));
+                return brokenResponse;
+            }).when(brokenResponse).exceptionHandler(any());
+
+            HttpClientRequest childRequest = Mockito.mock(HttpClientRequest.class);
+            when(childRequest.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+            doAnswer(inv -> {
+                ((Handler<AsyncResult<HttpClientResponse>>) inv.getArgument(0))
+                        .handle(Future.succeededFuture(brokenResponse));
+                childResponseReceived.countDown();
+                return null;
+            }).when(childRequest).send(any(Handler.class));
+
+            when(httpClient.request(eq(HttpMethod.GET), anyString())).thenAnswer(invocation -> {
+                String uri = invocation.getArgument(1);
+                return Future.succeededFuture(
+                        "/some/collection/".equals(uri) ? successfulRequest(collection) : childRequest);
+            });
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            context.assertTrue(childResponseReceived.await(2, TimeUnit.SECONDS),
+                    "the child response should be received");
+            context.assertNotNull(responseExceptionHandler.get(),
+                    "an exception handler must be registered on the child response");
+            responseExceptionHandler.get().handle(new IllegalStateException(failureMessage));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    public void testStorageExpandRequestFutureFailureEndsExpansionWithInternalServerError(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Rule storageExpandRule = new Rule();
+            storageExpandRule.setUrlPattern("/some/collection/");
+            storageExpandRule.setStorageExpand(true);
+            expansionHandler.rulesChanged(new ArrayList<>(List.of(storageExpandRule)));
+
+            String failureMessage = "storage expand request failed";
+            HttpClientRequest rootRequest = successfulRequest(Buffer.buffer("{\"collection\":[\"a\",\"b\"]}"));
+            when(httpClient.request(eq(HttpMethod.GET), anyString()))
+                    .thenReturn(Future.succeededFuture(rootRequest));
+            when(httpClient.request(eq(HttpMethod.POST), eq("/some/collection/?storageExpand=true")))
+                    .thenReturn(Future.failedFuture(failureMessage));
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testStorageExpandResponseBodyFailureEndsExpansionWithInternalServerError(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Rule storageExpandRule = new Rule();
+            storageExpandRule.setUrlPattern("/some/collection/");
+            storageExpandRule.setStorageExpand(true);
+            expansionHandler.rulesChanged(new ArrayList<>(List.of(storageExpandRule)));
+
+            String failureMessage = "storage expand response body failed";
+            CountDownLatch storageResponseReceived = new CountDownLatch(1);
+            AtomicReference<Handler<Throwable>> responseExceptionHandler = new AtomicReference<>();
+
+            HttpClientResponse brokenResponse = Mockito.mock(HttpClientResponse.class);
+            when(brokenResponse.statusCode()).thenReturn(200);
+            when(brokenResponse.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+            doAnswer(inv -> {
+                responseExceptionHandler.set(inv.getArgument(0));
+                return brokenResponse;
+            }).when(brokenResponse).exceptionHandler(any());
+
+            HttpClientRequest storageRequest = Mockito.mock(HttpClientRequest.class);
+            when(storageRequest.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+            doAnswer(inv -> {
+                ((Handler<AsyncResult<HttpClientResponse>>) inv.getArgument(0))
+                        .handle(Future.succeededFuture(brokenResponse));
+                storageResponseReceived.countDown();
+                return null;
+            }).when(storageRequest).send(any(Handler.class));
+
+            HttpClientRequest rootRequest = successfulRequest(Buffer.buffer("{\"collection\":[\"a\",\"b\"]}"));
+            when(httpClient.request(eq(HttpMethod.GET), anyString()))
+                    .thenReturn(Future.succeededFuture(rootRequest));
+            when(httpClient.request(eq(HttpMethod.POST), eq("/some/collection/?storageExpand=true")))
+                    .thenReturn(Future.succeededFuture(storageRequest));
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            context.assertTrue(storageResponseReceived.await(2, TimeUnit.SECONDS),
+                    "the storage expand response should be received");
+            context.assertNotNull(responseExceptionHandler.get(),
+                    "an exception handler must be registered on the storage expand response");
+            responseExceptionHandler.get().handle(new IllegalStateException(failureMessage));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    public void testRootRequestFutureFailureEndsExpansionWithInternalServerError(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            String failureMessage = "root request failed";
+            when(httpClient.request(eq(HttpMethod.GET), anyString()))
+                    .thenReturn(Future.failedFuture(failureMessage));
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
         } finally {
             vertx.close();
         }

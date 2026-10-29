@@ -95,7 +95,7 @@ Additional information:
 * If the collection actually is not a collection, 400 "Request did not return data. Invalid usage of params expand ?" is returned.
 * If the collection contains NON-Json Resources OR if a Json Resource is malformed, 500 "Errors found in resources:" with a list of the problematic resources is returned. 
 * If the number of allowed sub requests exceeds the given limit, 400 "Number of allowed sub requests exceeded. Limit is x requests" is returned. 
-* If a sub request of a (standard) expansion fails unexpectedly, the expansion is aborted and a 500 response with the error message is returned. No further sub requests are issued.
+* If a sub request of a (standard) expansion fails unexpectedly, the expansion is aborted and a 500 response with the error message is returned. Sub requests which are not yet issued at that point are skipped; requests which are already in flight are not cancelled, but their results are discarded.
 
 Large collections are expanded in short slices, which yield the event loop between slices, so expanding big collections does not block other requests.
 #### Expand on Backend

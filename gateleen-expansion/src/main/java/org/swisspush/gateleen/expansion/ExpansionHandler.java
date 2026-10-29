@@ -25,7 +25,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
@@ -105,6 +107,58 @@ public class ExpansionHandler implements RuleChangesObserver {
   private static final String SELF_REQUEST_HEADER = "x-self-request";
 
   private static final Handler<Buffer> DEV_NULL = buf -> {};
+
+  /** Passes only the first node on to the root handler, so the response is completed once. */
+  private static final class CompleteOnceHandler implements DeltaHandler<ResourceNode> {
+    private final DeltaHandler<ResourceNode> delegate;
+    private final AtomicBoolean completed = new AtomicBoolean();
+
+    CompleteOnceHandler(DeltaHandler<ResourceNode> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void handle(ResourceNode node) {
+      if (completed.compareAndSet(false, true)) {
+        delegate.handle(node);
+      }
+    }
+
+    @Override
+    public void storeXDeltaResponseHeader(String xdeltaResponseNumber) {
+      delegate.storeXDeltaResponseHeader(xdeltaResponseNumber);
+    }
+  }
+
+  /**
+   * Request counter shared by all sub requests of one expansion. It also remembers the first
+   * unexpected failure, which completes the response right away, so that neither in-flight
+   * siblings are waited for nor children which are not yet issued are requested.
+   */
+  private static final class SubRequestCounter extends AtomicInteger {
+    private final transient DeltaHandler<ResourceNode> rootHandler;
+    private final transient AtomicReference<ResourceNode> failure = new AtomicReference<>();
+
+    SubRequestCounter(DeltaHandler<ResourceNode> rootHandler) {
+      this.rootHandler = rootHandler;
+    }
+
+    ResourceNode fail(Throwable cause) {
+      ResourceNode node =
+          new ResourceNode(
+              SERIOUS_EXCEPTION,
+              new ResourceCollectionException(
+                  String.valueOf(cause.getMessage()), StatusCode.INTERNAL_SERVER_ERROR));
+      if (failure.compareAndSet(null, node)) {
+        rootHandler.handle(node);
+      }
+      return failure.get();
+    }
+
+    ResourceNode failure() {
+      return failure.get();
+    }
+  }
 
   private int maxSubRequestCount;
 
@@ -527,6 +581,7 @@ public class ExpansionHandler implements RuleChangesObserver {
             asyncReqResult -> {
               if (asyncReqResult.failed()) {
                 log.warn("Failed request to {}: {}", targetUri, asyncReqResult.cause());
+                respondInternalServerError(req, String.valueOf(asyncReqResult.cause().getMessage()));
                 return;
               }
               HttpClientRequest cReq = asyncReqResult.result();
@@ -560,14 +615,21 @@ public class ExpansionHandler implements RuleChangesObserver {
                            * an exception is thrown and handled
                            * by the handler right away.
                            */
+                          final DeltaHandler<ResourceNode> rootHandler =
+                              new CompleteOnceHandler(
+                                  RecursiveHandlerFactory.createRootHandler(
+                                      recursiveHandlerType,
+                                      req,
+                                      serverRoot,
+                                      data,
+                                      finalOriginalParams));
                           makeResourceSubRequest(
                               targetUri,
                               req,
                               finalExpandLevel,
-                              new AtomicInteger(),
+                              new SubRequestCounter(rootHandler),
                               recursiveHandlerType,
-                              RecursiveHandlerFactory.createRootHandler(
-                                  recursiveHandlerType, req, serverRoot, data, finalOriginalParams),
+                              rootHandler,
                               true);
                         });
                     cRes.exceptionHandler(
@@ -683,6 +745,7 @@ public class ExpansionHandler implements RuleChangesObserver {
       final String targetUri,
       final List subResourceNames,
       final HttpServerRequest req,
+      final SubRequestCounter subRequestCounter,
       final DeltaHandler<ResourceNode> handler) {
     Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
     HttpMethod reqMethod = HttpMethod.POST;
@@ -698,6 +761,7 @@ public class ExpansionHandler implements RuleChangesObserver {
             asyncResult -> {
               if (asyncResult.failed()) {
                 log.warn("Failed request to {}", reqUri, asyncResult.cause());
+                handler.handle(subRequestCounter.fail(asyncResult.cause()));
                 return;
               }
               HttpClientRequest cReq = asyncResult.result();
@@ -719,11 +783,15 @@ public class ExpansionHandler implements RuleChangesObserver {
                     if (event.failed()) {
                       Throwable ex = event.cause();
                       log.debug("{} {}", reqMethod, reqUri, ex);
-                      var exWrappr =
-                          new ResourceCollectionException(ex.getMessage(), INTERNAL_SERVER_ERROR);
-                      handler.handle(new ResourceNode(SERIOUS_EXCEPTION, exWrappr));
+                      handler.handle(subRequestCounter.fail(ex));
+                      return;
                     }
                     HttpClientResponse cRes = event.result();
+                    cRes.exceptionHandler(
+                        cause -> {
+                          log.warn("Failed response from {}", reqUri, cause);
+                          handler.handle(subRequestCounter.fail(cause));
+                        });
                     if (StatusCode.NOT_FOUND.getStatusCode() == cRes.statusCode()) {
                       log.debug("NotFound: {}", targetUri);
                       cRes.handler(DEV_NULL);
@@ -789,12 +857,19 @@ public class ExpansionHandler implements RuleChangesObserver {
       final String targetUri,
       final HttpServerRequest req,
       final int recursionLevel,
-      final AtomicInteger subRequestCounter,
+      final SubRequestCounter subRequestCounter,
       final RecursiveHandlerFactory.RecursiveHandlerTypes recursionHandlerType,
       final DeltaHandler<ResourceNode> handler,
       final boolean collection) {
 
     Logger log = RequestLoggerFactory.getLogger(ExpansionHandler.class, req);
+
+    // an earlier sub request failed unexpectedly: do not issue further requests
+    ResourceNode abortedBy = subRequestCounter.failure();
+    if (abortedBy != null) {
+      handler.handle(abortedBy);
+      return;
+    }
 
     /*
      * each call of this method creates a self request.
@@ -824,12 +899,7 @@ public class ExpansionHandler implements RuleChangesObserver {
             asyncResult -> {
               if (asyncResult.failed()) {
                 log.warn("Failed request to {}", targetUri, asyncResult.cause());
-                handler.handle(
-                    new ResourceNode(
-                        SERIOUS_EXCEPTION,
-                        new ResourceCollectionException(
-                            String.valueOf(asyncResult.cause().getMessage()),
-                            StatusCode.INTERNAL_SERVER_ERROR)));
+                handler.handle(subRequestCounter.fail(asyncResult.cause()));
                 return;
               }
               HttpClientRequest cReq = asyncResult.result();
@@ -854,15 +924,16 @@ public class ExpansionHandler implements RuleChangesObserver {
                   event -> {
                     if (event.failed()) {
                       log.warn("Failed send to {}", targetUri, event.cause());
-                      handler.handle(
-                          new ResourceNode(
-                              SERIOUS_EXCEPTION,
-                              new ResourceCollectionException(
-                                  String.valueOf(event.cause().getMessage()),
-                                  StatusCode.INTERNAL_SERVER_ERROR)));
+                      handler.handle(subRequestCounter.fail(event.cause()));
                       return;
                     }
                     HttpClientResponse cRes = event.result();
+
+                    cRes.exceptionHandler(
+                        cause -> {
+                          log.warn("Failed response from {}", targetUri, cause);
+                          handler.handle(subRequestCounter.fail(cause));
+                        });
 
                     if (log.isTraceEnabled()) {
                       log.trace(" x-delta for {} is {}", targetUri, cRes.headers().get("x-delta"));
@@ -984,6 +1055,15 @@ public class ExpansionHandler implements RuleChangesObserver {
     request.resume();
   }
 
+  private void respondInternalServerError(final HttpServerRequest request, String body) {
+    ResponseStatusCodeLogUtil.info(
+        request, StatusCode.INTERNAL_SERVER_ERROR, ExpansionHandler.class);
+    request.response().setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+    request.response().setStatusMessage(StatusCode.INTERNAL_SERVER_ERROR.getStatusMessage());
+    request.response().end(body);
+    request.resume();
+  }
+
   /**
    * Handles the response data for creating a collection resource.
    *
@@ -1001,7 +1081,7 @@ public class ExpansionHandler implements RuleChangesObserver {
       final String targetUri,
       final HttpServerRequest req,
       final int recursionLevel,
-      final AtomicInteger subRequestCounter,
+      final SubRequestCounter subRequestCounter,
       final RecursiveHandlerFactory.RecursiveHandlerTypes recursionHandlerType,
       final DeltaHandler<ResourceNode> handler,
       final Buffer data,
@@ -1047,7 +1127,7 @@ public class ExpansionHandler implements RuleChangesObserver {
                 handler);
 
         if (isStorageExpand) {
-          makeStorageExpandRequest(targetUri, subResourceNames, req, handler);
+          makeStorageExpandRequest(targetUri, subResourceNames, req, subRequestCounter, handler);
           return;
         }
 
@@ -1089,12 +1169,7 @@ public class ExpansionHandler implements RuleChangesObserver {
                   @Override
                   public void onError(RuntimeException e) {
                     log.error("Failed to serve expansion request: {}", req.uri(), e);
-                    handler.handle(
-                        new ResourceNode(
-                            SERIOUS_EXCEPTION,
-                            new ResourceCollectionException(
-                                String.valueOf(e.getMessage()),
-                                StatusCode.INTERNAL_SERVER_ERROR)));
+                    handler.handle(subRequestCounter.fail(e));
                   }
                 })
             .resume();
