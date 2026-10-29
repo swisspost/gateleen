@@ -4,6 +4,7 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
@@ -27,6 +28,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.*;
 import static org.swisspush.gateleen.expansion.ExpansionHandler.EXPAND_PARAM;
@@ -272,6 +275,114 @@ public class ExpansionHandlerTest {
         // leave time for already queued slices to run
         Thread.sleep(300);
         verify(httpClient, never()).request(HttpMethod.GET, "/some/collection/b");
+    }
+
+    @Test
+    public void testAsynchronousChildRequestFailureEndsExpansionWithInternalServerError(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Buffer collection = Buffer.buffer("{\"collection\":[\"a\",\"b\"]}");
+            CountDownLatch childRequestIssued = new CountDownLatch(1);
+            CountDownLatch failureDelivered = new CountDownLatch(1);
+            Promise<HttpClientRequest> failedChildRequest = Promise.promise();
+            failedChildRequest.future().onFailure(ignored -> failureDelivered.countDown());
+            String failureMessage = "asynchronous child request failed";
+
+            when(httpClient.request(eq(HttpMethod.GET), anyString())).thenAnswer(invocation -> {
+                String uri = invocation.getArgument(1);
+                if ("/some/collection/a".equals(uri)) {
+                    childRequestIssued.countDown();
+                    vertx.runOnContext(ignored -> failedChildRequest.fail(failureMessage));
+                    return failedChildRequest.future();
+                }
+                Buffer body = "/some/collection/".equals(uri) ? collection : Buffer.buffer("{}");
+                return Future.succeededFuture(successfulRequest(body));
+            });
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            context.assertTrue(childRequestIssued.await(2, TimeUnit.SECONDS),
+                    "the failing child request should be issued");
+            context.assertTrue(failureDelivered.await(2, TimeUnit.SECONDS),
+                    "the child request failure should be delivered asynchronously");
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    public void testStorageExpandRuleMatchesNestedCollection(TestContext context) {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            List<Rule> rules = new ArrayList<>();
+            Rule nestedStorageExpandRule = new Rule();
+            nestedStorageExpandRule.setUrlPattern("/some/collection/group");
+            nestedStorageExpandRule.setStorageExpand(true);
+            rules.add(nestedStorageExpandRule);
+            expansionHandler.rulesChanged(rules);
+
+            when(httpClient.request(eq(HttpMethod.GET), anyString())).thenAnswer(invocation -> {
+                String uri = invocation.getArgument(1);
+                Buffer body;
+                if ("/some/collection/".equals(uri)) {
+                    body = Buffer.buffer("{\"collection\":[\"group/\"]}");
+                } else if ("/some/collection/group".equals(uri)) {
+                    body = Buffer.buffer("{\"group\":[\"item\"]}");
+                } else {
+                    body = Buffer.buffer("{}");
+                }
+                return Future.succeededFuture(successfulRequest(body));
+            });
+            HttpClientRequest storageExpandRequest = successfulRequest(Buffer.buffer("{}"));
+            when(httpClient.request(eq(HttpMethod.POST), eq("/some/collection/group?storageExpand=true")))
+                    .thenReturn(Future.succeededFuture(storageExpandRequest));
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "2");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/?expand=2", params, response));
+
+            verify(httpClient, timeout(2000)).request(HttpMethod.GET, "/some/collection/group");
+            verify(httpClient, timeout(2000)).request(
+                    HttpMethod.POST, "/some/collection/group?storageExpand=true");
+            verify(httpClient, never()).request(HttpMethod.GET, "/some/collection/group/item");
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private HttpClientRequest successfulRequest(Buffer body) {
+        HttpClientResponse cRes = Mockito.mock(HttpClientResponse.class);
+        when(cRes.statusCode()).thenReturn(200);
+        when(cRes.statusMessage()).thenReturn("OK");
+        when(cRes.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+        doAnswer(inv -> {
+            ((Handler<Buffer>) inv.getArgument(0)).handle(body);
+            return cRes;
+        }).when(cRes).bodyHandler(any());
+
+        HttpClientRequest cReq = Mockito.mock(HttpClientRequest.class);
+        when(cReq.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+        doAnswer(inv -> {
+            ((Handler<AsyncResult<HttpClientResponse>>) inv.getArgument(0)).handle(Future.succeededFuture(cRes));
+            return null;
+        }).when(cReq).send(any(Handler.class));
+        return cReq;
     }
 
     @Test

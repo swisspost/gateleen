@@ -413,9 +413,12 @@ public class ExpansionHandler implements RuleChangesObserver {
    * @return true if the resource should be expanded by storage
    */
   public boolean isStorageExpand(HttpServerRequest request) {
-    return isStorageExpand(request.uri())
-        || (request.params().contains(STORAGE_EXPAND_URL_PARAM)
-            && Boolean.parseBoolean(request.params().get(STORAGE_EXPAND_URL_PARAM)));
+    return isStorageExpand(request.uri()) || isStorageExpandParam(request);
+  }
+
+  private boolean isStorageExpandParam(HttpServerRequest request) {
+    return request.params().contains(STORAGE_EXPAND_URL_PARAM)
+        && Boolean.parseBoolean(request.params().get(STORAGE_EXPAND_URL_PARAM));
   }
 
   /**
@@ -820,7 +823,13 @@ public class ExpansionHandler implements RuleChangesObserver {
         .onComplete(
             asyncResult -> {
               if (asyncResult.failed()) {
-                log.warn("Failed request to {}: {}", targetUri, asyncResult.cause());
+                log.warn("Failed request to {}", targetUri, asyncResult.cause());
+                handler.handle(
+                    new ResourceNode(
+                        SERIOUS_EXCEPTION,
+                        new ResourceCollectionException(
+                            String.valueOf(asyncResult.cause().getMessage()),
+                            StatusCode.INTERNAL_SERVER_ERROR)));
                 return;
               }
               HttpClientRequest cReq = asyncResult.result();
@@ -843,6 +852,16 @@ public class ExpansionHandler implements RuleChangesObserver {
               }
               cReq.send(
                   event -> {
+                    if (event.failed()) {
+                      log.warn("Failed send to {}", targetUri, event.cause());
+                      handler.handle(
+                          new ResourceNode(
+                              SERIOUS_EXCEPTION,
+                              new ResourceCollectionException(
+                                  String.valueOf(event.cause().getMessage()),
+                                  StatusCode.INTERNAL_SERVER_ERROR)));
+                      return;
+                    }
                     HttpClientResponse cRes = event.result();
 
                     if (log.isTraceEnabled()) {
@@ -895,7 +914,8 @@ public class ExpansionHandler implements RuleChangesObserver {
                                     handler,
                                     data,
                                     eTag,
-                                    isStorageExpand(req));
+                                    isStorageExpand(removeParameters(targetUri))
+                                        || isStorageExpandParam(req));
                               } catch (ResourceCollectionException e) {
                                 if (log.isTraceEnabled()) {
                                   log.trace("handling collection failed with: {}", e.getMessage());
