@@ -766,6 +766,90 @@ public class ExpansionHandlerTest {
         }
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testInitialCollectionSendFailureEndsExpansionWithInternalServerError(TestContext context) throws InterruptedException {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            String failureMessage = "initial collection send failed";
+            CountDownLatch sendFailureDelivered = new CountDownLatch(1);
+            AtomicReference<RuntimeException> sendCallbackException = new AtomicReference<>();
+
+            HttpClientRequest initialRequest = Mockito.mock(HttpClientRequest.class);
+            when(initialRequest.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+            doAnswer(invocation -> {
+                Handler<AsyncResult<HttpClientResponse>> sendHandler = invocation.getArgument(0);
+                vertx.runOnContext(ignored -> {
+                    try {
+                        sendHandler.handle(Future.failedFuture(failureMessage));
+                    } catch (RuntimeException exception) {
+                        sendCallbackException.set(exception);
+                    } finally {
+                        sendFailureDelivered.countDown();
+                    }
+                });
+                return null;
+            }).when(initialRequest).send(any(Handler.class));
+            when(httpClient.request(eq(HttpMethod.GET), anyString()))
+                    .thenReturn(Future.succeededFuture(initialRequest));
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "1");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/", params, response));
+
+            context.assertTrue(sendFailureDelivered.await(2, TimeUnit.SECONDS),
+                    "the initial collection send failure should be delivered asynchronously");
+            context.assertNull(sendCallbackException.get(),
+                    "the initial collection send failure callback must not throw: " + sendCallbackException.get());
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.INTERNAL_SERVER_ERROR.getStatusCode());
+            verify(response, timeout(2000)).end(failureMessage);
+        } finally {
+            vertx.close();
+        }
+    }
+
+    @Test
+    public void testStorageExpandDepthLimitRejectsQueryBearingRequest(TestContext context) {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Rule storageExpandRule = new Rule();
+            storageExpandRule.setUrlPattern("/some/collection/");
+            storageExpandRule.setStorageExpand(true);
+            expansionHandler.rulesChanged(new ArrayList<>(List.of(storageExpandRule)));
+
+            HttpClientRequest rootRequest = successfulRequest(
+                    Buffer.buffer("{\"collection\":[\"a\"]}"));
+            when(httpClient.request(eq(HttpMethod.GET), anyString()))
+                    .thenReturn(Future.succeededFuture(rootRequest));
+            HttpClientRequest storageRequest = successfulRequest(Buffer.buffer("{\"a\":{}}"));
+            when(httpClient.request(eq(HttpMethod.POST), eq("/some/collection/?storageExpand=true")))
+                    .thenReturn(Future.succeededFuture(storageRequest));
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "2");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection/?expand=2", params, response));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            verify(response, timeout(2000))
+                    .end("Expand values higher than 1 are not supported for storageExpand requests");
+            verifyNoInteractions(httpClient);
+        } finally {
+            vertx.close();
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private HttpClientRequest successfulRequest(Buffer body) {
         HttpClientResponse cRes = Mockito.mock(HttpClientResponse.class);

@@ -467,7 +467,7 @@ public class ExpansionHandler implements RuleChangesObserver {
    * @return true if the resource should be expanded by storage
    */
   public boolean isStorageExpand(HttpServerRequest request) {
-    return isStorageExpand(request.uri()) || isStorageExpandParam(request);
+    return isStorageExpand(removeParameters(request.uri())) || isStorageExpandParam(request);
   }
 
   private boolean isStorageExpandParam(HttpServerRequest request) {
@@ -588,6 +588,14 @@ public class ExpansionHandler implements RuleChangesObserver {
 
               Handler<AsyncResult<HttpClientResponse>> resultHandler =
                   asyncResult -> {
+                    if (asyncResult.failed()) {
+                      log.warn("Failed send to {}: {}", targetUri, asyncResult.cause());
+                      if (req.response().ended() || req.response().headWritten()) {
+                        return;
+                      }
+                      respondInternalServerError(req, String.valueOf(asyncResult.cause().getMessage()));
+                      return;
+                    }
                     HttpClientResponse cRes = asyncResult.result();
                     HttpServerRequestUtil.prepareResponse(req, cRes);
 
