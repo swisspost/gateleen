@@ -55,7 +55,7 @@
         <cucumber.version>1.2.6</cucumber.version>
         <datumedge.version>0.3</datumedge.version>
         <glassfish-jdk.version>1.10</glassfish-jdk.version>
-        <guava.version>33.0.0-jre</guava.version>
+        <guava.version>33.7.1-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
         <log4j.version>2.17.2</log4j.version>
         <log4j-slf4j2.version>2.19.0</log4j-slf4j2.version>
