@@ -550,18 +550,26 @@ public class ExpansionHandler implements RuleChangesObserver {
       expandLevel = maxExpansionLevelSoft;
     }
 
-    if (isStorageExpand(req) && expandLevel > 1) {
-      respondBadRequest(
-          req, "Expand values higher than 1 are not supported for storageExpand requests");
-      return;
-    }
-
     // store the parameters for later use
     Set<String> originalParams = null;
     if (req.params() != null) {
       originalParams = req.params().names();
     }
     final Set<String> finalOriginalParams = originalParams;
+    boolean storageExpandParam = isStorageExpandParam(req);
+
+    String normalizedTargetUri =
+        ExpansionDeltaUtil.constructRequestUri(
+            req.path(),
+            MultiMap.caseInsensitiveMultiMap(),
+            null,
+            null,
+            SlashHandling.END_WITH_SLASH);
+    if ((isStorageExpand(normalizedTargetUri) || storageExpandParam) && expandLevel > 1) {
+      respondBadRequest(
+          req, "Expand values higher than 1 are not supported for storageExpand requests");
+      return;
+    }
 
     final String targetUri =
         ExpansionDeltaUtil.constructRequestUri(

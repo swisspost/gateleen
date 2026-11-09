@@ -850,6 +850,42 @@ public class ExpansionHandlerTest {
         }
     }
 
+    @Test
+    public void testStorageExpandDepthLimitRejectsQueryBearingRequestWithoutTrailingSlash(TestContext context) {
+        try {
+            expansionHandler = new ExpansionHandler(vertx, storage, httpClient, new HashMap<>(), ROOT, RULES_ROOT);
+
+            Rule storageExpandRule = new Rule();
+            storageExpandRule.setUrlPattern("/some/collection/");
+            storageExpandRule.setStorageExpand(true);
+            expansionHandler.rulesChanged(new ArrayList<>(List.of(storageExpandRule)));
+
+            HttpClientRequest rootRequest = successfulRequest(
+                    Buffer.buffer("{\"collection\":[\"a\"]}"));
+            when(httpClient.request(eq(HttpMethod.GET), anyString()))
+                    .thenReturn(Future.succeededFuture(rootRequest));
+            HttpClientRequest storageRequest = successfulRequest(Buffer.buffer("{\"a\":{}}"));
+            when(httpClient.request(eq(HttpMethod.POST), eq("/some/collection/?storageExpand=true")))
+                    .thenReturn(Future.succeededFuture(storageRequest));
+
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            params.set(EXPAND_PARAM, "2");
+            HttpServerResponse response = Mockito.mock(HttpServerResponse.class);
+            when(response.headers()).thenReturn(MultiMap.caseInsensitiveMultiMap());
+
+            expansionHandler.handleExpansionRecursion(
+                    new Request(HttpMethod.GET, "/some/collection?expand=2", params, response));
+
+            verify(response, timeout(2000))
+                    .setStatusCode(StatusCode.BAD_REQUEST.getStatusCode());
+            verify(response, timeout(2000))
+                    .end("Expand values higher than 1 are not supported for storageExpand requests");
+            verifyNoInteractions(httpClient);
+        } finally {
+            vertx.close();
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private HttpClientRequest successfulRequest(Buffer body) {
         HttpClientResponse cRes = Mockito.mock(HttpClientResponse.class);
@@ -883,7 +919,7 @@ public class ExpansionHandlerTest {
 
         List<Rule> rules = new ArrayList<>();
         Rule rule1 = new Rule();
-        rule1.setUrlPattern("/test/rules/rule/storageExpand");
+        rule1.setUrlPattern("/test/rules/rule/storageExpand/");
         rule1.setStorageExpand(true);
         rules.add(rule1);
         expansionHandler.rulesChanged(rules);

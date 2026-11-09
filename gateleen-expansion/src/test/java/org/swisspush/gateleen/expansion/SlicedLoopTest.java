@@ -1,11 +1,14 @@
 package org.swisspush.gateleen.expansion;
 
+import io.vertx.core.Context;
 import io.vertx.core.Vertx;
+import io.vertx.core.impl.VertxInternal;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
@@ -46,6 +49,51 @@ public class SlicedLoopTest {
               }
             })
         .resume();
+  }
+
+  @Test
+  public void runsEachLoopOnItsOwnContextWhenQueueIsShared(TestContext context) {
+    int loopCount = 4;
+    int elementsPerLoop = 5;
+    Async async = context.async(loopCount);
+    Vertx vertx = Vertx.vertx();
+    SlicedLoopFactory factory = new SlicedLoopFactory(new DeferredReactorEnqueue(vertx));
+    AtomicInteger foreignContextRuns = new AtomicInteger();
+
+    for (int i = 0; i < loopCount; i++) {
+      Context loopContext = ((VertxInternal) vertx).createEventLoopContext();
+      loopContext.runOnContext(
+          v ->
+              factory
+                  .slicedLoop(
+                      0,
+                      Integer.MAX_VALUE,
+                      "SlicedLoopTest",
+                      Collections.nCopies(elementsPerLoop, 0).iterator(),
+                      new SlicedLoop.Destination<Integer>() {
+                        @Override
+                        public void onNext(Integer element) {
+                          if (Vertx.currentContext() != loopContext) {
+                            foreignContextRuns.incrementAndGet();
+                          }
+                        }
+
+                        @Override
+                        public void onEnd() {
+                          async.countDown();
+                        }
+
+                        @Override
+                        public void onError(RuntimeException error) {
+                          context.fail(error);
+                        }
+                      })
+                  .resume());
+    }
+
+    async.awaitSuccess(10000);
+    context.assertEquals(0, foreignContextRuns.get());
+    vertx.close();
   }
 
   @Test

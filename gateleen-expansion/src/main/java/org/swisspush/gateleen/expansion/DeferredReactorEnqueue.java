@@ -3,6 +3,7 @@ package org.swisspush.gateleen.expansion;
 import static java.lang.Math.max;
 import static java.lang.System.nanoTime;
 
+import io.vertx.core.Context;
 import io.vertx.core.Vertx;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -14,7 +15,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Spreads work submitted by {@link SlicedLoop} over the Vert.x event queue.
  *
- * <p>Use one instance per Vert.x event queue so separate loops share the same enqueue limit.
+ * <p>One instance may be shared across Vert.x contexts so separate loops share the same enqueue
+ * limit. Each task runs on the Vert.x context that enqueued it.
  */
 public class DeferredReactorEnqueue {
 
@@ -22,7 +24,7 @@ public class DeferredReactorEnqueue {
   private static final Logger log = LoggerFactory.getLogger(DeferredReactorEnqueue.class);
   private final Vertx vertx;
   private final AtomicInteger enqueuedTaskCount = new AtomicInteger();
-  private final Queue<Runnable> queuedTasks = new ArrayDeque<>();
+  private final Queue<QueuedTask> queuedTasks = new ArrayDeque<>();
   private final AtomicLong averageDurationNs = new AtomicLong(10_000_000);
 
   public DeferredReactorEnqueue(Vertx vertx) {
@@ -36,8 +38,12 @@ public class DeferredReactorEnqueue {
   }
 
   public void enqueue(Runnable task) {
+    Context context = Vertx.currentContext();
+    if (context == null) {
+      context = vertx.getOrCreateContext();
+    }
     synchronized (queuedTasks) {
-      queuedTasks.add(task);
+      queuedTasks.add(new QueuedTask(context, task));
     }
     tryNext();
   }
@@ -50,7 +56,7 @@ public class DeferredReactorEnqueue {
       return;
     }
 
-    Runnable nextTask;
+    QueuedTask nextTask;
     synchronized (queuedTasks) {
       nextTask = queuedTasks.poll();
     }
@@ -59,13 +65,23 @@ public class DeferredReactorEnqueue {
     }
 
     enqueuedTaskCount.incrementAndGet();
+    long delayMs = max(16, averageDurationNs.get() / 1_000_000);
+    // tryNext() may run on another loop's context; the task must run on the context that queued it.
+    if (Vertx.currentContext() == nextTask.context) {
+      startTimer(nextTask, delayMs);
+    } else {
+      nextTask.context.runOnContext(v -> startTimer(nextTask, delayMs));
+    }
+  }
+
+  private void startTimer(QueuedTask queuedTask, long delayMs) {
     vertx.setTimer(
-        max(16, averageDurationNs.get() / 1_000_000),
+        delayMs,
         timerId -> {
           enqueuedTaskCount.decrementAndGet();
           long startNs = nanoTime();
           try {
-            nextTask.run();
+            queuedTask.task.run();
           } finally {
             updateAverageDuration(Math.abs(nanoTime() - startNs));
             tryNext();
@@ -87,6 +103,16 @@ public class DeferredReactorEnqueue {
       log.debug("Task took {} ns", durationNs);
     } else {
       log.trace("Task took {} ns", durationNs);
+    }
+  }
+
+  private static final class QueuedTask {
+    private final Context context;
+    private final Runnable task;
+
+    private QueuedTask(Context context, Runnable task) {
+      this.context = context;
+      this.task = task;
     }
   }
 }
