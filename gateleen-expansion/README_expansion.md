@@ -95,7 +95,9 @@ Additional information:
 * If the collection actually is not a collection, 400 "Request did not return data. Invalid usage of params expand ?" is returned.
 * If the collection contains NON-Json Resources OR if a Json Resource is malformed, 500 "Errors found in resources:" with a list of the problematic resources is returned. 
 * If the number of allowed sub requests exceeds the given limit, 400 "Number of allowed sub requests exceeded. Limit is x requests" is returned. 
+* If a sub request of a (standard) expansion fails unexpectedly, the expansion is aborted and a 500 response with the error message is returned. Sub requests which are not yet issued at that point are skipped; requests which are already in flight are not cancelled, but their results are discarded.
 
+Large collections are expanded in short slices, which yield the event loop between slices, so expanding big collections does not block other requests.
 #### Expand on Backend
 If you want that the backend expands the request and not gateleen, you can set the attribute:
 > expandOnBackend=true
@@ -106,7 +108,10 @@ in the corresponding routing rule.
 If you want to use the StorageExpand feature, you can set the attribute:
 > storageExpand=true
 
-in the corresponding routing rule. The StorageExpand feature does expand directly in the storage, so it is faster than the "standard" expansion feature.
+in the corresponding routing rule. Alternatively, StorageExpand can be requested per request with the query parameter:
+> http://<url>/collection?expand=1&storageExpand=true
+
+The StorageExpand feature does expand directly in the storage, so it is faster than the "standard" expansion feature.
 > <font color="orange">Attention: </font> Be aware that the depth is limited to 1 by now, regardless of the _max.expansion.level.hard_ value.
 
 > <font color="orange">Attention: </font> You must allow the POST method (in the acls) for the urls you want to use with the StorageExpand feature!
