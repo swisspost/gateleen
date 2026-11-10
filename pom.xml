@@ -65,7 +65,7 @@
         <jmte.version>7.0.2</jmte.version>
         <jolt.version>0.1.1</jolt.version>
         <junit.version>4.13.2</junit.version>
-        <json.version>20231013</json.version>
+        <json.version>20260719</json.version>
         <json-smart.version>2.4.10</json-smart.version>
         <joda.version>2.12.6</joda.version>
         <jsonpath.version>2.9.0</jsonpath.version>
