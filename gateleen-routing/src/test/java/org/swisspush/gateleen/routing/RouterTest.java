@@ -1077,6 +1077,13 @@ public class RouterTest {
 
     private DummyHttpServerRequest buildRequest(HttpMethod method, String uri, MultiMap headers, Buffer body, DummyHttpServerResponse response) {
         return new DummyHttpServerRequest() {
+            private boolean ended;
+
+            @Override
+            public boolean isEnded() {
+                return ended;
+            }
+
             @Override
             public HttpMethod method() {
                 return method;
@@ -1109,6 +1116,7 @@ public class RouterTest {
 
             @Override
             public HttpServerRequest bodyHandler(Handler<Buffer> bodyHandler) {
+                ended = true;
                 bodyHandler.handle(body);
                 return this;
             }
@@ -1121,6 +1129,7 @@ public class RouterTest {
 
             @Override
             public HttpServerRequest endHandler(Handler<Void> endHandler) {
+                ended = true;
                 endHandler.handle(null);
                 return this;
             }
