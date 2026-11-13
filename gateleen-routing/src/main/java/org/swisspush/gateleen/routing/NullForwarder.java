@@ -2,8 +2,8 @@ package org.swisspush.gateleen.routing;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.http.HttpServerResponse;
 
@@ -11,7 +11,6 @@ import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.ext.web.RoutingContext;
 import org.slf4j.Logger;
 import org.swisspush.gateleen.core.http.HeaderFunctions;
-import org.swisspush.gateleen.core.http.HttpRequest;
 import org.swisspush.gateleen.core.http.RequestLoggerFactory;
 import org.swisspush.gateleen.core.util.StatusCode;
 import org.swisspush.gateleen.logging.LogAppenderRepository;
@@ -92,8 +91,6 @@ public class NullForwarder extends AbstractForwarder {
             return;
         }
 
-        final Buffer header = Buffer.buffer(new HttpRequest(ctx.request().method(), ctx.request().uri(), requestHeaders, null).toJsonObject().encode());
-
         int statusCode = StatusCode.OK.getStatusCode();
         String statusMessage = StatusCode.OK.getStatusMessage();
 
@@ -106,14 +103,24 @@ public class NullForwarder extends AbstractForwarder {
         ctx.response().setStatusMessage(statusMessage);
         ctx.response().headers().add("Content-Length", "0");
 
+        final Handler<Void> completionHandler = event -> {
+            MultiMap responseHeaders = ctx.response().headers();
+            loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage, requestHeaders,
+                    responseHeaders != null ? responseHeaders : new HeadersMultiMap());
+            ctx.response().end();
+        };
+
+        // Registering handlers on an ended request throws and can corrupt keep-alive response framing.
+        // Complete directly if an earlier handler has already consumed the request.
+        if (ctx.request().isEnded()) {
+            completionHandler.handle(null);
+            return;
+        }
+
         ctx.request().handler(buffer -> {
             loggingHandler.appendRequestPayload(buffer, requestHeaders);
         });
 
-        ctx.request().endHandler(event -> {
-            MultiMap responseHeaders = ctx.response().headers();
-            loggingHandler.log(ctx.request().uri(), ctx.request().method(), statusCode, statusMessage, requestHeaders, responseHeaders != null ? responseHeaders : new HeadersMultiMap());
-            ctx.response().end();
-        });
+        ctx.request().endHandler(completionHandler);
     }
 }
