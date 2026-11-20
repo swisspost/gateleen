@@ -118,7 +118,6 @@ public class Forwarder extends AbstractForwarder {
     private static final int STATUS_CODE_2XX = 2;
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
-    private static AtomicInteger nextErrorId = new AtomicInteger();
     private static final Pattern DUPLICATE_SLASH_PATTERN = Pattern.compile("/+");
 
     /**
@@ -242,31 +241,10 @@ public class Forwarder extends AbstractForwarder {
      * @see #fullUrl
      */
     static String buildTargetUri(Pattern urlPattern, String requestUri, String rulePath, boolean fullUrl) {
-        String targetUri = fullUrl
-                ? rulePath
-                : urlPattern.matcher(requestUri).replaceFirst(rulePath);
-        return normalizePathSlashes(targetUri);
-    }
-
-    /**
-     * Normalizes consecutive slashes ({@code //}, {@code ///}, etc.) to a single slash in the path
-     * component of a URI while preserving the query string (everything from {@code ?} onwards)
-     * untouched so that URLs passed inside query parameters (e.g. {@code ?redirect_uri=https://example.com})
-     * are not corrupted.
-     *
-     * @param uri the URI (path with optional query string)
-     * @return the URI with consecutive slashes collapsed in the path component only
-     */
-    static String normalizePathSlashes(String uri) {
-        if (uri == null || uri.isEmpty()) {
-            return uri;
+        if (fullUrl) {
+            return rulePath.replaceAll("\\/\\/", "/");
         }
-        int queryIndex = uri.indexOf('?');
-        if (queryIndex >= 0) {
-            return DUPLICATE_SLASH_PATTERN.matcher(uri.substring(0, queryIndex)).replaceAll("/")
-                    + uri.substring(queryIndex);
-        }
-        return DUPLICATE_SLASH_PATTERN.matcher(uri).replaceAll("/");
+        return urlPattern.matcher(requestUri).replaceFirst(rulePath).replaceAll("\\/\\/", "/");
     }
 
     /**
