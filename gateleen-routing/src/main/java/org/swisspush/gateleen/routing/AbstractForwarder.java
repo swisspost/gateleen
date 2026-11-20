@@ -15,6 +15,8 @@ import org.swisspush.gateleen.logging.LogAppenderRepository;
 import org.swisspush.gateleen.logging.LoggingResourceManager;
 import org.swisspush.gateleen.monitoring.MonitoringHandler;
 
+import java.util.UUID;
+
 public abstract class AbstractForwarder implements Handler<RoutingContext> {
 
     protected final Rule rule;
@@ -58,6 +60,14 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
     }
 
     protected void respondError(HttpServerRequest req, StatusCode statusCode) {
+        respondError(req, statusCode, null);
+    }
+
+    /**
+     * Responds with the given error status. If an {@code errorId} is given, it is appended to the response body
+     * and logged together with the request uri, so the client-visible error can be found in the logs.
+     */
+    protected void respondError(HttpServerRequest req, StatusCode statusCode, @Nullable String errorId) {
         Logger log = null;
         try {
             ResponseStatusCodeLogUtil.info(req, statusCode, getClass());
@@ -68,15 +78,30 @@ public abstract class AbstractForwarder implements Handler<RoutingContext> {
                 log = (log != null) ? log : RequestLoggerFactory.getLogger(AbstractForwarder.class, req);
                 log.warn("Response already sent. Cannot send: HTTP {} {}", statusCode, msg);
             } else {
+                if (errorId != null) {
+                    log = (log != null) ? log : RequestLoggerFactory.getLogger(AbstractForwarder.class, req);
+                    log.warn("[{}] Responding HTTP {} {} for {} {}", errorId, statusCode.getStatusCode(), msg, req.method(), req.uri());
+                }
                 rsp.setStatusCode(statusCode.getStatusCode());
                 rsp.setStatusMessage(msg);
-                rsp.end(msg);
+                rsp.end(errorId != null ? withErrorId(msg, errorId) : msg);
             }
         } catch (IllegalStateException ex) {
             // (nearly) ignore because underlying connection maybe already closed
             log = (log != null) ? log : RequestLoggerFactory.getLogger(AbstractForwarder.class, req);
             log.warn("IllegalStateException while sending error response for {}", req.uri(), ex);
         }
+    }
+
+    /**
+     * Creates a random id to correlate the error text sent to the client with the matching server log entry.
+     */
+    protected static String newErrorId() {
+        return "ERR-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+    }
+
+    protected static String withErrorId(String message, String errorId) {
+        return message + " (errorId: " + errorId + ")";
     }
 
     protected String getRequestTarget(String target) {

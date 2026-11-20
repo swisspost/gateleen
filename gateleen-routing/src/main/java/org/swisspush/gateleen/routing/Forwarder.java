@@ -49,7 +49,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -118,7 +117,6 @@ public class Forwarder extends AbstractForwarder {
     private static final int STATUS_CODE_2XX = 2;
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
-    private static AtomicInteger nextErrorId = new AtomicInteger();
 
     /**
      * Retry settings snapshotted at construction. Local rules never retry themselves: they only
@@ -490,11 +488,11 @@ public class Forwarder extends AbstractForwarder {
                 rule.setHost(host);
             } catch (NumberFormatException ex) {
                 log.error("Could not extract string value from wildcard {}. Got {}", rule.getHostWildcard(), host);
-                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR, newErrorId());
                 return;
             } catch (IndexOutOfBoundsException ex) {
                 log.error("No group could be found for wildcard {}", rule.getHostWildcard());
-                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR, newErrorId());
                 return;
             }
         } else {
@@ -510,11 +508,11 @@ public class Forwarder extends AbstractForwarder {
                 port = Integer.parseInt(dynamicPortStr);
             } catch (NumberFormatException ex) {
                 log.error("Could not extract a numeric value from wildcard {}. Got {}", rule.getPortWildcard(), dynamicPortStr);
-                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR, newErrorId());
                 return;
             } catch (IndexOutOfBoundsException ex) {
                 log.error("No group could be found for wildcard {}", rule.getPortWildcard());
-                respondError(req, StatusCode.INTERNAL_SERVER_ERROR);
+                respondError(req, StatusCode.INTERNAL_SERVER_ERROR, newErrorId());
                 return;
             }
         } else {
@@ -699,7 +697,7 @@ public class Forwarder extends AbstractForwarder {
             // A partially streamed response cannot be replaced with an HTTP error.
             response.close();
         } else {
-            respondError(ctx.dnReq, ctx.upReq == null ? StatusCode.TIMEOUT : BAD_GATEWAY);
+            respondError(ctx.dnReq, ctx.upReq == null ? StatusCode.TIMEOUT : BAD_GATEWAY, newErrorId());
         }
         if (ctx.upReq != null) {
             ctx.upReq.reset(0);
@@ -876,7 +874,7 @@ public class Forwarder extends AbstractForwarder {
                         if (!logRetryOutcome(ctx, StatusCode.TIMEOUT.getStatusCode(), "Timeout waiting for connection pool")) {
                             error("Timeout waiting for connection pool", ctx);
                         }
-                        respondError(ctx.dnReq, StatusCode.TIMEOUT);
+                        respondError(ctx.dnReq, StatusCode.TIMEOUT, newErrorId());
                     }
                 })
                 : -1;
@@ -893,7 +891,7 @@ public class Forwarder extends AbstractForwarder {
             }
             vertx.cancelTimer(poolWaitTimerId);
             if (ev.failed()) {
-                ctx.log.warn("Problem to request {}: {}", ctx.targetUri, ev.cause());
+                ctx.log.warn("Problem to request {}://{}{}: {}", rule.getScheme(), ctx.upstream.target, ctx.targetUri, ev.cause());
                 // No connection was established (refused, DNS, connect timeout), so the backend
                 // cannot have received the request: treat it as an upstream failure.
                 if (mayRetry(ctx, retryPolicy.maxAttemptsForUpstreamFailure(ctx.dnReq.headers(), ctx.log))) {
@@ -904,7 +902,10 @@ public class Forwarder extends AbstractForwarder {
                     return;
                 }
                 finishRequest(ctx, SERVICE_UNAVAILABLE.getStatusCode(), "Problem to request: " + ev.cause());
-                tryRespondWithServiceUnavailable(ctx.dnReq.response(), ctx.log, "findme_48hj349lgnt8j");
+                final String errorId = newErrorId();
+                ctx.log.warn("[{}] Responding 503 for {}://{}{}: {}", errorId, rule.getScheme(), ctx.upstream.target, ctx.targetUri, ev.cause().getMessage());
+                tryRespondWithServiceUnavailable(ctx.dnReq.response(), ctx.log,
+                        withErrorId("Service unavailable: failed to obtain connection or send request to upstream", errorId));
                 ctx.dnReq.resume();
                 return;
             }
@@ -1039,11 +1040,12 @@ public class Forwarder extends AbstractForwarder {
              * (If it is reached, GO FIX THE METHOD WE CALL ABOVE!) This is our
              * last-resort/best-effort handler, to hopefully have some better error
              * logs than just "Connection was closed" without any context. */
-            String dbgHint = "findme_qh398338h9ut";
-            ctx.log.warn("{}: {}: {}, {} -fwd-> {}", dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(),
+            String dbgHint = "Unhandled exception while handling the upstream request completion";
+            final String errorId = newErrorId();
+            ctx.log.warn("[{}] {}: {}: {}, {} -fwd-> {}", errorId, dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(),
                     ctx.targetUri, ctx.log.isDebugEnabled() ? ex : null);
             if (finishRequest(ctx, INTERNAL_SERVER_ERROR.getStatusCode(), dbgHint + ": " + ex.getMessage())) {
-                tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, dbgHint);
+                tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, withErrorId(dbgHint, errorId));
             }
         }
     }
@@ -1093,7 +1095,7 @@ public class Forwarder extends AbstractForwarder {
                                 ctx.targetUri);
                         ctx.dnReq.response().close();
                     } else {
-                        respondError(ctx.dnReq, ex instanceof TimeoutException ? StatusCode.TIMEOUT : SERVICE_UNAVAILABLE);
+                        respondError(ctx.dnReq, ex instanceof TimeoutException ? StatusCode.TIMEOUT : SERVICE_UNAVAILABLE, newErrorId());
                     }
                     upstreamRequest.reset(0);
                 }
@@ -1134,11 +1136,14 @@ public class Forwarder extends AbstractForwarder {
                 if (finishRequest(ctx, BAD_GATEWAY.getStatusCode(), "Bad upstream response: " + ev.cause().getMessage())) {
                     attemptFailedFinally.set(true);
                     logRequestFailure.run();
-                    tryRespondWithBadGateway(ctx.dnReq.response(), ctx.log, "findme_49ot58h0inrnu3985h");
+                    final String errorId = newErrorId();
+                    ctx.log.warn("[{}] Responding 502 for {}://{}{}: {}", errorId, rule.getScheme(), ctx.upstream.target, ctx.targetUri, ev.cause().getMessage());
+                    tryRespondWithBadGateway(ctx.dnReq.response(), ctx.log,
+                            withErrorId("Bad gateway: failed to receive a valid upstream response", errorId));
                 }
                 return;
             }
-            onUpstreamResponseNoThrow(ev.result(), ctx, "findme_3q908hjq98t");
+            onUpstreamResponseNoThrow(ev.result(), ctx, "Unhandled exception while processing the upstream response");
         });
 
         // Retry-enabled requests use their remaining deadline; ordinary requests get a fresh
@@ -1200,7 +1205,7 @@ public class Forwarder extends AbstractForwarder {
             // But still it's allowed - so they 'could' have one. So using http-method to decide "chunked or not" is also not a sustainable solution.
             //
             // --> we need to wrap the client-Request to catch up the first (body)-buffer and "setChucked(true)" in advance and just-in-time.
-            AutomaticChunkedRequestTransfer cReqWrapped = new AutomaticChunkedRequestTransfer(vertx, ctx.upReq, "findme_oi8hju30895jh3itj");
+            AutomaticChunkedRequestTransfer cReqWrapped = new AutomaticChunkedRequestTransfer(vertx, ctx.upReq, "Chunked transfer of the upstream request");
 
             ctx.dnReq.exceptionHandler(t -> {
                 ctx.log.info("Exception during forwarding - closing (forwarding) client connection", t);
@@ -1242,11 +1247,12 @@ public class Forwarder extends AbstractForwarder {
              * (If it is reached, GO FIX THE METHOD WE CALL ABOVE!) This is our
              * last-resort/best-effort handler, to hopefully have some better error
              * logs than just "Connection was closed" without any context. */
-            ctx.log.warn("findme_bnte4jsfdgj: {}: {}: {}, {} -fwd-> {}",
-                    dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(), ctx.targetUri,
+            final String errorId = newErrorId();
+            ctx.log.warn("[{}] {}: {}: {}, {} -fwd-> {}",
+                    errorId, dbgHint, ex.getMessage(), ctx.uniqueId, ctx.dnReq.path(), ctx.targetUri,
                     ctx.log.isDebugEnabled() ? ex : null);
             if (finishRequest(ctx, INTERNAL_SERVER_ERROR.getStatusCode(), dbgHint + ": " + ex.getMessage())) {
-                tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, dbgHint);
+                tryRespondWithInternalServerError(ctx.dnReq.response(), ctx.log, withErrorId(dbgHint, errorId));
             }
         }
     }
@@ -1276,8 +1282,9 @@ public class Forwarder extends AbstractForwarder {
             rsp.exceptionHandler(ex -> {
                 if (completed.compareAndSet(false, true)
                         && finishRequest(ctx, BAD_GATEWAY.getStatusCode(), "Failed to drain retryable HTTP " + rsp.statusCode() + " response: " + ex.getMessage())) {
-                    ctx.log.warn("Failed to drain retryable upstream response for {}", ctx.targetUri, ex);
-                    tryRespondWithBadGateway(ctx.dnReq.response(), ctx.log, "Failed to drain retryable response");
+                    final String errorId = newErrorId();
+                    ctx.log.warn("[{}] Failed to drain retryable upstream response for {}", errorId, ctx.targetUri, ex);
+                    tryRespondWithBadGateway(ctx.dnReq.response(), ctx.log, withErrorId("Failed to drain retryable response", errorId));
                 }
             });
             rsp.endHandler(retry);
@@ -1342,7 +1349,7 @@ public class Forwarder extends AbstractForwarder {
             ctx.log.warn("Unsupported transfer encoding from '{}': {}", ctx.targetUri, transferEncodings);
             ctx.upRes.resume();
             finishRequest(ctx, BAD_GATEWAY.getStatusCode(), "Unsupported transfer encoding " + transferEncodings);
-            respondError(ctx.dnReq, BAD_GATEWAY);
+            respondError(ctx.dnReq, BAD_GATEWAY, newErrorId());
             return;
         }
         // Do not forward transfer framing. Enable chunked encoding only if the upstream
@@ -1356,7 +1363,7 @@ public class Forwarder extends AbstractForwarder {
         ctx.dnRsp.headers().remove(HttpHeaders.TRANSFER_ENCODING);
 
         final LoggingWriteStream loggingWriteStream = new LoggingWriteStream(
-                new AutomaticChunkedResponseTransfer(ctx.dnRsp, upstreamResponseIsChunked, "findme_ohv8oh3q9ohj3q"),
+                new AutomaticChunkedResponseTransfer(ctx.dnRsp, upstreamResponseIsChunked, "Chunked transfer of the downstream response"),
                 ctx.loggingHandler,
                 false);
         final Pump pump = Pump.pump(ctx.upRes, loggingWriteStream);
@@ -1365,7 +1372,7 @@ public class Forwarder extends AbstractForwarder {
         } catch (IllegalStateException ex) {
             ctx.log.warn("cRes.endHandler() failed", ex);
             finishRequest(ctx, INTERNAL_SERVER_ERROR.getStatusCode(), "cRes.endHandler() failed: " + ex.getMessage());
-            respondError(ctx.dnReq, INTERNAL_SERVER_ERROR);
+                        respondError(ctx.dnReq, INTERNAL_SERVER_ERROR, newErrorId());
             return;
         }
         // The backend response is accepted and will be streamed: complete the metrics now with the
@@ -1395,12 +1402,12 @@ public class Forwarder extends AbstractForwarder {
                 return;
             }
             LOG.warn("Failed to read upstream response for '{} {}'", ctx.dnReq.method(), ctx.targetUri, exception);
-            unpump.accept("findme_nbroih3to9hj");
+            unpump.accept("Unpump after failure to read the upstream response");
             error("Problem with backend: " + exception.getMessage(), ctx);
             if (isResponseStarted(ctx)) {
                 ctx.dnReq.response().close();
             } else {
-                respondError(ctx.dnReq, INTERNAL_SERVER_ERROR);
+                respondError(ctx.dnReq, INTERNAL_SERVER_ERROR, newErrorId());
             }
         });
 
@@ -1412,7 +1419,7 @@ public class Forwarder extends AbstractForwarder {
                 // Set before finishing, so a concurrently completing response end sees it.
                 ctx.finishedByClientClose = !ctx.finished.get();
                 finishRequest(ctx, ctx.upRes.statusCode(), "Client connection closed before the response was completed");
-                unpump.accept("findme_boiuhjoq3uh98r");
+                unpump.accept("Unpump after the client connection was closed");
             });
         } else {
             ctx.log.warn("TODO No way to call 'unpump.run()' in the right moment. As there seems"
@@ -1447,7 +1454,7 @@ public class Forwarder extends AbstractForwarder {
             }
             ResponseStatusCodeLogUtil.debug(ctx.dnReq, StatusCode.fromCode(ctx.dnRsp.getStatusCode()), Forwarder.class);
         } catch (IllegalStateException ex) {
-            ctx.log.debug("findme_q3985hjg3: ignore because maybe already closed: {}", ctx.dnReq.path(), ex);
+            ctx.log.debug("Ignoring IllegalStateException because the downstream response may already be closed: {}", ctx.dnReq.path(), ex);
         }
     }
 
@@ -1464,7 +1471,7 @@ public class Forwarder extends AbstractForwarder {
     }
 
     private void onUpstreamError(Throwable exOrig, HttpServerRequest dwnstrmReq, Supplier<String> getUpstreamRequestUri) {
-        String errorId = "error_aeuthaeower_" + nextErrorId.getAndIncrement();
+        String errorId = newErrorId();
         String upstrmReqUri;
         try {
             upstrmReqUri = getUpstreamRequestUri.get();
