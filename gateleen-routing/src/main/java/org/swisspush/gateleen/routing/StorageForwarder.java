@@ -103,7 +103,7 @@ public class StorageForwarder extends AbstractForwarder {
     @Override
     public void handle(final RoutingContext ctx) {
         final LoggingHandler loggingHandler = new LoggingHandler(loggingResourceManager, logAppenderRepository, ctx.request(), this.eventBus);
-        final String targetUri = urlPattern.matcher(ctx.request().uri()).replaceAll(rule.getPath()).replaceAll("\\/\\/", "/");
+        final String targetUri = Forwarder.normalizePathSlashes(urlPattern.matcher(ctx.request().uri()).replaceAll(rule.getPath()));
         final Logger log = RequestLoggerFactory.getLogger(StorageForwarder.class, ctx.request());
 
         if (rule.hasHeadersFilterPattern() && !doHeadersFilterMatch(ctx.request())) {
