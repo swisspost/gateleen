@@ -321,4 +321,18 @@ public class ForwarderTest {
         Assert.assertEquals("/backend/service/resource", withExplicitFalse);
     }
 
+    @Test
+    public void testTargetUriConstruction_PreservesDoubleSlashesInQueryParameters() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service/";
+        String requestUri = "/api/gateway/oauth/authorize?redirect_uri=https://oauth-redirect.googleusercontent.com/r/project&state=123";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals(
+                "/backend/service/oauth/authorize?redirect_uri=https://oauth-redirect.googleusercontent.com/r/project&state=123",
+                targetUri
+        );
+    }
+
 }

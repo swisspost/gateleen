@@ -241,10 +241,26 @@ public class Forwarder extends AbstractForwarder {
      * @see #fullUrl
      */
     static String buildTargetUri(Pattern urlPattern, String requestUri, String rulePath, boolean fullUrl) {
-        if (fullUrl) {
-            return rulePath.replaceAll("\\/\\/", "/");
+        String targetUri = fullUrl
+                ? rulePath
+                : urlPattern.matcher(requestUri).replaceFirst(rulePath);
+        return normalizePathSlashes(targetUri);
+    }
+
+    /**
+     * Normalizes duplicate slashes ({@code //}) to single slashes in the path component of a URI
+     * while preserving the query string (everything from {@code ?} onwards) untouched so that URLs
+     * passed inside query parameters (e.g. {@code ?redirect_uri=https://example.com}) are not corrupted.
+     *
+     * @param uri the URI (path with optional query string)
+     * @return the URI with duplicate slashes collapsed in the path component only
+     */
+    static String normalizePathSlashes(String uri) {
+        int queryIndex = uri.indexOf('?');
+        if (queryIndex >= 0) {
+            return uri.substring(0, queryIndex).replaceAll("\\/\\/", "/") + uri.substring(queryIndex);
         }
-        return urlPattern.matcher(requestUri).replaceFirst(rulePath).replaceAll("\\/\\/", "/");
+        return uri.replaceAll("\\/\\/", "/");
     }
 
     /**
