@@ -119,6 +119,7 @@ public class Forwarder extends AbstractForwarder {
 
     private static final Logger LOG = LoggerFactory.getLogger(Forwarder.class);
     private static AtomicInteger nextErrorId = new AtomicInteger();
+    private static final Pattern DUPLICATE_SLASH_PATTERN = Pattern.compile("/+");
 
     /**
      * Retry settings snapshotted at construction. Local rules never retry themselves: they only
@@ -248,19 +249,24 @@ public class Forwarder extends AbstractForwarder {
     }
 
     /**
-     * Normalizes duplicate slashes ({@code //}) to single slashes in the path component of a URI
-     * while preserving the query string (everything from {@code ?} onwards) untouched so that URLs
-     * passed inside query parameters (e.g. {@code ?redirect_uri=https://example.com}) are not corrupted.
+     * Normalizes consecutive slashes ({@code //}, {@code ///}, etc.) to a single slash in the path
+     * component of a URI while preserving the query string (everything from {@code ?} onwards)
+     * untouched so that URLs passed inside query parameters (e.g. {@code ?redirect_uri=https://example.com})
+     * are not corrupted.
      *
      * @param uri the URI (path with optional query string)
-     * @return the URI with duplicate slashes collapsed in the path component only
+     * @return the URI with consecutive slashes collapsed in the path component only
      */
     static String normalizePathSlashes(String uri) {
+        if (uri == null || uri.isEmpty()) {
+            return uri;
+        }
         int queryIndex = uri.indexOf('?');
         if (queryIndex >= 0) {
-            return uri.substring(0, queryIndex).replaceAll("\\/\\/", "/") + uri.substring(queryIndex);
+            return DUPLICATE_SLASH_PATTERN.matcher(uri.substring(0, queryIndex)).replaceAll("/")
+                    + uri.substring(queryIndex);
         }
-        return uri.replaceAll("\\/\\/", "/");
+        return DUPLICATE_SLASH_PATTERN.matcher(uri).replaceAll("/");
     }
 
     /**
