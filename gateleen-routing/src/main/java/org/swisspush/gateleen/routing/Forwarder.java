@@ -526,7 +526,7 @@ public class Forwarder extends AbstractForwarder {
             monitoringHandler.updateRequestPerRuleMonitoring(req, rule.getMetricName());
         }
         final String targetUri = buildTargetUri(urlPattern, req.uri(), rule.getPath(), fullUrl);
-        log.debug("Forwarding request: {} to {}://{} with rule {}", req.uri(), rule.getScheme(), target + targetUri, rule.getRuleIdentifier());
+        log.debug("Forwarding {} request: {} to {}://{} with rule {}", req.method(), req.uri(), rule.getScheme(), target + targetUri, rule.getRuleIdentifier());
         final String userId = extractUserId(req, log);
         req.pause(); // pause the request to avoid problems with starting another async request (storage)
 
