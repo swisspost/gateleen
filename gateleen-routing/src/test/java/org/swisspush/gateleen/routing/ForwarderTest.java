@@ -321,4 +321,35 @@ public class ForwarderTest {
         Assert.assertEquals("/backend/service/resource", withExplicitFalse);
     }
 
+    @Test
+    public void testTargetUriConstruction_PreservesDoubleSlashesInQueryParameters() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend/service/";
+        String requestUri = "/api/gateway/oauth/authorize?redirect_uri=https://oauth-redirect.googleusercontent.com/r/project&state=123";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+
+        Assert.assertEquals(
+                "/backend/service/oauth/authorize?redirect_uri=https://oauth-redirect.googleusercontent.com/r/project&state=123",
+                targetUri
+        );
+    }
+
+    @Test
+    public void testTargetUriConstruction_TripleSlashesInPathAndQueryAtBeginning() {
+        Pattern urlPattern = Pattern.compile("/api/gateway");
+        String destinationPath = "/backend//service/";
+        String requestUri = "/api/gateway//resource?callback=https://example.com//hook";
+
+        String targetUri = Forwarder.buildTargetUri(urlPattern, requestUri, destinationPath);
+        Assert.assertEquals("/backend/service/resource?callback=https://example.com//hook", targetUri);
+
+        // Edge case: query string starts at index 0 after prefix stripping
+        String queryOnly = Forwarder.buildTargetUri(urlPattern, "/api/gateway?redirect_uri=https://example.com", "");
+        Assert.assertEquals("?redirect_uri=https://example.com", queryOnly);
+
+        Assert.assertNull(Forwarder.normalizePathSlashes(null));
+        Assert.assertEquals("", Forwarder.normalizePathSlashes(""));
+    }
+
 }
