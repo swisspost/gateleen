@@ -255,11 +255,15 @@ public class Forwarder extends AbstractForwarder {
      * @return the URI with duplicate slashes collapsed in the path component only
      */
     static String normalizePathSlashes(String uri) {
+        if (uri == null || uri.isEmpty()) {
+            return uri;
+        }
         int queryIndex = uri.indexOf('?');
         if (queryIndex >= 0) {
-            return uri.substring(0, queryIndex).replaceAll("\\/\\/", "/") + uri.substring(queryIndex);
+            return DUPLICATE_SLASH_PATTERN.matcher(uri.substring(0, queryIndex)).replaceAll("/")
+                    + uri.substring(queryIndex);
         }
-        return uri.replaceAll("\\/\\/", "/");
+        return DUPLICATE_SLASH_PATTERN.matcher(uri).replaceAll("/");
     }
 
     /**
